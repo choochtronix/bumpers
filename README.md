@@ -17,6 +17,7 @@ This first build is a static desktop web app prototype. It includes:
 - A mock connector dataset shaped like future live connector output
 - Live Yahoo Auctions, Digimart, and OFFMALL connector support when run through the local server
 - Local listing discovery tracking for future alert workflows
+- Gear confidence scoring to keep Yahoo records, books, clothing, and other marketplace noise out of Clean Gear results
 
 ## Open The App
 

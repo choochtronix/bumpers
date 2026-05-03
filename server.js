@@ -271,6 +271,8 @@ function parseYahooAuctions(html) {
     const image = normalizeUrl(readAttribute(block, "data-auction-img"), YAHOO_AUCTIONS_BASE_URL);
     const price = Number(readAttribute(block, "data-auction-price") || "0");
     const href = normalizeUrl(matchOne(block, /href="([^"]*\/jp\/auction\/[^"]+)"/), YAHOO_AUCTIONS_BASE_URL);
+    const categoryId = readAttribute(block, "data-auction-category");
+    const categoryPath = splitCategoryPath(readAttribute(block, "data-auction-categoryidpath"));
     const startTime = Number(matchOne(block, /st:(\d+)/)) || Number(matchOne(block, /stm=(\d+)/));
     const endTime = Number(matchOne(block, /data-auction-endtime="(\d+)"/)) || Number(matchOne(block, /end:(\d+)/)) || Number(matchOne(block, /etm=(\d+)/));
     const bidCount = cleanText(matchOne(block, /<dd class="Product__bid">([\s\S]*?)<\/dd>/));
@@ -286,6 +288,8 @@ function parseYahooAuctions(html) {
       listedAt: unixTimestampToIso(startTime) || new Date().toISOString(),
       url: href,
       image,
+      categoryId,
+      categoryPath,
     };
   }).filter((listing) => listing.id !== "yahoo-auctions-" && listing.title && listing.url);
 }
@@ -333,6 +337,13 @@ function sendJson(response, status, payload) {
 function splitParam(value) {
   return (value || "")
     .split("|")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function splitCategoryPath(value) {
+  return (value || "")
+    .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
 }

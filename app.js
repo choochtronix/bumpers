@@ -71,6 +71,59 @@ const GEAR_SIGNAL_TERMS = [
   "ミキサー",
   "モジュール",
 ];
+const MEDIA_NOISE_TERMS = [
+  "12\"",
+  "7\"",
+  "album",
+  "blu-ray",
+  "bluray",
+  "cassette",
+  "dvd",
+  "ep",
+  "first press",
+  "jacket",
+  "laserdisc",
+  "lp",
+  "record",
+  "single",
+  "soundtrack",
+  "vinyl",
+  "アナログ盤",
+  "アルバム",
+  "カセット",
+  "サントラ",
+  "ジャズ",
+  "レコード",
+  "帯付",
+  "帯付き",
+  "歌謡",
+  "紙ジャケ",
+  "輸入盤",
+];
+const NEGATIVE_CATEGORY_IDS = [
+  "20060", // comics and anime goods
+  "21600", // books and magazines
+  "21964", // movies and video
+  "22152", // music media
+  "23000", // fashion
+  "23140", // accessories and watches
+  "23976", // food and drink
+  "24198", // home and interior
+  "24202", // baby goods
+  "24698", // sports and leisure
+  "25464", // toys and games
+  "26086", // garden
+  "26318", // cars and motorbikes
+  "42177", // beauty and health
+  "2084032594", // celebrity goods
+  "2084055844", // pets
+];
+const POSITIVE_GEAR_CATEGORY_IDS = [
+  "22436",
+  "22532",
+  "2084019003",
+  "2084240145",
+];
 
 const MOCK_LISTINGS = [
   {
@@ -438,7 +491,7 @@ function renderListing(listing) {
   image.src = listing.image;
   image.alt = listing.title;
   fragment.querySelector(".source-chip").textContent = source?.label || listing.source;
-  fragment.querySelector(".condition").textContent = listing.condition;
+  fragment.querySelector(".condition").textContent = formatCondition(listing);
   fragment.querySelector("h3").textContent = listing.title;
   fragment.querySelector(".shop-name").textContent = listing.shop || source?.label || "";
   fragment.querySelector(".price-row strong").textContent = formatYen(listing.price);
@@ -495,7 +548,7 @@ function renderAlertItem(listing) {
   fragment.querySelector(".source-chip").textContent = source?.label || listing.source;
   fragment.querySelector(".alert-price").textContent = formatYen(listing.price);
   fragment.querySelector("h4").textContent = listing.title;
-  fragment.querySelector("p").textContent = listing.shop || listing.condition || "";
+  fragment.querySelector("p").textContent = `${formatGearConfidence(listing).label} · ${listing.shop || listing.condition || ""}`;
   openLink.href = listing.url;
 
   return fragment;
@@ -537,10 +590,72 @@ function sourceMatchesProfile(sourceId, selectedSources) {
 }
 
 function isCleanGearListing(listing) {
+  return formatGearConfidence(listing).level !== "likely-noise";
+}
+
+function formatCondition(listing) {
+  const confidence = formatGearConfidence(listing);
+  return [confidence.label, listing.condition].filter(Boolean).join(" · ");
+}
+
+function formatGearConfidence(listing) {
+  const confidence = scoreGearConfidence(listing);
+  if (confidence.level === "likely-gear") return { ...confidence, label: "Likely gear" };
+  if (confidence.level === "likely-noise") return { ...confidence, label: "Likely noise" };
+  return { ...confidence, label: "Maybe gear" };
+}
+
+function scoreGearConfidence(listing) {
   const searchable = normalizeText(`${listing.title} ${listing.condition || ""} ${listing.shop || ""}`);
-  const hasGearSignal = GEAR_SIGNAL_TERMS.some((term) => searchable.includes(normalizeText(term)));
-  if (hasGearSignal) return true;
-  return !getActiveNoiseTerms().some((term) => searchable.includes(normalizeText(term)));
+  const categoryIds = getListingCategoryIds(listing);
+  const positiveTermCount = countMatchingTerms(searchable, GEAR_SIGNAL_TERMS);
+  const profileNoiseCount = countMatchingTerms(searchable, getActiveNoiseTerms());
+  const mediaNoiseCount = countMatchingTerms(searchable, MEDIA_NOISE_TERMS);
+  const hasPositiveCategory = categoryIds.some((id) => POSITIVE_GEAR_CATEGORY_IDS.includes(id));
+  const hasNegativeCategory = categoryIds.some((id) => NEGATIVE_CATEGORY_IDS.includes(id));
+  let score = 0;
+
+  score += positiveTermCount * 3;
+  if (hasPositiveCategory) score += 4;
+  if (hasNegativeCategory) score -= 5;
+  score -= mediaNoiseCount * 4;
+  score -= profileNoiseCount * 2;
+
+  if (positiveTermCount > 0 && !hasNegativeCategory) score += 2;
+  if (mediaNoiseCount > 0 && positiveTermCount === 0) score -= 3;
+  if (hasNegativeCategory && positiveTermCount === 0) score -= 2;
+
+  if (score >= 3) return { level: "likely-gear", score };
+  if (score <= -3) return { level: "likely-noise", score };
+  return { level: "maybe-gear", score };
+}
+
+function getListingCategoryIds(listing) {
+  const ids = [];
+  if (listing.categoryId) ids.push(String(listing.categoryId));
+  if (Array.isArray(listing.categoryPath)) ids.push(...listing.categoryPath.map(String));
+  return [...new Set(ids.filter(Boolean))];
+}
+
+function countMatchingTerms(searchable, terms) {
+  return terms.reduce((count, term) => {
+    return termMatches(searchable, term) ? count + 1 : count;
+  }, 0);
+}
+
+function termMatches(searchable, term) {
+  const normalized = normalizeText(term);
+  if (!normalized) return false;
+
+  if (/^[a-z0-9]+$/.test(normalized) && normalized.length <= 3) {
+    return new RegExp(`(^|[^a-z0-9])${escapeRegExp(normalized)}($|[^a-z0-9])`).test(searchable);
+  }
+
+  return searchable.includes(normalized);
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function compareListings(a, b) {
