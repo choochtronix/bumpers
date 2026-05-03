@@ -145,6 +145,10 @@ const savedSearches = document.querySelector("#savedSearches");
 const searchForm = document.querySelector("#searchForm");
 const resultGrid = document.querySelector("#resultGrid");
 const template = document.querySelector("#listingTemplate");
+const alertTemplate = document.querySelector("#alertTemplate");
+const alertList = document.querySelector("#alertList");
+const alertCount = document.querySelector("#alertCount");
+const alertDetail = document.querySelector("#alertDetail");
 const themeToggle = document.querySelector("#themeToggle");
 const liveStatus = document.querySelector("#liveStatus");
 const qualityFilterSelect = document.querySelector("#qualityFilter");
@@ -271,6 +275,14 @@ async function runSearch() {
   if (liveResult.mode === "live") {
     recordListingDiscoveries(currentProfile, currentResults);
     liveResult.detail = appendDiscoveryDetail(liveResult.detail, currentDiscoveryIds.size);
+    updateStoredProfileScan(currentProfile, {
+      lastScannedAt: new Date().toISOString(),
+      lastMatchCount: currentResults.length,
+      lastNewCount: currentDiscoveryIds.size,
+      lastSourceCount: new Set(currentResults.map((listing) => listing.source)).size,
+      lastScanStatus: liveResult.errors.length > 0 ? "partial" : "ok",
+    });
+    renderSavedSearches();
   }
 
   document.querySelector("#activeTitle").textContent = currentProfile.name;
@@ -293,6 +305,7 @@ function renderResults() {
   const visibleResults = getVisibleResults(watching);
 
   resultGrid.innerHTML = "";
+  renderAlertPanel();
 
   if (isSearching) {
     resultGrid.innerHTML = `<div class="empty-state">Searching live sources...</div>`;
@@ -304,7 +317,7 @@ function renderResults() {
     visibleResults.forEach((listing) => resultGrid.appendChild(renderListing(listing)));
   }
 
-  const newListings = visibleResults.filter((listing) => !isSeen(listing.id));
+  const newListings = visibleResults.filter((listing) => currentDiscoveryIds.has(listing.id));
   document.querySelector("#totalCount").textContent = visibleResults.length;
   document.querySelector("#newCount").textContent = newListings.length;
   document.querySelector("#sourceCount").textContent = new Set(visibleResults.map((listing) => listing.source)).size;
@@ -313,7 +326,7 @@ function renderResults() {
 function getVisibleResults(watching) {
   return currentResults
     .filter((listing) => {
-      if (filterMode === "new") return !isSeen(listing.id);
+      if (filterMode === "new") return currentDiscoveryIds.has(listing.id);
       if (filterMode === "watching") return watching.includes(listing.id);
       return true;
     })
@@ -383,7 +396,7 @@ function renderListing(listing) {
   const watchButton = fragment.querySelector(".watch-button");
   const watching = new Set(loadSet(STORAGE_KEYS.watching));
 
-  card.classList.toggle("is-new", !isSeen(listing.id));
+  card.classList.toggle("is-new", currentDiscoveryIds.has(listing.id));
   imageLink.href = listing.url;
   image.src = listing.image;
   image.alt = listing.title;
@@ -409,6 +422,53 @@ function renderListing(listing) {
   });
 
   return fragment;
+}
+
+function renderAlertPanel() {
+  const alertListings = getCurrentAlertListings().filter((listing) => qualityFilter === "all" || isCleanGearListing(listing));
+  alertList.innerHTML = "";
+  alertCount.textContent = alertListings.length;
+  alertDetail.textContent = createAlertDetail(alertListings.length);
+
+  if (isSearching) {
+    alertList.innerHTML = `<div class="alert-empty">Scanning saved search sources...</div>`;
+    return;
+  }
+
+  if (alertListings.length === 0) {
+    alertList.innerHTML = `<div class="alert-empty">No fresh finds from this scan.</div>`;
+    return;
+  }
+
+  alertListings.slice(0, 6).forEach((listing) => {
+    alertList.appendChild(renderAlertItem(listing));
+  });
+}
+
+function renderAlertItem(listing) {
+  const fragment = alertTemplate.content.cloneNode(true);
+  const source = SOURCES.find((item) => item.id === listing.source);
+  const imageLink = fragment.querySelector(".alert-thumb");
+  const image = fragment.querySelector("img");
+  const openLink = fragment.querySelector(".alert-open");
+
+  imageLink.href = listing.url;
+  image.src = listing.image;
+  image.alt = listing.title;
+  fragment.querySelector(".source-chip").textContent = source?.label || listing.source;
+  fragment.querySelector(".alert-price").textContent = formatYen(listing.price);
+  fragment.querySelector("h4").textContent = listing.title;
+  fragment.querySelector("p").textContent = listing.shop || listing.condition || "";
+  openLink.href = listing.url;
+
+  return fragment;
+}
+
+function createAlertDetail(count) {
+  if (isSearching) return "Scanning now";
+  if (searchState.mode !== "live") return searchState.message;
+  if (count === 1) return "1 fresh listing";
+  return `${count} fresh listings`;
 }
 
 function updateSearchStatus() {
@@ -475,6 +535,8 @@ function renderSavedSearches() {
       <span>${profile.alertMode}</span>
       <span>${profile.terms.slice(0, 3).join(", ")}</span>
       <span>${formatYen(profile.maxPrice)}</span>
+      <span class="scan-meta">${formatScanMeta(profile)}</span>
+      <span class="scan-new">${profile.lastNewCount || 0} new</span>
     `;
     button.addEventListener("click", () => {
       currentProfile = profile;
@@ -489,6 +551,20 @@ function saveProfile(profile) {
   const hydratedProfile = hydrateProfile(profile);
   const profiles = loadProfiles().filter((item) => item.name !== hydratedProfile.name);
   localStorage.setItem(STORAGE_KEYS.profiles, JSON.stringify([hydratedProfile, ...profiles]));
+}
+
+function updateStoredProfileScan(profile, scanSummary) {
+  const profiles = loadProfiles();
+  const nextProfiles = profiles.map((item) => {
+    if (item.name !== profile.name) return item;
+    return hydrateProfile({ ...item, ...scanSummary });
+  });
+
+  if (!nextProfiles.some((item) => item.name === profile.name)) {
+    nextProfiles.unshift(hydrateProfile({ ...profile, ...scanSummary }));
+  }
+
+  localStorage.setItem(STORAGE_KEYS.profiles, JSON.stringify(nextProfiles));
 }
 
 function loadProfiles() {
@@ -514,6 +590,13 @@ function hydrateProfile(profile) {
     noiseTerms: Array.isArray(profile.noiseTerms) ? profile.noiseTerms : [...ACCESSORY_TERMS],
     sources: Array.isArray(profile.sources) ? profile.sources : defaultProfile.sources,
   };
+}
+
+function formatScanMeta(profile) {
+  if (!profile.lastScannedAt) return "Not scanned yet";
+
+  const status = profile.lastScanStatus === "partial" ? "partial" : "scanned";
+  return `${status} ${formatShortDate(profile.lastScannedAt)} · ${profile.lastMatchCount || 0} matches`;
 }
 
 function getActiveNoiseTerms() {
@@ -632,6 +715,16 @@ function formatYen(value) {
 }
 
 function relativeDate(value) {
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  return formatter.format(new Date(value));
+}
+
+function formatShortDate(value) {
   const formatter = new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",

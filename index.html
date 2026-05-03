@@ -161,6 +161,20 @@ stand
           </div>
         </section>
 
+        <section class="alert-panel" aria-labelledby="alertTitle">
+          <div class="alert-panel-header">
+            <div>
+              <p class="eyebrow">Daily Radar</p>
+              <h3 id="alertTitle">New Finds</h3>
+            </div>
+            <div class="alert-summary">
+              <strong id="alertCount">0</strong>
+              <span id="alertDetail">No scan yet</span>
+            </div>
+          </div>
+          <div class="alert-list" id="alertList" aria-live="polite"></div>
+        </section>
+
         <section class="result-grid" id="resultGrid" aria-live="polite"></section>
       </main>
     </div>
@@ -187,6 +201,23 @@ stand
             <a class="open-link" target="_blank" rel="noreferrer">Open</a>
           </div>
         </div>
+      </article>
+    </template>
+
+    <template id="alertTemplate">
+      <article class="alert-item">
+        <a class="alert-thumb" target="_blank" rel="noreferrer">
+          <img alt="" loading="lazy" />
+        </a>
+        <div class="alert-copy">
+          <div class="listing-meta">
+            <span class="source-chip"></span>
+            <span class="alert-price"></span>
+          </div>
+          <h4></h4>
+          <p></p>
+        </div>
+        <a class="alert-open" target="_blank" rel="noreferrer">Open</a>
       </article>
     </template>
 

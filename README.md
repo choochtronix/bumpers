@@ -36,6 +36,8 @@ http://localhost:5173
 
 Live runs store discovered listing IDs in local browser storage. This lets Bumpers tell the difference between listings it has already found before and listings discovered on the current scan, which is the base layer for saved-search alerts.
 
+The Daily Radar panel shows fresh discoveries from the current scan. Saved searches also keep their latest scan time, match count, and new-find count so the sidebar can act as a quick daily checklist.
+
 ## Connector Model
 
 Every live source should return normalized listing objects:
