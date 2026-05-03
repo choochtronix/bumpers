@@ -87,6 +87,7 @@ const STORAGE_KEYS = {
   profiles: "bumpers.profiles",
   seen: "bumpers.seen",
   watching: "bumpers.watching",
+  theme: "bumpers.theme",
 };
 
 const defaultProfile = {
@@ -107,8 +108,10 @@ const savedSearches = document.querySelector("#savedSearches");
 const searchForm = document.querySelector("#searchForm");
 const resultGrid = document.querySelector("#resultGrid");
 const template = document.querySelector("#listingTemplate");
+const themeToggle = document.querySelector("#themeToggle");
 
 function initialize() {
+  applyStoredTheme();
   renderSources();
   fillForm(currentProfile);
   renderSavedSearches();
@@ -147,6 +150,11 @@ function bindEvents() {
     filterMode = button.dataset.filter;
     document.querySelectorAll("#urgencyFilter button").forEach((item) => item.classList.toggle("active", item === button));
     renderResults();
+  });
+
+  themeToggle.addEventListener("click", () => {
+    const nextTheme = document.body.dataset.theme === "dark" ? "light" : "dark";
+    setTheme(nextTheme);
   });
 }
 
@@ -314,6 +322,22 @@ function loadSet(key) {
 
 function saveSet(key, values) {
   localStorage.setItem(key, JSON.stringify([...values]));
+}
+
+function applyStoredTheme() {
+  const storedTheme = localStorage.getItem(STORAGE_KEYS.theme);
+  const systemPrefersDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches;
+  setTheme(storedTheme || (systemPrefersDark ? "dark" : "light"));
+}
+
+function setTheme(theme) {
+  document.body.dataset.theme = theme;
+  localStorage.setItem(STORAGE_KEYS.theme, theme);
+
+  const isDark = theme === "dark";
+  themeToggle.querySelector(".theme-icon").textContent = isDark ? "☀" : "◐";
+  themeToggle.setAttribute("aria-label", isDark ? "Switch to light mode" : "Switch to dark mode");
+  themeToggle.setAttribute("title", isDark ? "Switch to light mode" : "Switch to dark mode");
 }
 
 function isSeen(listingId) {
