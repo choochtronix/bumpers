@@ -15,6 +15,8 @@ This first build is a static desktop web app prototype. It includes:
 - Watchlist state
 - Email digest text generation
 - A mock connector dataset shaped like future live connector output
+- Live Digimart and OFFMALL connector support when run through the local server
+- Local listing discovery tracking for future alert workflows
 
 ## Open The App
 
@@ -31,6 +33,8 @@ Then open:
 ```text
 http://localhost:5173
 ```
+
+Live runs store discovered listing IDs in local browser storage. This lets Bumpers tell the difference between listings it has already found before and listings discovered on the current scan, which is the base layer for saved-search alerts.
 
 ## Connector Model
 

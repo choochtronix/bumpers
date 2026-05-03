@@ -90,6 +90,7 @@ const STORAGE_KEYS = {
   seen: "bumpers.seen",
   watching: "bumpers.watching",
   theme: "bumpers.theme",
+  listingLedger: "bumpers.listingLedger",
 };
 
 const defaultProfile = {
@@ -103,6 +104,7 @@ const defaultProfile = {
 
 let currentProfile = loadProfiles()[0] || defaultProfile;
 let currentResults = [];
+let currentDiscoveryIds = new Set();
 let filterMode = "all";
 let isSearching = false;
 let searchState = {
@@ -146,11 +148,12 @@ function bindEvents() {
     const seen = new Set(loadSet(STORAGE_KEYS.seen));
     currentResults.forEach((listing) => seen.add(listing.id));
     saveSet(STORAGE_KEYS.seen, seen);
+    acknowledgeListings(currentResults);
     renderResults();
   });
 
   document.querySelector("#copyDigest").addEventListener("click", async () => {
-    const digest = createEmailDigest(currentProfile, currentResults.filter((listing) => !isSeen(listing.id)));
+    const digest = createEmailDigest(currentProfile, getCurrentAlertListings());
     await copyText(digest);
   });
 
@@ -222,11 +225,21 @@ async function runSearch() {
     .filter((listing) => !normalizedExcludes.some((term) => normalizeText(listing.title).includes(term)))
     .sort((a, b) => new Date(b.listedAt) - new Date(a.listedAt));
 
+  currentDiscoveryIds = liveResult.mode === "live" ? getNewDiscoveryIds(currentResults) : new Set();
+  if (liveResult.mode === "live") {
+    recordListingDiscoveries(currentProfile, currentResults);
+    liveResult.detail = appendDiscoveryDetail(liveResult.detail, currentDiscoveryIds.size);
+  }
+
   document.querySelector("#activeTitle").textContent = currentProfile.name;
   isSearching = false;
   searchState = liveResult;
   updateSearchStatus();
   renderResults();
+}
+
+function getCurrentAlertListings() {
+  return currentResults.filter((listing) => currentDiscoveryIds.has(listing.id));
 }
 
 function renderResults() {
@@ -358,6 +371,11 @@ function createLiveDetail(listings, meta, errors) {
   return `${count}${duration}${errorText}.`;
 }
 
+function appendDiscoveryDetail(detail, discoveryCount) {
+  const noun = discoveryCount === 1 ? "new discovery" : "new discoveries";
+  return `${detail} ${discoveryCount} ${noun} this scan.`;
+}
+
 function labelForSource(sourceId) {
   return SOURCES.find((source) => source.id === sourceId)?.label || sourceId;
 }
@@ -423,6 +441,62 @@ function loadSet(key) {
 
 function saveSet(key, values) {
   localStorage.setItem(key, JSON.stringify([...values]));
+}
+
+function loadLedger() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEYS.listingLedger) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function saveLedger(ledger) {
+  localStorage.setItem(STORAGE_KEYS.listingLedger, JSON.stringify(ledger));
+}
+
+function getNewDiscoveryIds(listings) {
+  const ledger = loadLedger();
+  return new Set(listings.filter((listing) => !ledger[listing.id]).map((listing) => listing.id));
+}
+
+function recordListingDiscoveries(profile, listings) {
+  const ledger = loadLedger();
+  const now = new Date().toISOString();
+
+  listings.forEach((listing) => {
+    const previous = ledger[listing.id] || {};
+    const profileNames = new Set(previous.profileNames || []);
+    profileNames.add(profile.name);
+
+    ledger[listing.id] = {
+      ...previous,
+      id: listing.id,
+      source: listing.source,
+      title: listing.title,
+      price: listing.price,
+      url: listing.url,
+      image: listing.image,
+      firstDiscoveredAt: previous.firstDiscoveredAt || now,
+      lastFoundAt: now,
+      profileNames: [...profileNames],
+    };
+  });
+
+  saveLedger(ledger);
+}
+
+function acknowledgeListings(listings) {
+  const ledger = loadLedger();
+  const now = new Date().toISOString();
+
+  listings.forEach((listing) => {
+    if (ledger[listing.id]) {
+      ledger[listing.id].acknowledgedAt = now;
+    }
+  });
+
+  saveLedger(ledger);
 }
 
 function applyStoredTheme() {
