@@ -1,0 +1,192 @@
+import { createServer } from "node:http";
+import { readFile } from "node:fs/promises";
+import { extname, join, normalize } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const PORT = Number(process.env.PORT || 5173);
+const HOST = process.env.HOST || "127.0.0.1";
+const ROOT = fileURLToPath(new URL(".", import.meta.url));
+const DIGIMART_BASE_URL = "https://www.digimart.net";
+const USER_AGENT = "Bumpers/0.1 local personal gear search";
+
+const mimeTypes = {
+  ".html": "text/html; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".md": "text/markdown; charset=utf-8",
+};
+
+createServer(async (request, response) => {
+  try {
+    const url = new URL(request.url || "/", `http://${request.headers.host}`);
+
+    if (url.pathname === "/api/search") {
+      await handleSearch(url, response);
+      return;
+    }
+
+    await serveStatic(url.pathname, response);
+  } catch (error) {
+    sendJson(response, 500, {
+      error: "server_error",
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+}).listen(PORT, HOST, () => {
+  console.log(`Bumpers running at http://${HOST}:${PORT}`);
+});
+
+async function handleSearch(url, response) {
+  const terms = splitParam(url.searchParams.get("terms"));
+  const excludes = splitParam(url.searchParams.get("excludes")).map(normalizeText);
+  const maxPrice = Number(url.searchParams.get("maxPrice") || 0);
+  const sources = splitParam(url.searchParams.get("sources"));
+  const wantsDigimart = sources.length === 0 || sources.includes("digimart");
+
+  if (!wantsDigimart || terms.length === 0) {
+    sendJson(response, 200, { listings: [], meta: { liveSources: [] } });
+    return;
+  }
+
+  const listingsById = new Map();
+
+  for (const term of terms.slice(0, 5)) {
+    const listings = await searchDigimart(term);
+
+    for (const listing of listings) {
+      const title = normalizeText(listing.title);
+      const excluded = excludes.some((exclude) => title.includes(exclude));
+      const tooExpensive = maxPrice > 0 && listing.price > maxPrice;
+
+      if (!excluded && !tooExpensive) {
+        listingsById.set(listing.id, listing);
+      }
+    }
+
+    await wait(700);
+  }
+
+  sendJson(response, 200, {
+    listings: [...listingsById.values()].sort((a, b) => new Date(b.listedAt) - new Date(a.listedAt)),
+    meta: {
+      liveSources: ["digimart"],
+      searchedTerms: terms.slice(0, 5),
+    },
+  });
+}
+
+async function searchDigimart(term) {
+  const url = new URL("/search", DIGIMART_BASE_URL);
+  url.searchParams.set("keywordAnd", term);
+  url.searchParams.set("sortKey", "INITIAL_PUBLIC_DATE_DESC");
+  url.searchParams.set("nosoldoutp", "true");
+  url.searchParams.set("readCount", "20");
+
+  const response = await fetch(url, {
+    headers: {
+      "user-agent": USER_AGENT,
+      "accept-language": "ja,en-US;q=0.9,en;q=0.8",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Digimart responded with ${response.status}`);
+  }
+
+  return parseDigimart(await response.text());
+}
+
+function parseDigimart(html) {
+  const blocks = html.match(/<div class="itemSearchBlock itemSearchListItem[\s\S]*?<!-- \/.itemSearchBlock --><\/div>/g) || [];
+
+  return blocks.map((block) => {
+    const rawId = matchOne(block, /data-instrument-cd="([^"]+)"/);
+    const href = matchOne(block, /<p class="ttl"><a href="([^"]+)">/);
+    const title = cleanText(matchOne(block, /<p class="ttl"><a href="[^"]+">([\s\S]*?)<\/a><\/p>/));
+    const image = normalizeUrl(matchOne(block, /<div class="pic">[\s\S]*?<img src="([^"]+)"/));
+    const price = Number(cleanText(matchOne(block, /<p class="price">([\s\S]*?)<\/p>/)).replace(/[^\d]/g, ""));
+    const registeredDate = matchOne(block, /登録：(\d{4}\/\d{2}\/\d{2})/);
+    const condition = cleanText(matchOne(block, /状態：<span class="tooltip">([\s\S]*?)<\/span>/)) || "Listed";
+    const shop = cleanText(matchOne(block, /<p class="itemShopInfo"><a href="[^"]+">([\s\S]*?)<\/a><\/p>/));
+
+    return {
+      id: `digimart-${rawId}`,
+      source: "digimart",
+      title,
+      price,
+      condition,
+      shop,
+      listedAt: registeredDate ? `${registeredDate.replaceAll("/", "-")}T00:00:00+09:00` : new Date().toISOString(),
+      url: normalizeUrl(href),
+      image,
+    };
+  }).filter((listing) => listing.id !== "digimart-" && listing.title && listing.url);
+}
+
+async function serveStatic(pathname, response) {
+  const safePath = normalize(pathname === "/" ? "/index.html" : pathname).replace(/^(\.\.[/\\])+/, "");
+  const filePath = join(ROOT, safePath);
+
+  if (!filePath.startsWith(ROOT)) {
+    response.writeHead(403);
+    response.end("Forbidden");
+    return;
+  }
+
+  const contents = await readFile(filePath);
+  response.writeHead(200, {
+    "content-type": mimeTypes[extname(filePath)] || "application/octet-stream",
+  });
+  response.end(contents);
+}
+
+function sendJson(response, status, payload) {
+  response.writeHead(status, { "content-type": "application/json; charset=utf-8" });
+  response.end(JSON.stringify(payload));
+}
+
+function splitParam(value) {
+  return (value || "")
+    .split("|")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function matchOne(value, pattern) {
+  return value.match(pattern)?.[1] || "";
+}
+
+function cleanText(value) {
+  return decodeHtml(value.replace(/<[^>]+>/g, " "))
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function decodeHtml(value) {
+  return value
+    .replace(/&nbsp;/g, " ")
+    .replace(/&yen;/g, "¥")
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, "\"")
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">");
+}
+
+function normalizeUrl(value) {
+  if (!value) return "";
+  if (value.startsWith("//")) return `https:${value}`;
+  if (value.startsWith("/")) return `${DIGIMART_BASE_URL}${value}`;
+  return value;
+}
+
+function normalizeText(value) {
+  return value.toLocaleLowerCase("ja-JP").normalize("NFKC");
+}
+
+function wait(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}

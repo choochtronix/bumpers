@@ -20,6 +20,18 @@ This first build is a static desktop web app prototype. It includes:
 
 Open `index.html` in a browser.
 
+For live connector data, run the local server:
+
+```sh
+npm start
+```
+
+Then open:
+
+```text
+http://localhost:5173
+```
+
 ## Connector Model
 
 Every live source should return normalized listing objects:

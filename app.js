@@ -102,6 +102,7 @@ const defaultProfile = {
 let currentProfile = loadProfiles()[0] || defaultProfile;
 let currentResults = [];
 let filterMode = "all";
+let isSearching = false;
 
 const sourceList = document.querySelector("#sourceList");
 const savedSearches = document.querySelector("#savedSearches");
@@ -109,6 +110,7 @@ const searchForm = document.querySelector("#searchForm");
 const resultGrid = document.querySelector("#resultGrid");
 const template = document.querySelector("#listingTemplate");
 const themeToggle = document.querySelector("#themeToggle");
+const liveStatus = document.querySelector("#liveStatus");
 
 function initialize() {
   applyStoredTheme();
@@ -193,11 +195,17 @@ function splitLines(value) {
   return value.split(/\n|,/).map((item) => item.trim()).filter(Boolean);
 }
 
-function runSearch() {
+async function runSearch() {
+  isSearching = true;
+  liveStatus.textContent = "Searching";
+  renderResults();
+
+  const liveListings = await fetchLiveListings(currentProfile);
   const normalizedTerms = currentProfile.terms.map(normalizeText);
   const normalizedExcludes = currentProfile.excludes.map(normalizeText);
+  const listings = liveListings.length > 0 ? liveListings : MOCK_LISTINGS;
 
-  currentResults = MOCK_LISTINGS
+  currentResults = listings
     .filter((listing) => currentProfile.sources.includes(listing.source))
     .filter((listing) => currentProfile.maxPrice <= 0 || listing.price <= currentProfile.maxPrice)
     .filter((listing) => normalizedTerms.some((term) => normalizeText(listing.title).includes(term)))
@@ -205,6 +213,8 @@ function runSearch() {
     .sort((a, b) => new Date(b.listedAt) - new Date(a.listedAt));
 
   document.querySelector("#activeTitle").textContent = currentProfile.name;
+  isSearching = false;
+  liveStatus.textContent = liveListings.length > 0 ? "Live Digimart" : "Mock data";
   renderResults();
 }
 
@@ -218,7 +228,9 @@ function renderResults() {
 
   resultGrid.innerHTML = "";
 
-  if (visibleResults.length === 0) {
+  if (isSearching) {
+    resultGrid.innerHTML = `<div class="empty-state">Searching live sources...</div>`;
+  } else if (visibleResults.length === 0) {
     resultGrid.innerHTML = `<div class="empty-state">No matching listings in this view.</div>`;
   } else {
     visibleResults.forEach((listing) => resultGrid.appendChild(renderListing(listing)));
@@ -228,6 +240,32 @@ function renderResults() {
   document.querySelector("#totalCount").textContent = currentResults.length;
   document.querySelector("#newCount").textContent = newListings.length;
   document.querySelector("#sourceCount").textContent = new Set(currentResults.map((listing) => listing.source)).size;
+}
+
+async function fetchLiveListings(profile) {
+  if (location.protocol === "file:" || !profile.sources.includes("digimart")) {
+    return [];
+  }
+
+  try {
+    const params = new URLSearchParams({
+      terms: profile.terms.join("|"),
+      excludes: profile.excludes.join("|"),
+      maxPrice: String(profile.maxPrice || 0),
+      sources: profile.sources.join("|"),
+    });
+    const response = await fetch(`/api/search?${params.toString()}`);
+
+    if (!response.ok) {
+      throw new Error(`Search failed with ${response.status}`);
+    }
+
+    const payload = await response.json();
+    return Array.isArray(payload.listings) ? payload.listings : [];
+  } catch (error) {
+    console.warn("Live search unavailable; falling back to mock listings.", error);
+    return [];
+  }
 }
 
 function renderListing(listing) {
