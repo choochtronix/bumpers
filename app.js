@@ -11,6 +11,29 @@ const SOURCES = [
 ];
 
 const LIVE_SOURCE_IDS = ["digimart", "offmall", "hardoff"];
+const ACCESSORY_TERMS = [
+  "adapter",
+  "book",
+  "cable",
+  "case",
+  "cd",
+  "cover",
+  "decksaver",
+  "manual",
+  "patch book",
+  "power supply",
+  "stand",
+  "アダプター",
+  "カタログ",
+  "カバー",
+  "ケース",
+  "ケーブル",
+  "スタンド",
+  "デッキセーバー",
+  "マニュアル",
+  "取扱説明書",
+  "教則",
+];
 
 const MOCK_LISTINGS = [
   {
@@ -106,6 +129,8 @@ let currentProfile = loadProfiles()[0] || defaultProfile;
 let currentResults = [];
 let currentDiscoveryIds = new Set();
 let filterMode = "all";
+let qualityFilter = "clean";
+let sortMode = "newest";
 let isSearching = false;
 let searchState = {
   mode: "mock",
@@ -121,6 +146,8 @@ const resultGrid = document.querySelector("#resultGrid");
 const template = document.querySelector("#listingTemplate");
 const themeToggle = document.querySelector("#themeToggle");
 const liveStatus = document.querySelector("#liveStatus");
+const qualityFilterSelect = document.querySelector("#qualityFilter");
+const sortModeSelect = document.querySelector("#sortMode");
 
 function initialize() {
   applyStoredTheme();
@@ -162,6 +189,16 @@ function bindEvents() {
     if (!button) return;
     filterMode = button.dataset.filter;
     document.querySelectorAll("#urgencyFilter button").forEach((item) => item.classList.toggle("active", item === button));
+    renderResults();
+  });
+
+  qualityFilterSelect.addEventListener("change", () => {
+    qualityFilter = qualityFilterSelect.value;
+    renderResults();
+  });
+
+  sortModeSelect.addEventListener("change", () => {
+    sortMode = sortModeSelect.value;
     renderResults();
   });
 
@@ -244,11 +281,7 @@ function getCurrentAlertListings() {
 
 function renderResults() {
   const watching = loadSet(STORAGE_KEYS.watching);
-  const visibleResults = currentResults.filter((listing) => {
-    if (filterMode === "new") return !isSeen(listing.id);
-    if (filterMode === "watching") return watching.includes(listing.id);
-    return true;
-  });
+  const visibleResults = getVisibleResults(watching);
 
   resultGrid.innerHTML = "";
 
@@ -262,10 +295,21 @@ function renderResults() {
     visibleResults.forEach((listing) => resultGrid.appendChild(renderListing(listing)));
   }
 
-  const newListings = currentResults.filter((listing) => !isSeen(listing.id));
-  document.querySelector("#totalCount").textContent = currentResults.length;
+  const newListings = visibleResults.filter((listing) => !isSeen(listing.id));
+  document.querySelector("#totalCount").textContent = visibleResults.length;
   document.querySelector("#newCount").textContent = newListings.length;
-  document.querySelector("#sourceCount").textContent = new Set(currentResults.map((listing) => listing.source)).size;
+  document.querySelector("#sourceCount").textContent = new Set(visibleResults.map((listing) => listing.source)).size;
+}
+
+function getVisibleResults(watching) {
+  return currentResults
+    .filter((listing) => {
+      if (filterMode === "new") return !isSeen(listing.id);
+      if (filterMode === "watching") return watching.includes(listing.id);
+      return true;
+    })
+    .filter((listing) => qualityFilter === "all" || isCleanGearListing(listing))
+    .sort(compareListings);
 }
 
 async function fetchLiveListings(profile) {
@@ -367,8 +411,9 @@ function updateSearchStatus() {
 function createLiveDetail(listings, meta, errors) {
   const count = `${listings.length} live ${listings.length === 1 ? "listing" : "listings"}`;
   const duration = typeof meta.durationMs === "number" ? ` in ${(meta.durationMs / 1000).toFixed(1)}s` : "";
+  const sourceText = createSourceBreakdown(meta.sourceStats || []);
   const errorText = errors.length > 0 ? `; ${errors.length} connector ${errors.length === 1 ? "warning" : "warnings"}` : "";
-  return `${count}${duration}${errorText}.`;
+  return `${count}${duration}${sourceText}${errorText}.`;
 }
 
 function appendDiscoveryDetail(detail, discoveryCount) {
@@ -383,6 +428,25 @@ function labelForSource(sourceId) {
 function sourceMatchesProfile(sourceId, selectedSources) {
   if (selectedSources.includes(sourceId)) return true;
   return sourceId === "offmall" && selectedSources.includes("hardoff");
+}
+
+function isCleanGearListing(listing) {
+  const searchable = normalizeText(`${listing.title} ${listing.condition || ""} ${listing.shop || ""}`);
+  return !ACCESSORY_TERMS.some((term) => searchable.includes(normalizeText(term)));
+}
+
+function compareListings(a, b) {
+  if (sortMode === "price-asc") return a.price - b.price;
+  if (sortMode === "price-desc") return b.price - a.price;
+  if (sortMode === "source") return labelForSource(a.source).localeCompare(labelForSource(b.source)) || new Date(b.listedAt) - new Date(a.listedAt);
+  return new Date(b.listedAt) - new Date(a.listedAt);
+}
+
+function createSourceBreakdown(sourceStats) {
+  if (sourceStats.length === 0) return "";
+
+  const parts = sourceStats.map((item) => `${labelForSource(item.source)} ${item.rawCount}`);
+  return ` from ${parts.join(", ")}`;
 }
 
 function renderSavedSearches() {

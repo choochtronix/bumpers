@@ -112,6 +112,24 @@ shoes</textarea>
             <button type="button" data-filter="new">New</button>
             <button type="button" data-filter="watching">Watching</button>
           </div>
+          <div class="result-options">
+            <label>
+              <span>Quality</span>
+              <select id="qualityFilter">
+                <option value="clean">Clean gear</option>
+                <option value="all">All matches</option>
+              </select>
+            </label>
+            <label>
+              <span>Sort</span>
+              <select id="sortMode">
+                <option value="newest">Newest</option>
+                <option value="price-asc">Price low</option>
+                <option value="price-desc">Price high</option>
+                <option value="source">Source</option>
+              </select>
+            </label>
+          </div>
           <div class="toolbar-actions">
             <span class="live-status" id="liveStatus">Mock data</span>
             <button id="markAllSeen" type="button" title="Mark all listings as seen" aria-label="Mark all listings as seen">✓</button>

@@ -393,6 +393,25 @@ fieldset {
   padding: 24px 0 18px;
 }
 
+.result-options {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.result-options label {
+  min-width: 132px;
+  gap: 5px;
+}
+
+.result-options label span {
+  font-size: 11px;
+}
+
+.result-options select {
+  height: 38px;
+}
+
 .segmented {
   display: inline-grid;
   grid-template-columns: repeat(3, 1fr);
@@ -662,8 +681,14 @@ fieldset {
   }
 
   .segmented,
+  .result-options,
   .toolbar-actions {
     width: 100%;
+  }
+
+  .result-options label {
+    flex: 1;
+    min-width: 0;
   }
 
   .toolbar-actions button {
