@@ -15,7 +15,7 @@ This first build is a static desktop web app prototype. It includes:
 - Watchlist state
 - Email digest text generation
 - A mock connector dataset shaped like future live connector output
-- Live Digimart and OFFMALL connector support when run through the local server
+- Live Yahoo Auctions, Digimart, and OFFMALL connector support when run through the local server
 - Local listing discovery tracking for future alert workflows
 
 ## Open The App
@@ -59,9 +59,9 @@ Every live source should return normalized listing objects:
 
 1. Digimart
 2. OFFMALL / Hard Off Net Mall
-3. Five G
-4. implant4
-5. Yahoo Auctions
+3. Yahoo Auctions
+4. Five G
+5. implant4
 6. Mercari
 7. Yahoo Fleamarket
 8. Rakuma

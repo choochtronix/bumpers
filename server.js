@@ -8,7 +8,8 @@ const HOST = process.env.HOST || "127.0.0.1";
 const ROOT = fileURLToPath(new URL(".", import.meta.url));
 const DIGIMART_BASE_URL = "https://www.digimart.net";
 const OFFMALL_BASE_URL = "https://netmall.hardoff.co.jp";
-const USER_AGENT = "Bumpers/0.1 local personal gear search";
+const YAHOO_AUCTIONS_BASE_URL = "https://auctions.yahoo.co.jp";
+const USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 (KHTML, like Gecko) Bumpers/0.1 local personal gear search";
 
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
@@ -45,9 +46,10 @@ async function handleSearch(url, response) {
   const sources = splitParam(url.searchParams.get("sources"));
   const wantsDigimart = sources.length === 0 || sources.includes("digimart");
   const wantsOffmall = sources.length === 0 || sources.includes("offmall") || sources.includes("hardoff");
+  const wantsYahooAuctions = sources.length === 0 || sources.includes("yahoo-auctions");
   const startedAt = new Date();
 
-  if ((!wantsDigimart && !wantsOffmall) || terms.length === 0) {
+  if ((!wantsDigimart && !wantsOffmall && !wantsYahooAuctions) || terms.length === 0) {
     sendJson(response, 200, { listings: [], meta: createSearchMeta(startedAt, [], [], terms) });
     return;
   }
@@ -65,6 +67,13 @@ async function handleSearch(url, response) {
 
   if (wantsOffmall) {
     const sourceResult = await searchSourceTerms("offmall", terms, searchOffmall);
+    sourceStats.push(sourceResult.stats);
+    errors.push(...sourceResult.errors);
+    collectFilteredListings(sourceResult.listings, listingsById, excludes, maxPrice);
+  }
+
+  if (wantsYahooAuctions) {
+    const sourceResult = await searchSourceTerms("yahoo-auctions", terms, searchYahooAuctions);
     sourceStats.push(sourceResult.stats);
     errors.push(...sourceResult.errors);
     collectFilteredListings(sourceResult.listings, listingsById, excludes, maxPrice);
@@ -174,6 +183,30 @@ async function searchOffmall(term) {
   return parseOffmall(html);
 }
 
+async function searchYahooAuctions(term) {
+  const url = new URL("/search/search", YAHOO_AUCTIONS_BASE_URL);
+  url.searchParams.set("p", term);
+  url.searchParams.set("va", term);
+  url.searchParams.set("exflg", "1");
+  url.searchParams.set("b", "1");
+  url.searchParams.set("n", "20");
+  url.searchParams.set("s1", "new");
+  url.searchParams.set("o1", "d");
+
+  const response = await fetch(url, {
+    headers: {
+      "user-agent": USER_AGENT,
+      "accept-language": "ja,en-US;q=0.9,en;q=0.8",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Yahoo Auctions responded with ${response.status}`);
+  }
+
+  return parseYahooAuctions(await response.text());
+}
+
 function parseDigimart(html) {
   const blocks = html.match(/<div class="itemSearchBlock itemSearchListItem[\s\S]*?<!-- \/.itemSearchBlock --><\/div>/g) || [];
 
@@ -229,6 +262,52 @@ function parseOffmall(html) {
   }).filter((listing) => listing.id !== "offmall-" && listing.title && listing.url);
 }
 
+function parseYahooAuctions(html) {
+  const blocks = html.match(/<li class="Product">[\s\S]*?<\/li>/g) || [];
+
+  return blocks.map((block) => {
+    const rawId = matchOne(block, /data-auction-id="([^"]+)"/);
+    const title = cleanText(readAttribute(block, "data-auction-title"));
+    const image = normalizeUrl(readAttribute(block, "data-auction-img"), YAHOO_AUCTIONS_BASE_URL);
+    const price = Number(readAttribute(block, "data-auction-price") || "0");
+    const href = normalizeUrl(matchOne(block, /href="([^"]*\/jp\/auction\/[^"]+)"/), YAHOO_AUCTIONS_BASE_URL);
+    const startTime = Number(matchOne(block, /st:(\d+)/)) || Number(matchOne(block, /stm=(\d+)/));
+    const endTime = Number(matchOne(block, /data-auction-endtime="(\d+)"/)) || Number(matchOne(block, /end:(\d+)/)) || Number(matchOne(block, /etm=(\d+)/));
+    const bidCount = cleanText(matchOne(block, /<dd class="Product__bid">([\s\S]*?)<\/dd>/));
+    const remainingTime = cleanText(matchOne(block, /<dd class="Product__time[^"]*"[^>]*>([\s\S]*?)<\/dd>/));
+
+    return {
+      id: `yahoo-auctions-${rawId}`,
+      source: "yahoo-auctions",
+      title,
+      price,
+      condition: createYahooAuctionCondition(bidCount, remainingTime, endTime),
+      shop: "Yahoo Auctions",
+      listedAt: unixTimestampToIso(startTime) || new Date().toISOString(),
+      url: href,
+      image,
+    };
+  }).filter((listing) => listing.id !== "yahoo-auctions-" && listing.title && listing.url);
+}
+
+function createYahooAuctionCondition(bidCount, remainingTime, endTime) {
+  const parts = ["Auction"];
+  if (bidCount) parts.push(`${bidCount} bids`);
+  if (remainingTime) parts.push(`ends in ${remainingTime}`);
+  if (!remainingTime && endTime) parts.push(`ends ${formatYahooEndDate(endTime)}`);
+  return parts.join(" · ");
+}
+
+function formatYahooEndDate(timestamp) {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Tokyo",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(timestamp * 1000));
+}
+
 async function serveStatic(pathname, response) {
   const safePath = normalize(pathname === "/" ? "/index.html" : pathname).replace(/^(\.\.[/\\])+/, "");
   const filePath = join(ROOT, safePath);
@@ -262,6 +341,11 @@ function matchOne(value, pattern) {
   return value.match(pattern)?.[1] || "";
 }
 
+function readAttribute(value, attributeName) {
+  const escapedName = attributeName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return decodeHtml(matchOne(value, new RegExp(`${escapedName}="([^"]*)"`, "i")));
+}
+
 function cleanText(value) {
   return decodeHtml(value.replace(/<[^>]+>/g, " "))
     .replace(/\s+/g, " ")
@@ -275,6 +359,8 @@ function decodeHtml(value) {
     .replace(/&amp;/g, "&")
     .replace(/&quot;/g, "\"")
     .replace(/&#39;/g, "'")
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCharCode(parseInt(code, 16)))
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">");
 }
@@ -288,6 +374,11 @@ function normalizeUrl(value, baseUrl = DIGIMART_BASE_URL) {
 
 function normalizeText(value) {
   return value.toLocaleLowerCase("ja-JP").normalize("NFKC");
+}
+
+function unixTimestampToIso(timestamp) {
+  if (!timestamp) return "";
+  return new Date(timestamp * 1000).toISOString();
 }
 
 function wait(ms) {

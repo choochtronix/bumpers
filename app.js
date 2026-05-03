@@ -10,7 +10,7 @@ const SOURCES = [
   { id: "hardoff", label: "Hard Off", color: "green" },
 ];
 
-const LIVE_SOURCE_IDS = ["digimart", "offmall", "hardoff"];
+const LIVE_SOURCE_IDS = ["yahoo-auctions", "digimart", "offmall", "hardoff"];
 const ACCESSORY_TERMS = [
   "adapter",
   "book",
@@ -30,9 +30,46 @@ const ACCESSORY_TERMS = [
   "ケーブル",
   "スタンド",
   "デッキセーバー",
+  "シャツ",
+  "ジャケット",
+  "スニーカー",
+  "ブーツ",
+  "靴",
   "マニュアル",
   "取扱説明書",
   "教則",
+];
+const GEAR_SIGNAL_TERMS = [
+  "analog",
+  "audio interface",
+  "desktop",
+  "digital",
+  "drum machine",
+  "eurorack",
+  "groovebox",
+  "keyboard",
+  "midi",
+  "module",
+  "rack",
+  "sampler",
+  "sequencer",
+  "synth",
+  "synthesizer",
+  "vco",
+  "vca",
+  "vcf",
+  "アナログ",
+  "インターフェース",
+  "オーディオ",
+  "キーボード",
+  "グルーブボックス",
+  "サンプラー",
+  "シーケンサー",
+  "シンセ",
+  "シンセサイザー",
+  "ドラムマシン",
+  "ミキサー",
+  "モジュール",
 ];
 
 const MOCK_LISTINGS = [
@@ -501,6 +538,8 @@ function sourceMatchesProfile(sourceId, selectedSources) {
 
 function isCleanGearListing(listing) {
   const searchable = normalizeText(`${listing.title} ${listing.condition || ""} ${listing.shop || ""}`);
+  const hasGearSignal = GEAR_SIGNAL_TERMS.some((term) => searchable.includes(normalizeText(term)));
+  if (hasGearSignal) return true;
   return !getActiveNoiseTerms().some((term) => searchable.includes(normalizeText(term)));
 }
 
