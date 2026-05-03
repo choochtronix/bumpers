@@ -10,6 +10,8 @@ const SOURCES = [
   { id: "hardoff", label: "Hard Off", color: "green" },
 ];
 
+const LIVE_SOURCE_IDS = ["digimart", "offmall", "hardoff"];
+
 const MOCK_LISTINGS = [
   {
     id: "mercari-waldorf-m-20260503",
@@ -214,7 +216,7 @@ async function runSearch() {
   const listings = useMockListings ? MOCK_LISTINGS : liveResult.listings;
 
   currentResults = listings
-    .filter((listing) => currentProfile.sources.includes(listing.source))
+    .filter((listing) => sourceMatchesProfile(listing.source, currentProfile.sources))
     .filter((listing) => currentProfile.maxPrice <= 0 || listing.price <= currentProfile.maxPrice)
     .filter((listing) => normalizedTerms.some((term) => normalizeText(listing.title).includes(term)))
     .filter((listing) => !normalizedExcludes.some((term) => normalizeText(listing.title).includes(term)))
@@ -254,7 +256,9 @@ function renderResults() {
 }
 
 async function fetchLiveListings(profile) {
-  if (location.protocol === "file:" || !profile.sources.includes("digimart")) {
+  const hasLiveSource = profile.sources.some((source) => LIVE_SOURCE_IDS.includes(source));
+
+  if (location.protocol === "file:" || !hasLiveSource) {
     return {
       listings: [],
       mode: "mock",
@@ -356,6 +360,11 @@ function createLiveDetail(listings, meta, errors) {
 
 function labelForSource(sourceId) {
   return SOURCES.find((source) => source.id === sourceId)?.label || sourceId;
+}
+
+function sourceMatchesProfile(sourceId, selectedSources) {
+  if (selectedSources.includes(sourceId)) return true;
+  return sourceId === "offmall" && selectedSources.includes("hardoff");
 }
 
 function renderSavedSearches() {

@@ -7,6 +7,7 @@ const PORT = Number(process.env.PORT || 5173);
 const HOST = process.env.HOST || "127.0.0.1";
 const ROOT = fileURLToPath(new URL(".", import.meta.url));
 const DIGIMART_BASE_URL = "https://www.digimart.net";
+const OFFMALL_BASE_URL = "https://netmall.hardoff.co.jp";
 const USER_AGENT = "Bumpers/0.1 local personal gear search";
 
 const mimeTypes = {
@@ -43,9 +44,10 @@ async function handleSearch(url, response) {
   const maxPrice = Number(url.searchParams.get("maxPrice") || 0);
   const sources = splitParam(url.searchParams.get("sources"));
   const wantsDigimart = sources.length === 0 || sources.includes("digimart");
+  const wantsOffmall = sources.length === 0 || sources.includes("offmall") || sources.includes("hardoff");
   const startedAt = new Date();
 
-  if (!wantsDigimart || terms.length === 0) {
+  if ((!wantsDigimart && !wantsOffmall) || terms.length === 0) {
     sendJson(response, 200, { listings: [], meta: createSearchMeta(startedAt, [], [], terms) });
     return;
   }
@@ -58,22 +60,32 @@ async function handleSearch(url, response) {
     const sourceResult = await searchSourceTerms("digimart", terms, searchDigimart);
     sourceStats.push(sourceResult.stats);
     errors.push(...sourceResult.errors);
+    collectFilteredListings(sourceResult.listings, listingsById, excludes, maxPrice);
+  }
 
-    for (const listing of sourceResult.listings) {
-      const title = normalizeText(listing.title);
-      const excluded = excludes.some((exclude) => title.includes(exclude));
-      const tooExpensive = maxPrice > 0 && listing.price > maxPrice;
-
-      if (!excluded && !tooExpensive) {
-        listingsById.set(listing.id, listing);
-      }
-    }
+  if (wantsOffmall) {
+    const sourceResult = await searchSourceTerms("offmall", terms, searchOffmall);
+    sourceStats.push(sourceResult.stats);
+    errors.push(...sourceResult.errors);
+    collectFilteredListings(sourceResult.listings, listingsById, excludes, maxPrice);
   }
 
   sendJson(response, 200, {
     listings: [...listingsById.values()].sort((a, b) => new Date(b.listedAt) - new Date(a.listedAt)),
     meta: createSearchMeta(startedAt, sourceStats, errors, terms),
   });
+}
+
+function collectFilteredListings(listings, listingsById, excludes, maxPrice) {
+  for (const listing of listings) {
+    const title = normalizeText(listing.title);
+    const excluded = excludes.some((exclude) => title.includes(exclude));
+    const tooExpensive = maxPrice > 0 && listing.price > maxPrice;
+
+    if (!excluded && !tooExpensive) {
+      listingsById.set(listing.id, listing);
+    }
+  }
 }
 
 async function searchSourceTerms(source, terms, searchFn) {
@@ -140,6 +152,28 @@ async function searchDigimart(term) {
   return parseDigimart(await response.text());
 }
 
+async function searchOffmall(term) {
+  const url = new URL("/search/", OFFMALL_BASE_URL);
+  url.searchParams.set("q", term);
+  url.searchParams.set("s", "1");
+  url.searchParams.set("pl", "30");
+
+  const response = await fetch(url, {
+    headers: {
+      "user-agent": USER_AGENT,
+      "accept-language": "ja,en-US;q=0.9,en;q=0.8",
+    },
+  });
+
+  const html = await response.text();
+
+  if (!response.ok && response.status !== 404) {
+    throw new Error(`OFFMALL responded with ${response.status}`);
+  }
+
+  return parseOffmall(html);
+}
+
 function parseDigimart(html) {
   const blocks = html.match(/<div class="itemSearchBlock itemSearchListItem[\s\S]*?<!-- \/.itemSearchBlock --><\/div>/g) || [];
 
@@ -165,6 +199,34 @@ function parseDigimart(html) {
       image,
     };
   }).filter((listing) => listing.id !== "digimart-" && listing.title && listing.url);
+}
+
+function parseOffmall(html) {
+  const blocks = html.match(/<div class="itemcolmn_item[\s\S]*?<button class="item-fav-button[\s\S]*?<\/button>\s*<\/div>/g) || [];
+
+  return blocks.map((block) => {
+    const href = matchOne(block, /<a href="([^"]*\/product\/(\d+)\/)"[\s\S]*?>/);
+    const rawId = href.match(/\/product\/(\d+)\//)?.[1] || matchOne(block, /data-goodsno="([^"]+)"/);
+    const image = normalizeUrl(matchOne(block, /<img[^>]+src="([^"]+)"[^>]+data-object-fit="contain"/), OFFMALL_BASE_URL);
+    const brand = cleanText(matchOne(block, /<div class="item-brand-name">([\s\S]*?)<\/div>/));
+    const name = cleanText(matchOne(block, /<div class="item-name">([\s\S]*?)<\/div>/));
+    const code = cleanText(matchOne(block, /<div class="item-code">([\s\S]*?)<\/div>/));
+    const rank = matchOne(block, /<span class="item-price-icon">[\s\S]*?<img[^>]+alt="([^"]*)"/i).toUpperCase();
+    const price = Number(cleanText(matchOne(block, /<span class="font-en item-price-en">([\s\S]*?)<\/span>/)).replace(/[^\d]/g, ""));
+    const isFresh = block.includes("入荷ホヤホヤ");
+
+    return {
+      id: `offmall-${rawId}`,
+      source: "offmall",
+      title: [brand, name, code].filter(Boolean).join(" "),
+      price,
+      condition: rank || (isFresh ? "New arrival" : "Listed"),
+      shop: "OFFMALL / Hard Off",
+      listedAt: new Date().toISOString(),
+      url: normalizeUrl(href, OFFMALL_BASE_URL),
+      image,
+    };
+  }).filter((listing) => listing.id !== "offmall-" && listing.title && listing.url);
 }
 
 async function serveStatic(pathname, response) {
@@ -217,10 +279,10 @@ function decodeHtml(value) {
     .replace(/&gt;/g, ">");
 }
 
-function normalizeUrl(value) {
+function normalizeUrl(value, baseUrl = DIGIMART_BASE_URL) {
   if (!value) return "";
   if (value.startsWith("//")) return `https:${value}`;
-  if (value.startsWith("/")) return `${DIGIMART_BASE_URL}${value}`;
+  if (value.startsWith("/")) return `${baseUrl}${value}`;
   return value;
 }
 
