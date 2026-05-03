@@ -103,6 +103,12 @@ let currentProfile = loadProfiles()[0] || defaultProfile;
 let currentResults = [];
 let filterMode = "all";
 let isSearching = false;
+let searchState = {
+  mode: "mock",
+  message: "Mock data",
+  detail: "Open through the local server for live search.",
+  errors: [],
+};
 
 const sourceList = document.querySelector("#sourceList");
 const savedSearches = document.querySelector("#savedSearches");
@@ -197,13 +203,15 @@ function splitLines(value) {
 
 async function runSearch() {
   isSearching = true;
-  liveStatus.textContent = "Searching";
+  searchState = { mode: "searching", message: "Searching", detail: "Checking live sources.", errors: [] };
+  updateSearchStatus();
   renderResults();
 
-  const liveListings = await fetchLiveListings(currentProfile);
+  const liveResult = await fetchLiveListings(currentProfile);
   const normalizedTerms = currentProfile.terms.map(normalizeText);
   const normalizedExcludes = currentProfile.excludes.map(normalizeText);
-  const listings = liveListings.length > 0 ? liveListings : MOCK_LISTINGS;
+  const useMockListings = liveResult.mode === "mock" || liveResult.mode === "error";
+  const listings = useMockListings ? MOCK_LISTINGS : liveResult.listings;
 
   currentResults = listings
     .filter((listing) => currentProfile.sources.includes(listing.source))
@@ -214,7 +222,8 @@ async function runSearch() {
 
   document.querySelector("#activeTitle").textContent = currentProfile.name;
   isSearching = false;
-  liveStatus.textContent = liveListings.length > 0 ? "Live Digimart" : "Mock data";
+  searchState = liveResult;
+  updateSearchStatus();
   renderResults();
 }
 
@@ -230,8 +239,10 @@ function renderResults() {
 
   if (isSearching) {
     resultGrid.innerHTML = `<div class="empty-state">Searching live sources...</div>`;
+  } else if (searchState.mode === "error" && visibleResults.length === 0) {
+    resultGrid.innerHTML = `<div class="empty-state"><strong>Live search failed.</strong><span>${searchState.detail}</span></div>`;
   } else if (visibleResults.length === 0) {
-    resultGrid.innerHTML = `<div class="empty-state">No matching listings in this view.</div>`;
+    resultGrid.innerHTML = `<div class="empty-state"><strong>No matching listings in this view.</strong><span>${searchState.detail || "Try another term or source."}</span></div>`;
   } else {
     visibleResults.forEach((listing) => resultGrid.appendChild(renderListing(listing)));
   }
@@ -244,7 +255,13 @@ function renderResults() {
 
 async function fetchLiveListings(profile) {
   if (location.protocol === "file:" || !profile.sources.includes("digimart")) {
-    return [];
+    return {
+      listings: [],
+      mode: "mock",
+      message: "Mock data",
+      detail: location.protocol === "file:" ? "Live search needs http://127.0.0.1:5173." : "No live source selected yet.",
+      errors: [],
+    };
   }
 
   try {
@@ -261,10 +278,29 @@ async function fetchLiveListings(profile) {
     }
 
     const payload = await response.json();
-    return Array.isArray(payload.listings) ? payload.listings : [];
+    const listings = Array.isArray(payload.listings) ? payload.listings : [];
+    const meta = payload.meta || {};
+    const liveSources = meta.liveSources || [];
+    const sourceLabel = liveSources.map(labelForSource).join(", ") || "live sources";
+    const errors = Array.isArray(meta.errors) ? meta.errors : [];
+
+    return {
+      listings,
+      mode: "live",
+      message: errors.length > 0 ? "Partial live" : `Live ${sourceLabel}`,
+      detail: createLiveDetail(listings, meta, errors),
+      errors,
+      meta,
+    };
   } catch (error) {
     console.warn("Live search unavailable; falling back to mock listings.", error);
-    return [];
+    return {
+      listings: [],
+      mode: "error",
+      message: "Live unavailable",
+      detail: error instanceof Error ? error.message : "Unknown live search error",
+      errors: [error],
+    };
   }
 }
 
@@ -284,6 +320,7 @@ function renderListing(listing) {
   fragment.querySelector(".source-chip").textContent = source?.label || listing.source;
   fragment.querySelector(".condition").textContent = listing.condition;
   fragment.querySelector("h3").textContent = listing.title;
+  fragment.querySelector(".shop-name").textContent = listing.shop || source?.label || "";
   fragment.querySelector(".price-row strong").textContent = formatYen(listing.price);
   fragment.querySelector(".price-row span").textContent = relativeDate(listing.listedAt);
   fragment.querySelector(".open-link").href = listing.url;
@@ -302,6 +339,23 @@ function renderListing(listing) {
   });
 
   return fragment;
+}
+
+function updateSearchStatus() {
+  liveStatus.textContent = searchState.message;
+  liveStatus.dataset.state = searchState.mode;
+  liveStatus.title = searchState.detail || searchState.message;
+}
+
+function createLiveDetail(listings, meta, errors) {
+  const count = `${listings.length} live ${listings.length === 1 ? "listing" : "listings"}`;
+  const duration = typeof meta.durationMs === "number" ? ` in ${(meta.durationMs / 1000).toFixed(1)}s` : "";
+  const errorText = errors.length > 0 ? `; ${errors.length} connector ${errors.length === 1 ? "warning" : "warnings"}` : "";
+  return `${count}${duration}${errorText}.`;
+}
+
+function labelForSource(sourceId) {
+  return SOURCES.find((source) => source.id === sourceId)?.label || sourceId;
 }
 
 function renderSavedSearches() {

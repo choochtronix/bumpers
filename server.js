@@ -43,18 +43,23 @@ async function handleSearch(url, response) {
   const maxPrice = Number(url.searchParams.get("maxPrice") || 0);
   const sources = splitParam(url.searchParams.get("sources"));
   const wantsDigimart = sources.length === 0 || sources.includes("digimart");
+  const startedAt = new Date();
 
   if (!wantsDigimart || terms.length === 0) {
-    sendJson(response, 200, { listings: [], meta: { liveSources: [] } });
+    sendJson(response, 200, { listings: [], meta: createSearchMeta(startedAt, [], [], terms) });
     return;
   }
 
   const listingsById = new Map();
+  const sourceStats = [];
+  const errors = [];
 
-  for (const term of terms.slice(0, 5)) {
-    const listings = await searchDigimart(term);
+  if (wantsDigimart) {
+    const sourceResult = await searchSourceTerms("digimart", terms, searchDigimart);
+    sourceStats.push(sourceResult.stats);
+    errors.push(...sourceResult.errors);
 
-    for (const listing of listings) {
+    for (const listing of sourceResult.listings) {
       const title = normalizeText(listing.title);
       const excluded = excludes.some((exclude) => title.includes(exclude));
       const tooExpensive = maxPrice > 0 && listing.price > maxPrice;
@@ -63,17 +68,55 @@ async function handleSearch(url, response) {
         listingsById.set(listing.id, listing);
       }
     }
-
-    await wait(700);
   }
 
   sendJson(response, 200, {
     listings: [...listingsById.values()].sort((a, b) => new Date(b.listedAt) - new Date(a.listedAt)),
-    meta: {
-      liveSources: ["digimart"],
-      searchedTerms: terms.slice(0, 5),
-    },
+    meta: createSearchMeta(startedAt, sourceStats, errors, terms),
   });
+}
+
+async function searchSourceTerms(source, terms, searchFn) {
+  const listingsById = new Map();
+  const errors = [];
+  const searchedTerms = terms.slice(0, 5);
+
+  for (const term of searchedTerms) {
+    try {
+      const listings = await searchFn(term);
+      listings.forEach((listing) => listingsById.set(listing.id, listing));
+    } catch (error) {
+      errors.push({
+        source,
+        term,
+        message: error instanceof Error ? error.message : "Unknown connector error",
+      });
+    }
+
+    await wait(700);
+  }
+
+  return {
+    listings: [...listingsById.values()],
+    errors,
+    stats: {
+      source,
+      status: errors.length === searchedTerms.length ? "error" : errors.length > 0 ? "partial" : "ok",
+      searchedTerms,
+      rawCount: listingsById.size,
+    },
+  };
+}
+
+function createSearchMeta(startedAt, sourceStats, errors, terms) {
+  return {
+    searchedAt: new Date().toISOString(),
+    durationMs: Date.now() - startedAt.getTime(),
+    liveSources: sourceStats.map((item) => item.source),
+    sourceStats,
+    errors,
+    searchedTerms: terms.slice(0, 5),
+  };
 }
 
 async function searchDigimart(term) {
