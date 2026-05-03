@@ -221,6 +221,29 @@ fieldset {
   border: 0;
 }
 
+.advanced-options {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--button-bg);
+}
+
+.advanced-options summary {
+  cursor: pointer;
+  padding: 10px 12px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.advanced-options label {
+  padding: 0 10px 10px;
+}
+
+.advanced-options textarea {
+  min-height: 92px;
+}
+
 .source-list {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

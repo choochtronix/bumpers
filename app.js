@@ -120,6 +120,7 @@ const defaultProfile = {
   name: "Waldorf",
   terms: ["Waldorf", "ワルドルフ", "WALDORF"],
   excludes: ["manual", "magnet", "power cord", "doll", "Fashionist", "shirt", "CD", "Moments to Remember", "record", "shoes"],
+  noiseTerms: [...ACCESSORY_TERMS],
   maxPrice: 2000000,
   alertMode: "immediate",
   sources: SOURCES.map((source) => source.id),
@@ -218,13 +219,15 @@ function renderSources() {
 }
 
 function fillForm(profile) {
+  const hydratedProfile = hydrateProfile(profile);
   document.querySelector("#profileName").value = profile.name;
-  document.querySelector("#terms").value = profile.terms.join("\n");
-  document.querySelector("#excludes").value = profile.excludes.join("\n");
-  document.querySelector("#maxPrice").value = profile.maxPrice;
-  document.querySelector("#alertMode").value = profile.alertMode;
+  document.querySelector("#terms").value = hydratedProfile.terms.join("\n");
+  document.querySelector("#excludes").value = hydratedProfile.excludes.join("\n");
+  document.querySelector("#noiseTerms").value = hydratedProfile.noiseTerms.join("\n");
+  document.querySelector("#maxPrice").value = hydratedProfile.maxPrice;
+  document.querySelector("#alertMode").value = hydratedProfile.alertMode;
   document.querySelectorAll("input[name='sources']").forEach((input) => {
-    input.checked = profile.sources.includes(input.value);
+    input.checked = hydratedProfile.sources.includes(input.value);
   });
 }
 
@@ -233,6 +236,7 @@ function readProfileFromForm() {
     name: document.querySelector("#profileName").value.trim() || "Untitled Search",
     terms: splitLines(document.querySelector("#terms").value),
     excludes: splitLines(document.querySelector("#excludes").value),
+    noiseTerms: splitLines(document.querySelector("#noiseTerms").value),
     maxPrice: Number(document.querySelector("#maxPrice").value || 0),
     alertMode: document.querySelector("#alertMode").value,
     sources: [...document.querySelectorAll("input[name='sources']:checked")].map((input) => input.value),
@@ -245,6 +249,7 @@ function splitLines(value) {
 
 async function runSearch() {
   isSearching = true;
+  scrollResultsTop();
   searchState = { mode: "searching", message: "Searching", detail: "Checking live sources.", errors: [] };
   updateSearchStatus();
   renderResults();
@@ -273,6 +278,10 @@ async function runSearch() {
   searchState = liveResult;
   updateSearchStatus();
   renderResults();
+}
+
+function scrollResultsTop() {
+  document.querySelector(".content").scrollIntoView({ block: "start" });
 }
 
 function getCurrentAlertListings() {
@@ -432,7 +441,7 @@ function sourceMatchesProfile(sourceId, selectedSources) {
 
 function isCleanGearListing(listing) {
   const searchable = normalizeText(`${listing.title} ${listing.condition || ""} ${listing.shop || ""}`);
-  return !ACCESSORY_TERMS.some((term) => searchable.includes(normalizeText(term)));
+  return !getActiveNoiseTerms().some((term) => searchable.includes(normalizeText(term)));
 }
 
 function compareListings(a, b) {
@@ -477,8 +486,9 @@ function renderSavedSearches() {
 }
 
 function saveProfile(profile) {
-  const profiles = loadProfiles().filter((item) => item.name !== profile.name);
-  localStorage.setItem(STORAGE_KEYS.profiles, JSON.stringify([profile, ...profiles]));
+  const hydratedProfile = hydrateProfile(profile);
+  const profiles = loadProfiles().filter((item) => item.name !== hydratedProfile.name);
+  localStorage.setItem(STORAGE_KEYS.profiles, JSON.stringify([hydratedProfile, ...profiles]));
 }
 
 function loadProfiles() {
@@ -489,10 +499,36 @@ function loadProfiles() {
   }
 
   try {
-    return JSON.parse(raw);
+    return JSON.parse(raw).map(hydrateProfile);
   } catch {
     return [defaultProfile];
   }
+}
+
+function hydrateProfile(profile) {
+  return {
+    ...defaultProfile,
+    ...profile,
+    terms: Array.isArray(profile.terms) ? profile.terms : defaultProfile.terms,
+    excludes: Array.isArray(profile.excludes) ? profile.excludes : defaultProfile.excludes,
+    noiseTerms: Array.isArray(profile.noiseTerms) ? profile.noiseTerms : [...ACCESSORY_TERMS],
+    sources: Array.isArray(profile.sources) ? profile.sources : defaultProfile.sources,
+  };
+}
+
+function getActiveNoiseTerms() {
+  const savedNoise = currentProfile.noiseTerms || [];
+  return uniqueTerms([...ACCESSORY_TERMS, ...savedNoise]);
+}
+
+function uniqueTerms(terms) {
+  const seen = new Set();
+  return terms.filter((term) => {
+    const normalized = normalizeText(term);
+    if (!normalized || seen.has(normalized)) return false;
+    seen.add(normalized);
+    return true;
+  });
 }
 
 function loadSet(key) {
