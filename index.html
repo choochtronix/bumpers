@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bumpers</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Saved searches">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">B</div>
+          <div>
+            <h1>Bumpers</h1>
+            <p>Japan gear radar</p>
+          </div>
+        </div>
+
+        <form class="search-form" id="searchForm">
+          <label>
+            <span>Name</span>
+            <input id="profileName" type="text" value="Waldorf" autocomplete="off" />
+          </label>
+
+          <label>
+            <span>Terms</span>
+            <textarea id="terms" rows="4">Waldorf
+ワルドルフ
+WALDORF</textarea>
+          </label>
+
+          <label>
+            <span>Exclude</span>
+            <textarea id="excludes" rows="5">manual
+magnet
+power cord
+doll
+Fashionist
+shirt
+CD
+Moments to Remember
+record
+shoes</textarea>
+          </label>
+
+          <div class="form-grid">
+            <label>
+              <span>Max price</span>
+              <input id="maxPrice" type="number" value="2000000" min="0" step="1000" />
+            </label>
+            <label>
+              <span>Alert</span>
+              <select id="alertMode">
+                <option value="immediate">Immediate</option>
+                <option value="hourly">Hourly</option>
+                <option value="daily">Daily</option>
+              </select>
+            </label>
+          </div>
+
+          <fieldset>
+            <legend>Sources</legend>
+            <div class="source-list" id="sourceList"></div>
+          </fieldset>
+
+          <button class="primary-action" type="submit">
+            <span aria-hidden="true">⌕</span>
+            Run search
+          </button>
+        </form>
+
+        <section class="saved-panel" aria-labelledby="savedTitle">
+          <div class="panel-heading">
+            <h2 id="savedTitle">Saved Searches</h2>
+            <button id="saveProfile" type="button" title="Save current search" aria-label="Save current search">＋</button>
+          </div>
+          <div class="saved-searches" id="savedSearches"></div>
+        </section>
+      </aside>
+
+      <main class="content">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Active Search</p>
+            <h2 id="activeTitle">Waldorf</h2>
+          </div>
+          <div class="status-strip" aria-label="Search totals">
+            <div>
+              <strong id="totalCount">0</strong>
+              <span>matches</span>
+            </div>
+            <div>
+              <strong id="newCount">0</strong>
+              <span>new</span>
+            </div>
+            <div>
+              <strong id="sourceCount">0</strong>
+              <span>sources</span>
+            </div>
+          </div>
+        </header>
+
+        <section class="controls" aria-label="Result controls">
+          <div class="segmented" id="urgencyFilter" role="tablist" aria-label="Listing filter">
+            <button class="active" type="button" data-filter="all">All</button>
+            <button type="button" data-filter="new">New</button>
+            <button type="button" data-filter="watching">Watching</button>
+          </div>
+          <div class="toolbar-actions">
+            <button id="markAllSeen" type="button" title="Mark all listings as seen" aria-label="Mark all listings as seen">✓</button>
+            <button id="copyDigest" type="button" title="Copy email digest" aria-label="Copy email digest">✉</button>
+          </div>
+        </section>
+
+        <section class="result-grid" id="resultGrid" aria-live="polite"></section>
+      </main>
+    </div>
+
+    <template id="listingTemplate">
+      <article class="listing-card">
+        <a class="image-link" target="_blank" rel="noreferrer">
+          <img alt="" loading="lazy" />
+          <span class="new-pill">New</span>
+        </a>
+        <div class="listing-body">
+          <div class="listing-meta">
+            <span class="source-chip"></span>
+            <span class="condition"></span>
+          </div>
+          <h3></h3>
+          <div class="price-row">
+            <strong></strong>
+            <span></span>
+          </div>
+          <div class="card-actions">
+            <button class="watch-button" type="button" title="Watch listing" aria-label="Watch listing">☆</button>
+            <a class="open-link" target="_blank" rel="noreferrer">Open</a>
+          </div>
+        </div>
+      </article>
+    </template>
+
+    <script src="app.js"></script>
+  </body>
+</html>
