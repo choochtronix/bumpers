@@ -1,0 +1,30 @@
+# macOS
+.DS_Store
+
+# Logs
+*.log
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+.next/
+out/
+
+# Local env
+.env
+.env.local
+.env.*.local
+
+# Local app data
+*.sqlite
+*.sqlite3
+*.db
+cache/
+screenshots/
+
+# Temporary files
+.tmp/
+temp/
