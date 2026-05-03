@@ -118,6 +118,12 @@ const NEGATIVE_CATEGORY_IDS = [
   "2084032594", // celebrity goods
   "2084055844", // pets
 ];
+const HARD_NEGATIVE_CATEGORY_IDS = [
+  "21600", // books and magazines
+  "21964", // movies and video
+  "22152", // music media
+  "23000", // fashion
+];
 const POSITIVE_GEAR_CATEGORY_IDS = [
   "22436",
   "22532",
@@ -613,11 +619,15 @@ function scoreGearConfidence(listing) {
   const mediaNoiseCount = countMatchingTerms(searchable, MEDIA_NOISE_TERMS);
   const hasPositiveCategory = categoryIds.some((id) => POSITIVE_GEAR_CATEGORY_IDS.includes(id));
   const hasNegativeCategory = categoryIds.some((id) => NEGATIVE_CATEGORY_IDS.includes(id));
+  const hasHardNegativeCategory = categoryIds.some((id) => HARD_NEGATIVE_CATEGORY_IDS.includes(id));
+  const hasMediaCatalogMarker = hasRecordCatalogMarker(searchable);
   let score = 0;
 
   score += positiveTermCount * 3;
   if (hasPositiveCategory) score += 4;
   if (hasNegativeCategory) score -= 5;
+  if (hasHardNegativeCategory && !hasPositiveCategory && positiveTermCount < 2) score -= 4;
+  if (hasMediaCatalogMarker) score -= 4;
   score -= mediaNoiseCount * 4;
   score -= profileNoiseCount * 2;
 
@@ -641,6 +651,10 @@ function countMatchingTerms(searchable, terms) {
   return terms.reduce((count, term) => {
     return termMatches(searchable, term) ? count + 1 : count;
   }, 0);
+}
+
+function hasRecordCatalogMarker(searchable) {
+  return /(^|[^a-z0-9])lp[\s-]?\d{2,}/.test(searchable) || /(^|[^a-z0-9])ep[\s-]?\d{2,}/.test(searchable);
 }
 
 function termMatches(searchable, term) {
