@@ -464,6 +464,7 @@ function renderSourceFilters() {
     button.classList.toggle("is-active", activeViewSources.has(source.id));
     button.title = `${source.label} results`;
     button.setAttribute("aria-label", `Filter to ${source.label} results`);
+    button.setAttribute("aria-pressed", String(activeViewSources.has(source.id)));
     button.innerHTML = `
       <span class="source-avatar source-filter-avatar" data-source="${source.id}">${source.icon}</span>
       <span>${counts.get(source.id)}</span>
@@ -478,6 +479,7 @@ function createAllSourceFilterButton() {
   button.type = "button";
   button.dataset.source = "all";
   button.classList.toggle("is-active", activeViewSources.size === 0);
+  button.setAttribute("aria-pressed", String(activeViewSources.size === 0));
   button.textContent = `All ${getSourceFilteredBaseResults().length}`;
   return button;
 }

@@ -537,12 +537,18 @@ fieldset {
   cursor: pointer;
   font-size: 12px;
   font-weight: 900;
+  transition: background 140ms ease, border-color 140ms ease, box-shadow 140ms ease, color 140ms ease;
 }
 
 .source-filter-button.is-active {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-  color: var(--accent-ink);
+  border-color: var(--source-solid, var(--primary));
+  background: var(--source-solid, var(--primary));
+  color: var(--source-solid-ink, var(--primary-ink));
+  box-shadow: 0 8px 18px rgba(20, 24, 28, 0.14);
+}
+
+body[data-theme="dark"] .source-filter-button.is-active {
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 12px 24px rgba(0, 0, 0, 0.24);
 }
 
 .source-filter-button:disabled {
@@ -552,6 +558,55 @@ fieldset {
 
 .source-filter-all {
   padding: 4px 12px;
+}
+
+.source-filter-button[data-source="mercari"] {
+  --source-solid: #e53935;
+  --source-solid-ink: #ffffff;
+  --source-solid-mark: #e53935;
+}
+
+.source-filter-button[data-source="yahoo-auctions"] {
+  --source-solid: #d60000;
+  --source-solid-ink: #ffffff;
+  --source-solid-mark: #d60000;
+}
+
+.source-filter-button[data-source="yahoo-fleamarket"] {
+  --source-solid: #1f73e8;
+  --source-solid-ink: #ffffff;
+  --source-solid-mark: #1f73e8;
+}
+
+.source-filter-button[data-source="rakuma"] {
+  --source-solid: #12a05c;
+  --source-solid-ink: #ffffff;
+  --source-solid-mark: #12a05c;
+}
+
+.source-filter-button[data-source="digimart"] {
+  --source-solid: #0a62b7;
+  --source-solid-ink: #ffffff;
+  --source-solid-mark: #0a62b7;
+}
+
+.source-filter-button[data-source="offmall"],
+.source-filter-button[data-source="hardoff"] {
+  --source-solid: #f2a900;
+  --source-solid-ink: #1a1a1a;
+  --source-solid-mark: #1a1a1a;
+}
+
+.source-filter-button[data-source="five-g"] {
+  --source-solid: #151515;
+  --source-solid-ink: #ffffff;
+  --source-solid-mark: #151515;
+}
+
+.source-filter-button[data-source="implant4"] {
+  --source-solid: #b13b57;
+  --source-solid-ink: #ffffff;
+  --source-solid-mark: #b13b57;
 }
 
 .alert-panel {
@@ -804,6 +859,19 @@ fieldset {
   border-width: 1px;
   box-shadow: none;
   font-size: 9px;
+}
+
+.source-filter-button.is-active .source-filter-avatar {
+  border-color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--source-solid-mark, var(--primary));
+}
+
+.source-filter-button[data-source="offmall"].is-active .source-filter-avatar,
+.source-filter-button[data-source="hardoff"].is-active .source-filter-avatar {
+  border-color: rgba(26, 26, 26, 0.28);
+  background: rgba(26, 26, 26, 0.1);
+  color: #1a1a1a;
 }
 
 .listing-body {
