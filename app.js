@@ -210,6 +210,7 @@ const STORAGE_KEYS = {
   watching: "bumpers.watching",
   theme: "bumpers.theme",
   listingLedger: "bumpers.listingLedger",
+  feedbackRules: "bumpers.feedbackRules",
 };
 
 const defaultProfile = {
@@ -423,6 +424,7 @@ function getVisibleResults(watching) {
   return currentResults
     .filter((listing) => {
       if (filterMode === "new") return currentDiscoveryIds.has(listing.id);
+      if (filterMode === "maybe") return formatGearConfidence(listing).level === "maybe-gear";
       if (filterMode === "watching") return watching.includes(listing.id);
       return true;
     })
@@ -490,9 +492,16 @@ function renderListing(listing) {
   const image = fragment.querySelector("img");
   const source = SOURCES.find((item) => item.id === listing.source);
   const watchButton = fragment.querySelector(".watch-button");
+  const hideSimilarButton = fragment.querySelector(".hide-similar-button");
+  const gearButton = fragment.querySelector(".gear-button");
+  const noiseButton = fragment.querySelector(".noise-button");
   const watching = new Set(loadSet(STORAGE_KEYS.watching));
+  const feedback = getProfileFeedback();
+  const feedbackStatus = getListingFeedbackStatus(listing, feedback);
 
   card.classList.toggle("is-new", currentDiscoveryIds.has(listing.id));
+  card.classList.toggle("is-feedback-gear", feedbackStatus === "gear");
+  card.classList.toggle("is-feedback-noise", feedbackStatus === "noise");
   imageLink.href = listing.url;
   image.src = listing.image;
   image.alt = listing.title;
@@ -505,6 +514,8 @@ function renderListing(listing) {
   fragment.querySelector(".open-link").href = listing.url;
   watchButton.classList.toggle("is-watching", watching.has(listing.id));
   watchButton.textContent = watching.has(listing.id) ? "★" : "☆";
+  gearButton.classList.toggle("is-active", feedbackStatus === "gear");
+  noiseButton.classList.toggle("is-active", feedbackStatus === "noise");
 
   watchButton.addEventListener("click", () => {
     const next = new Set(loadSet(STORAGE_KEYS.watching));
@@ -514,6 +525,21 @@ function renderListing(listing) {
       next.add(listing.id);
     }
     saveSet(STORAGE_KEYS.watching, next);
+    renderResults();
+  });
+
+  hideSimilarButton.addEventListener("click", () => {
+    saveListingFeedback(listing, "hide-similar");
+    renderResults();
+  });
+
+  gearButton.addEventListener("click", () => {
+    saveListingFeedback(listing, "gear");
+    renderResults();
+  });
+
+  noiseButton.addEventListener("click", () => {
+    saveListingFeedback(listing, "noise");
     renderResults();
   });
 
@@ -614,13 +640,21 @@ function formatGearConfidence(listing) {
 function scoreGearConfidence(listing) {
   const searchable = normalizeText(`${listing.title} ${listing.condition || ""} ${listing.shop || ""}`);
   const categoryIds = getListingCategoryIds(listing);
+  const feedback = getProfileFeedback();
+  const feedbackStatus = getListingFeedbackStatus(listing, feedback);
+
+  if (feedbackStatus === "gear") return { level: "likely-gear", score: 99 };
+  if (feedbackStatus === "noise") return { level: "likely-noise", score: -99 };
+
   const positiveTermCount = countMatchingTerms(searchable, GEAR_SIGNAL_TERMS);
   const profileNoiseCount = countMatchingTerms(searchable, getActiveNoiseTerms());
   const mediaNoiseCount = countMatchingTerms(searchable, MEDIA_NOISE_TERMS);
+  const feedbackNoiseCount = countMatchingTerms(searchable, feedback.hiddenTerms || []);
   const hasPositiveCategory = categoryIds.some((id) => POSITIVE_GEAR_CATEGORY_IDS.includes(id));
   const hasNegativeCategory = categoryIds.some((id) => NEGATIVE_CATEGORY_IDS.includes(id));
   const hasHardNegativeCategory = categoryIds.some((id) => HARD_NEGATIVE_CATEGORY_IDS.includes(id));
   const hasMediaCatalogMarker = hasRecordCatalogMarker(searchable);
+  const hasFeedbackHiddenCategory = categoryIds.some((id) => (feedback.hiddenCategories || []).includes(id));
   let score = 0;
 
   score += positiveTermCount * 3;
@@ -628,8 +662,10 @@ function scoreGearConfidence(listing) {
   if (hasNegativeCategory) score -= 5;
   if (hasHardNegativeCategory && !hasPositiveCategory && positiveTermCount < 2) score -= 4;
   if (hasMediaCatalogMarker) score -= 4;
+  if (hasFeedbackHiddenCategory) score -= 8;
   score -= mediaNoiseCount * 4;
   score -= profileNoiseCount * 2;
+  score -= feedbackNoiseCount * 6;
 
   if (positiveTermCount > 0 && !hasNegativeCategory) score += 2;
   if (mediaNoiseCount > 0 && positiveTermCount === 0) score -= 3;
@@ -645,6 +681,98 @@ function getListingCategoryIds(listing) {
   if (listing.categoryId) ids.push(String(listing.categoryId));
   if (Array.isArray(listing.categoryPath)) ids.push(...listing.categoryPath.map(String));
   return [...new Set(ids.filter(Boolean))];
+}
+
+function getListingFeedbackStatus(listing, feedback = getProfileFeedback()) {
+  if ((feedback.gearListingIds || []).includes(listing.id)) return "gear";
+  if ((feedback.noiseListingIds || []).includes(listing.id)) return "noise";
+  return "";
+}
+
+function saveListingFeedback(listing, action) {
+  const allFeedback = loadFeedbackRules();
+  const key = getProfileKey(currentProfile);
+  const feedback = hydrateFeedback(allFeedback[key]);
+
+  if (action === "gear") {
+    addUnique(feedback.gearListingIds, listing.id);
+    removeValue(feedback.noiseListingIds, listing.id);
+  }
+
+  if (action === "noise") {
+    addUnique(feedback.noiseListingIds, listing.id);
+    removeValue(feedback.gearListingIds, listing.id);
+  }
+
+  if (action === "hide-similar") {
+    addHideSimilarSignals(feedback, listing);
+    addUnique(feedback.noiseListingIds, listing.id);
+    removeValue(feedback.gearListingIds, listing.id);
+  }
+
+  allFeedback[key] = feedback;
+  saveFeedbackRules(allFeedback);
+}
+
+function addHideSimilarSignals(feedback, listing) {
+  const categoryIds = getListingCategoryIds(listing);
+  const leafCategory = categoryIds.at(-1);
+  const noiseTerm = deriveNoiseTerm(listing);
+
+  if (leafCategory) addUnique(feedback.hiddenCategories, leafCategory);
+  if (noiseTerm) addUnique(feedback.hiddenTerms, noiseTerm);
+}
+
+function deriveNoiseTerm(listing) {
+  const title = normalizeText(listing.title);
+  const mediaTerm = MEDIA_NOISE_TERMS.find((term) => termMatches(title, term));
+  if (mediaTerm) return mediaTerm;
+
+  const recordCode = title.match(/(^|[^a-z0-9])((lp|ep)[\s-]?\d{2,})/);
+  if (recordCode?.[2]) return recordCode[2];
+
+  const categoryTerm = getListingCategoryIds(listing).some((id) => HARD_NEGATIVE_CATEGORY_IDS.includes(id));
+  if (categoryTerm) return listing.source === "yahoo-auctions" ? "yahoo media category" : listing.source;
+
+  return "";
+}
+
+function getProfileFeedback() {
+  return hydrateFeedback(loadFeedbackRules()[getProfileKey(currentProfile)]);
+}
+
+function loadFeedbackRules() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEYS.feedbackRules) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function saveFeedbackRules(value) {
+  localStorage.setItem(STORAGE_KEYS.feedbackRules, JSON.stringify(value));
+}
+
+function hydrateFeedback(feedback = {}) {
+  return {
+    gearListingIds: Array.isArray(feedback.gearListingIds) ? feedback.gearListingIds : [],
+    noiseListingIds: Array.isArray(feedback.noiseListingIds) ? feedback.noiseListingIds : [],
+    hiddenCategories: Array.isArray(feedback.hiddenCategories) ? feedback.hiddenCategories : [],
+    hiddenTerms: Array.isArray(feedback.hiddenTerms) ? feedback.hiddenTerms : [],
+  };
+}
+
+function getProfileKey(profile) {
+  return normalizeText(profile.name || "default");
+}
+
+function addUnique(values, value) {
+  if (value && !values.includes(value)) values.push(value);
+}
+
+function removeValue(values, value) {
+  const index = values.indexOf(value);
+  if (index >= 0) values.splice(index, 1);
 }
 
 function countMatchingTerms(searchable, terms) {

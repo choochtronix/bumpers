@@ -18,6 +18,7 @@ This first build is a static desktop web app prototype. It includes:
 - Live Yahoo Auctions, Digimart, and OFFMALL connector support when run through the local server
 - Local listing discovery tracking for future alert workflows
 - Gear confidence scoring to keep Yahoo records, books, clothing, and other marketplace noise out of Clean Gear results
+- Local feedback buttons for teaching Bumpers which listings are gear, noise, or similar noise to hide
 
 ## Open The App
 

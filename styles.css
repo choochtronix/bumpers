@@ -446,7 +446,7 @@ fieldset {
 
 .segmented {
   display: inline-grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -742,8 +742,8 @@ fieldset {
 }
 
 .card-actions {
-  display: flex;
-  align-items: center;
+  display: grid;
+  grid-template-columns: 40px repeat(3, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -763,8 +763,33 @@ fieldset {
   color: var(--amber);
 }
 
+.feedback-button {
+  min-height: 36px;
+  padding: 0 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--button-bg);
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.feedback-button.is-active,
+.listing-card.is-feedback-gear .gear-button {
+  border-color: rgba(47, 125, 88, 0.36);
+  color: var(--green);
+}
+
+.listing-card.is-feedback-noise .noise-button {
+  border-color: rgba(177, 59, 87, 0.4);
+  color: var(--rose);
+}
+
 .open-link {
   display: flex;
+  grid-column: 1 / -1;
   height: 36px;
   flex: 1;
   align-items: center;
@@ -856,6 +881,10 @@ fieldset {
   .result-options,
   .toolbar-actions {
     width: 100%;
+  }
+
+  .segmented button {
+    min-width: 0;
   }
 
   .result-options label {
