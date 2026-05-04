@@ -9,6 +9,12 @@ const ROOT = fileURLToPath(new URL(".", import.meta.url));
 const DIGIMART_BASE_URL = "https://www.digimart.net";
 const OFFMALL_BASE_URL = "https://netmall.hardoff.co.jp";
 const YAHOO_AUCTIONS_BASE_URL = "https://auctions.yahoo.co.jp";
+const YAHOO_AUCTIONS_PAGE_SIZE = 100;
+const YAHOO_AUCTIONS_CATEGORY_SWEEPS = [
+  "",
+  "22436", // Musical instruments
+  "2084019003", // Keyboards and synthesizers
+];
 const USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 (KHTML, like Gecko) Bumpers/0.1 local personal gear search";
 
 const mimeTypes = {
@@ -184,12 +190,28 @@ async function searchOffmall(term) {
 }
 
 async function searchYahooAuctions(term) {
+  const listingsById = new Map();
+
+  for (const categoryId of YAHOO_AUCTIONS_CATEGORY_SWEEPS) {
+    const html = await fetchYahooAuctionsSearch(term, categoryId);
+    parseYahooAuctions(html).forEach((listing) => listingsById.set(listing.id, listing));
+
+    if (categoryId !== YAHOO_AUCTIONS_CATEGORY_SWEEPS.at(-1)) {
+      await wait(400);
+    }
+  }
+
+  return [...listingsById.values()];
+}
+
+async function fetchYahooAuctionsSearch(term, categoryId = "") {
   const url = new URL("/search/search", YAHOO_AUCTIONS_BASE_URL);
   url.searchParams.set("p", term);
   url.searchParams.set("va", term);
   url.searchParams.set("exflg", "1");
+  if (categoryId) url.searchParams.set("auccat", categoryId);
   url.searchParams.set("b", "1");
-  url.searchParams.set("n", "20");
+  url.searchParams.set("n", String(YAHOO_AUCTIONS_PAGE_SIZE));
   url.searchParams.set("s1", "new");
   url.searchParams.set("o1", "d");
 
@@ -204,7 +226,7 @@ async function searchYahooAuctions(term) {
     throw new Error(`Yahoo Auctions responded with ${response.status}`);
   }
 
-  return parseYahooAuctions(await response.text());
+  return response.text();
 }
 
 function parseDigimart(html) {
