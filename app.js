@@ -78,6 +78,7 @@ const MEDIA_NOISE_TERMS = [
   "blu-ray",
   "bluray",
   "cassette",
+  "cd",
   "dvd",
   "ep",
   "first press",
@@ -85,6 +86,8 @@ const MEDIA_NOISE_TERMS = [
   "laserdisc",
   "lp",
   "record",
+  "sample cd",
+  "sampling cd",
   "single",
   "soundtrack",
   "vinyl",
@@ -92,6 +95,7 @@ const MEDIA_NOISE_TERMS = [
   "アルバム",
   "カセット",
   "サントラ",
+  "サンプリングcd",
   "ジャズ",
   "レコード",
   "帯付",
@@ -116,6 +120,7 @@ const NEGATIVE_CATEGORY_IDS = [
   "26318", // cars and motorbikes
   "42177", // beauty and health
   "2084032594", // celebrity goods
+  "2084019007", // sampling CDs
   "2084055844", // pets
 ];
 const HARD_NEGATIVE_CATEGORY_IDS = [
@@ -123,6 +128,7 @@ const HARD_NEGATIVE_CATEGORY_IDS = [
   "21964", // movies and video
   "22152", // music media
   "23000", // fashion
+  "2084019007", // sampling CDs
 ];
 const POSITIVE_GEAR_CATEGORY_IDS = [
   "22436",
