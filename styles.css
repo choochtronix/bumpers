@@ -421,6 +421,7 @@ fieldset {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 16px;
   padding: 24px 0 18px;
 }
@@ -447,6 +448,7 @@ fieldset {
 .segmented {
   display: inline-grid;
   grid-template-columns: repeat(4, 1fr);
+  flex: 0 0 auto;
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -563,6 +565,7 @@ fieldset {
 }
 
 .alert-thumb {
+  position: relative;
   display: block;
   width: 64px;
   aspect-ratio: 1;
@@ -683,6 +686,67 @@ fieldset {
   display: inline-flex;
 }
 
+.source-avatar {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: inline-grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 2px solid rgba(255, 255, 255, 0.92);
+  border-radius: 50%;
+  background: #30343a;
+  color: #ffffff;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.28);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.alert-thumb .source-avatar {
+  top: 5px;
+  right: 5px;
+  width: 24px;
+  height: 24px;
+  border-width: 1px;
+  font-size: 9px;
+}
+
+.source-avatar[data-source="mercari"] {
+  background: #e53935;
+}
+
+.source-avatar[data-source="yahoo-auctions"] {
+  background: #d60000;
+}
+
+.source-avatar[data-source="yahoo-fleamarket"] {
+  background: #1f73e8;
+}
+
+.source-avatar[data-source="rakuma"] {
+  background: #12a05c;
+}
+
+.source-avatar[data-source="digimart"] {
+  background: #0a62b7;
+}
+
+.source-avatar[data-source="offmall"],
+.source-avatar[data-source="hardoff"] {
+  background: #f2a900;
+  color: #1a1a1a;
+}
+
+.source-avatar[data-source="five-g"] {
+  background: #151515;
+}
+
+.source-avatar[data-source="implant4"] {
+  background: #b13b57;
+}
+
 .listing-body {
   display: flex;
   min-height: 190px;
@@ -700,11 +764,20 @@ fieldset {
 }
 
 .source-chip {
+  flex: 0 0 auto;
   padding: 4px 7px;
   border-radius: 8px;
   background: var(--accent-soft);
   color: var(--accent-ink);
   font-weight: 800;
+  white-space: nowrap;
+}
+
+.condition {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .listing-card h3 {

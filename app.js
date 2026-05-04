@@ -1,13 +1,13 @@
 const SOURCES = [
-  { id: "mercari", label: "Mercari", color: "rose" },
-  { id: "yahoo-auctions", label: "Yahoo Auctions", color: "amber" },
-  { id: "yahoo-fleamarket", label: "Yahoo Fleamarket", color: "blue" },
-  { id: "rakuma", label: "Rakuma", color: "green" },
-  { id: "digimart", label: "Digimart", color: "blue" },
-  { id: "offmall", label: "OFFMALL", color: "green" },
-  { id: "five-g", label: "Five G", color: "amber" },
-  { id: "implant4", label: "implant4", color: "rose" },
-  { id: "hardoff", label: "Hard Off", color: "green" },
+  { id: "mercari", label: "Mercari", icon: "Me", color: "rose" },
+  { id: "yahoo-auctions", label: "Yahoo Auctions", icon: "Y!", color: "amber" },
+  { id: "yahoo-fleamarket", label: "Yahoo Fleamarket", icon: "Yf", color: "blue" },
+  { id: "rakuma", label: "Rakuma", icon: "Ra", color: "green" },
+  { id: "digimart", label: "Digimart", icon: "D", color: "blue" },
+  { id: "offmall", label: "OFFMALL", icon: "O", color: "green" },
+  { id: "five-g", label: "Five G", icon: "5G", color: "amber" },
+  { id: "implant4", label: "implant4", icon: "i4", color: "rose" },
+  { id: "hardoff", label: "Hard Off", icon: "H", color: "green" },
 ];
 
 const LIVE_SOURCE_IDS = ["yahoo-auctions", "digimart", "offmall", "hardoff"];
@@ -505,6 +505,7 @@ function renderListing(listing) {
   imageLink.href = listing.url;
   image.src = listing.image;
   image.alt = listing.title;
+  renderSourceAvatar(fragment.querySelector(".source-avatar"), source, listing.source);
   fragment.querySelector(".source-chip").textContent = source?.label || listing.source;
   fragment.querySelector(".condition").textContent = formatCondition(listing);
   fragment.querySelector("h3").textContent = listing.title;
@@ -577,6 +578,7 @@ function renderAlertItem(listing) {
   imageLink.href = listing.url;
   image.src = listing.image;
   image.alt = listing.title;
+  renderSourceAvatar(fragment.querySelector(".source-avatar"), source, listing.source);
   fragment.querySelector(".source-chip").textContent = source?.label || listing.source;
   fragment.querySelector(".alert-price").textContent = formatYen(listing.price);
   fragment.querySelector("h4").textContent = listing.title;
@@ -614,6 +616,16 @@ function appendDiscoveryDetail(detail, discoveryCount) {
 
 function labelForSource(sourceId) {
   return SOURCES.find((source) => source.id === sourceId)?.label || sourceId;
+}
+
+function renderSourceAvatar(avatar, source, fallbackId) {
+  if (!avatar) return;
+
+  const label = source?.label || fallbackId;
+  avatar.textContent = source?.icon || fallbackId.slice(0, 2).toUpperCase();
+  avatar.dataset.source = source?.id || fallbackId;
+  avatar.setAttribute("aria-label", `${label} listing`);
+  avatar.setAttribute("title", label);
 }
 
 function sourceMatchesProfile(sourceId, selectedSources) {
