@@ -20,6 +20,7 @@ This first build is a static desktop web app prototype. It includes:
 - Gear confidence scoring to keep Yahoo records, books, clothing, and other marketplace noise out of Clean Gear results
 - Local feedback buttons for teaching Bumpers which listings are gear, noise, or similar noise to hide
 - Marketplace source badges on listing thumbnails for faster visual scanning
+- View-only source filter chips for quickly narrowing visible results by marketplace
 
 ## Open The App
 

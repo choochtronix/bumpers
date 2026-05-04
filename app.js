@@ -229,6 +229,7 @@ let currentDiscoveryIds = new Set();
 let filterMode = "all";
 let qualityFilter = "clean";
 let sortMode = "newest";
+let activeViewSources = new Set();
 let isSearching = false;
 let searchState = {
   mode: "mock",
@@ -246,6 +247,7 @@ const alertTemplate = document.querySelector("#alertTemplate");
 const alertList = document.querySelector("#alertList");
 const alertCount = document.querySelector("#alertCount");
 const alertDetail = document.querySelector("#alertDetail");
+const sourceFilterList = document.querySelector("#sourceFilterList");
 const themeToggle = document.querySelector("#themeToggle");
 const liveStatus = document.querySelector("#liveStatus");
 const qualityFilterSelect = document.querySelector("#qualityFilter");
@@ -291,6 +293,13 @@ function bindEvents() {
     if (!button) return;
     filterMode = button.dataset.filter;
     document.querySelectorAll("#urgencyFilter button").forEach((item) => item.classList.toggle("active", item === button));
+    renderResults();
+  });
+
+  sourceFilterList.addEventListener("click", (event) => {
+    const button = event.target.closest("button");
+    if (!button) return;
+    toggleViewSource(button.dataset.source || "");
     renderResults();
   });
 
@@ -367,6 +376,7 @@ async function runSearch() {
     .filter((listing) => normalizedTerms.some((term) => normalizeText(listing.title).includes(term)))
     .filter((listing) => !normalizedExcludes.some((term) => normalizeText(listing.title).includes(term)))
     .sort((a, b) => new Date(b.listedAt) - new Date(a.listedAt));
+  pruneActiveViewSources();
 
   currentDiscoveryIds = liveResult.mode === "live" ? getNewDiscoveryIds(currentResults) : new Set();
   if (liveResult.mode === "live") {
@@ -402,6 +412,7 @@ function renderResults() {
   const visibleResults = getVisibleResults(watching);
 
   resultGrid.innerHTML = "";
+  renderSourceFilters();
   renderAlertPanel();
 
   if (isSearching) {
@@ -428,8 +439,87 @@ function getVisibleResults(watching) {
       if (filterMode === "watching") return watching.includes(listing.id);
       return true;
     })
+    .filter((listing) => activeViewSources.size === 0 || activeViewSources.has(listing.source))
     .filter((listing) => qualityFilter === "all" || isCleanGearListing(listing))
     .sort(compareListings);
+}
+
+function renderSourceFilters() {
+  const counts = getSourceCountsForCurrentView();
+  const availableSources = SOURCES.filter((source) => counts.get(source.id) > 0);
+  sourceFilterList.innerHTML = "";
+
+  if (availableSources.length === 0) {
+    sourceFilterList.innerHTML = `<button class="source-filter-button is-active" type="button" disabled>All</button>`;
+    return;
+  }
+
+  sourceFilterList.appendChild(createAllSourceFilterButton());
+
+  availableSources.forEach((source) => {
+    const button = document.createElement("button");
+    button.className = "source-filter-button";
+    button.type = "button";
+    button.dataset.source = source.id;
+    button.classList.toggle("is-active", activeViewSources.has(source.id));
+    button.title = `${source.label} results`;
+    button.setAttribute("aria-label", `Filter to ${source.label} results`);
+    button.innerHTML = `
+      <span class="source-avatar source-filter-avatar" data-source="${source.id}">${source.icon}</span>
+      <span>${counts.get(source.id)}</span>
+    `;
+    sourceFilterList.appendChild(button);
+  });
+}
+
+function createAllSourceFilterButton() {
+  const button = document.createElement("button");
+  button.className = "source-filter-button source-filter-all";
+  button.type = "button";
+  button.dataset.source = "all";
+  button.classList.toggle("is-active", activeViewSources.size === 0);
+  button.textContent = `All ${getSourceFilteredBaseResults().length}`;
+  return button;
+}
+
+function getSourceCountsForCurrentView() {
+  const counts = new Map();
+  getSourceFilteredBaseResults().forEach((listing) => {
+    counts.set(listing.source, (counts.get(listing.source) || 0) + 1);
+  });
+  return counts;
+}
+
+function getSourceFilteredBaseResults() {
+  const watching = loadSet(STORAGE_KEYS.watching);
+  return currentResults
+    .filter((listing) => {
+      if (filterMode === "new") return currentDiscoveryIds.has(listing.id);
+      if (filterMode === "maybe") return formatGearConfidence(listing).level === "maybe-gear";
+      if (filterMode === "watching") return watching.includes(listing.id);
+      return true;
+    })
+    .filter((listing) => qualityFilter === "all" || isCleanGearListing(listing));
+}
+
+function toggleViewSource(sourceId) {
+  if (sourceId === "all") {
+    activeViewSources.clear();
+    return;
+  }
+
+  if (activeViewSources.has(sourceId)) {
+    activeViewSources.delete(sourceId);
+  } else {
+    activeViewSources.add(sourceId);
+  }
+}
+
+function pruneActiveViewSources() {
+  const availableSources = new Set(currentResults.map((listing) => listing.source));
+  activeViewSources.forEach((sourceId) => {
+    if (!availableSources.has(sourceId)) activeViewSources.delete(sourceId);
+  });
 }
 
 async function fetchLiveListings(profile) {

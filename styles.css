@@ -504,6 +504,56 @@ fieldset {
   color: var(--rose);
 }
 
+.source-filter-panel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 18px;
+}
+
+.source-filter-panel > span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.source-filter-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.source-filter-button {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 9px 4px 5px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--button-bg);
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.source-filter-button.is-active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+
+.source-filter-button:disabled {
+  cursor: default;
+  opacity: 0.68;
+}
+
+.source-filter-all {
+  padding: 4px 12px;
+}
+
 .alert-panel {
   display: grid;
   gap: 12px;
@@ -747,6 +797,15 @@ fieldset {
   background: #b13b57;
 }
 
+.source-filter-button .source-filter-avatar {
+  position: static;
+  width: 24px;
+  height: 24px;
+  border-width: 1px;
+  box-shadow: none;
+  font-size: 9px;
+}
+
 .listing-body {
   display: flex;
   min-height: 190px;
@@ -952,8 +1011,15 @@ fieldset {
 
   .segmented,
   .result-options,
-  .toolbar-actions {
+  .toolbar-actions,
+  .source-filter-panel,
+  .source-filter-list {
     width: 100%;
+  }
+
+  .source-filter-panel {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .segmented button {
