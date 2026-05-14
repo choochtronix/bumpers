@@ -850,6 +850,10 @@ function scoreGearConfidence(listing) {
   const hasFeedbackHiddenCategory = categoryIds.some((id) => (feedback.hiddenCategories || []).includes(id));
   let score = 0;
 
+  if (hasHardNegativeCategory && !hasPositiveCategory) {
+    return { level: "likely-noise", score: -12 };
+  }
+
   score += positiveTermCount * 3;
   if (hasPositiveCategory) score += 4;
   if (hasNegativeCategory) score -= 5;
