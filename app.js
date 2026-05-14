@@ -11,6 +11,23 @@ const SOURCES = [
 ];
 
 const LIVE_SOURCE_IDS = ["yahoo-auctions", "digimart", "offmall", "hardoff"];
+const SEARCH_TERM_ALIASES = {
+  oberheim: ["オーバーハイム"],
+  moog: ["モーグ", "ムーグ"],
+  waldorf: ["ワルドルフ"],
+  sequential: ["シーケンシャル"],
+  roland: ["ローランド"],
+  korg: ["コルグ"],
+  yamaha: ["ヤマハ"],
+  akai: ["アカイ"],
+  elektron: ["エレクトロン"],
+  arturia: ["アートリア"],
+  novation: ["ノベーション"],
+  ensoniq: ["エンソニック"],
+  behringer: ["ベリンガー"],
+  clavia: ["クラビア"],
+  nord: ["ノード", "clavia"],
+};
 const ACCESSORY_TERMS = [
   "adapter",
   "book",
@@ -434,7 +451,7 @@ async function runSearch() {
   renderResults();
 
   const liveResult = await fetchLiveListings(currentProfile);
-  const normalizedTerms = currentProfile.terms.map(normalizeText);
+  const expandedTerms = expandSearchTerms(currentProfile.terms);
   const normalizedExcludes = currentProfile.excludes.map(normalizeText);
   const useMockListings = liveResult.mode === "mock" || liveResult.mode === "error";
   const listings = useMockListings ? MOCK_LISTINGS : liveResult.listings;
@@ -442,7 +459,7 @@ async function runSearch() {
   currentResults = listings
     .filter((listing) => sourceMatchesProfile(listing.source, currentProfile.sources))
     .filter((listing) => currentProfile.maxPrice <= 0 || listing.price <= currentProfile.maxPrice)
-    .filter((listing) => normalizedTerms.some((term) => normalizeText(listing.title).includes(term)))
+    .filter((listing) => expandedTerms.some((term) => termMatches(normalizeText(listing.title), term)))
     .filter((listing) => !normalizedExcludes.some((term) => normalizeText(listing.title).includes(term)))
     .sort((a, b) => new Date(b.listedAt) - new Date(a.listedAt));
   pruneActiveViewSources();
@@ -609,8 +626,9 @@ async function fetchLiveListings(profile) {
   }
 
   try {
+    const liveSearchTerms = expandSearchTerms(profile.terms);
     const params = new URLSearchParams({
-      terms: profile.terms.join("|"),
+      terms: liveSearchTerms.join("|"),
       excludes: profile.excludes.join("|"),
       maxPrice: String(profile.maxPrice || 0),
       sources: profile.sources.join("|"),
@@ -1069,6 +1087,20 @@ function formatScanMeta(profile) {
 function getActiveNoiseTerms() {
   const savedNoise = currentProfile.noiseTerms || [];
   return uniqueTerms([...ACCESSORY_TERMS, ...savedNoise]);
+}
+
+function expandSearchTerms(terms) {
+  const expanded = [];
+
+  terms.forEach((term) => {
+    expanded.push(term);
+
+    const normalized = normalizeText(term);
+    const aliases = SEARCH_TERM_ALIASES[normalized] || [];
+    expanded.push(...aliases);
+  });
+
+  return uniqueTerms(expanded);
 }
 
 function uniqueTerms(terms) {
