@@ -164,6 +164,11 @@ legend,
   gap: 14px;
 }
 
+.search-terms-field textarea {
+  min-height: 118px;
+  font-size: 16px;
+}
+
 label,
 fieldset {
   display: flex;
@@ -290,6 +295,26 @@ fieldset {
   font-weight: 800;
 }
 
+.secondary-action {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--button-bg);
+  color: var(--ink);
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.secondary-action:hover,
+.panel-heading button:hover,
+.toolbar-actions button:hover {
+  border-color: var(--accent);
+}
+
 .saved-panel {
   display: flex;
   min-height: 0;
@@ -358,6 +383,72 @@ fieldset {
 .saved-search .scan-new {
   color: var(--rose);
   font-weight: 800;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(10px);
+}
+
+.modal-backdrop[hidden] {
+  display: none;
+}
+
+.modal {
+  width: min(420px, 100%);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.modal form {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+}
+
+.modal-header,
+.modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.icon-action {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--button-bg);
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.modal-actions {
+  justify-content: flex-end;
+}
+
+.modal-actions .primary-action,
+.modal-actions .secondary-action {
+  min-width: 120px;
+  padding: 0 16px;
 }
 
 .content {

@@ -23,14 +23,9 @@
         </div>
 
         <form class="search-form" id="searchForm">
-          <label>
-            <span>Name</span>
-            <input id="profileName" type="text" value="Waldorf" autocomplete="off" />
-          </label>
-
-          <label>
-            <span>Terms</span>
-            <textarea id="terms" rows="4">Waldorf
+          <label class="search-terms-field">
+            <span>Search</span>
+            <textarea id="terms" rows="5" placeholder="Moog Voyager&#10;モーグ&#10;Minimoog">Waldorf
 ワルドルフ
 WALDORF</textarea>
           </label>
@@ -101,6 +96,10 @@ stand
           <button class="primary-action" type="submit">
             <span aria-hidden="true">⌕</span>
             Run search
+          </button>
+
+          <button class="secondary-action" id="openSaveSearch" type="button">
+            Save search
           </button>
         </form>
 
@@ -188,6 +187,39 @@ stand
 
         <section class="result-grid" id="resultGrid" aria-live="polite"></section>
       </main>
+    </div>
+
+    <div class="modal-backdrop" id="saveSearchModal" hidden>
+      <section class="modal" role="dialog" aria-modal="true" aria-labelledby="saveSearchTitle">
+        <form id="saveSearchForm">
+          <div class="modal-header">
+            <div>
+              <p class="eyebrow">Saved Search</p>
+              <h2 id="saveSearchTitle">Save Search</h2>
+            </div>
+            <button class="icon-action" id="closeSaveSearch" type="button" aria-label="Close save search">×</button>
+          </div>
+
+          <label>
+            <span>Name</span>
+            <input id="saveSearchName" type="text" autocomplete="off" />
+          </label>
+
+          <label>
+            <span>Alert</span>
+            <select id="saveSearchAlert">
+              <option value="immediate">Immediate</option>
+              <option value="hourly">Hourly</option>
+              <option value="daily">Daily</option>
+            </select>
+          </label>
+
+          <div class="modal-actions">
+            <button class="secondary-action" id="cancelSaveSearch" type="button">Cancel</button>
+            <button class="primary-action" type="submit">Save search</button>
+          </div>
+        </form>
+      </section>
     </div>
 
     <template id="listingTemplate">

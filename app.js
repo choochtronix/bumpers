@@ -258,6 +258,11 @@ const themeToggle = document.querySelector("#themeToggle");
 const liveStatus = document.querySelector("#liveStatus");
 const qualityFilterSelect = document.querySelector("#qualityFilter");
 const sortModeSelect = document.querySelector("#sortMode");
+const saveSearchModal = document.querySelector("#saveSearchModal");
+const saveSearchForm = document.querySelector("#saveSearchForm");
+const saveSearchName = document.querySelector("#saveSearchName");
+const saveSearchAlert = document.querySelector("#saveSearchAlert");
+let saveSearchReturnFocus = null;
 
 function initialize() {
   applyStoredTheme();
@@ -275,10 +280,16 @@ function bindEvents() {
     runSearch();
   });
 
-  document.querySelector("#saveProfile").addEventListener("click", () => {
-    currentProfile = readProfileFromForm();
-    saveProfile(currentProfile);
-    renderSavedSearches();
+  document.querySelector("#openSaveSearch").addEventListener("click", openSaveSearchModal);
+  document.querySelector("#saveProfile").addEventListener("click", openSaveSearchModal);
+  document.querySelector("#closeSaveSearch").addEventListener("click", closeSaveSearchModal);
+  document.querySelector("#cancelSaveSearch").addEventListener("click", closeSaveSearchModal);
+  saveSearchModal.addEventListener("click", (event) => {
+    if (event.target === saveSearchModal) closeSaveSearchModal();
+  });
+  saveSearchForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    saveCurrentSearchFromModal();
   });
 
   document.querySelector("#markAllSeen").addEventListener("click", () => {
@@ -323,6 +334,10 @@ function bindEvents() {
     const nextTheme = document.body.dataset.theme === "dark" ? "light" : "dark";
     setTheme(nextTheme);
   });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !saveSearchModal.hidden) closeSaveSearchModal();
+  });
 }
 
 function renderSources() {
@@ -336,7 +351,6 @@ function renderSources() {
 
 function fillForm(profile) {
   const hydratedProfile = hydrateProfile(profile);
-  document.querySelector("#profileName").value = profile.name;
   document.querySelector("#terms").value = hydratedProfile.terms.join("\n");
   document.querySelector("#excludes").value = hydratedProfile.excludes.join("\n");
   document.querySelector("#noiseTerms").value = hydratedProfile.noiseTerms.join("\n");
@@ -348,15 +362,64 @@ function fillForm(profile) {
 }
 
 function readProfileFromForm() {
+  const terms = splitLines(document.querySelector("#terms").value);
+
   return {
-    name: document.querySelector("#profileName").value.trim() || "Untitled Search",
-    terms: splitLines(document.querySelector("#terms").value),
+    name: getFormProfileName(terms),
+    terms,
     excludes: splitLines(document.querySelector("#excludes").value),
     noiseTerms: splitLines(document.querySelector("#noiseTerms").value),
     maxPrice: Number(document.querySelector("#maxPrice").value || 0),
     alertMode: document.querySelector("#alertMode").value,
     sources: [...document.querySelectorAll("input[name='sources']:checked")].map((input) => input.value),
   };
+}
+
+function getFormProfileName(terms) {
+  const currentTerms = currentProfile?.terms || [];
+  if (arraysMatch(terms, currentTerms)) return currentProfile.name;
+  return suggestSearchName(terms);
+}
+
+function suggestSearchName(terms) {
+  return terms[0] || "Untitled Search";
+}
+
+function arraysMatch(first, second) {
+  if (first.length !== second.length) return false;
+  return first.every((item, index) => item === second[index]);
+}
+
+function openSaveSearchModal(event) {
+  saveSearchReturnFocus = event?.currentTarget || document.activeElement;
+  const draftProfile = readProfileFromForm();
+  saveSearchName.value = draftProfile.name;
+  saveSearchAlert.value = draftProfile.alertMode;
+  saveSearchModal.hidden = false;
+  document.body.classList.add("modal-open");
+  saveSearchName.focus();
+  saveSearchName.select();
+}
+
+function closeSaveSearchModal() {
+  saveSearchModal.hidden = true;
+  document.body.classList.remove("modal-open");
+  saveSearchReturnFocus?.focus?.();
+  saveSearchReturnFocus = null;
+}
+
+function saveCurrentSearchFromModal() {
+  const savedName = saveSearchName.value.trim() || suggestSearchName(splitLines(document.querySelector("#terms").value));
+  currentProfile = {
+    ...readProfileFromForm(),
+    name: savedName,
+    alertMode: saveSearchAlert.value,
+  };
+  document.querySelector("#alertMode").value = currentProfile.alertMode;
+  saveProfile(currentProfile);
+  renderSavedSearches();
+  document.querySelector("#activeTitle").textContent = currentProfile.name;
+  closeSaveSearchModal();
 }
 
 function splitLines(value) {
@@ -388,13 +451,15 @@ async function runSearch() {
   if (liveResult.mode === "live") {
     recordListingDiscoveries(currentProfile, currentResults);
     liveResult.detail = appendDiscoveryDetail(liveResult.detail, currentDiscoveryIds.size);
-    updateStoredProfileScan(currentProfile, {
+    const scanSummary = {
       lastScannedAt: new Date().toISOString(),
       lastMatchCount: currentResults.length,
       lastNewCount: currentDiscoveryIds.size,
       lastSourceCount: new Set(currentResults.map((listing) => listing.source)).size,
       lastScanStatus: liveResult.errors.length > 0 ? "partial" : "ok",
-    });
+    };
+    currentProfile = hydrateProfile({ ...currentProfile, ...scanSummary });
+    updateStoredProfileScan(currentProfile, scanSummary);
     renderSavedSearches();
   }
 
@@ -965,10 +1030,6 @@ function updateStoredProfileScan(profile, scanSummary) {
     if (item.name !== profile.name) return item;
     return hydrateProfile({ ...item, ...scanSummary });
   });
-
-  if (!nextProfiles.some((item) => item.name === profile.name)) {
-    nextProfiles.unshift(hydrateProfile({ ...profile, ...scanSummary }));
-  }
 
   localStorage.setItem(STORAGE_KEYS.profiles, JSON.stringify(nextProfiles));
 }
