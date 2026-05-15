@@ -11,6 +11,14 @@ const SOURCES = [
 ];
 
 const LIVE_SOURCE_IDS = ["mercari", "yahoo-auctions", "digimart", "offmall", "hardoff"];
+const LIVE_SOURCE_DISPLAY_ORDER = ["yahoo-auctions", "digimart", "offmall", "hardoff", "mercari"];
+const SOURCE_ACCENTS = {
+  mercari: "#e53935",
+  "yahoo-auctions": "#d60000",
+  digimart: "#0a62b7",
+  offmall: "#f2a900",
+  hardoff: "#f2a900",
+};
 const SEARCH_TERM_ALIASES = {
   oberheim: ["オーバーハイム"],
   moog: ["モーグ", "ムーグ"],
@@ -452,7 +460,7 @@ async function runSearch() {
   const searchGroups = createLiveSearchGroups(profileSnapshot);
 
   isSearching = true;
-  pendingSourceIds = new Set(searchGroups.flat());
+  pendingSourceIds = new Set(searchGroups.filter((group) => group.id !== "mock").map((group) => group.id));
   currentResults = [];
   currentDiscoveryIds = new Set();
   setActiveTitle(profileSnapshot.name);
@@ -463,12 +471,12 @@ async function runSearch() {
 
   if (searchGroups.length > 1) {
     const completedResults = [];
-    const searchPromises = searchGroups.map(async (sources) => {
-      const result = await fetchLiveListings(profileSnapshot, sources);
+    const searchPromises = searchGroups.map(async (group) => {
+      const result = await fetchLiveListings(profileSnapshot, group.sources);
       completedResults.push(result);
 
       if (runId === searchRunId) {
-        sources.forEach((source) => pendingSourceIds.delete(source));
+        pendingSourceIds.delete(group.id);
         applySearchResult(profileSnapshot, combineLiveResults(completedResults), false);
       }
 
@@ -482,7 +490,7 @@ async function runSearch() {
     return;
   }
 
-  const liveResult = await fetchLiveListings(profileSnapshot, searchGroups[0] || profileSnapshot.sources);
+  const liveResult = await fetchLiveListings(profileSnapshot, searchGroups[0]?.sources || profileSnapshot.sources);
   if (runId !== searchRunId) return;
   pendingSourceIds.clear();
   applySearchResult(profileSnapshot, liveResult, true);
@@ -530,15 +538,29 @@ function setActiveTitle(title) {
 }
 
 function createLiveSearchGroups(profile) {
-  const liveSources = profile.sources.filter((source) => LIVE_SOURCE_IDS.includes(source));
-  const hasMercari = liveSources.includes("mercari");
-  const otherSources = liveSources.filter((source) => source !== "mercari");
+  const selectedSources = new Set(profile.sources);
+  const groups = [];
 
-  if (hasMercari && otherSources.length > 0) {
-    return [otherSources, ["mercari"]];
+  if (selectedSources.has("yahoo-auctions")) {
+    groups.push({ id: "yahoo-auctions", sources: ["yahoo-auctions"] });
   }
 
-  return liveSources.length > 0 ? [liveSources] : [profile.sources];
+  if (selectedSources.has("digimart")) {
+    groups.push({ id: "digimart", sources: ["digimart"] });
+  }
+
+  if (selectedSources.has("offmall") || selectedSources.has("hardoff")) {
+    groups.push({
+      id: selectedSources.has("offmall") ? "offmall" : "hardoff",
+      sources: ["offmall", "hardoff"].filter((source) => selectedSources.has(source)),
+    });
+  }
+
+  if (selectedSources.has("mercari")) {
+    groups.push({ id: "mercari", sources: ["mercari"] });
+  }
+
+  return groups.length > 0 ? groups : [{ id: "mock", sources: profile.sources }];
 }
 
 function combineLiveResults(results) {
@@ -642,29 +664,37 @@ function renderResults() {
 }
 
 function renderPendingSourceCards() {
-  if (!pendingSourceIds.has("mercari")) return;
-  if (activeViewSources.size > 0 && !activeViewSources.has("mercari")) return;
   if (qualityFilter !== "all" && qualityFilter !== "clean") return;
 
-  resultGrid.appendChild(createMercariLoadingCard());
-  resultGrid.appendChild(createMercariLoadingCard());
+  getPendingSourceIdsForDisplay().forEach((sourceId) => {
+    resultGrid.appendChild(createSourceLoadingCard(sourceId));
+  });
 }
 
-function createMercariLoadingCard() {
+function getPendingSourceIdsForDisplay() {
+  return [...pendingSourceIds]
+    .filter((sourceId) => activeViewSources.size === 0 || activeViewSources.has(sourceId))
+    .sort((a, b) => LIVE_SOURCE_DISPLAY_ORDER.indexOf(a) - LIVE_SOURCE_DISPLAY_ORDER.indexOf(b));
+}
+
+function createSourceLoadingCard(sourceId) {
+  const source = SOURCES.find((item) => item.id === sourceId) || SOURCES.find((item) => item.id === "offmall");
   const card = document.createElement("article");
-  const gradientId = `mercariGradient${loadingCardId}`;
-  const maskId = `mercariMask${loadingCardId}`;
+  const gradientId = `sourceGradient${loadingCardId}`;
+  const maskId = `sourceMask${loadingCardId}`;
   loadingCardId += 1;
-  card.className = "listing-card loading-card mercari-loading-card";
-  card.setAttribute("aria-label", "Mercari results loading");
+  card.className = "listing-card loading-card source-loading-card";
+  card.dataset.source = sourceId;
+  card.style.setProperty("--loading-accent", getSourceAccent(sourceId));
+  card.setAttribute("aria-label", `${source?.label || sourceId} results loading`);
   card.innerHTML = `
     <div class="image-link loading-image" aria-hidden="true">
-      <svg class="mercari-loading-svg" viewBox="0 0 360 270" preserveAspectRatio="none">
+      <svg class="source-loading-svg" viewBox="0 0 360 270" preserveAspectRatio="none">
         <defs>
           <linearGradient id="${gradientId}" x1="0" x2="1" y1="0" y2="0">
-            <stop offset="0%" stop-color="rgba(229, 57, 53, 0)" />
-            <stop offset="48%" stop-color="rgba(229, 57, 53, 0.28)" />
-            <stop offset="100%" stop-color="rgba(229, 57, 53, 0)" />
+            <stop offset="0%" stop-color="var(--loading-accent)" stop-opacity="0" />
+            <stop offset="48%" stop-color="var(--loading-accent)" stop-opacity="0.28" />
+            <stop offset="100%" stop-color="var(--loading-accent)" stop-opacity="0" />
           </linearGradient>
           <mask id="${maskId}">
             <rect x="0" y="0" width="360" height="270" rx="8" fill="white" />
@@ -672,14 +702,14 @@ function createMercariLoadingCard() {
         </defs>
         <g mask="url(#${maskId})">
           <rect width="360" height="270" fill="currentColor" />
-          <rect class="mercari-loading-sweep" x="-220" y="0" width="220" height="270" fill="url(#${gradientId})" />
+          <rect class="source-loading-sweep" x="-220" y="0" width="220" height="270" fill="url(#${gradientId})" />
         </g>
       </svg>
-      <span class="source-avatar" data-source="mercari">Me</span>
+      <span class="source-avatar" data-source="${sourceId}">${source?.icon || sourceId.slice(0, 2).toUpperCase()}</span>
     </div>
     <div class="listing-body loading-body" aria-hidden="true">
       <div class="listing-meta">
-        <span class="source-chip">Mercari</span>
+        <span class="source-chip">${source?.label || sourceId}</span>
         <span class="loading-line loading-line-short"></span>
       </div>
       <span class="loading-line loading-line-title"></span>
@@ -700,6 +730,10 @@ function createMercariLoadingCard() {
   `;
 
   return card;
+}
+
+function getSourceAccent(sourceId) {
+  return SOURCE_ACCENTS[sourceId] || "#4b83d8";
 }
 
 function getVisibleResults(watching) {

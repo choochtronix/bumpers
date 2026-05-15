@@ -904,17 +904,17 @@ body[data-theme="dark"] .source-filter-button.is-active {
   color: color-mix(in srgb, var(--image-bg) 78%, var(--panel));
 }
 
-.mercari-loading-svg {
+.source-loading-svg {
   width: 100%;
   height: 100%;
   display: block;
 }
 
-.mercari-loading-sweep {
-  animation: mercariSweep 1.2s ease-in-out infinite;
+.source-loading-sweep {
+  animation: sourceSweep 1.2s ease-in-out infinite;
 }
 
-@keyframes mercariSweep {
+@keyframes sourceSweep {
   from {
     transform: translateX(0);
   }
@@ -1042,7 +1042,7 @@ body[data-theme="dark"] .source-filter-button.is-active {
   overflow: hidden;
   border-radius: 8px;
   background:
-    linear-gradient(100deg, transparent 20%, rgba(229, 57, 53, 0.16) 48%, transparent 76%),
+    linear-gradient(100deg, transparent 20%, color-mix(in srgb, var(--loading-accent, #e53935) 18%, transparent) 48%, transparent 76%),
     color-mix(in srgb, var(--line) 70%, var(--panel));
   background-size: 220% 100%;
   animation: loadingPulse 1.35s ease-in-out infinite;
