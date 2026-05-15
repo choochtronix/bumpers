@@ -438,7 +438,7 @@ function saveCurrentSearchFromModal() {
   document.querySelector("#alertMode").value = currentProfile.alertMode;
   saveProfile(currentProfile);
   renderSavedSearches();
-  document.querySelector("#activeTitle").textContent = currentProfile.name;
+  setActiveTitle(currentProfile.name);
   closeSaveSearchModal();
 }
 
@@ -455,6 +455,7 @@ async function runSearch() {
   pendingSourceIds = new Set(searchGroups.flat());
   currentResults = [];
   currentDiscoveryIds = new Set();
+  setActiveTitle(profileSnapshot.name);
   scrollResultsTop();
   searchState = { mode: "searching", message: "Searching", detail: "Checking live sources.", errors: [] };
   updateSearchStatus();
@@ -517,11 +518,15 @@ function applySearchResult(profile, liveResult, isFinal) {
     renderSavedSearches();
   }
 
-  document.querySelector("#activeTitle").textContent = currentProfile.name;
+  setActiveTitle(profile.name);
   isSearching = !isFinal;
   searchState = isFinal ? liveResult : createPartialSearchState(liveResult);
   updateSearchStatus();
   renderResults();
+}
+
+function setActiveTitle(title) {
+  document.querySelector("#activeTitle").textContent = title || "Untitled Search";
 }
 
 function createLiveSearchGroups(profile) {
@@ -1216,6 +1221,7 @@ function renderSavedSearches() {
     button.addEventListener("click", () => {
       currentProfile = profile;
       fillForm(profile);
+      setActiveTitle(profile.name);
       runSearch();
     });
 
