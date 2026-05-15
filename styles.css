@@ -869,6 +869,10 @@ body[data-theme="dark"] .source-filter-button.is-active {
   box-shadow: var(--card-shadow);
 }
 
+.loading-card {
+  pointer-events: none;
+}
+
 .image-link {
   position: relative;
   display: block;
@@ -890,6 +894,34 @@ body[data-theme="dark"] .source-filter-button.is-active {
 
 .listing-card:hover img {
   transform: scale(1.03);
+}
+
+.loading-card:hover img {
+  transform: none;
+}
+
+.loading-image {
+  color: color-mix(in srgb, var(--image-bg) 78%, var(--panel));
+}
+
+.mercari-loading-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.mercari-loading-sweep {
+  animation: mercariSweep 1.2s ease-in-out infinite;
+}
+
+@keyframes mercariSweep {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(580px);
+  }
 }
 
 .new-pill {
@@ -998,6 +1030,69 @@ body[data-theme="dark"] .source-filter-button.is-active {
   flex-direction: column;
   gap: 10px;
   padding: 14px;
+}
+
+.loading-body {
+  gap: 12px;
+}
+
+.loading-line,
+.loading-button {
+  display: block;
+  overflow: hidden;
+  border-radius: 8px;
+  background:
+    linear-gradient(100deg, transparent 20%, rgba(229, 57, 53, 0.16) 48%, transparent 76%),
+    color-mix(in srgb, var(--line) 70%, var(--panel));
+  background-size: 220% 100%;
+  animation: loadingPulse 1.35s ease-in-out infinite;
+}
+
+.loading-line-short {
+  width: 38%;
+  height: 18px;
+}
+
+.loading-line-title {
+  width: 92%;
+  height: 22px;
+}
+
+.loading-line-title-alt {
+  width: 74%;
+}
+
+.loading-line-shop {
+  width: 54%;
+  height: 16px;
+}
+
+.loading-line-price {
+  width: 42%;
+  height: 28px;
+}
+
+.loading-line-date {
+  width: 34%;
+  height: 18px;
+}
+
+.loading-button {
+  height: 36px;
+}
+
+.loading-button-wide {
+  grid-column: 1 / -1;
+}
+
+@keyframes loadingPulse {
+  from {
+    background-position: 130% 0;
+  }
+
+  to {
+    background-position: -90% 0;
+  }
 }
 
 .listing-meta {

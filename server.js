@@ -10,6 +10,7 @@ const DIGIMART_BASE_URL = "https://www.digimart.net";
 const MERCARI_BASE_URL = "https://jp.mercari.com";
 const OFFMALL_BASE_URL = "https://netmall.hardoff.co.jp";
 const YAHOO_AUCTIONS_BASE_URL = "https://auctions.yahoo.co.jp";
+const MERCARI_CACHE_TTL_MS = 5 * 60 * 1000;
 const MERCARI_CONNECTOR_TIMEOUT_MS = 12000;
 const MERCARI_RESULT_LIMIT = 40;
 const MERCARI_TERM_LIMIT = 2;
@@ -20,6 +21,8 @@ const YAHOO_AUCTIONS_CATEGORY_SWEEPS = [
   "2084019003", // Keyboards and synthesizers
 ];
 const USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 (KHTML, like Gecko) Bumpers/0.1 local personal gear search";
+const mercariCache = new Map();
+let mercariBrowserPromise;
 
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
@@ -49,6 +52,13 @@ createServer(async (request, response) => {
   console.log(`Bumpers running at http://${HOST}:${PORT}`);
 });
 
+for (const signal of ["SIGINT", "SIGTERM"]) {
+  process.on(signal, async () => {
+    await closeMercariBrowser();
+    process.exit(0);
+  });
+}
+
 async function handleSearch(url, response) {
   const terms = splitParam(url.searchParams.get("terms"));
   const excludes = splitParam(url.searchParams.get("excludes")).map(normalizeText);
@@ -68,33 +78,29 @@ async function handleSearch(url, response) {
   const listingsById = new Map();
   const sourceStats = [];
   const errors = [];
+  const sourceTasks = [];
 
   if (wantsDigimart) {
-    const sourceResult = await searchSourceTerms("digimart", terms, searchDigimart);
-    sourceStats.push(sourceResult.stats);
-    errors.push(...sourceResult.errors);
-    collectFilteredListings(sourceResult.listings, listingsById, excludes, maxPrice);
+    sourceTasks.push(searchSourceTerms("digimart", terms, searchDigimart));
   }
 
   if (wantsOffmall) {
-    const sourceResult = await searchSourceTerms("offmall", terms, searchOffmall);
-    sourceStats.push(sourceResult.stats);
-    errors.push(...sourceResult.errors);
-    collectFilteredListings(sourceResult.listings, listingsById, excludes, maxPrice);
+    sourceTasks.push(searchSourceTerms("offmall", terms, searchOffmall));
   }
 
   if (wantsYahooAuctions) {
-    const sourceResult = await searchSourceTerms("yahoo-auctions", terms, searchYahooAuctions);
-    sourceStats.push(sourceResult.stats);
-    errors.push(...sourceResult.errors);
-    collectFilteredListings(sourceResult.listings, listingsById, excludes, maxPrice);
+    sourceTasks.push(searchSourceTerms("yahoo-auctions", terms, searchYahooAuctions));
   }
 
   if (wantsMercari) {
-    const sourceResult = await searchSourceTerms("mercari", terms, searchMercari, {
+    sourceTasks.push(searchSourceTerms("mercari", terms, searchMercari, {
       maxTerms: MERCARI_TERM_LIMIT,
       termDelayMs: 0,
-    });
+    }));
+  }
+
+  const sourceResults = await Promise.all(sourceTasks);
+  for (const sourceResult of sourceResults) {
     sourceStats.push(sourceResult.stats);
     errors.push(...sourceResult.errors);
     collectFilteredListings(sourceResult.listings, listingsById, excludes, maxPrice);
@@ -186,12 +192,18 @@ async function searchDigimart(term) {
 }
 
 async function searchMercari(term) {
-  const { chromium } = await import("playwright");
-  let browser;
+  const cacheKey = normalizeText(term);
+  const cached = mercariCache.get(cacheKey);
+
+  if (cached && Date.now() - cached.createdAt < MERCARI_CACHE_TTL_MS) {
+    return cloneListings(cached.listings);
+  }
+
+  const browser = await getMercariBrowser();
+  let page;
 
   try {
-    browser = await chromium.launch({ headless: true });
-    const page = await browser.newPage({
+    page = await browser.newPage({
       userAgent: USER_AGENT,
       locale: "ja-JP",
     });
@@ -234,9 +246,39 @@ async function searchMercari(term) {
       MERCARI_RESULT_LIMIT,
     );
 
-    return parseMercari(cards);
+    const listings = parseMercari(cards);
+    mercariCache.set(cacheKey, {
+      createdAt: Date.now(),
+      listings: cloneListings(listings),
+    });
+    pruneMercariCache();
+    return listings;
   } finally {
-    if (browser) await browser.close();
+    if (page) await page.close();
+  }
+}
+
+async function getMercariBrowser() {
+  if (!mercariBrowserPromise) {
+    mercariBrowserPromise = import("playwright")
+      .then(({ chromium }) => chromium.launch({ headless: true }))
+      .catch((error) => {
+        mercariBrowserPromise = undefined;
+        throw error;
+      });
+  }
+
+  return mercariBrowserPromise;
+}
+
+async function closeMercariBrowser() {
+  if (!mercariBrowserPromise) return;
+
+  try {
+    const browser = await mercariBrowserPromise;
+    await browser.close();
+  } finally {
+    mercariBrowserPromise = undefined;
   }
 }
 
@@ -406,6 +448,19 @@ function cleanMercariText(value) {
   return (value || "")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function cloneListings(listings) {
+  return listings.map((listing) => ({ ...listing }));
+}
+
+function pruneMercariCache() {
+  const now = Date.now();
+  for (const [key, cached] of mercariCache) {
+    if (now - cached.createdAt >= MERCARI_CACHE_TTL_MS) {
+      mercariCache.delete(key);
+    }
+  }
 }
 
 function parseYahooAuctions(html) {

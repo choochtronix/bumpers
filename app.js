@@ -254,6 +254,9 @@ let qualityFilter = "clean";
 let sortMode = "newest";
 let activeViewSources = new Set();
 let isSearching = false;
+let pendingSourceIds = new Set();
+let searchRunId = 0;
+let loadingCardId = 0;
 let searchState = {
   mode: "mock",
   message: "Mock data",
@@ -444,28 +447,62 @@ function splitLines(value) {
 }
 
 async function runSearch() {
+  const runId = ++searchRunId;
+  const profileSnapshot = cloneProfile(currentProfile);
+  const searchGroups = createLiveSearchGroups(profileSnapshot);
+
   isSearching = true;
+  pendingSourceIds = new Set(searchGroups.flat());
+  currentResults = [];
+  currentDiscoveryIds = new Set();
   scrollResultsTop();
   searchState = { mode: "searching", message: "Searching", detail: "Checking live sources.", errors: [] };
   updateSearchStatus();
   renderResults();
 
-  const liveResult = await fetchLiveListings(currentProfile);
-  const expandedTerms = expandSearchTerms(currentProfile.terms);
-  const normalizedExcludes = currentProfile.excludes.map(normalizeText);
+  if (searchGroups.length > 1) {
+    const completedResults = [];
+    const searchPromises = searchGroups.map(async (sources) => {
+      const result = await fetchLiveListings(profileSnapshot, sources);
+      completedResults.push(result);
+
+      if (runId === searchRunId) {
+        sources.forEach((source) => pendingSourceIds.delete(source));
+        applySearchResult(profileSnapshot, combineLiveResults(completedResults), false);
+      }
+
+      return result;
+    });
+
+    const liveResults = await Promise.all(searchPromises);
+    if (runId !== searchRunId) return;
+    pendingSourceIds.clear();
+    applySearchResult(profileSnapshot, combineLiveResults(liveResults), true);
+    return;
+  }
+
+  const liveResult = await fetchLiveListings(profileSnapshot, searchGroups[0] || profileSnapshot.sources);
+  if (runId !== searchRunId) return;
+  pendingSourceIds.clear();
+  applySearchResult(profileSnapshot, liveResult, true);
+}
+
+function applySearchResult(profile, liveResult, isFinal) {
+  const expandedTerms = expandSearchTerms(profile.terms);
+  const normalizedExcludes = profile.excludes.map(normalizeText);
   const useMockListings = liveResult.mode === "mock" || liveResult.mode === "error";
   const listings = useMockListings ? MOCK_LISTINGS : liveResult.listings;
 
   currentResults = listings
-    .filter((listing) => sourceMatchesProfile(listing.source, currentProfile.sources))
-    .filter((listing) => currentProfile.maxPrice <= 0 || listing.price <= currentProfile.maxPrice)
+    .filter((listing) => sourceMatchesProfile(listing.source, profile.sources))
+    .filter((listing) => profile.maxPrice <= 0 || listing.price <= profile.maxPrice)
     .filter((listing) => expandedTerms.some((term) => termMatches(normalizeText(listing.title), term)))
     .filter((listing) => !normalizedExcludes.some((term) => normalizeText(listing.title).includes(term)))
     .sort((a, b) => new Date(b.listedAt) - new Date(a.listedAt));
   pruneActiveViewSources();
 
-  currentDiscoveryIds = liveResult.mode === "live" ? getNewDiscoveryIds(currentResults) : new Set();
-  if (liveResult.mode === "live") {
+  currentDiscoveryIds = isFinal && liveResult.mode === "live" ? getNewDiscoveryIds(currentResults) : new Set();
+  if (isFinal && liveResult.mode === "live") {
     recordListingDiscoveries(currentProfile, currentResults);
     liveResult.detail = appendDiscoveryDetail(liveResult.detail, currentDiscoveryIds.size);
     const scanSummary = {
@@ -481,10 +518,86 @@ async function runSearch() {
   }
 
   document.querySelector("#activeTitle").textContent = currentProfile.name;
-  isSearching = false;
-  searchState = liveResult;
+  isSearching = !isFinal;
+  searchState = isFinal ? liveResult : createPartialSearchState(liveResult);
   updateSearchStatus();
   renderResults();
+}
+
+function createLiveSearchGroups(profile) {
+  const liveSources = profile.sources.filter((source) => LIVE_SOURCE_IDS.includes(source));
+  const hasMercari = liveSources.includes("mercari");
+  const otherSources = liveSources.filter((source) => source !== "mercari");
+
+  if (hasMercari && otherSources.length > 0) {
+    return [otherSources, ["mercari"]];
+  }
+
+  return liveSources.length > 0 ? [liveSources] : [profile.sources];
+}
+
+function combineLiveResults(results) {
+  const listingsById = new Map();
+  const errors = [];
+  const sourceStats = [];
+  const liveSources = [];
+  let durationMs = 0;
+
+  results.forEach((result) => {
+    (result.listings || []).forEach((listing) => listingsById.set(listing.id, listing));
+    errors.push(...(result.errors || []));
+
+    if (result.meta) {
+      durationMs = Math.max(durationMs, Number(result.meta.durationMs) || 0);
+      sourceStats.push(...(result.meta.sourceStats || []));
+      liveSources.push(...(result.meta.liveSources || []));
+    }
+  });
+
+  const listings = [...listingsById.values()];
+  const hasLiveResult = results.some((result) => result.mode === "live");
+  const mode = hasLiveResult ? "live" : results.some((result) => result.mode === "error") ? "error" : "mock";
+  const meta = {
+    searchedAt: new Date().toISOString(),
+    durationMs,
+    liveSources: [...new Set(liveSources)],
+    sourceStats,
+  };
+
+  return {
+    listings,
+    mode,
+    message: errors.length > 0 ? "Partial live" : `Live ${meta.liveSources.map(labelForSource).join(", ") || "live sources"}`,
+    detail: createLiveDetail(listings, meta, errors),
+    errors,
+    meta,
+  };
+}
+
+function createPartialSearchState(liveResult) {
+  const pendingLabels = [...pendingSourceIds].map(labelForSource);
+  const suffix = pendingLabels.length > 0 ? `; waiting on ${pendingLabels.join(", ")}` : "";
+
+  return {
+    ...liveResult,
+    mode: "searching",
+    message: pendingLabels.length > 0 ? `${liveResult.message}; ${pendingLabels.join(", ")} loading` : liveResult.message,
+    detail: `${liveResult.detail || ""}${suffix}.`,
+  };
+}
+
+function cloneProfile(profile) {
+  return {
+    ...profile,
+    terms: [...profile.terms],
+    excludes: [...profile.excludes],
+    sources: [...profile.sources],
+    feedback: {
+      hiddenTerms: [...(profile.feedback?.hiddenTerms || [])],
+      gearIds: [...(profile.feedback?.gearIds || [])],
+      noiseIds: [...(profile.feedback?.noiseIds || [])],
+    },
+  };
 }
 
 function scrollResultsTop() {
@@ -503,20 +616,85 @@ function renderResults() {
   renderSourceFilters();
   renderAlertPanel();
 
-  if (isSearching) {
-    resultGrid.innerHTML = `<div class="empty-state">Searching live sources...</div>`;
+  if (visibleResults.length > 0) {
+    visibleResults.forEach((listing) => resultGrid.appendChild(renderListing(listing)));
+    renderPendingSourceCards();
+  } else if (isSearching) {
+    renderPendingSourceCards();
+    if (resultGrid.childElementCount === 0) {
+      resultGrid.innerHTML = `<div class="empty-state">Searching live sources...</div>`;
+    }
   } else if (searchState.mode === "error" && visibleResults.length === 0) {
     resultGrid.innerHTML = `<div class="empty-state"><strong>Live search failed.</strong><span>${searchState.detail}</span></div>`;
   } else if (visibleResults.length === 0) {
     resultGrid.innerHTML = `<div class="empty-state"><strong>No matching listings in this view.</strong><span>${searchState.detail || "Try another term or source."}</span></div>`;
-  } else {
-    visibleResults.forEach((listing) => resultGrid.appendChild(renderListing(listing)));
   }
 
   const newListings = visibleResults.filter((listing) => currentDiscoveryIds.has(listing.id));
   document.querySelector("#totalCount").textContent = visibleResults.length;
   document.querySelector("#newCount").textContent = newListings.length;
   document.querySelector("#sourceCount").textContent = new Set(visibleResults.map((listing) => listing.source)).size;
+}
+
+function renderPendingSourceCards() {
+  if (!pendingSourceIds.has("mercari")) return;
+  if (activeViewSources.size > 0 && !activeViewSources.has("mercari")) return;
+  if (qualityFilter !== "all" && qualityFilter !== "clean") return;
+
+  resultGrid.appendChild(createMercariLoadingCard());
+  resultGrid.appendChild(createMercariLoadingCard());
+}
+
+function createMercariLoadingCard() {
+  const card = document.createElement("article");
+  const gradientId = `mercariGradient${loadingCardId}`;
+  const maskId = `mercariMask${loadingCardId}`;
+  loadingCardId += 1;
+  card.className = "listing-card loading-card mercari-loading-card";
+  card.setAttribute("aria-label", "Mercari results loading");
+  card.innerHTML = `
+    <div class="image-link loading-image" aria-hidden="true">
+      <svg class="mercari-loading-svg" viewBox="0 0 360 270" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="${gradientId}" x1="0" x2="1" y1="0" y2="0">
+            <stop offset="0%" stop-color="rgba(229, 57, 53, 0)" />
+            <stop offset="48%" stop-color="rgba(229, 57, 53, 0.28)" />
+            <stop offset="100%" stop-color="rgba(229, 57, 53, 0)" />
+          </linearGradient>
+          <mask id="${maskId}">
+            <rect x="0" y="0" width="360" height="270" rx="8" fill="white" />
+          </mask>
+        </defs>
+        <g mask="url(#${maskId})">
+          <rect width="360" height="270" fill="currentColor" />
+          <rect class="mercari-loading-sweep" x="-220" y="0" width="220" height="270" fill="url(#${gradientId})" />
+        </g>
+      </svg>
+      <span class="source-avatar" data-source="mercari">Me</span>
+    </div>
+    <div class="listing-body loading-body" aria-hidden="true">
+      <div class="listing-meta">
+        <span class="source-chip">Mercari</span>
+        <span class="loading-line loading-line-short"></span>
+      </div>
+      <span class="loading-line loading-line-title"></span>
+      <span class="loading-line loading-line-title loading-line-title-alt"></span>
+      <span class="loading-line loading-line-shop"></span>
+      <div class="price-row">
+        <span class="loading-line loading-line-price"></span>
+        <span class="loading-line loading-line-date"></span>
+      </div>
+      <div class="card-actions">
+        <span class="loading-button"></span>
+        <span class="loading-button"></span>
+        <span class="loading-button"></span>
+        <span class="loading-button"></span>
+        <span class="loading-button loading-button-wide"></span>
+      </div>
+    </div>
+  `;
+
+  return card;
 }
 
 function getVisibleResults(watching) {
@@ -612,8 +790,9 @@ function pruneActiveViewSources() {
   });
 }
 
-async function fetchLiveListings(profile) {
-  const hasLiveSource = profile.sources.some((source) => LIVE_SOURCE_IDS.includes(source));
+async function fetchLiveListings(profile, sourceOverride = profile.sources) {
+  const sources = sourceOverride.filter((source) => profile.sources.includes(source));
+  const hasLiveSource = sources.some((source) => LIVE_SOURCE_IDS.includes(source));
 
   if (location.protocol === "file:" || !hasLiveSource) {
     return {
@@ -631,7 +810,7 @@ async function fetchLiveListings(profile) {
       terms: liveSearchTerms.join("|"),
       excludes: profile.excludes.join("|"),
       maxPrice: String(profile.maxPrice || 0),
-      sources: profile.sources.join("|"),
+      sources: sources.join("|"),
     });
     const response = await fetch(`/api/search?${params.toString()}`);
 
