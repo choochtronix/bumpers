@@ -7,8 +7,12 @@ const PORT = Number(process.env.PORT || 5173);
 const HOST = process.env.HOST || "127.0.0.1";
 const ROOT = fileURLToPath(new URL(".", import.meta.url));
 const DIGIMART_BASE_URL = "https://www.digimart.net";
+const MERCARI_BASE_URL = "https://jp.mercari.com";
 const OFFMALL_BASE_URL = "https://netmall.hardoff.co.jp";
 const YAHOO_AUCTIONS_BASE_URL = "https://auctions.yahoo.co.jp";
+const MERCARI_CONNECTOR_TIMEOUT_MS = 12000;
+const MERCARI_RESULT_LIMIT = 40;
+const MERCARI_TERM_LIMIT = 2;
 const YAHOO_AUCTIONS_PAGE_SIZE = 100;
 const YAHOO_AUCTIONS_CATEGORY_SWEEPS = [
   "",
@@ -51,11 +55,12 @@ async function handleSearch(url, response) {
   const maxPrice = Number(url.searchParams.get("maxPrice") || 0);
   const sources = splitParam(url.searchParams.get("sources"));
   const wantsDigimart = sources.length === 0 || sources.includes("digimart");
+  const wantsMercari = sources.length === 0 || sources.includes("mercari");
   const wantsOffmall = sources.length === 0 || sources.includes("offmall") || sources.includes("hardoff");
   const wantsYahooAuctions = sources.length === 0 || sources.includes("yahoo-auctions");
   const startedAt = new Date();
 
-  if ((!wantsDigimart && !wantsOffmall && !wantsYahooAuctions) || terms.length === 0) {
+  if ((!wantsDigimart && !wantsMercari && !wantsOffmall && !wantsYahooAuctions) || terms.length === 0) {
     sendJson(response, 200, { listings: [], meta: createSearchMeta(startedAt, [], [], terms) });
     return;
   }
@@ -85,6 +90,16 @@ async function handleSearch(url, response) {
     collectFilteredListings(sourceResult.listings, listingsById, excludes, maxPrice);
   }
 
+  if (wantsMercari) {
+    const sourceResult = await searchSourceTerms("mercari", terms, searchMercari, {
+      maxTerms: MERCARI_TERM_LIMIT,
+      termDelayMs: 0,
+    });
+    sourceStats.push(sourceResult.stats);
+    errors.push(...sourceResult.errors);
+    collectFilteredListings(sourceResult.listings, listingsById, excludes, maxPrice);
+  }
+
   sendJson(response, 200, {
     listings: [...listingsById.values()].sort((a, b) => new Date(b.listedAt) - new Date(a.listedAt)),
     meta: createSearchMeta(startedAt, sourceStats, errors, terms),
@@ -103,12 +118,13 @@ function collectFilteredListings(listings, listingsById, excludes, maxPrice) {
   }
 }
 
-async function searchSourceTerms(source, terms, searchFn) {
+async function searchSourceTerms(source, terms, searchFn, options = {}) {
   const listingsById = new Map();
   const errors = [];
-  const searchedTerms = terms.slice(0, 5);
+  const searchedTerms = terms.slice(0, options.maxTerms ?? 5);
+  const termDelayMs = options.termDelayMs ?? 700;
 
-  for (const term of searchedTerms) {
+  for (const [index, term] of searchedTerms.entries()) {
     try {
       const listings = await searchFn(term);
       listings.forEach((listing) => listingsById.set(listing.id, listing));
@@ -120,7 +136,9 @@ async function searchSourceTerms(source, terms, searchFn) {
       });
     }
 
-    await wait(700);
+    if (termDelayMs > 0 && index < searchedTerms.length - 1) {
+      await wait(termDelayMs);
+    }
   }
 
   return {
@@ -165,6 +183,61 @@ async function searchDigimart(term) {
   }
 
   return parseDigimart(await response.text());
+}
+
+async function searchMercari(term) {
+  const { chromium } = await import("playwright");
+  let browser;
+
+  try {
+    browser = await chromium.launch({ headless: true });
+    const page = await browser.newPage({
+      userAgent: USER_AGENT,
+      locale: "ja-JP",
+    });
+    page.setDefaultTimeout(MERCARI_CONNECTOR_TIMEOUT_MS);
+
+    const url = new URL("/en/search", MERCARI_BASE_URL);
+    url.searchParams.set("keyword", term);
+    url.searchParams.set("sort", "created_time");
+    url.searchParams.set("order", "desc");
+    url.searchParams.set("status", "on_sale");
+
+    await page.goto(url.toString(), {
+      waitUntil: "domcontentloaded",
+      timeout: MERCARI_CONNECTOR_TIMEOUT_MS,
+    });
+
+    try {
+      await page.waitForSelector("a[data-testid='thumbnail-link'][href*='/item/']", {
+        timeout: MERCARI_CONNECTOR_TIMEOUT_MS,
+      });
+    } catch {
+      return [];
+    }
+
+    const cards = await page.$$eval(
+      "a[data-testid='thumbnail-link'][href*='/item/']",
+      (links, limit) => links.slice(0, limit).map((link) => {
+        const imageNode = link.querySelector("img");
+        const itemNode = link.querySelector("[id^='m']");
+        const labelNode = link.querySelector("[aria-label^='Image of ']");
+
+        return {
+          href: link.getAttribute("href") || "",
+          itemId: itemNode?.id || "",
+          image: imageNode?.getAttribute("src") || "",
+          label: labelNode?.getAttribute("aria-label") || "",
+          text: link.textContent || "",
+        };
+      }),
+      MERCARI_RESULT_LIMIT,
+    );
+
+    return parseMercari(cards);
+  } finally {
+    if (browser) await browser.close();
+  }
 }
 
 async function searchOffmall(term) {
@@ -282,6 +355,57 @@ function parseOffmall(html) {
       image,
     };
   }).filter((listing) => listing.id !== "offmall-" && listing.title && listing.url);
+}
+
+function parseMercari(cards) {
+  return cards.map((card) => {
+    const href = normalizeUrl(card.href, MERCARI_BASE_URL);
+    const rawId = card.itemId || href.match(/\/item\/(m\d+)/)?.[1] || "";
+    const label = cleanMercariText(card.label).replace(/^Image of\s+/i, "");
+    const price = parseMercariPrice(label) || parseMercariPrice(card.text);
+    const title = cleanMercariTitle(label, price) || cleanMercariTitle(card.text, price);
+    const isAuction = /Bid\s*¥/i.test(card.text);
+
+    return {
+      id: `mercari-${rawId}`,
+      source: "mercari",
+      title,
+      price,
+      condition: isAuction ? "Mercari auction" : "Listed",
+      shop: "Mercari",
+      listedAt: new Date().toISOString(),
+      url: href,
+      image: normalizeUrl(card.image, MERCARI_BASE_URL),
+    };
+  }).filter((listing) => listing.id !== "mercari-" && listing.title && listing.url);
+}
+
+function parseMercariPrice(value) {
+  const text = cleanMercariText(value);
+  const yenMarkMatch = text.match(/(?:Bid\s*)?¥\s*([\d,]+)/i);
+  if (yenMarkMatch) return Number(yenMarkMatch[1].replace(/[^\d]/g, ""));
+
+  const yenMatches = [...text.matchAll(/([\d,]+)\s*yen\b/gi)];
+  const lastYenMatch = yenMatches.at(-1);
+  return lastYenMatch ? Number(lastYenMatch[1].replace(/[^\d]/g, "")) : 0;
+}
+
+function cleanMercariTitle(value, price) {
+  const pricePattern = price ? String(price).replace(/\B(?=(\d{3})+(?!\d))/g, ",") : "";
+
+  return cleanMercariText(value)
+    .replace(/^Image of\s+/i, "")
+    .replace(/^Bid\s*¥\s*[\d,]+\s*/i, "")
+    .replace(/^¥\s*[\d,]+\s*/i, "")
+    .replace(pricePattern ? new RegExp(`\\s*${pricePattern}\\s*yen\\s*$`, "i") : /$/g, "")
+    .replace(/\s*yen\s*$/i, "")
+    .trim();
+}
+
+function cleanMercariText(value) {
+  return (value || "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function parseYahooAuctions(html) {

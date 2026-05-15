@@ -10,7 +10,7 @@ const SOURCES = [
   { id: "hardoff", label: "Hard Off", icon: "H", color: "green" },
 ];
 
-const LIVE_SOURCE_IDS = ["yahoo-auctions", "digimart", "offmall", "hardoff"];
+const LIVE_SOURCE_IDS = ["mercari", "yahoo-auctions", "digimart", "offmall", "hardoff"];
 const SEARCH_TERM_ALIASES = {
   oberheim: ["オーバーハイム"],
   moog: ["モーグ", "ムーグ"],
