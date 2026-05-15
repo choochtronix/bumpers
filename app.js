@@ -1020,6 +1020,9 @@ function renderSavedSearches() {
 
   savedSearches.innerHTML = "";
   profiles.forEach((profile) => {
+    const item = document.createElement("div");
+    item.className = "saved-search-row";
+
     const button = document.createElement("button");
     button.className = "saved-search";
     button.type = "button";
@@ -1036,7 +1039,17 @@ function renderSavedSearches() {
       fillForm(profile);
       runSearch();
     });
-    savedSearches.appendChild(button);
+
+    const deleteButton = document.createElement("button");
+    deleteButton.className = "saved-search-delete";
+    deleteButton.type = "button";
+    deleteButton.title = `Delete ${profile.name}`;
+    deleteButton.setAttribute("aria-label", `Delete saved search ${profile.name}`);
+    deleteButton.textContent = "×";
+    deleteButton.addEventListener("click", () => deleteSavedSearch(profile.name));
+
+    item.append(button, deleteButton);
+    savedSearches.appendChild(item);
   });
 }
 
@@ -1044,6 +1057,30 @@ function saveProfile(profile) {
   const hydratedProfile = hydrateProfile(profile);
   const profiles = loadProfiles().filter((item) => item.name !== hydratedProfile.name);
   localStorage.setItem(STORAGE_KEYS.profiles, JSON.stringify([hydratedProfile, ...profiles]));
+}
+
+function deleteSavedSearch(profileName) {
+  const confirmed = window.confirm(`Delete saved search "${profileName}"?`);
+  if (!confirmed) return;
+
+  const nextProfiles = loadProfiles().filter((item) => item.name !== profileName);
+  localStorage.setItem(STORAGE_KEYS.profiles, JSON.stringify(nextProfiles));
+  deleteSavedSearchArtifacts(profileName);
+  renderSavedSearches();
+}
+
+function deleteSavedSearchArtifacts(profileName) {
+  const profileKey = normalizeText(profileName);
+  const feedbackRules = loadFeedbackRules();
+  delete feedbackRules[profileKey];
+  saveFeedbackRules(feedbackRules);
+
+  const ledger = loadLedger();
+  Object.values(ledger).forEach((entry) => {
+    if (!Array.isArray(entry.profileNames)) return;
+    entry.profileNames = entry.profileNames.filter((name) => name !== profileName);
+  });
+  saveLedger(ledger);
 }
 
 function updateStoredProfileScan(profile, scanSummary) {

@@ -353,6 +353,12 @@ fieldset {
   overflow: auto;
 }
 
+.saved-search-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 34px;
+  gap: 8px;
+}
+
 .saved-search {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -365,6 +371,27 @@ fieldset {
   color: var(--ink);
   text-align: left;
   cursor: pointer;
+}
+
+.saved-search-delete {
+  display: grid;
+  width: 34px;
+  min-width: 34px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--button-bg);
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.saved-search-delete:hover,
+.saved-search-delete:focus-visible {
+  border-color: var(--rose);
+  color: var(--rose);
 }
 
 .saved-search strong {
