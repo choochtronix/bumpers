@@ -35,6 +35,11 @@ const SEARCH_TERM_ALIASES = {
   behringer: ["ベリンガー"],
   clavia: ["クラビア"],
   nord: ["ノード", "clavia"],
+  "drum machine": ["ドラムマシン", "リズムマシン", "リズムボックス", "rhythm machine"],
+  "drum machines": ["drum machine", "ドラムマシン", "リズムマシン", "リズムボックス"],
+  "rhythm machine": ["リズムマシン", "ドラムマシン", "リズムボックス"],
+  groovebox: ["グルーブボックス", "グルーヴボックス", "groove box"],
+  "groove box": ["groovebox", "グルーブボックス", "グルーヴボックス"],
 };
 const ACCESSORY_TERMS = [
   "adapter",
@@ -70,7 +75,10 @@ const GEAR_SIGNAL_TERMS = [
   "desktop",
   "digital",
   "drum machine",
+  "dr rhythm",
+  "dr. rhythm",
   "eurorack",
+  "groove box",
   "groovebox",
   "keyboard",
   "midi",
@@ -93,6 +101,8 @@ const GEAR_SIGNAL_TERMS = [
   "シンセ",
   "シンセサイザー",
   "ドラムマシン",
+  "リズムボックス",
+  "リズムマシン",
   "ミキサー",
   "モジュール",
 ];
@@ -110,6 +120,7 @@ const MEDIA_NOISE_TERMS = [
   "jacket",
   "laserdisc",
   "lp",
+  "model kit",
   "record",
   "sample cd",
   "sampling cd",
@@ -119,10 +130,13 @@ const MEDIA_NOISE_TERMS = [
   "アナログ盤",
   "アルバム",
   "カセット",
+  "フィギュア",
+  "プラモデル",
   "サントラ",
   "サンプリングcd",
   "ジャズ",
   "レコード",
+  "7インチ",
   "帯付",
   "帯付き",
   "歌謡",
@@ -146,6 +160,8 @@ const NEGATIVE_CATEGORY_IDS = [
   "42177", // beauty and health
   "2084032594", // celebrity goods
   "2084019007", // sampling CDs
+  "2084214619", // DVDs
+  "2084216603", // DVDs
   "2084055844", // pets
 ];
 const HARD_NEGATIVE_CATEGORY_IDS = [
@@ -159,6 +175,7 @@ const POSITIVE_GEAR_CATEGORY_IDS = [
   "22436",
   "22532",
   "2084019003",
+  "2084019005",
   "2084240145",
 ];
 

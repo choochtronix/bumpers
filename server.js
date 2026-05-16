@@ -15,10 +15,19 @@ const MERCARI_CONNECTOR_TIMEOUT_MS = 12000;
 const MERCARI_RESULT_LIMIT = 40;
 const MERCARI_TERM_LIMIT = 2;
 const YAHOO_AUCTIONS_PAGE_SIZE = 100;
-const YAHOO_AUCTIONS_CATEGORY_SWEEPS = [
+const YAHOO_AUCTIONS_DEFAULT_CATEGORY_SWEEPS = [
   "",
   "22436", // Musical instruments
   "2084019003", // Keyboards and synthesizers
+];
+const YAHOO_AUCTIONS_RHYTHM_CATEGORY = "2084019005";
+const YAHOO_AUCTIONS_RHYTHM_TERMS = [
+  "drum machine",
+  "drum machines",
+  "rhythm machine",
+  "ドラムマシン",
+  "リズムマシン",
+  "リズムボックス",
 ];
 const USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 (KHTML, like Gecko) Bumpers/0.1 local personal gear search";
 const mercariCache = new Map();
@@ -306,17 +315,28 @@ async function searchOffmall(term) {
 
 async function searchYahooAuctions(term) {
   const listingsById = new Map();
+  const categorySweeps = getYahooAuctionsCategorySweeps(term);
 
-  for (const categoryId of YAHOO_AUCTIONS_CATEGORY_SWEEPS) {
+  for (const categoryId of categorySweeps) {
     const html = await fetchYahooAuctionsSearch(term, categoryId);
     parseYahooAuctions(html).forEach((listing) => listingsById.set(listing.id, listing));
 
-    if (categoryId !== YAHOO_AUCTIONS_CATEGORY_SWEEPS.at(-1)) {
+    if (categoryId !== categorySweeps.at(-1)) {
       await wait(400);
     }
   }
 
   return [...listingsById.values()];
+}
+
+function getYahooAuctionsCategorySweeps(term) {
+  const normalized = normalizeText(term);
+  const shouldSearchRhythmCategory = YAHOO_AUCTIONS_RHYTHM_TERMS.some((item) => normalized.includes(normalizeText(item)));
+  const categorySweeps = shouldSearchRhythmCategory
+    ? [...YAHOO_AUCTIONS_DEFAULT_CATEGORY_SWEEPS, YAHOO_AUCTIONS_RHYTHM_CATEGORY]
+    : YAHOO_AUCTIONS_DEFAULT_CATEGORY_SWEEPS;
+
+  return [...new Set(categorySweeps)];
 }
 
 async function fetchYahooAuctionsSearch(term, categoryId = "") {
@@ -336,6 +356,10 @@ async function fetchYahooAuctionsSearch(term, categoryId = "") {
       "accept-language": "ja,en-US;q=0.9,en;q=0.8",
     },
   });
+
+  if (response.status === 404) {
+    return "";
+  }
 
   if (!response.ok) {
     throw new Error(`Yahoo Auctions responded with ${response.status}`);
