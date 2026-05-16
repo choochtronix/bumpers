@@ -46,6 +46,67 @@ const SEARCH_TERM_ALIASES = {
 const STRICT_LATIN_TERMS = [
   "roli",
 ];
+const AMBIGUOUS_GEAR_BRANDS = [
+  "roli",
+  "waldorf",
+  "ワルドルフ",
+];
+const BRAND_MODEL_SIGNAL_TERMS = {
+  roli: [
+    "airwave",
+    "blocks",
+    "lumi",
+    "lightpad",
+    "piano m",
+    "rise",
+    "seaboard",
+    "songmaker",
+  ],
+  waldorf: [
+    "blofeld",
+    "iridium",
+    "kyra",
+    "largo",
+    "micro q",
+    "microwave",
+    "m",
+    "nw1",
+    "pulse",
+    "q",
+    "quantum",
+    "rocket",
+    "streichfett",
+    "stromberg",
+    "zarenbourg",
+    "xt",
+    "xtk",
+  ],
+  "ワルドルフ": [
+    "blofeld",
+    "iridium",
+    "kyra",
+    "largo",
+    "micro q",
+    "microwave",
+    "nw1",
+    "pulse",
+    "q",
+    "quantum",
+    "rocket",
+    "streichfett",
+    "stromberg",
+    "zarenbourg",
+    "xt",
+    "xtk",
+    "ブロフェルド",
+    "イリジウム",
+    "マイクロウェーブ",
+    "マイクロ q",
+    "パルス",
+    "クォンタム",
+    "ストライヒフェット",
+  ],
+};
 const ACCESSORY_TERMS = [
   "adapter",
   "book",
@@ -1125,12 +1186,15 @@ function scoreGearConfidence(listing) {
   if (feedbackStatus === "noise") return { level: "likely-noise", score: -99 };
 
   const positiveTermCount = countMatchingTerms(searchable, GEAR_SIGNAL_TERMS);
+  const brandModelSignalCount = countBrandModelSignals(searchable);
   const profileNoiseCount = countMatchingTerms(searchable, getActiveNoiseTerms());
   const mediaNoiseCount = countMatchingTerms(searchable, MEDIA_NOISE_TERMS);
   const feedbackNoiseCount = countMatchingTerms(searchable, feedback.hiddenTerms || []);
   const hasPositiveCategory = categoryIds.some((id) => POSITIVE_GEAR_CATEGORY_IDS.includes(id));
   const hasNegativeCategory = categoryIds.some((id) => NEGATIVE_CATEGORY_IDS.includes(id));
   const hasHardNegativeCategory = categoryIds.some((id) => HARD_NEGATIVE_CATEGORY_IDS.includes(id));
+  const hasAmbiguousBrand = AMBIGUOUS_GEAR_BRANDS.some((brand) => termMatches(searchable, brand));
+  const hasGearSignal = positiveTermCount > 0 || brandModelSignalCount > 0 || hasPositiveCategory;
   const hasMediaCatalogMarker = hasRecordCatalogMarker(searchable);
   const hasFeedbackHiddenCategory = categoryIds.some((id) => (feedback.hiddenCategories || []).includes(id));
   let score = 0;
@@ -1139,7 +1203,12 @@ function scoreGearConfidence(listing) {
     return { level: "likely-noise", score: -12 };
   }
 
+  if (hasAmbiguousBrand && !hasGearSignal) {
+    return { level: "likely-noise", score: -8 };
+  }
+
   score += positiveTermCount * 3;
+  score += brandModelSignalCount * 5;
   if (hasPositiveCategory) score += 4;
   if (hasNegativeCategory) score -= 5;
   if (hasHardNegativeCategory && !hasPositiveCategory && positiveTermCount < 2) score -= 4;
@@ -1260,6 +1329,13 @@ function removeValue(values, value) {
 function countMatchingTerms(searchable, terms) {
   return terms.reduce((count, term) => {
     return termMatches(searchable, term) ? count + 1 : count;
+  }, 0);
+}
+
+function countBrandModelSignals(searchable) {
+  return Object.entries(BRAND_MODEL_SIGNAL_TERMS).reduce((count, [brand, modelTerms]) => {
+    if (!termMatches(searchable, brand)) return count;
+    return count + countMatchingTerms(searchable, modelTerms);
   }, 0);
 }
 
