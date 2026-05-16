@@ -382,10 +382,13 @@ const themeToggle = document.querySelector("#themeToggle");
 const liveStatus = document.querySelector("#liveStatus");
 const qualityFilterSelect = document.querySelector("#qualityFilter");
 const sortModeSelect = document.querySelector("#sortMode");
+const refineSearchModal = document.querySelector("#refineSearchModal");
+const refineSummary = document.querySelector("#refineSummary");
 const saveSearchModal = document.querySelector("#saveSearchModal");
 const saveSearchForm = document.querySelector("#saveSearchForm");
 const saveSearchName = document.querySelector("#saveSearchName");
 const saveSearchAlert = document.querySelector("#saveSearchAlert");
+let refineSearchReturnFocus = null;
 let saveSearchReturnFocus = null;
 
 function initialize() {
@@ -401,8 +404,21 @@ function bindEvents() {
   searchForm.addEventListener("submit", (event) => {
     event.preventDefault();
     currentProfile = readProfileFromForm();
+    renderRefineSummary();
+    closeRefineSearchModal({ restoreFocus: false });
     runSearch();
   });
+
+  document.querySelector("#openRefineSearch").addEventListener("click", openRefineSearchModal);
+  document.querySelector("#openResultRefineSearch").addEventListener("click", openRefineSearchModal);
+  document.querySelector("#closeRefineSearch").addEventListener("click", closeRefineSearchModal);
+  document.querySelector("#cancelRefineSearch").addEventListener("click", closeRefineSearchModal);
+  document.querySelector("#applyRefineSearch").addEventListener("click", applyRefineSearchOnly);
+  refineSearchModal.addEventListener("click", (event) => {
+    if (event.target === refineSearchModal) closeRefineSearchModal();
+  });
+  refineSearchModal.addEventListener("input", renderRefineSummary);
+  refineSearchModal.addEventListener("change", renderRefineSummary);
 
   document.querySelector("#openSaveSearch").addEventListener("click", openSaveSearchModal);
   document.querySelector("#saveProfile").addEventListener("click", openSaveSearchModal);
@@ -460,7 +476,9 @@ function bindEvents() {
   });
 
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && !saveSearchModal.hidden) closeSaveSearchModal();
+    if (event.key !== "Escape") return;
+    if (!refineSearchModal.hidden) closeRefineSearchModal();
+    if (!saveSearchModal.hidden) closeSaveSearchModal();
   });
 }
 
@@ -483,6 +501,7 @@ function fillForm(profile) {
   document.querySelectorAll("input[name='sources']").forEach((input) => {
     input.checked = hydratedProfile.sources.includes(input.value);
   });
+  renderRefineSummary();
 }
 
 function readProfileFromForm() {
@@ -512,6 +531,38 @@ function suggestSearchName(terms) {
 function arraysMatch(first, second) {
   if (first.length !== second.length) return false;
   return first.every((item, index) => item === second[index]);
+}
+
+function openRefineSearchModal(event) {
+  refineSearchReturnFocus = event?.currentTarget || document.activeElement;
+  renderRefineSummary();
+  refineSearchModal.hidden = false;
+  document.body.classList.add("modal-open");
+  document.querySelector("#excludes").focus();
+}
+
+function closeRefineSearchModal(options = {}) {
+  const { restoreFocus = true } = options;
+  if (refineSearchModal.hidden) return;
+  refineSearchModal.hidden = true;
+  document.body.classList.remove("modal-open");
+  if (restoreFocus) refineSearchReturnFocus?.focus();
+}
+
+function applyRefineSearchOnly() {
+  currentProfile = readProfileFromForm();
+  renderRefineSummary();
+  closeRefineSearchModal();
+}
+
+function renderRefineSummary() {
+  if (!refineSummary) return;
+  const profile = readProfileFromForm();
+  const sourceCount = profile.sources.length;
+  const sourceText = `${sourceCount} ${sourceCount === 1 ? "source" : "sources"}`;
+  const priceText = profile.maxPrice > 0 ? `${formatYen(profile.maxPrice)} max` : "No price cap";
+  const excludeText = `${profile.excludes.length} excluded`;
+  refineSummary.textContent = `${sourceText} · ${priceText} · ${profile.alertMode} · ${excludeText}`;
 }
 
 function openSaveSearchModal(event) {

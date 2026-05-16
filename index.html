@@ -30,9 +30,36 @@
 WALDORF</textarea>
           </label>
 
-          <label>
-            <span>Exclude</span>
-            <textarea id="excludes" rows="5">manual
+          <div class="quick-search-actions">
+            <button class="primary-action" type="submit">
+              <span aria-hidden="true">⌕</span>
+              Run search
+            </button>
+            <button class="secondary-action" id="openRefineSearch" type="button">
+              <span aria-hidden="true">≡</span>
+              Refine
+            </button>
+            <button class="secondary-action" id="openSaveSearch" type="button">
+              Save search
+            </button>
+          </div>
+
+          <div class="refine-summary" id="refineSummary" aria-live="polite"></div>
+
+          <div class="modal-backdrop refine-backdrop" id="refineSearchModal" hidden>
+            <section class="modal refine-modal" role="dialog" aria-modal="true" aria-labelledby="refineSearchTitle">
+              <div class="refine-panel">
+                <div class="modal-header">
+                  <div>
+                    <p class="eyebrow">Search Tuning</p>
+                    <h2 id="refineSearchTitle">Refine Search</h2>
+                  </div>
+                  <button class="icon-action" id="closeRefineSearch" type="button" aria-label="Close refine search">×</button>
+                </div>
+
+                <label>
+                  <span>Exclude</span>
+                  <textarea id="excludes" rows="5">manual
 magnet
 power cord
 doll
@@ -42,13 +69,13 @@ CD
 Moments to Remember
 record
 shoes</textarea>
-          </label>
+                </label>
 
-          <details class="advanced-options">
-            <summary>Clean gear noise</summary>
-            <label>
-              <span>Hide when quality is clean</span>
-              <textarea id="noiseTerms" rows="4">adapter
+                <details class="advanced-options" open>
+                  <summary>Clean gear noise</summary>
+                  <label>
+                    <span>Hide when quality is clean</span>
+                    <textarea id="noiseTerms" rows="4">adapter
 book
 cable
 case
@@ -70,37 +97,37 @@ stand
 ブーツ
 靴
 取扱説明書</textarea>
-            </label>
-          </details>
+                  </label>
+                </details>
 
-          <div class="form-grid">
-            <label>
-              <span>Max price</span>
-              <input id="maxPrice" type="number" value="2000000" min="0" step="1000" />
-            </label>
-            <label>
-              <span>Alert</span>
-              <select id="alertMode">
-                <option value="immediate">Immediate</option>
-                <option value="hourly">Hourly</option>
-                <option value="daily">Daily</option>
-              </select>
-            </label>
+                <div class="form-grid">
+                  <label>
+                    <span>Max price</span>
+                    <input id="maxPrice" type="number" value="2000000" min="0" step="1000" />
+                  </label>
+                  <label>
+                    <span>Alert</span>
+                    <select id="alertMode">
+                      <option value="immediate">Immediate</option>
+                      <option value="hourly">Hourly</option>
+                      <option value="daily">Daily</option>
+                    </select>
+                  </label>
+                </div>
+
+                <fieldset>
+                  <legend>Sources</legend>
+                  <div class="source-list" id="sourceList"></div>
+                </fieldset>
+
+                <div class="modal-actions">
+                  <button class="secondary-action" id="cancelRefineSearch" type="button">Cancel</button>
+                  <button class="secondary-action" id="applyRefineSearch" type="button">Apply only</button>
+                  <button class="primary-action" type="submit">Apply & search</button>
+                </div>
+              </div>
+            </section>
           </div>
-
-          <fieldset>
-            <legend>Sources</legend>
-            <div class="source-list" id="sourceList"></div>
-          </fieldset>
-
-          <button class="primary-action" type="submit">
-            <span aria-hidden="true">⌕</span>
-            Run search
-          </button>
-
-          <button class="secondary-action" id="openSaveSearch" type="button">
-            Save search
-          </button>
         </form>
 
         <section class="saved-panel" aria-labelledby="savedTitle">
@@ -142,6 +169,10 @@ stand
             <button type="button" data-filter="watching">Watching</button>
           </div>
           <div class="result-options">
+            <button class="refine-inline-button" id="openResultRefineSearch" type="button">
+              <span aria-hidden="true">≡</span>
+              Refine
+            </button>
             <label>
               <span>Quality</span>
               <select id="qualityFilter">
