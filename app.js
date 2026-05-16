@@ -134,6 +134,8 @@ const MEDIA_NOISE_TERMS = [
   "カセット",
   "フィギュア",
   "プラモデル",
+  "ピンバッジ",
+  "マグネット",
   "サントラ",
   "サンプリングcd",
   "ジャズ",
@@ -165,6 +167,9 @@ const NEGATIVE_CATEGORY_IDS = [
   "2084214619", // DVDs
   "2084216603", // DVDs
   "2084055844", // pets
+  "416", // Rakuma toys
+  "770", // Rakuma CDs and music media
+  "1622", // Rakuma character goods
 ];
 const HARD_NEGATIVE_CATEGORY_IDS = [
   "21600", // books and magazines
@@ -172,6 +177,9 @@ const HARD_NEGATIVE_CATEGORY_IDS = [
   "22152", // music media
   "23000", // fashion
   "2084019007", // sampling CDs
+  "416", // Rakuma toys
+  "770", // Rakuma CDs and music media
+  "1622", // Rakuma character goods
 ];
 const POSITIVE_GEAR_CATEGORY_IDS = [
   "22436",
@@ -180,6 +188,8 @@ const POSITIVE_GEAR_CATEGORY_IDS = [
   "2084019005",
   "2084240145",
   "46914",
+  "1459",
+  "1473",
   "1616",
 ];
 

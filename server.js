@@ -9,7 +9,9 @@ const ROOT = fileURLToPath(new URL(".", import.meta.url));
 const DIGIMART_BASE_URL = "https://www.digimart.net";
 const MERCARI_BASE_URL = "https://jp.mercari.com";
 const OFFMALL_BASE_URL = "https://netmall.hardoff.co.jp";
+const RAKUMA_BASE_URL = "https://fril.jp";
 const YAHOO_AUCTIONS_BASE_URL = "https://auctions.yahoo.co.jp";
+const YAHOO_FLEAMARKET_BASE_URL = "https://paypayfleamarket.yahoo.co.jp";
 const MERCARI_CACHE_TTL_MS = 5 * 60 * 1000;
 const MERCARI_CONNECTOR_TIMEOUT_MS = 12000;
 const MERCARI_RESULT_LIMIT = 40;
@@ -76,10 +78,12 @@ async function handleSearch(url, response) {
   const wantsDigimart = sources.length === 0 || sources.includes("digimart");
   const wantsMercari = sources.length === 0 || sources.includes("mercari");
   const wantsOffmall = sources.length === 0 || sources.includes("offmall") || sources.includes("hardoff");
+  const wantsRakuma = sources.length === 0 || sources.includes("rakuma");
   const wantsYahooAuctions = sources.length === 0 || sources.includes("yahoo-auctions");
+  const wantsYahooFleamarket = sources.length === 0 || sources.includes("yahoo-fleamarket");
   const startedAt = new Date();
 
-  if ((!wantsDigimart && !wantsMercari && !wantsOffmall && !wantsYahooAuctions) || terms.length === 0) {
+  if ((!wantsDigimart && !wantsMercari && !wantsOffmall && !wantsRakuma && !wantsYahooAuctions && !wantsYahooFleamarket) || terms.length === 0) {
     sendJson(response, 200, { listings: [], meta: createSearchMeta(startedAt, [], [], terms) });
     return;
   }
@@ -97,8 +101,16 @@ async function handleSearch(url, response) {
     sourceTasks.push(searchSourceTerms("offmall", terms, searchOffmall));
   }
 
+  if (wantsRakuma) {
+    sourceTasks.push(searchSourceTerms("rakuma", terms, searchRakuma));
+  }
+
   if (wantsYahooAuctions) {
     sourceTasks.push(searchSourceTerms("yahoo-auctions", terms, searchYahooAuctions));
+  }
+
+  if (wantsYahooFleamarket) {
+    sourceTasks.push(searchSourceTerms("yahoo-fleamarket", terms, searchYahooFleamarket));
   }
 
   if (wantsMercari) {
@@ -313,6 +325,27 @@ async function searchOffmall(term) {
   return parseOffmall(html);
 }
 
+async function searchRakuma(term) {
+  const url = new URL(`/search/${encodeURIComponent(term)}`, RAKUMA_BASE_URL);
+
+  const response = await fetch(url, {
+    headers: {
+      "user-agent": USER_AGENT,
+      "accept-language": "ja,en-US;q=0.9,en;q=0.8",
+    },
+  });
+
+  if (response.status === 404) {
+    return [];
+  }
+
+  if (!response.ok) {
+    throw new Error(`Rakuma responded with ${response.status}`);
+  }
+
+  return parseRakuma(await response.text());
+}
+
 async function searchYahooAuctions(term) {
   const listingsById = new Map();
   const categorySweeps = getYahooAuctionsCategorySweeps(term);
@@ -327,6 +360,27 @@ async function searchYahooAuctions(term) {
   }
 
   return [...listingsById.values()];
+}
+
+async function searchYahooFleamarket(term) {
+  const url = new URL(`/search/${encodeURIComponent(term)}`, YAHOO_FLEAMARKET_BASE_URL);
+
+  const response = await fetch(url, {
+    headers: {
+      "user-agent": USER_AGENT,
+      "accept-language": "ja,en-US;q=0.9,en;q=0.8",
+    },
+  });
+
+  if (response.status === 404) {
+    return [];
+  }
+
+  if (!response.ok) {
+    throw new Error(`Yahoo Fleamarket responded with ${response.status}`);
+  }
+
+  return parseYahooFleamarket(await response.text());
 }
 
 function getYahooAuctionsCategorySweeps(term) {
@@ -423,6 +477,38 @@ function parseOffmall(html) {
   }).filter((listing) => listing.id !== "offmall-" && listing.title && listing.url);
 }
 
+function parseRakuma(html) {
+  const blocks = html.match(/<div class="item">\s*<div class="item-box">[\s\S]*?(?=<div class="item">\s*<div class="item-box">|<\/section>)/g) || [];
+
+  return blocks.map((block) => {
+    const href = normalizeUrl(
+      readAttributeFromPattern(block, /<a[^>]+href="([^"]+)"[^>]+class="link_search_title"/)
+        || readAttributeFromPattern(block, /<a[^>]+class="link_search_title"[^>]+href="([^"]+)"/),
+      RAKUMA_BASE_URL,
+    );
+    const rawId = readAttributeFromPattern(block, /data-rat-itemid="([^"]+)"/).split("/").at(-1) || href.match(/item\.fril\.jp\/([^/?#]+)/)?.[1] || "";
+    const title = cleanText(readAttributeFromPattern(block, /data-rat-item_name="([^"]+)"/))
+      || cleanText(matchOne(block, /<p class="item-box__item-name">[\s\S]*?<a[^>]*>([\s\S]*?)<\/a>/));
+    const price = Number(readAttributeFromPattern(block, /data-rat-price="([^"]+)"/) || readAttributeFromPattern(block, /data-content="(\d+)"/));
+    const brand = cleanText(matchOne(block, /<a[^>]+class="brand-name"[^>]*>([\s\S]*?)<\/a>/));
+    const categoryId = readAttributeFromPattern(block, /data-rat-igenre="([^"]+)"/);
+    const image = createSourcePlaceholderImage("Rakuma", "#12a05c");
+
+    return {
+      id: `rakuma-${rawId}`,
+      source: "rakuma",
+      title,
+      price,
+      condition: block.includes("soldout") || block.includes("売り切れ") ? "Sold" : "Listed",
+      shop: brand ? `Rakuma · ${brand}` : "Rakuma",
+      listedAt: new Date().toISOString(),
+      url: href,
+      image,
+      categoryId,
+    };
+  }).filter((listing) => listing.id !== "rakuma-" && listing.title && listing.url);
+}
+
 function parseMercari(cards) {
   return cards.map((card) => {
     const href = normalizeUrl(card.href, MERCARI_BASE_URL);
@@ -485,6 +571,44 @@ function pruneMercariCache() {
       mercariCache.delete(key);
     }
   }
+}
+
+function parseYahooFleamarket(html) {
+  const script = matchOne(html, /<script id="__NEXT_DATA__" type="application\/json"[^>]*>([\s\S]*?)<\/script>/);
+  if (!script) return [];
+
+  const data = JSON.parse(script);
+  const items = data?.props?.initialState?.searchState?.search?.result?.items || [];
+
+  return items.map((item) => {
+    const rawId = String(item.id || "");
+    const categoryPath = Array.isArray(item.category?.path)
+      ? item.category.path.map((category) => String(category.id)).filter(Boolean)
+      : [];
+
+    return {
+      id: `yahoo-fleamarket-${rawId}`,
+      source: "yahoo-fleamarket",
+      title: cleanText(String(item.title || "")),
+      price: Number(item.price || 0),
+      condition: formatYahooFleamarketCondition(item),
+      shop: "Yahoo Fleamarket",
+      listedAt: item.openTime || new Date().toISOString(),
+      url: normalizeUrl(`/item/${rawId}`, YAHOO_FLEAMARKET_BASE_URL),
+      image: normalizeUrl(item.thumbnailImageUrl || "", YAHOO_FLEAMARKET_BASE_URL),
+      categoryId: item.category?.id ? String(item.category.id) : "",
+      categoryPath,
+    };
+  }).filter((listing) => listing.id !== "yahoo-fleamarket-" && listing.title && listing.url);
+}
+
+function formatYahooFleamarketCondition(item) {
+  const parts = [];
+  if (item.itemStatus === "SOLD") parts.push("Sold");
+  if (String(item.condition || "").startsWith("used")) parts.push("Used");
+  if (String(item.condition || "").startsWith("new")) parts.push("New/unused");
+  if (item.isPriceDown) parts.push("Price down");
+  return parts.join(" · ") || "Listed";
 }
 
 function parseYahooAuctions(html) {
@@ -582,6 +706,10 @@ function readAttribute(value, attributeName) {
   return decodeHtml(matchOne(value, new RegExp(`${escapedName}="([^"]*)"`, "i")));
 }
 
+function readAttributeFromPattern(value, pattern) {
+  return decodeHtml(matchOne(value, pattern));
+}
+
 function cleanText(value) {
   return decodeHtml(value.replace(/<[^>]+>/g, " "))
     .replace(/\s+/g, " ")
@@ -615,6 +743,11 @@ function normalizeText(value) {
 function unixTimestampToIso(timestamp) {
   if (!timestamp) return "";
   return new Date(timestamp * 1000).toISOString();
+}
+
+function createSourcePlaceholderImage(label, color) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 540"><rect width="720" height="540" fill="${color}"/><rect x="28" y="28" width="664" height="484" rx="34" fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,0.28)" stroke-width="3"/><text x="50%" y="50%" text-anchor="middle" dominant-baseline="middle" fill="#fff" font-family="Arial, Helvetica, sans-serif" font-size="64" font-weight="800" letter-spacing="0">${label}</text></svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
 function wait(ms) {
