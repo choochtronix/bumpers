@@ -144,11 +144,34 @@ function collectFilteredListings(listings, listingsById, excludes, maxPrice) {
     const title = normalizeText(listing.title);
     const excluded = excludes.some((exclude) => title.includes(exclude));
     const tooExpensive = maxPrice > 0 && listing.price > maxPrice;
+    const unavailable = isUnavailableListing(listing);
 
-    if (!excluded && !tooExpensive) {
+    if (!excluded && !tooExpensive && !unavailable) {
       listingsById.set(listing.id, listing);
     }
   }
+}
+
+function isUnavailableListing(listing) {
+  const status = normalizeText([
+    listing.condition,
+    listing.availability,
+    listing.itemStatus,
+  ].filter(Boolean).join(" "));
+
+  return [
+    "sold",
+    "soldout",
+    "sold out",
+    "売り切れ",
+    "売切れ",
+    "売約済",
+    "売却済",
+    "販売済",
+    "成約済",
+    "ended",
+    "終了",
+  ].some((token) => status.includes(normalizeText(token)));
 }
 
 async function searchSourceTerms(source, terms, searchFn, options = {}) {
