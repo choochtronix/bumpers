@@ -536,6 +536,7 @@ function applySearchResult(profile, liveResult, isFinal) {
   currentResults = listings
     .filter((listing) => sourceMatchesProfile(listing.source, profile.sources))
     .filter((listing) => profile.maxPrice <= 0 || listing.price <= profile.maxPrice)
+    .filter((listing) => !isUnavailableListing(listing))
     .filter((listing) => expandedTerms.some((term) => termMatches(normalizeText(listing.title), term)))
     .filter((listing) => !normalizedExcludes.some((term) => normalizeText(listing.title).includes(term)))
     .sort((a, b) => new Date(b.listedAt) - new Date(a.listedAt));
@@ -783,6 +784,7 @@ function getVisibleResults(watching) {
       if (filterMode === "watching") return watching.includes(listing.id);
       return true;
     })
+    .filter((listing) => !isUnavailableListing(listing))
     .filter((listing) => activeViewSources.size === 0 || activeViewSources.has(listing.source))
     .filter((listing) => qualityFilter === "all" || isCleanGearListing(listing))
     .sort(compareListings);
@@ -845,6 +847,7 @@ function getSourceFilteredBaseResults() {
       if (filterMode === "watching") return watching.includes(listing.id);
       return true;
     })
+    .filter((listing) => !isUnavailableListing(listing))
     .filter((listing) => qualityFilter === "all" || isCleanGearListing(listing));
 }
 
@@ -1073,6 +1076,28 @@ function sourceMatchesProfile(sourceId, selectedSources) {
 
 function isCleanGearListing(listing) {
   return formatGearConfidence(listing).level !== "likely-noise";
+}
+
+function isUnavailableListing(listing) {
+  const status = normalizeText([
+    listing.condition,
+    listing.availability,
+    listing.itemStatus,
+  ].filter(Boolean).join(" "));
+
+  return [
+    "sold",
+    "soldout",
+    "sold out",
+    "売り切れ",
+    "売切れ",
+    "売約済",
+    "売却済",
+    "販売済",
+    "成約済",
+    "ended",
+    "終了",
+  ].some((token) => status.includes(normalizeText(token)));
 }
 
 function formatCondition(listing) {
