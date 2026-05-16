@@ -10,11 +10,13 @@ const SOURCES = [
   { id: "hardoff", label: "Hard Off", icon: "H", color: "green" },
 ];
 
-const LIVE_SOURCE_IDS = ["mercari", "yahoo-auctions", "digimart", "offmall", "hardoff"];
-const LIVE_SOURCE_DISPLAY_ORDER = ["yahoo-auctions", "digimart", "offmall", "hardoff", "mercari"];
+const LIVE_SOURCE_IDS = ["mercari", "yahoo-auctions", "yahoo-fleamarket", "rakuma", "digimart", "offmall", "hardoff"];
+const LIVE_SOURCE_DISPLAY_ORDER = ["yahoo-auctions", "yahoo-fleamarket", "digimart", "offmall", "hardoff", "mercari", "rakuma"];
 const SOURCE_ACCENTS = {
   mercari: "#e53935",
   "yahoo-auctions": "#d60000",
+  "yahoo-fleamarket": "#1f73e8",
+  rakuma: "#12a05c",
   digimart: "#0a62b7",
   offmall: "#f2a900",
   hardoff: "#f2a900",
@@ -177,6 +179,8 @@ const POSITIVE_GEAR_CATEGORY_IDS = [
   "2084019003",
   "2084019005",
   "2084240145",
+  "46914",
+  "1616",
 ];
 
 const MOCK_LISTINGS = [
@@ -562,6 +566,10 @@ function createLiveSearchGroups(profile) {
     groups.push({ id: "yahoo-auctions", sources: ["yahoo-auctions"] });
   }
 
+  if (selectedSources.has("yahoo-fleamarket")) {
+    groups.push({ id: "yahoo-fleamarket", sources: ["yahoo-fleamarket"] });
+  }
+
   if (selectedSources.has("digimart")) {
     groups.push({ id: "digimart", sources: ["digimart"] });
   }
@@ -575,6 +583,10 @@ function createLiveSearchGroups(profile) {
 
   if (selectedSources.has("mercari")) {
     groups.push({ id: "mercari", sources: ["mercari"] });
+  }
+
+  if (selectedSources.has("rakuma")) {
+    groups.push({ id: "rakuma", sources: ["rakuma"] });
   }
 
   return groups.length > 0 ? groups : [{ id: "mock", sources: profile.sources }];
