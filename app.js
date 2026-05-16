@@ -360,6 +360,7 @@ let isSearching = false;
 let pendingSourceIds = new Set();
 let searchRunId = 0;
 let loadingCardId = 0;
+const rakumaClientThumbnailCache = new Map();
 let searchState = {
   mode: "mock",
   message: "Mock data",
@@ -957,7 +958,7 @@ async function fetchLiveListings(profile, sourceOverride = profile.sources) {
       maxPrice: String(profile.maxPrice || 0),
       sources: sources.join("|"),
     });
-    const response = await fetch(`/api/search?${params.toString()}`);
+    const response = await fetch(`/api/search?${params.toString()}`, { cache: "no-store" });
 
     if (!response.ok) {
       throw new Error(`Search failed with ${response.status}`);
@@ -1010,6 +1011,7 @@ function renderListing(listing) {
   imageLink.href = listing.url;
   image.src = listing.image;
   image.alt = listing.title;
+  hydrateRenderedRakumaImage(listing, image);
   renderSourceAvatar(fragment.querySelector(".source-avatar"), source, listing.source);
   fragment.querySelector(".source-chip").textContent = source?.label || listing.source;
   fragment.querySelector(".condition").textContent = formatCondition(listing);
@@ -1052,6 +1054,36 @@ function renderListing(listing) {
   return fragment;
 }
 
+async function hydrateRenderedRakumaImage(listing, imageElement) {
+  if (listing.source !== "rakuma" || !isPlaceholderImage(listing.image) || !listing.url) return;
+
+  try {
+    const image = await fetchRakumaThumbnailForListing(listing.url);
+    if (!image) return;
+    listing.image = image;
+    imageElement.src = image;
+  } catch {
+    // Keep the source placeholder when Rakuma does not provide a usable thumbnail.
+  }
+}
+
+async function fetchRakumaThumbnailForListing(url) {
+  if (rakumaClientThumbnailCache.has(url)) return rakumaClientThumbnailCache.get(url);
+
+  const params = new URLSearchParams({ url });
+  const response = await fetch(`/api/rakuma-thumbnail?${params.toString()}`, { cache: "no-store" });
+  if (!response.ok) return "";
+
+  const payload = await response.json();
+  const image = typeof payload.image === "string" ? payload.image : "";
+  rakumaClientThumbnailCache.set(url, image);
+  return image;
+}
+
+function isPlaceholderImage(image) {
+  return !image || image.startsWith("data:image/svg+xml");
+}
+
 function renderAlertPanel() {
   const alertListings = getCurrentAlertListings().filter((listing) => qualityFilter === "all" || isCleanGearListing(listing));
   alertList.innerHTML = "";
@@ -1083,6 +1115,7 @@ function renderAlertItem(listing) {
   imageLink.href = listing.url;
   image.src = listing.image;
   image.alt = listing.title;
+  hydrateRenderedRakumaImage(listing, image);
   renderSourceAvatar(fragment.querySelector(".source-avatar"), source, listing.source);
   fragment.querySelector(".source-chip").textContent = source?.label || listing.source;
   fragment.querySelector(".alert-price").textContent = formatYen(listing.price);

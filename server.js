@@ -18,6 +18,7 @@ const MERCARI_RESULT_LIMIT = 40;
 const MERCARI_TERM_LIMIT = 2;
 const RAKUMA_THUMBNAIL_BATCH_SIZE = 4;
 const RAKUMA_THUMBNAIL_LIMIT = 32;
+const RAKUMA_IMAGE_PROXY_CACHE_TTL_MS = 15 * 60 * 1000;
 const YAHOO_AUCTIONS_PAGE_SIZE = 100;
 const YAHOO_AUCTIONS_DEFAULT_CATEGORY_SWEEPS = [
   "",
@@ -36,6 +37,7 @@ const YAHOO_AUCTIONS_RHYTHM_TERMS = [
 const USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 (KHTML, like Gecko) Bumpers/0.1 local personal gear search";
 const mercariCache = new Map();
 const rakumaThumbnailCache = new Map();
+const rakumaImageProxyCache = new Map();
 let mercariBrowserPromise;
 
 const mimeTypes = {
@@ -52,6 +54,16 @@ createServer(async (request, response) => {
 
     if (url.pathname === "/api/search") {
       await handleSearch(url, response);
+      return;
+    }
+
+    if (url.pathname === "/api/rakuma-image") {
+      await handleRakumaImageProxy(url, response);
+      return;
+    }
+
+    if (url.pathname === "/api/rakuma-thumbnail") {
+      await handleRakumaThumbnail(url, response);
       return;
     }
 
@@ -149,6 +161,82 @@ function collectFilteredListings(listings, listingsById, excludes, maxPrice) {
     if (!excluded && !tooExpensive && !unavailable) {
       listingsById.set(listing.id, listing);
     }
+  }
+}
+
+async function handleRakumaImageProxy(url, response) {
+  const imageUrl = url.searchParams.get("url") || "";
+
+  if (!isAllowedRakumaImageUrl(imageUrl)) {
+    response.writeHead(400, { "content-type": "text/plain; charset=utf-8" });
+    response.end("Unsupported image URL");
+    return;
+  }
+
+  const cached = rakumaImageProxyCache.get(imageUrl);
+  if (cached && Date.now() - cached.createdAt < RAKUMA_IMAGE_PROXY_CACHE_TTL_MS) {
+    sendImage(response, cached);
+    return;
+  }
+
+  const upstream = await fetch(imageUrl, {
+    headers: {
+      "user-agent": USER_AGENT,
+      "accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+      "accept-language": "ja,en-US;q=0.9,en;q=0.8",
+      "referer": RAKUMA_BASE_URL,
+    },
+  });
+
+  if (!upstream.ok) {
+    response.writeHead(upstream.status, { "content-type": "text/plain; charset=utf-8" });
+    response.end(`Image request failed with ${upstream.status}`);
+    return;
+  }
+
+  const image = {
+    body: Buffer.from(await upstream.arrayBuffer()),
+    contentType: upstream.headers.get("content-type") || "image/jpeg",
+    createdAt: Date.now(),
+  };
+  rakumaImageProxyCache.set(imageUrl, image);
+  sendImage(response, image);
+}
+
+async function handleRakumaThumbnail(url, response) {
+  const itemUrl = url.searchParams.get("url") || "";
+
+  if (!isAllowedRakumaItemUrl(itemUrl)) {
+    sendJson(response, 400, { error: "unsupported_item_url" });
+    return;
+  }
+
+  sendJson(response, 200, { image: await fetchRakumaThumbnail(itemUrl) });
+}
+
+function sendImage(response, image) {
+  response.writeHead(200, {
+    "content-type": image.contentType,
+    "cache-control": "private, max-age=900",
+  });
+  response.end(image.body);
+}
+
+function isAllowedRakumaImageUrl(value) {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "https:" && parsed.hostname === "img.fril.jp";
+  } catch {
+    return false;
+  }
+}
+
+function isAllowedRakumaItemUrl(value) {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "https:" && parsed.hostname === "item.fril.jp";
+  } catch {
+    return false;
   }
 }
 
@@ -594,12 +682,18 @@ async function fetchRakumaThumbnail(url) {
 }
 
 function extractRakumaThumbnail(html) {
-  return normalizeUrl(
+  const image = normalizeUrl(
     readAttributeFromPattern(html, /<meta[^>]+property="og:image"[^>]+content="([^"]+)"/i)
       || readAttributeFromPattern(html, /<meta[^>]+content="([^"]+)"[^>]+property="og:image"/i)
       || matchOne(html, /<img[^>]+src="([^"]*img\.fril\.jp[^"]+)"/i),
     RAKUMA_BASE_URL,
   );
+  return createRakumaImageProxyUrl(image);
+}
+
+function createRakumaImageProxyUrl(image) {
+  if (!isAllowedRakumaImageUrl(image)) return image;
+  return `/api/rakuma-image?url=${encodeURIComponent(image)}`;
 }
 
 function parseMercari(cards) {
@@ -771,12 +865,16 @@ async function serveStatic(pathname, response) {
   const contents = await readFile(filePath);
   response.writeHead(200, {
     "content-type": mimeTypes[extname(filePath)] || "application/octet-stream",
+    "cache-control": "no-store",
   });
   response.end(contents);
 }
 
 function sendJson(response, status, payload) {
-  response.writeHead(status, { "content-type": "application/json; charset=utf-8" });
+  response.writeHead(status, {
+    "content-type": "application/json; charset=utf-8",
+    "cache-control": "no-store",
+  });
   response.end(JSON.stringify(payload));
 }
 
