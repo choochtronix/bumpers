@@ -43,6 +43,9 @@ const SEARCH_TERM_ALIASES = {
   groovebox: ["グルーブボックス", "グルーヴボックス", "groove box"],
   "groove box": ["groovebox", "グルーブボックス", "グルーヴボックス"],
 };
+const STRICT_LATIN_TERMS = [
+  "roli",
+];
 const ACCESSORY_TERMS = [
   "adapter",
   "book",
@@ -1268,7 +1271,7 @@ function termMatches(searchable, term) {
   const normalized = normalizeText(term);
   if (!normalized) return false;
 
-  if (/^[a-z0-9]+$/.test(normalized) && normalized.length <= 3) {
+  if (/^[a-z0-9]+$/.test(normalized) && (normalized.length <= 3 || STRICT_LATIN_TERMS.includes(normalized))) {
     return new RegExp(`(^|[^a-z0-9])${escapeRegExp(normalized)}($|[^a-z0-9])`).test(searchable);
   }
 
