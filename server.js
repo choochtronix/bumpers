@@ -16,6 +16,8 @@ const MERCARI_CACHE_TTL_MS = 5 * 60 * 1000;
 const MERCARI_CONNECTOR_TIMEOUT_MS = 12000;
 const MERCARI_RESULT_LIMIT = 40;
 const MERCARI_TERM_LIMIT = 2;
+const RAKUMA_THUMBNAIL_BATCH_SIZE = 3;
+const RAKUMA_THUMBNAIL_LIMIT = 12;
 const YAHOO_AUCTIONS_PAGE_SIZE = 100;
 const YAHOO_AUCTIONS_DEFAULT_CATEGORY_SWEEPS = [
   "",
@@ -33,6 +35,7 @@ const YAHOO_AUCTIONS_RHYTHM_TERMS = [
 ];
 const USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 (KHTML, like Gecko) Bumpers/0.1 local personal gear search";
 const mercariCache = new Map();
+const rakumaThumbnailCache = new Map();
 let mercariBrowserPromise;
 
 const mimeTypes = {
@@ -127,8 +130,11 @@ async function handleSearch(url, response) {
     collectFilteredListings(sourceResult.listings, listingsById, excludes, maxPrice);
   }
 
+  const listings = [...listingsById.values()].sort((a, b) => new Date(b.listedAt) - new Date(a.listedAt));
+  await hydrateRakumaThumbnails(listings.filter((listing) => listing.source === "rakuma"));
+
   sendJson(response, 200, {
-    listings: [...listingsById.values()].sort((a, b) => new Date(b.listedAt) - new Date(a.listedAt)),
+    listings,
     meta: createSearchMeta(startedAt, sourceStats, errors, terms),
   });
 }
@@ -154,7 +160,14 @@ async function searchSourceTerms(source, terms, searchFn, options = {}) {
   for (const [index, term] of searchedTerms.entries()) {
     try {
       const listings = await searchFn(term);
-      listings.forEach((listing) => listingsById.set(listing.id, listing));
+      listings.forEach((listing) => {
+        const existing = listingsById.get(listing.id);
+        const image = existing && isPlaceholderImage(listing.image) && !isPlaceholderImage(existing.image)
+          ? existing.image
+          : listing.image;
+
+        listingsById.set(listing.id, { ...listing, image });
+      });
     } catch (error) {
       errors.push({
         source,
@@ -479,6 +492,7 @@ function parseOffmall(html) {
 
 function parseRakuma(html) {
   const blocks = html.match(/<div class="item">\s*<div class="item-box">[\s\S]*?(?=<div class="item">\s*<div class="item-box">|<\/section>)/g) || [];
+  const listedAt = new Date().toISOString();
 
   return blocks.map((block) => {
     const href = normalizeUrl(
@@ -501,12 +515,68 @@ function parseRakuma(html) {
       price,
       condition: block.includes("soldout") || block.includes("売り切れ") ? "Sold" : "Listed",
       shop: brand ? `Rakuma · ${brand}` : "Rakuma",
-      listedAt: new Date().toISOString(),
+      listedAt,
       url: href,
       image,
       categoryId,
     };
   }).filter((listing) => listing.id !== "rakuma-" && listing.title && listing.url);
+}
+
+async function hydrateRakumaThumbnails(listings) {
+  const targets = listings
+    .filter((listing) => listing.image.startsWith("data:image/svg+xml"))
+    .slice(0, RAKUMA_THUMBNAIL_LIMIT);
+
+  for (let index = 0; index < targets.length; index += RAKUMA_THUMBNAIL_BATCH_SIZE) {
+    const batch = targets.slice(index, index + RAKUMA_THUMBNAIL_BATCH_SIZE);
+    const images = await Promise.all(batch.map((listing) => fetchRakumaThumbnail(listing.url)));
+
+    images.forEach((image, imageIndex) => {
+      if (image) {
+        batch[imageIndex].image = image;
+      }
+    });
+
+    if (index + RAKUMA_THUMBNAIL_BATCH_SIZE < targets.length) {
+      await wait(250);
+    }
+  }
+}
+
+async function fetchRakumaThumbnail(url) {
+  if (!url) return "";
+  if (rakumaThumbnailCache.has(url)) return rakumaThumbnailCache.get(url);
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        "user-agent": USER_AGENT,
+        "accept-language": "ja,en-US;q=0.9,en;q=0.8",
+      },
+    });
+
+    if (!response.ok) {
+      rakumaThumbnailCache.set(url, "");
+      return "";
+    }
+
+    const image = extractRakumaThumbnail(await response.text());
+    rakumaThumbnailCache.set(url, image);
+    return image;
+  } catch {
+    rakumaThumbnailCache.set(url, "");
+    return "";
+  }
+}
+
+function extractRakumaThumbnail(html) {
+  return normalizeUrl(
+    readAttributeFromPattern(html, /<meta[^>]+property="og:image"[^>]+content="([^"]+)"/i)
+      || readAttributeFromPattern(html, /<meta[^>]+content="([^"]+)"[^>]+property="og:image"/i)
+      || matchOne(html, /<img[^>]+src="([^"]*img\.fril\.jp[^"]+)"/i),
+    RAKUMA_BASE_URL,
+  );
 }
 
 function parseMercari(cards) {
@@ -562,6 +632,10 @@ function cleanMercariText(value) {
 
 function cloneListings(listings) {
   return listings.map((listing) => ({ ...listing }));
+}
+
+function isPlaceholderImage(image) {
+  return !image || image.startsWith("data:image/svg+xml");
 }
 
 function pruneMercariCache() {
