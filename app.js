@@ -1599,13 +1599,11 @@ function renderSavedSearches() {
     const button = document.createElement("button");
     button.className = "saved-search";
     button.type = "button";
+    const newCount = profile.lastNewCount || 0;
     button.innerHTML = `
-      <strong>${profile.name}</strong>
-      <span>${profile.alertMode}</span>
-      <span>${profile.terms.slice(0, 3).join(", ")}</span>
-      <span>${formatYen(profile.maxPrice)}</span>
-      <span class="scan-meta">${formatScanMeta(profile)}</span>
-      <span class="scan-new">${profile.lastNewCount || 0} new</span>
+      <strong class="saved-search-title">${profile.name}</strong>
+      <span class="saved-search-matches">${profile.lastMatchCount || 0} matches</span>
+      <span class="saved-search-new${newCount === 0 ? " is-empty" : ""}">${newCount} new</span>
     `;
     button.addEventListener("click", () => {
       currentProfile = profile;
@@ -1690,13 +1688,6 @@ function hydrateProfile(profile) {
     noiseTerms: Array.isArray(profile.noiseTerms) ? profile.noiseTerms : [...ACCESSORY_TERMS],
     sources: Array.isArray(profile.sources) ? profile.sources : defaultProfile.sources,
   };
-}
-
-function formatScanMeta(profile) {
-  if (!profile.lastScannedAt) return "Not scanned yet";
-
-  const status = profile.lastScanStatus === "partial" ? "partial" : "scanned";
-  return `${status} ${formatShortDate(profile.lastScannedAt)} · ${profile.lastMatchCount || 0} matches`;
 }
 
 function getActiveNoiseTerms() {
