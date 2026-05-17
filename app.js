@@ -360,6 +360,7 @@ let isSearching = false;
 let pendingSourceIds = new Set();
 let searchRunId = 0;
 let loadingCardId = 0;
+let backToTopFrame = 0;
 const rakumaClientThumbnailCache = new Map();
 let searchState = {
   mode: "mock",
@@ -388,6 +389,7 @@ const saveSearchModal = document.querySelector("#saveSearchModal");
 const saveSearchForm = document.querySelector("#saveSearchForm");
 const saveSearchName = document.querySelector("#saveSearchName");
 const saveSearchAlert = document.querySelector("#saveSearchAlert");
+const backToTopButton = document.querySelector("#backToTop");
 let refineSearchReturnFocus = null;
 let saveSearchReturnFocus = null;
 
@@ -398,6 +400,7 @@ function initialize() {
   renderSavedSearches();
   runSearch();
   bindEvents();
+  updateBackToTopVisibility();
 }
 
 function bindEvents() {
@@ -474,6 +477,9 @@ function bindEvents() {
     const nextTheme = document.body.dataset.theme === "dark" ? "light" : "dark";
     setTheme(nextTheme);
   });
+
+  backToTopButton.addEventListener("click", scrollPageTop);
+  window.addEventListener("scroll", requestBackToTopVisibilityUpdate, { passive: true });
 
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;
@@ -784,6 +790,23 @@ function cloneProfile(profile) {
 
 function scrollResultsTop() {
   document.querySelector(".content").scrollIntoView({ block: "start" });
+}
+
+function scrollPageTop() {
+  const behavior = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
+  window.scrollTo({ top: 0, behavior });
+}
+
+function requestBackToTopVisibilityUpdate() {
+  if (backToTopFrame) return;
+  backToTopFrame = window.requestAnimationFrame(() => {
+    backToTopFrame = 0;
+    updateBackToTopVisibility();
+  });
+}
+
+function updateBackToTopVisibility() {
+  backToTopButton.hidden = window.scrollY < 520;
 }
 
 function getCurrentAlertListings() {
