@@ -823,6 +823,13 @@ function requestBackToTopVisibilityUpdate() {
 
 function updateBackToTopVisibility() {
   backToTopButton.hidden = window.scrollY < 520;
+  updateBackToTopPlacement();
+}
+
+function updateBackToTopPlacement() {
+  const paginationRect = paginationControls.getBoundingClientRect();
+  const paginationIsVisible = !paginationControls.hidden && paginationRect.top < window.innerHeight && paginationRect.bottom > 0;
+  backToTopButton.classList.toggle("is-above-pagination", paginationIsVisible);
 }
 
 function getCurrentAlertListings() {
@@ -876,6 +883,7 @@ function renderPagination(resultCount, totalPages) {
   if (paginationControls.hidden) {
     paginationSummary.textContent = "";
     paginationPage.textContent = "";
+    backToTopButton.classList.remove("is-above-pagination");
     return;
   }
 
@@ -888,6 +896,7 @@ function renderPagination(resultCount, totalPages) {
   const nextButton = paginationControls.querySelector('[data-page-action="next"]');
   previousButton.disabled = currentPage === 1;
   nextButton.disabled = currentPage === totalPages;
+  updateBackToTopPlacement();
 }
 
 function changePage(action) {
