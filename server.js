@@ -86,8 +86,8 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
 }
 
 async function handleSearch(url, response) {
-  const terms = splitParam(url.searchParams.get("terms"));
-  const excludes = splitParam(url.searchParams.get("excludes")).map(normalizeText);
+  const terms = createSourceSearchTerms(splitParam(url.searchParams.get("terms")));
+  const excludes = splitParam(url.searchParams.get("excludes"));
   const maxPrice = Number(url.searchParams.get("maxPrice") || 0);
   const sources = splitParam(url.searchParams.get("sources"));
   const wantsDigimart = sources.length === 0 || sources.includes("digimart");
@@ -154,7 +154,7 @@ async function handleSearch(url, response) {
 function collectFilteredListings(listings, listingsById, excludes, maxPrice) {
   for (const listing of listings) {
     const title = normalizeText(listing.title);
-    const excluded = excludes.some((exclude) => title.includes(exclude));
+    const excluded = excludes.some((exclude) => termMatches(title, exclude));
     const tooExpensive = maxPrice > 0 && listing.price > maxPrice;
     const unavailable = isUnavailableListing(listing);
 
@@ -883,6 +883,68 @@ function splitParam(value) {
     .split("|")
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function createSourceSearchTerms(terms) {
+  const seen = new Set();
+  return terms
+    .map((term) => parseMatchTerm(term).value)
+    .filter((term) => {
+      const normalized = normalizeText(term);
+      if (!normalized || seen.has(normalized)) return false;
+      seen.add(normalized);
+      return true;
+    });
+}
+
+function termMatches(searchable, term) {
+  const matchTerm = parseMatchTerm(term);
+  const normalized = normalizeText(matchTerm.value);
+  if (!normalized) return false;
+
+  if (matchTerm.exact) {
+    return exactPhraseMatches(searchable, normalized);
+  }
+
+  if (/^[a-z0-9]+$/.test(normalized) && normalized.length <= 3) {
+    return new RegExp(`(^|[^a-z0-9])${escapeRegExp(normalized)}($|[^a-z0-9])`).test(searchable);
+  }
+
+  return searchable.includes(normalized);
+}
+
+function parseMatchTerm(term) {
+  const value = String(term || "").trim();
+  const quotePairs = [
+    ['"', '"'],
+    ["'", "'"],
+    ["“", "”"],
+    ["‘", "’"],
+  ];
+  const quotePair = quotePairs.find(([open, close]) => value.startsWith(open) && value.endsWith(close) && value.length >= open.length + close.length + 1);
+
+  if (!quotePair) {
+    return { exact: false, value };
+  }
+
+  return {
+    exact: true,
+    value: value.slice(quotePair[0].length, value.length - quotePair[1].length).trim(),
+  };
+}
+
+function exactPhraseMatches(searchable, normalizedPhrase) {
+  const phrase = normalizedPhrase.replace(/\s+/g, " ").trim();
+  if (!phrase) return false;
+
+  const phrasePattern = phrase.split(/\s+/).map(escapeRegExp).join("\\s+");
+  const startBoundary = /^[a-z0-9]/.test(phrase) ? "(^|[^a-z0-9])" : "";
+  const endBoundary = /[a-z0-9]$/.test(phrase) ? "($|[^a-z0-9])" : "";
+  return new RegExp(`${startBoundary}${phrasePattern}${endBoundary}`).test(searchable);
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function splitCategoryPath(value) {

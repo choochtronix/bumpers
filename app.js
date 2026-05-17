@@ -645,7 +645,6 @@ async function runSearch() {
 
 function applySearchResult(profile, liveResult, isFinal) {
   const expandedTerms = expandSearchTerms(profile.terms);
-  const normalizedExcludes = profile.excludes.map(normalizeText);
   const useMockListings = liveResult.mode === "mock" || liveResult.mode === "error";
   const listings = useMockListings ? MOCK_LISTINGS : liveResult.listings;
 
@@ -654,7 +653,7 @@ function applySearchResult(profile, liveResult, isFinal) {
     .filter((listing) => profile.maxPrice <= 0 || listing.price <= profile.maxPrice)
     .filter((listing) => !isUnavailableListing(listing))
     .filter((listing) => expandedTerms.some((term) => termMatches(normalizeText(listing.title), term)))
-    .filter((listing) => !normalizedExcludes.some((term) => normalizeText(listing.title).includes(term)))
+    .filter((listing) => !profile.excludes.some((term) => termMatches(normalizeText(listing.title), term)))
     .sort((a, b) => new Date(b.listedAt) - new Date(a.listedAt));
   pruneActiveViewSources();
 
@@ -1004,7 +1003,7 @@ async function fetchLiveListings(profile, sourceOverride = profile.sources) {
   try {
     const liveSearchTerms = expandSearchTerms(profile.terms);
     const params = new URLSearchParams({
-      terms: liveSearchTerms.join("|"),
+      terms: createSourceSearchTerms(liveSearchTerms).join("|"),
       excludes: profile.excludes.join("|"),
       maxPrice: String(profile.maxPrice || 0),
       sources: sources.join("|"),
@@ -1428,14 +1427,49 @@ function hasRecordCatalogMarker(searchable) {
 }
 
 function termMatches(searchable, term) {
-  const normalized = normalizeText(term);
+  const matchTerm = parseMatchTerm(term);
+  const normalized = normalizeText(matchTerm.value);
   if (!normalized) return false;
+
+  if (matchTerm.exact) {
+    return exactPhraseMatches(searchable, normalized);
+  }
 
   if (/^[a-z0-9]+$/.test(normalized) && (normalized.length <= 3 || STRICT_LATIN_TERMS.includes(normalized))) {
     return new RegExp(`(^|[^a-z0-9])${escapeRegExp(normalized)}($|[^a-z0-9])`).test(searchable);
   }
 
   return searchable.includes(normalized);
+}
+
+function parseMatchTerm(term) {
+  const value = String(term || "").trim();
+  const quotePairs = [
+    ['"', '"'],
+    ["'", "'"],
+    ["“", "”"],
+    ["‘", "’"],
+  ];
+  const quotePair = quotePairs.find(([open, close]) => value.startsWith(open) && value.endsWith(close) && value.length >= open.length + close.length + 1);
+
+  if (!quotePair) {
+    return { exact: false, value };
+  }
+
+  return {
+    exact: true,
+    value: value.slice(quotePair[0].length, value.length - quotePair[1].length).trim(),
+  };
+}
+
+function exactPhraseMatches(searchable, normalizedPhrase) {
+  const phrase = normalizedPhrase.replace(/\s+/g, " ").trim();
+  if (!phrase) return false;
+
+  const phrasePattern = phrase.split(/\s+/).map(escapeRegExp).join("\\s+");
+  const startBoundary = /^[a-z0-9]/.test(phrase) ? "(^|[^a-z0-9])" : "";
+  const endBoundary = /[a-z0-9]$/.test(phrase) ? "($|[^a-z0-9])" : "";
+  return new RegExp(`${startBoundary}${phrasePattern}${endBoundary}`).test(searchable);
 }
 
 function escapeRegExp(value) {
@@ -1582,20 +1616,30 @@ function expandSearchTerms(terms) {
   terms.forEach((term) => {
     expanded.push(term);
 
-    const normalized = normalizeText(term);
-    const aliases = SEARCH_TERM_ALIASES[normalized] || [];
-    expanded.push(...aliases);
+    const matchTerm = parseMatchTerm(term);
+    if (!matchTerm.exact) {
+      const normalized = normalizeText(matchTerm.value);
+      const aliases = SEARCH_TERM_ALIASES[normalized] || [];
+      expanded.push(...aliases);
+    }
   });
 
   return uniqueTerms(expanded);
 }
 
+function createSourceSearchTerms(terms) {
+  return uniqueTerms(terms.map((term) => parseMatchTerm(term).value));
+}
+
 function uniqueTerms(terms) {
   const seen = new Set();
   return terms.filter((term) => {
-    const normalized = normalizeText(term);
-    if (!normalized || seen.has(normalized)) return false;
-    seen.add(normalized);
+    const matchTerm = parseMatchTerm(term);
+    const normalizedValue = normalizeText(matchTerm.value);
+    if (!normalizedValue) return false;
+    const key = `${matchTerm.exact ? "exact:" : "term:"}${normalizedValue}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
     return true;
   });
 }
