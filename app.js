@@ -12,6 +12,7 @@ const SOURCES = [
 
 const LIVE_SOURCE_IDS = ["mercari", "yahoo-auctions", "yahoo-fleamarket", "rakuma", "digimart", "offmall", "hardoff"];
 const LIVE_SOURCE_DISPLAY_ORDER = ["yahoo-auctions", "yahoo-fleamarket", "digimart", "offmall", "hardoff", "mercari", "rakuma"];
+const RESULTS_PER_PAGE = 48;
 const SOURCE_ACCENTS = {
   mercari: "#e53935",
   "yahoo-auctions": "#d60000",
@@ -356,6 +357,7 @@ let filterMode = "all";
 let qualityFilter = "clean";
 let sortMode = "newest";
 let activeViewSources = new Set();
+let currentPage = 1;
 let isSearching = false;
 let pendingSourceIds = new Set();
 let searchRunId = 0;
@@ -373,6 +375,9 @@ const sourceList = document.querySelector("#sourceList");
 const savedSearches = document.querySelector("#savedSearches");
 const searchForm = document.querySelector("#searchForm");
 const resultGrid = document.querySelector("#resultGrid");
+const paginationControls = document.querySelector("#paginationControls");
+const paginationSummary = document.querySelector("#paginationSummary");
+const paginationPage = document.querySelector("#paginationPage");
 const template = document.querySelector("#listingTemplate");
 const alertTemplate = document.querySelector("#alertTemplate");
 const alertList = document.querySelector("#alertList");
@@ -452,6 +457,7 @@ function bindEvents() {
     const button = event.target.closest("button");
     if (!button) return;
     filterMode = button.dataset.filter;
+    resetPagination();
     document.querySelectorAll("#urgencyFilter button").forEach((item) => item.classList.toggle("active", item === button));
     renderResults();
   });
@@ -460,17 +466,26 @@ function bindEvents() {
     const button = event.target.closest("button");
     if (!button) return;
     toggleViewSource(button.dataset.source || "");
+    resetPagination();
     renderResults();
   });
 
   qualityFilterSelect.addEventListener("change", () => {
     qualityFilter = qualityFilterSelect.value;
+    resetPagination();
     renderResults();
   });
 
   sortModeSelect.addEventListener("change", () => {
     sortMode = sortModeSelect.value;
+    resetPagination();
     renderResults();
+  });
+
+  paginationControls.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-page-action]");
+    if (!button || button.disabled) return;
+    changePage(button.dataset.pageAction);
   });
 
   themeToggle.addEventListener("click", () => {
@@ -612,6 +627,7 @@ async function runSearch() {
   const profileSnapshot = cloneProfile(currentProfile);
   const searchGroups = createLiveSearchGroups(profileSnapshot);
 
+  resetPagination();
   isSearching = true;
   pendingSourceIds = new Set(searchGroups.filter((group) => group.id !== "mock").map((group) => group.id));
   currentResults = [];
@@ -816,13 +832,16 @@ function getCurrentAlertListings() {
 function renderResults() {
   const watching = loadSet(STORAGE_KEYS.watching);
   const visibleResults = getVisibleResults(watching);
+  const totalPages = getTotalPages(visibleResults.length);
+  currentPage = Math.min(currentPage, totalPages);
+  const pageResults = paginateResults(visibleResults);
 
   resultGrid.innerHTML = "";
   renderSourceFilters();
   renderAlertPanel();
 
   if (visibleResults.length > 0) {
-    visibleResults.forEach((listing) => resultGrid.appendChild(renderListing(listing)));
+    pageResults.forEach((listing) => resultGrid.appendChild(renderListing(listing)));
     renderPendingSourceCards();
   } else if (isSearching) {
     renderPendingSourceCards();
@@ -839,6 +858,49 @@ function renderResults() {
   document.querySelector("#totalCount").textContent = visibleResults.length;
   document.querySelector("#newCount").textContent = newListings.length;
   document.querySelector("#sourceCount").textContent = new Set(visibleResults.map((listing) => listing.source)).size;
+  renderPagination(visibleResults.length, totalPages);
+}
+
+function getTotalPages(resultCount) {
+  return Math.max(1, Math.ceil(resultCount / RESULTS_PER_PAGE));
+}
+
+function paginateResults(results) {
+  const start = (currentPage - 1) * RESULTS_PER_PAGE;
+  return results.slice(start, start + RESULTS_PER_PAGE);
+}
+
+function renderPagination(resultCount, totalPages) {
+  paginationControls.hidden = resultCount <= RESULTS_PER_PAGE;
+
+  if (paginationControls.hidden) {
+    paginationSummary.textContent = "";
+    paginationPage.textContent = "";
+    return;
+  }
+
+  const start = (currentPage - 1) * RESULTS_PER_PAGE + 1;
+  const end = Math.min(currentPage * RESULTS_PER_PAGE, resultCount);
+  paginationSummary.textContent = `Showing ${start}-${end} of ${resultCount} results`;
+  paginationPage.textContent = `Page ${currentPage} of ${totalPages}`;
+
+  const previousButton = paginationControls.querySelector('[data-page-action="prev"]');
+  const nextButton = paginationControls.querySelector('[data-page-action="next"]');
+  previousButton.disabled = currentPage === 1;
+  nextButton.disabled = currentPage === totalPages;
+}
+
+function changePage(action) {
+  const watching = loadSet(STORAGE_KEYS.watching);
+  const totalPages = getTotalPages(getVisibleResults(watching).length);
+  const nextPage = action === "next" ? currentPage + 1 : currentPage - 1;
+  currentPage = Math.max(1, Math.min(nextPage, totalPages));
+  renderResults();
+  scrollResultsTop();
+}
+
+function resetPagination() {
+  currentPage = 1;
 }
 
 function renderPendingSourceCards() {

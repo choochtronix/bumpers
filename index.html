@@ -135,6 +135,15 @@ WALDORF</textarea>
         </section>
 
         <section class="result-grid" id="resultGrid" aria-live="polite"></section>
+
+        <nav class="pagination" id="paginationControls" aria-label="Results pages" hidden>
+          <p class="pagination-summary" id="paginationSummary"></p>
+          <div class="pagination-actions">
+            <button class="secondary-action" type="button" data-page-action="prev">Previous</button>
+            <span id="paginationPage" aria-live="polite"></span>
+            <button class="secondary-action" type="button" data-page-action="next">Next</button>
+          </div>
+        </nav>
       </main>
     </div>
 
