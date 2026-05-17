@@ -443,7 +443,7 @@ fieldset {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 50;
+  z-index: 1000;
   display: grid;
   place-items: center;
   padding: 18px;
@@ -507,36 +507,52 @@ fieldset {
 }
 
 .refine-backdrop {
-  justify-items: end;
-  padding: 0;
+  place-items: center;
+  padding: clamp(16px, 4vw, 42px);
+  background: color-mix(in srgb, var(--app-bg) 18%, rgba(0, 0, 0, 0.58));
+  backdrop-filter: blur(14px) saturate(0.92);
 }
 
 .refine-modal {
-  width: min(520px, 100%);
-  height: 100%;
-  max-height: 100vh;
-  border-block: 0;
-  border-right: 0;
-  border-radius: 8px 0 0 8px;
+  width: min(720px, calc(100vw - 32px));
+  max-height: min(84vh, 820px);
+  overflow: hidden;
+  border-radius: 8px;
 }
 
 .refine-panel {
   display: flex;
-  height: 100%;
+  max-height: inherit;
   min-height: 0;
   flex-direction: column;
   gap: 16px;
-  overflow: auto;
-  padding: 18px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 24px;
+}
+
+.refine-panel .modal-header {
+  position: sticky;
+  top: -24px;
+  z-index: 1;
+  margin: -24px -24px 0;
+  padding: 24px 24px 12px;
+  background: color-mix(in srgb, var(--panel) 94%, transparent);
+  backdrop-filter: blur(10px);
 }
 
 .refine-panel .modal-actions {
   position: sticky;
-  bottom: -18px;
-  margin: auto -18px -18px;
-  padding: 12px 18px 18px;
+  bottom: -24px;
+  margin: auto -24px -24px;
+  padding: 12px 24px 24px;
   border-top: 1px solid var(--line);
-  background: var(--panel);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--panel) 84%, transparent),
+    var(--panel) 30%
+  );
+  backdrop-filter: blur(10px);
 }
 
 .content {
@@ -1399,16 +1415,14 @@ body[data-theme="dark"] .source-filter-button.is-active {
   }
 
   .refine-backdrop {
-    align-items: end;
-    justify-items: stretch;
+    place-items: center;
+    padding: 12px;
   }
 
   .refine-modal {
     width: 100%;
-    height: min(82vh, 760px);
-    border-right: 1px solid var(--line);
-    border-bottom: 0;
-    border-radius: 8px 8px 0 0;
+    max-height: calc(100vh - 24px);
+    border-radius: 8px;
   }
 
   .refine-panel .modal-actions {

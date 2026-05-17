@@ -485,7 +485,7 @@ function bindEvents() {
 function renderSources() {
   sourceList.innerHTML = SOURCES.map((source) => `
     <label class="source-toggle">
-      <input type="checkbox" name="sources" value="${source.id}" checked />
+      <input type="checkbox" name="sources" value="${source.id}" form="searchForm" checked />
       <span>${source.label}</span>
     </label>
   `).join("");

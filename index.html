@@ -46,88 +46,6 @@ WALDORF</textarea>
 
           <div class="refine-summary" id="refineSummary" aria-live="polite"></div>
 
-          <div class="modal-backdrop refine-backdrop" id="refineSearchModal" hidden>
-            <section class="modal refine-modal" role="dialog" aria-modal="true" aria-labelledby="refineSearchTitle">
-              <div class="refine-panel">
-                <div class="modal-header">
-                  <div>
-                    <p class="eyebrow">Search Tuning</p>
-                    <h2 id="refineSearchTitle">Refine Search</h2>
-                  </div>
-                  <button class="icon-action" id="closeRefineSearch" type="button" aria-label="Close refine search">×</button>
-                </div>
-
-                <label>
-                  <span>Exclude</span>
-                  <textarea id="excludes" rows="5">manual
-magnet
-power cord
-doll
-Fashionist
-shirt
-CD
-Moments to Remember
-record
-shoes</textarea>
-                </label>
-
-                <details class="advanced-options" open>
-                  <summary>Clean gear noise</summary>
-                  <label>
-                    <span>Hide when quality is clean</span>
-                    <textarea id="noiseTerms" rows="4">adapter
-book
-cable
-case
-cover
-decksaver
-patch book
-power supply
-stand
-アダプター
-カタログ
-カバー
-ケース
-ケーブル
-スタンド
-デッキセーバー
-シャツ
-ジャケット
-スニーカー
-ブーツ
-靴
-取扱説明書</textarea>
-                  </label>
-                </details>
-
-                <div class="form-grid">
-                  <label>
-                    <span>Max price</span>
-                    <input id="maxPrice" type="number" value="2000000" min="0" step="1000" />
-                  </label>
-                  <label>
-                    <span>Alert</span>
-                    <select id="alertMode">
-                      <option value="immediate">Immediate</option>
-                      <option value="hourly">Hourly</option>
-                      <option value="daily">Daily</option>
-                    </select>
-                  </label>
-                </div>
-
-                <fieldset>
-                  <legend>Sources</legend>
-                  <div class="source-list" id="sourceList"></div>
-                </fieldset>
-
-                <div class="modal-actions">
-                  <button class="secondary-action" id="cancelRefineSearch" type="button">Cancel</button>
-                  <button class="secondary-action" id="applyRefineSearch" type="button">Apply only</button>
-                  <button class="primary-action" type="submit">Apply & search</button>
-                </div>
-              </div>
-            </section>
-          </div>
         </form>
 
         <section class="saved-panel" aria-labelledby="savedTitle">
@@ -218,6 +136,89 @@ stand
 
         <section class="result-grid" id="resultGrid" aria-live="polite"></section>
       </main>
+    </div>
+
+    <div class="modal-backdrop refine-backdrop" id="refineSearchModal" hidden>
+      <section class="modal refine-modal" role="dialog" aria-modal="true" aria-labelledby="refineSearchTitle">
+        <div class="refine-panel">
+          <div class="modal-header">
+            <div>
+              <p class="eyebrow">Search Tuning</p>
+              <h2 id="refineSearchTitle">Refine Search</h2>
+            </div>
+            <button class="icon-action" id="closeRefineSearch" type="button" aria-label="Close refine search">×</button>
+          </div>
+
+          <label>
+            <span>Exclude</span>
+            <textarea id="excludes" rows="5" form="searchForm">manual
+magnet
+power cord
+doll
+Fashionist
+shirt
+CD
+Moments to Remember
+record
+shoes</textarea>
+          </label>
+
+          <details class="advanced-options" open>
+            <summary>Clean gear noise</summary>
+            <label>
+              <span>Hide when quality is clean</span>
+              <textarea id="noiseTerms" rows="4" form="searchForm">adapter
+book
+cable
+case
+cover
+decksaver
+patch book
+power supply
+stand
+アダプター
+カタログ
+カバー
+ケース
+ケーブル
+スタンド
+デッキセーバー
+シャツ
+ジャケット
+スニーカー
+ブーツ
+靴
+取扱説明書</textarea>
+            </label>
+          </details>
+
+          <div class="form-grid">
+            <label>
+              <span>Max price</span>
+              <input id="maxPrice" form="searchForm" type="number" value="2000000" min="0" step="1000" />
+            </label>
+            <label>
+              <span>Alert</span>
+              <select id="alertMode" form="searchForm">
+                <option value="immediate">Immediate</option>
+                <option value="hourly">Hourly</option>
+                <option value="daily">Daily</option>
+              </select>
+            </label>
+          </div>
+
+          <fieldset>
+            <legend>Sources</legend>
+            <div class="source-list" id="sourceList"></div>
+          </fieldset>
+
+          <div class="modal-actions">
+            <button class="secondary-action" id="cancelRefineSearch" type="button">Cancel</button>
+            <button class="secondary-action" id="applyRefineSearch" type="button">Apply only</button>
+            <button class="primary-action" form="searchForm" type="submit">Apply & search</button>
+          </div>
+        </div>
+      </section>
     </div>
 
     <div class="modal-backdrop" id="saveSearchModal" hidden>
