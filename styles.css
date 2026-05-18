@@ -642,16 +642,20 @@ fieldset {
 
 .result-options {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
 }
 
 .result-options label {
+  position: relative;
   min-width: 132px;
-  gap: 5px;
+  gap: 0;
 }
 
 .result-options label span {
+  position: absolute;
+  top: -17px;
+  left: 2px;
   font-size: 11px;
 }
 
