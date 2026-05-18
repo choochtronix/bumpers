@@ -420,7 +420,7 @@ fieldset {
   color: var(--muted);
   cursor: pointer;
   font-size: 28px;
-  font-weight: 800;
+  font-weight: 500;
   line-height: 1;
 }
 
@@ -443,7 +443,7 @@ fieldset {
   grid-column: 1;
   color: var(--muted);
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .saved-search-new {
@@ -451,7 +451,7 @@ fieldset {
   grid-row: 2;
   color: var(--green);
   font-size: 14px;
-  font-weight: 900;
+  font-weight: 600;
   white-space: nowrap;
 }
 
