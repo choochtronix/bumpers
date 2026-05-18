@@ -377,44 +377,49 @@ fieldset {
 .saved-searches {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
   overflow: auto;
 }
 
 .saved-search-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 52px;
-  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) 40px;
+  gap: 8px;
 }
 
 .saved-search {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 6px 12px;
+  gap: 4px 12px;
   width: 100%;
-  min-height: 78px;
+  min-height: 58px;
   align-items: center;
-  padding: 16px 18px;
-  border: 1px solid var(--line);
+  padding: 8px 10px;
+  border: 0;
   border-radius: 8px;
-  background: var(--button-bg);
+  background: transparent;
   color: var(--ink);
   text-align: left;
   cursor: pointer;
 }
 
+.saved-search:hover,
+.saved-search:focus-visible {
+  background: color-mix(in srgb, var(--button-bg) 68%, transparent);
+}
+
 .saved-search-delete {
   display: grid;
-  width: 52px;
-  min-width: 52px;
-  min-height: 78px;
+  width: 40px;
+  min-width: 40px;
+  min-height: 58px;
   place-items: center;
-  border: 1px solid var(--line);
+  border: 0;
   border-radius: 8px;
-  background: var(--button-bg);
+  background: transparent;
   color: var(--muted);
   cursor: pointer;
-  font-size: 30px;
+  font-size: 28px;
   font-weight: 800;
   line-height: 1;
 }
@@ -428,7 +433,7 @@ fieldset {
 .saved-search-title {
   overflow: hidden;
   color: var(--ink);
-  font-size: 24px;
+  font-size: 19px;
   line-height: 1.05;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -437,7 +442,7 @@ fieldset {
 .saved-search-matches {
   grid-column: 1;
   color: var(--muted);
-  font-size: 16px;
+  font-size: 13px;
   font-weight: 800;
 }
 
@@ -445,7 +450,7 @@ fieldset {
   grid-column: 2;
   grid-row: 2;
   color: var(--green);
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 900;
   white-space: nowrap;
 }
