@@ -156,6 +156,7 @@ a {
 .eyebrow,
 label span,
 .search-terms-field > span,
+.refine-terms-field > span,
 legend,
 .status-strip span,
 .listing-meta,
@@ -332,6 +333,7 @@ fieldset {
 }
 
 .search-terms-field > span,
+.refine-terms-field > span,
 label span,
 legend {
   font-size: 12px;
@@ -405,12 +407,115 @@ fieldset {
   min-height: 92px;
 }
 
+.refine-terms-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.refine-term-entry {
+  display: grid;
+  min-height: 58px;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--field);
+  padding: 0 18px;
+}
+
+.refine-term-entry:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px rgba(10, 132, 255, 0.14);
+}
+
+.refine-search-icon {
+  color: var(--accent);
+  font-size: 24px;
+  font-weight: 900;
+  line-height: 1;
+}
+
 .refine-terms-field textarea {
   height: 48px;
   min-height: 48px;
-  border-radius: 999px;
-  padding: 12px 24px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 12px 0;
+  box-shadow: none;
   resize: none;
+}
+
+.refine-terms-field textarea:focus {
+  box-shadow: none;
+}
+
+.term-dropdown {
+  position: relative;
+  z-index: 2;
+  overflow: hidden;
+  margin-top: 8px;
+  border: 1px solid color-mix(in srgb, var(--line) 64%, transparent);
+  border-radius: 22px;
+  background: var(--field);
+  box-shadow: 0 22px 44px rgba(20, 24, 28, 0.16);
+}
+
+.term-dropdown-row {
+  display: grid;
+  min-height: 52px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 18px;
+  color: var(--muted);
+}
+
+.term-dropdown-row + .term-dropdown-row {
+  border-top: 1px solid color-mix(in srgb, var(--line) 54%, transparent);
+}
+
+.term-row-icon {
+  display: inline-grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border: 2px solid color-mix(in srgb, var(--muted) 28%, transparent);
+  border-radius: 50%;
+  color: color-mix(in srgb, var(--muted) 55%, transparent);
+  font-size: 14px;
+  line-height: 1;
+}
+
+.term-row-label {
+  overflow: hidden;
+  color: color-mix(in srgb, var(--ink) 58%, var(--muted));
+  font-size: 18px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.term-remove-button {
+  display: inline-grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--muted) 42%, transparent);
+  color: #ffffff;
+  cursor: pointer;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.term-remove-button:hover,
+.term-remove-button:focus-visible {
+  background: var(--primary);
+  outline: none;
 }
 
 .source-list {

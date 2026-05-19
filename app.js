@@ -384,6 +384,7 @@ const savedSearches = document.querySelector("#savedSearches");
 const searchForm = document.querySelector("#searchForm");
 const termsInput = document.querySelector("#terms");
 const refineTermsInput = document.querySelector("#refineTerms");
+const termDropdown = document.querySelector("#termDropdown");
 const searchSummaryButton = document.querySelector("#openSearchTerms");
 const searchSummaryText = document.querySelector("#searchSummaryText");
 const searchSummaryCount = document.querySelector("#searchSummaryCount");
@@ -437,6 +438,7 @@ function bindEvents() {
   });
   termsInput.addEventListener("input", syncPrimaryTermsToRefine);
   refineTermsInput.addEventListener("input", syncRefineTermsToPrimary);
+  termDropdown.addEventListener("click", handleTermDropdownClick);
   searchSummaryButton.addEventListener("click", openRefineSearchModal);
 
   document.querySelector("#openRefineSearch").addEventListener("click", openRefineSearchModal);
@@ -615,17 +617,20 @@ function syncPrimaryTermsToRefine() {
   if (refineTermsInput.value === termsInput.value) return;
   refineTermsInput.value = termsInput.value;
   renderSearchTermsSummary();
+  renderRefineTermDropdown();
 }
 
 function syncRefineTermsToPrimary() {
   if (termsInput.value === refineTermsInput.value) return;
   termsInput.value = refineTermsInput.value;
   renderSearchTermsSummary();
+  renderRefineTermDropdown();
 }
 
 function renderRefineSummary() {
   if (!refineSummary) return;
   renderSearchTermsSummary();
+  renderRefineTermDropdown();
   const profile = readProfileFromForm();
   const sourceCount = profile.sources.length;
   const sourceText = `${sourceCount} ${sourceCount === 1 ? "source" : "sources"}`;
@@ -643,6 +648,57 @@ function renderSearchTermsSummary() {
   searchSummaryCount.hidden = extraCount === 0;
   searchSummaryCount.textContent = `+${extraCount} ${extraCount === 1 ? "term" : "terms"}`;
   searchSummaryButton.setAttribute("aria-label", `Edit search terms: ${primaryTerm}${extraCount > 0 ? `, plus ${extraCount} more` : ""}`);
+}
+
+function renderRefineTermDropdown() {
+  const terms = splitLines(refineTermsInput.value);
+  termDropdown.hidden = terms.length < 2;
+  termDropdown.innerHTML = "";
+
+  if (termDropdown.hidden) return;
+
+  terms.forEach((term, index) => {
+    const row = document.createElement("div");
+    row.className = "term-dropdown-row";
+
+    const icon = document.createElement("span");
+    icon.className = "term-row-icon";
+    icon.setAttribute("aria-hidden", "true");
+    icon.textContent = "◷";
+
+    const label = document.createElement("span");
+    label.className = "term-row-label";
+    label.textContent = term;
+
+    const removeButton = document.createElement("button");
+    removeButton.className = "term-remove-button";
+    removeButton.type = "button";
+    removeButton.dataset.termIndex = String(index);
+    removeButton.setAttribute("aria-label", `Remove ${term}`);
+    removeButton.textContent = "×";
+    removeButton.addEventListener("click", (event) => {
+      event.stopPropagation();
+      removeRefineTermAt(index);
+    });
+
+    row.append(icon, label, removeButton);
+    termDropdown.appendChild(row);
+  });
+}
+
+function handleTermDropdownClick(event) {
+  const button = event.target.closest(".term-remove-button");
+  if (!button) return;
+
+  removeRefineTermAt(Number(button.dataset.termIndex));
+}
+
+function removeRefineTermAt(removeIndex) {
+  const terms = splitLines(refineTermsInput.value).filter((_, index) => index !== removeIndex);
+  refineTermsInput.value = terms.join("\n");
+  syncRefineTermsToPrimary();
+  renderRefineSummary();
+  refineTermsInput.focus();
 }
 
 function openSaveSearchModal(event) {
