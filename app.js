@@ -382,6 +382,8 @@ let searchState = {
 const sourceList = document.querySelector("#sourceList");
 const savedSearches = document.querySelector("#savedSearches");
 const searchForm = document.querySelector("#searchForm");
+const termsInput = document.querySelector("#terms");
+const refineTermsInput = document.querySelector("#refineTerms");
 const resultGrid = document.querySelector("#resultGrid");
 const paginationControls = document.querySelector("#paginationControls");
 const paginationSummary = document.querySelector("#paginationSummary");
@@ -424,11 +426,14 @@ function initialize() {
 function bindEvents() {
   searchForm.addEventListener("submit", (event) => {
     event.preventDefault();
+    syncRefineTermsToPrimary();
     currentProfile = readProfileFromForm();
     renderRefineSummary();
     closeRefineSearchModal({ restoreFocus: false });
     runSearch();
   });
+  termsInput.addEventListener("input", syncPrimaryTermsToRefine);
+  refineTermsInput.addEventListener("input", syncRefineTermsToPrimary);
 
   document.querySelector("#openRefineSearch").addEventListener("click", openRefineSearchModal);
   document.querySelector("#openResultRefineSearch").addEventListener("click", openRefineSearchModal);
@@ -539,7 +544,8 @@ function renderSources() {
 
 function fillForm(profile) {
   const hydratedProfile = hydrateProfile(profile);
-  document.querySelector("#terms").value = hydratedProfile.terms.join("\n");
+  termsInput.value = hydratedProfile.terms.join("\n");
+  syncPrimaryTermsToRefine();
   document.querySelector("#excludes").value = hydratedProfile.excludes.join("\n");
   document.querySelector("#noiseTerms").value = hydratedProfile.noiseTerms.join("\n");
   document.querySelector("#maxPrice").value = hydratedProfile.maxPrice;
@@ -551,7 +557,7 @@ function fillForm(profile) {
 }
 
 function readProfileFromForm() {
-  const terms = splitLines(document.querySelector("#terms").value);
+  const terms = splitLines(termsInput.value);
 
   return {
     name: getFormProfileName(terms),
@@ -581,10 +587,11 @@ function arraysMatch(first, second) {
 
 function openRefineSearchModal(event) {
   refineSearchReturnFocus = event?.currentTarget || document.activeElement;
+  syncPrimaryTermsToRefine();
   renderRefineSummary();
   refineSearchModal.hidden = false;
   document.body.classList.add("modal-open");
-  document.querySelector("#excludes").focus();
+  refineTermsInput.focus();
 }
 
 function closeRefineSearchModal(options = {}) {
@@ -596,9 +603,20 @@ function closeRefineSearchModal(options = {}) {
 }
 
 function applyRefineSearchOnly() {
+  syncRefineTermsToPrimary();
   currentProfile = readProfileFromForm();
   renderRefineSummary();
   closeRefineSearchModal();
+}
+
+function syncPrimaryTermsToRefine() {
+  if (refineTermsInput.value === termsInput.value) return;
+  refineTermsInput.value = termsInput.value;
+}
+
+function syncRefineTermsToPrimary() {
+  if (termsInput.value === refineTermsInput.value) return;
+  termsInput.value = refineTermsInput.value;
 }
 
 function renderRefineSummary() {
