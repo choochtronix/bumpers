@@ -28,12 +28,17 @@
         </div>
 
         <form class="search-form" id="searchForm">
-          <label class="search-terms-field">
+          <div class="search-terms-field">
             <span>Search</span>
-            <textarea id="terms" rows="5" placeholder="Moog Voyager&#10;モーグ&#10;Minimoog">Waldorf
+            <textarea class="terms-state-field" id="terms" rows="5" placeholder="Moog Voyager&#10;モーグ&#10;Minimoog">Waldorf
 ワルドルフ
 WALDORF</textarea>
-          </label>
+            <button class="search-summary-pill" id="openSearchTerms" type="button" aria-label="Edit search terms">
+              <span class="search-summary-text" id="searchSummaryText">Waldorf</span>
+              <span class="search-summary-count" id="searchSummaryCount" hidden>+2 terms</span>
+              <span class="search-summary-arrow" aria-hidden="true">⌄</span>
+            </button>
+          </div>
 
           <div class="search-mode-control" aria-label="Search quality mode">
             <button class="quality-mode-button" type="button" data-quality="all">

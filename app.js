@@ -384,6 +384,9 @@ const savedSearches = document.querySelector("#savedSearches");
 const searchForm = document.querySelector("#searchForm");
 const termsInput = document.querySelector("#terms");
 const refineTermsInput = document.querySelector("#refineTerms");
+const searchSummaryButton = document.querySelector("#openSearchTerms");
+const searchSummaryText = document.querySelector("#searchSummaryText");
+const searchSummaryCount = document.querySelector("#searchSummaryCount");
 const resultGrid = document.querySelector("#resultGrid");
 const paginationControls = document.querySelector("#paginationControls");
 const paginationSummary = document.querySelector("#paginationSummary");
@@ -434,6 +437,7 @@ function bindEvents() {
   });
   termsInput.addEventListener("input", syncPrimaryTermsToRefine);
   refineTermsInput.addEventListener("input", syncRefineTermsToPrimary);
+  searchSummaryButton.addEventListener("click", openRefineSearchModal);
 
   document.querySelector("#openRefineSearch").addEventListener("click", openRefineSearchModal);
   document.querySelector("#openResultRefineSearch").addEventListener("click", openRefineSearchModal);
@@ -610,21 +614,35 @@ function applyRefineSearchOnly() {
 function syncPrimaryTermsToRefine() {
   if (refineTermsInput.value === termsInput.value) return;
   refineTermsInput.value = termsInput.value;
+  renderSearchTermsSummary();
 }
 
 function syncRefineTermsToPrimary() {
   if (termsInput.value === refineTermsInput.value) return;
   termsInput.value = refineTermsInput.value;
+  renderSearchTermsSummary();
 }
 
 function renderRefineSummary() {
   if (!refineSummary) return;
+  renderSearchTermsSummary();
   const profile = readProfileFromForm();
   const sourceCount = profile.sources.length;
   const sourceText = `${sourceCount} ${sourceCount === 1 ? "source" : "sources"}`;
   const priceText = profile.maxPrice > 0 ? `${formatPrice(profile.maxPrice)} max` : "No price cap";
   const excludeText = `${profile.excludes.length} excluded`;
   refineSummary.textContent = `${sourceText} · ${priceText} · ${profile.alertMode} · ${excludeText}`;
+}
+
+function renderSearchTermsSummary() {
+  const terms = splitLines(termsInput.value);
+  const primaryTerm = terms[0] || "Search terms";
+  const extraCount = Math.max(0, terms.length - 1);
+
+  searchSummaryText.textContent = primaryTerm;
+  searchSummaryCount.hidden = extraCount === 0;
+  searchSummaryCount.textContent = `+${extraCount} ${extraCount === 1 ? "term" : "terms"}`;
+  searchSummaryButton.setAttribute("aria-label", `Edit search terms: ${primaryTerm}${extraCount > 0 ? `, plus ${extraCount} more` : ""}`);
 }
 
 function openSaveSearchModal(event) {

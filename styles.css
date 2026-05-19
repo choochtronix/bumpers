@@ -155,6 +155,7 @@ a {
 .brand p,
 .eyebrow,
 label span,
+.search-terms-field > span,
 legend,
 .status-strip span,
 .listing-meta,
@@ -173,13 +174,64 @@ legend,
   gap: 14px;
 }
 
-.search-terms-field textarea {
+.search-terms-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.terms-state-field {
+  display: none;
+}
+
+.search-summary-pill {
+  display: grid;
+  width: 100%;
   height: 48px;
-  min-height: 48px;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--line);
   border-radius: 999px;
+  background: var(--field);
+  color: var(--ink);
   padding: 12px 24px;
+  cursor: pointer;
   font-size: 16px;
-  resize: none;
+  text-align: left;
+}
+
+.search-summary-pill:hover,
+.search-summary-pill:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px rgba(10, 132, 255, 0.14);
+  outline: none;
+}
+
+.search-summary-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-summary-count {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  border-radius: 999px;
+  background: var(--button-bg);
+  color: var(--muted);
+  padding: 0 9px;
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.search-summary-arrow {
+  color: var(--muted);
+  font-size: 17px;
+  font-weight: 900;
+  line-height: 1;
 }
 
 .search-mode-control,
@@ -279,6 +331,7 @@ fieldset {
   gap: 7px;
 }
 
+.search-terms-field > span,
 label span,
 legend {
   font-size: 12px;
