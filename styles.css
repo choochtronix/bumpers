@@ -853,9 +853,11 @@ fieldset {
 
 .source-filter-button {
   display: inline-flex;
+  min-width: 68px;
   min-height: 34px;
   align-items: center;
-  gap: 7px;
+  justify-content: flex-start;
+  gap: 8px;
   padding: 4px 9px 4px 5px;
   border: 1px solid var(--line);
   border-radius: 999px;
@@ -897,11 +899,13 @@ body[data-theme="dark"] .source-filter-button.is-active {
 }
 
 .source-filter-button .source-count {
-  min-width: 1.1em;
-  text-align: center;
+  min-width: 1.4em;
+  margin-left: auto;
+  text-align: right;
 }
 
 .source-filter-all {
+  min-width: auto;
   padding: 4px 12px;
 }
 
