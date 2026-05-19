@@ -182,6 +182,72 @@ legend,
   resize: none;
 }
 
+.search-mode-control,
+.quality-mode-inline {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--button-bg);
+}
+
+.search-mode-control {
+  grid-template-columns: 1fr 1fr;
+  min-height: 42px;
+}
+
+.quality-mode-inline {
+  grid-template-columns: 0.82fr 1fr;
+  height: 38px;
+}
+
+.quality-mode-button {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 0;
+  border-left: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0;
+  transition: background 140ms ease, color 140ms ease, box-shadow 140ms ease;
+}
+
+.quality-mode-button:first-child {
+  border-left: 0;
+}
+
+.quality-mode-button.active[data-quality="all"] {
+  background: var(--primary);
+  color: var(--primary-ink);
+}
+
+.quality-mode-button.active[data-quality="clean"] {
+  background: var(--green);
+  color: #ffffff;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #ffffff 20%, transparent);
+}
+
+.quality-mode-button:hover,
+.quality-mode-button:focus-visible {
+  color: var(--ink);
+}
+
+.quality-mode-button.active:hover,
+.quality-mode-button.active:focus-visible {
+  color: var(--primary-ink);
+}
+
+.quality-mode-button.active[data-quality="clean"]:hover,
+.quality-mode-button.active[data-quality="clean"]:focus-visible {
+  color: #ffffff;
+}
+
 .quick-search-actions {
   display: grid;
   grid-template-columns: 1fr 0.82fr;
@@ -761,6 +827,10 @@ fieldset {
 
 .result-options select {
   height: 38px;
+}
+
+.result-options .quality-mode-inline {
+  min-width: 190px;
 }
 
 .refine-inline-button {

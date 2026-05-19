@@ -35,6 +35,16 @@
 WALDORF</textarea>
           </label>
 
+          <div class="search-mode-control" aria-label="Search quality mode">
+            <button class="quality-mode-button" type="button" data-quality="all">
+              All matches
+            </button>
+            <button class="quality-mode-button" type="button" data-quality="clean">
+              <span aria-hidden="true">✓</span>
+              Clean Gear
+            </button>
+          </div>
+
           <div class="quick-search-actions">
             <button class="primary-action" type="submit">
               <span aria-hidden="true">⌕</span>
@@ -96,13 +106,10 @@ WALDORF</textarea>
               <span aria-hidden="true">≡</span>
               Refine
             </button>
-            <label>
-              <span>Quality</span>
-              <select id="qualityFilter">
-                <option value="clean">Clean gear</option>
-                <option value="all">All matches</option>
-              </select>
-            </label>
+            <div class="quality-mode-inline" aria-label="Search quality mode">
+              <button class="quality-mode-button" type="button" data-quality="all">All</button>
+              <button class="quality-mode-button" type="button" data-quality="clean">Clean Gear</button>
+            </div>
             <label>
               <span>Sort</span>
               <select id="sortMode">

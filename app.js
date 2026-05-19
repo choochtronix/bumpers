@@ -396,7 +396,7 @@ const alertDetail = document.querySelector("#alertDetail");
 const sourceFilterList = document.querySelector("#sourceFilterList");
 const themeToggle = document.querySelector("#themeToggle");
 const liveStatus = document.querySelector("#liveStatus");
-const qualityFilterSelect = document.querySelector("#qualityFilter");
+const qualityModeButtons = document.querySelectorAll("[data-quality]");
 const sortModeSelect = document.querySelector("#sortMode");
 const refineSearchModal = document.querySelector("#refineSearchModal");
 const refineSummary = document.querySelector("#refineSummary");
@@ -499,10 +499,8 @@ function bindEvents() {
     renderResults();
   });
 
-  qualityFilterSelect.addEventListener("change", () => {
-    qualityFilter = qualityFilterSelect.value;
-    resetPagination();
-    renderResults();
+  qualityModeButtons.forEach((button) => {
+    button.addEventListener("click", () => setQualityMode(button.dataset.quality));
   });
 
   sortModeSelect.addEventListener("change", () => {
@@ -967,6 +965,21 @@ function renderResults() {
   document.querySelector("#newCount").textContent = newListings.length;
   document.querySelector("#sourceCount").textContent = new Set(visibleResults.map((listing) => listing.source)).size;
   renderPagination(visibleResults.length, totalPages);
+  renderQualityModeControls();
+}
+
+function setQualityMode(mode) {
+  qualityFilter = mode === "all" ? "all" : "clean";
+  resetPagination();
+  renderResults();
+}
+
+function renderQualityModeControls() {
+  qualityModeButtons.forEach((button) => {
+    const isActive = button.dataset.quality === qualityFilter;
+    button.classList.toggle("active", isActive);
+    button.setAttribute("aria-pressed", String(isActive));
+  });
 }
 
 function getTotalPages(resultCount) {
