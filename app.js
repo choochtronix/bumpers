@@ -336,8 +336,14 @@ const STORAGE_KEYS = {
   seen: "bumpers.seen",
   watching: "bumpers.watching",
   theme: "bumpers.theme",
+  settings: "bumpers.settings",
   listingLedger: "bumpers.listingLedger",
   feedbackRules: "bumpers.feedbackRules",
+};
+
+const defaultSettings = {
+  currency: "JPY",
+  jpyPerUsd: 155,
 };
 
 const defaultProfile = {
@@ -358,6 +364,7 @@ let qualityFilter = "clean";
 let sortMode = "newest";
 let activeViewSources = new Set();
 let currentPage = 1;
+let appSettings = loadSettings();
 let isSearching = false;
 let pendingSourceIds = new Set();
 let searchRunId = 0;
@@ -394,9 +401,14 @@ const saveSearchModal = document.querySelector("#saveSearchModal");
 const saveSearchForm = document.querySelector("#saveSearchForm");
 const saveSearchName = document.querySelector("#saveSearchName");
 const saveSearchAlert = document.querySelector("#saveSearchAlert");
+const settingsModal = document.querySelector("#settingsModal");
+const settingsForm = document.querySelector("#settingsForm");
+const currencyToggle = document.querySelector("#currencyToggle");
+const jpyPerUsdInput = document.querySelector("#jpyPerUsd");
 const backToTopButton = document.querySelector("#backToTop");
 let refineSearchReturnFocus = null;
 let saveSearchReturnFocus = null;
+let settingsReturnFocus = null;
 
 function initialize() {
   applyStoredTheme();
@@ -438,6 +450,17 @@ function bindEvents() {
   saveSearchForm.addEventListener("submit", (event) => {
     event.preventDefault();
     saveCurrentSearchFromModal();
+  });
+
+  document.querySelector("#openSettings").addEventListener("click", openSettingsModal);
+  document.querySelector("#closeSettings").addEventListener("click", closeSettingsModal);
+  document.querySelector("#cancelSettings").addEventListener("click", closeSettingsModal);
+  settingsModal.addEventListener("click", (event) => {
+    if (event.target === settingsModal) closeSettingsModal();
+  });
+  settingsForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    saveSettingsFromModal();
   });
 
   document.querySelector("#markAllSeen").addEventListener("click", () => {
@@ -500,6 +523,7 @@ function bindEvents() {
     if (event.key !== "Escape") return;
     if (!refineSearchModal.hidden) closeRefineSearchModal();
     if (!saveSearchModal.hidden) closeSaveSearchModal();
+    if (!settingsModal.hidden) closeSettingsModal();
   });
 }
 
@@ -581,7 +605,7 @@ function renderRefineSummary() {
   const profile = readProfileFromForm();
   const sourceCount = profile.sources.length;
   const sourceText = `${sourceCount} ${sourceCount === 1 ? "source" : "sources"}`;
-  const priceText = profile.maxPrice > 0 ? `${formatYen(profile.maxPrice)} max` : "No price cap";
+  const priceText = profile.maxPrice > 0 ? `${formatPrice(profile.maxPrice)} max` : "No price cap";
   const excludeText = `${profile.excludes.length} excluded`;
   refineSummary.textContent = `${sourceText} · ${priceText} · ${profile.alertMode} · ${excludeText}`;
 }
@@ -616,6 +640,39 @@ function saveCurrentSearchFromModal() {
   renderSavedSearches();
   setActiveTitle(currentProfile.name);
   closeSaveSearchModal();
+}
+
+function openSettingsModal(event) {
+  settingsReturnFocus = event?.currentTarget || document.activeElement;
+  fillSettingsForm();
+  settingsModal.hidden = false;
+  document.body.classList.add("modal-open");
+  currencyToggle.focus();
+}
+
+function closeSettingsModal() {
+  if (settingsModal.hidden) return;
+  settingsModal.hidden = true;
+  document.body.classList.remove("modal-open");
+  settingsReturnFocus?.focus?.();
+  settingsReturnFocus = null;
+}
+
+function fillSettingsForm() {
+  currencyToggle.checked = appSettings.currency === "USD";
+  jpyPerUsdInput.value = appSettings.jpyPerUsd;
+}
+
+function saveSettingsFromModal() {
+  const nextRate = Number(jpyPerUsdInput.value);
+  appSettings = {
+    currency: currencyToggle.checked ? "USD" : "JPY",
+    jpyPerUsd: Number.isFinite(nextRate) && nextRate > 0 ? nextRate : defaultSettings.jpyPerUsd,
+  };
+  localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(appSettings));
+  renderRefineSummary();
+  renderResults();
+  closeSettingsModal();
 }
 
 function splitLines(value) {
@@ -1161,7 +1218,7 @@ function renderListing(listing) {
   fragment.querySelector(".condition").textContent = formatCondition(listing);
   fragment.querySelector("h3").textContent = listing.title;
   fragment.querySelector(".shop-name").textContent = listing.shop || source?.label || "";
-  fragment.querySelector(".price-row strong").textContent = formatYen(listing.price);
+  fragment.querySelector(".price-row strong").textContent = formatPrice(listing.price);
   fragment.querySelector(".price-row span").textContent = relativeDate(listing.listedAt);
   fragment.querySelector(".open-link").href = listing.url;
   watchButton.classList.toggle("is-watching", watching.has(listing.id));
@@ -1262,7 +1319,7 @@ function renderAlertItem(listing) {
   hydrateRenderedRakumaImage(listing, image);
   renderSourceAvatar(fragment.querySelector(".source-avatar"), source, listing.source);
   fragment.querySelector(".source-chip").textContent = source?.label || listing.source;
-  fragment.querySelector(".alert-price").textContent = formatYen(listing.price);
+  fragment.querySelector(".alert-price").textContent = formatPrice(listing.price);
   fragment.querySelector("h4").textContent = listing.title;
   fragment.querySelector("p").textContent = `${formatGearConfidence(listing).label} · ${listing.shop || listing.condition || ""}`;
   openLink.href = listing.url;
@@ -1690,6 +1747,22 @@ function hydrateProfile(profile) {
   };
 }
 
+function loadSettings() {
+  try {
+    return hydrateSettings(JSON.parse(localStorage.getItem(STORAGE_KEYS.settings) || "{}"));
+  } catch {
+    return { ...defaultSettings };
+  }
+}
+
+function hydrateSettings(settings) {
+  const rate = Number(settings.jpyPerUsd);
+  return {
+    currency: settings.currency === "USD" ? "USD" : "JPY",
+    jpyPerUsd: Number.isFinite(rate) && rate > 0 ? rate : defaultSettings.jpyPerUsd,
+  };
+}
+
 function getActiveNoiseTerms() {
   const savedNoise = currentProfile.noiseTerms || [];
   return uniqueTerms([...ACCESSORY_TERMS, ...savedNoise]);
@@ -1821,7 +1894,15 @@ function normalizeText(value) {
   return value.toLocaleLowerCase("ja-JP").normalize("NFKC");
 }
 
-function formatYen(value) {
+function formatPrice(value) {
+  if (appSettings.currency === "USD") {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      maximumFractionDigits: 0,
+    }).format(value / appSettings.jpyPerUsd);
+  }
+
   return new Intl.NumberFormat("ja-JP", {
     style: "currency",
     currency: "JPY",
@@ -1856,7 +1937,7 @@ function createEmailDigest(profile, listings) {
 
   const lines = listings.map((listing) => {
     const source = SOURCES.find((item) => item.id === listing.source)?.label || listing.source;
-    return `${listing.title}\n${formatYen(listing.price)} · ${source}\n${listing.url}`;
+    return `${listing.title}\n${formatPrice(listing.price)} · ${source}\n${listing.url}`;
   });
 
   return `Bumpers: ${profile.name}\nAlert mode: ${profile.alertMode}\n\n${lines.join("\n\n")}`;
