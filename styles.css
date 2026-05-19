@@ -174,10 +174,12 @@ legend,
 }
 
 .search-terms-field textarea {
-  min-height: 118px;
+  height: 48px;
+  min-height: 48px;
   border-radius: 999px;
-  padding: 18px 24px;
+  padding: 12px 24px;
   font-size: 16px;
+  resize: none;
 }
 
 .quick-search-actions {
