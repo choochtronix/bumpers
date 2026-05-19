@@ -883,6 +883,24 @@ body[data-theme="dark"] .source-filter-button.is-active {
   opacity: 0.68;
 }
 
+.source-filter-button.is-loading {
+  border-color: color-mix(in srgb, var(--source-solid, var(--primary)) 42%, var(--line));
+}
+
+.source-filter-button.is-error {
+  border-color: rgba(177, 59, 87, 0.46);
+  color: var(--rose);
+}
+
+.source-filter-button.is-zero:not(.is-active) {
+  opacity: 0.72;
+}
+
+.source-filter-button .source-count {
+  min-width: 1.1em;
+  text-align: center;
+}
+
 .source-filter-all {
   padding: 4px 12px;
 }
@@ -1345,12 +1363,38 @@ body[data-theme="dark"] .back-to-top:hover {
 }
 
 .source-filter-button .source-filter-avatar {
-  position: static;
+  position: relative;
   width: 24px;
   height: 24px;
   border-width: 1px;
   box-shadow: none;
   font-size: 9px;
+  overflow: visible;
+}
+
+.source-filter-button .source-filter-avatar::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border: 2px solid transparent;
+  border-top-color: var(--source-solid, var(--primary));
+  border-right-color: color-mix(in srgb, var(--source-solid, var(--primary)) 46%, transparent);
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+  transform: rotate(0deg);
+}
+
+.source-filter-button.is-loading .source-filter-avatar::after {
+  opacity: 1;
+  animation: sourceLoadingRing 0.85s linear infinite;
+}
+
+.source-filter-button.is-error .source-filter-avatar::after {
+  inset: -3px;
+  border-color: var(--rose);
+  opacity: 1;
+  animation: none;
 }
 
 .source-filter-button.is-active .source-filter-avatar {
@@ -1370,6 +1414,12 @@ body[data-theme="dark"] .back-to-top:hover {
   border-color: rgba(26, 26, 26, 0.28);
   background: rgba(26, 26, 26, 0.1);
   color: #1a1a1a;
+}
+
+@keyframes sourceLoadingRing {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .listing-body {

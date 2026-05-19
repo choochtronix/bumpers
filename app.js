@@ -367,6 +367,7 @@ let currentPage = 1;
 let appSettings = loadSettings();
 let isSearching = false;
 let pendingSourceIds = new Set();
+let sourceSearchStatuses = new Map();
 let searchRunId = 0;
 let loadingCardId = 0;
 let backToTopFrame = 0;
@@ -687,6 +688,7 @@ async function runSearch() {
   resetPagination();
   isSearching = true;
   pendingSourceIds = new Set(searchGroups.filter((group) => group.id !== "mock").map((group) => group.id));
+  sourceSearchStatuses = createInitialSourceStatuses(searchGroups);
   currentResults = [];
   currentDiscoveryIds = new Set();
   setActiveTitle(profileSnapshot.name);
@@ -703,6 +705,7 @@ async function runSearch() {
 
       if (runId === searchRunId) {
         pendingSourceIds.delete(group.id);
+        updateSourceSearchStatus(group, result);
         applySearchResult(profileSnapshot, combineLiveResults(completedResults), false);
       }
 
@@ -719,6 +722,9 @@ async function runSearch() {
   const liveResult = await fetchLiveListings(profileSnapshot, searchGroups[0]?.sources || profileSnapshot.sources);
   if (runId !== searchRunId) return;
   pendingSourceIds.clear();
+  searchGroups.forEach((group) => {
+    if (group.id !== "mock") updateSourceSearchStatus(group, liveResult);
+  });
   applySearchResult(profileSnapshot, liveResult, true);
 }
 
@@ -845,6 +851,26 @@ function createPartialSearchState(liveResult) {
     message: pendingLabels.length > 0 ? `${liveResult.message}; ${pendingLabels.join(", ")} loading` : liveResult.message,
     detail: `${liveResult.detail || ""}${suffix}.`,
   };
+}
+
+function createInitialSourceStatuses(searchGroups) {
+  const statuses = new Map();
+
+  searchGroups.forEach((group) => {
+    if (group.id === "mock") return;
+    group.sources.forEach((sourceId) => {
+      statuses.set(sourceId, "loading");
+    });
+  });
+
+  return statuses;
+}
+
+function updateSourceSearchStatus(group, result) {
+  const state = result.mode === "error" ? "error" : "complete";
+  group.sources.forEach((sourceId) => {
+    sourceSearchStatuses.set(sourceId, state);
+  });
 }
 
 function cloneProfile(profile) {
@@ -1059,7 +1085,7 @@ function getVisibleResults(watching) {
 
 function renderSourceFilters() {
   const counts = getSourceCountsForCurrentView();
-  const availableSources = SOURCES.filter((source) => counts.get(source.id) > 0);
+  const availableSources = SOURCES.filter((source) => shouldShowSourceFilter(source, counts));
   sourceFilterList.innerHTML = "";
 
   if (availableSources.length === 0) {
@@ -1070,17 +1096,23 @@ function renderSourceFilters() {
   sourceFilterList.appendChild(createAllSourceFilterButton());
 
   availableSources.forEach((source) => {
+    const status = sourceSearchStatuses.get(source.id);
+    const count = counts.get(source.id) || 0;
     const button = document.createElement("button");
     button.className = "source-filter-button";
     button.type = "button";
     button.dataset.source = source.id;
+    button.dataset.status = status || "ready";
     button.classList.toggle("is-active", activeViewSources.has(source.id));
-    button.title = `${source.label} results`;
-    button.setAttribute("aria-label", `Filter to ${source.label} results`);
+    button.classList.toggle("is-loading", status === "loading");
+    button.classList.toggle("is-error", status === "error");
+    button.classList.toggle("is-zero", status === "complete" && count === 0);
+    button.title = getSourceFilterTitle(source, count, status);
+    button.setAttribute("aria-label", getSourceFilterLabel(source, count, status));
     button.setAttribute("aria-pressed", String(activeViewSources.has(source.id)));
     button.innerHTML = `
       <span class="source-avatar source-filter-avatar" data-source="${source.id}"></span>
-      <span>${counts.get(source.id)}</span>
+      <span class="source-count">${formatSourceFilterCount(count, status)}</span>
     `;
     renderSourceAvatar(button.querySelector(".source-filter-avatar"), source, source.id);
     sourceFilterList.appendChild(button);
@@ -1104,6 +1136,29 @@ function getSourceCountsForCurrentView() {
     counts.set(listing.source, (counts.get(listing.source) || 0) + 1);
   });
   return counts;
+}
+
+function shouldShowSourceFilter(source, counts) {
+  return counts.get(source.id) > 0 || sourceSearchStatuses.has(source.id);
+}
+
+function formatSourceFilterCount(count, status) {
+  if (status === "loading") return "…";
+  if (status === "error") return "!";
+  return count;
+}
+
+function getSourceFilterTitle(source, count, status) {
+  if (status === "loading") return `${source.label} is still searching`;
+  if (status === "error") return `${source.label} search needs attention`;
+  if (count === 0) return `${source.label} returned no matches`;
+  return `${source.label} results`;
+}
+
+function getSourceFilterLabel(source, count, status) {
+  if (status === "loading") return `${source.label} search loading`;
+  if (status === "error") return `${source.label} search error`;
+  return `Filter to ${source.label} results, ${count} ${count === 1 ? "match" : "matches"}`;
 }
 
 function getSourceFilteredBaseResults() {
@@ -1135,7 +1190,7 @@ function toggleViewSource(sourceId) {
 function pruneActiveViewSources() {
   const availableSources = new Set(currentResults.map((listing) => listing.source));
   activeViewSources.forEach((sourceId) => {
-    if (!availableSources.has(sourceId)) activeViewSources.delete(sourceId);
+    if (!availableSources.has(sourceId) && !sourceSearchStatuses.has(sourceId)) activeViewSources.delete(sourceId);
   });
 }
 
