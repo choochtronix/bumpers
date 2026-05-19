@@ -1,13 +1,13 @@
 const SOURCES = [
-  { id: "mercari", label: "Mercari", icon: "Me", color: "rose" },
-  { id: "yahoo-auctions", label: "Yahoo Auctions", icon: "Y!", color: "amber" },
-  { id: "yahoo-fleamarket", label: "Yahoo Fleamarket", icon: "Yf", color: "blue" },
-  { id: "rakuma", label: "Rakuma", icon: "Ra", color: "green" },
+  { id: "mercari", label: "Mercari", icon: "Me", color: "rose", logo: "assets/logos/ICONS/mercari_ic.svg" },
+  { id: "yahoo-auctions", label: "Yahoo Auctions", icon: "Y!", color: "amber", logo: "assets/logos/ICONS/yahoo_ic.svg" },
+  { id: "yahoo-fleamarket", label: "Yahoo Fleamarket", icon: "Yf", color: "blue", logo: "assets/logos/ICONS/yahoo_flea_ic.svg" },
+  { id: "rakuma", label: "Rakuma", icon: "Ra", color: "green", logo: "assets/logos/ICONS/rakuma_ic.svg" },
   { id: "digimart", label: "Digimart", icon: "D", color: "blue" },
-  { id: "offmall", label: "OFFMALL", icon: "O", color: "green" },
+  { id: "offmall", label: "OFFMALL", icon: "O", color: "green", logo: "assets/logos/ICONS/hardoff-ic.svg" },
   { id: "five-g", label: "Five G", icon: "5G", color: "amber" },
   { id: "implant4", label: "implant4", icon: "i4", color: "rose" },
-  { id: "hardoff", label: "Hard Off", icon: "H", color: "green" },
+  { id: "hardoff", label: "Hard Off", icon: "H", color: "green", logo: "assets/logos/ICONS/hardoff-ic.svg" },
 ];
 
 const LIVE_SOURCE_IDS = ["mercari", "yahoo-auctions", "yahoo-fleamarket", "rakuma", "digimart", "offmall", "hardoff"];
@@ -1034,6 +1034,7 @@ function createSourceLoadingCard(sourceId) {
       </div>
     </div>
   `;
+  renderSourceAvatar(card.querySelector(".source-avatar"), source, sourceId);
 
   return card;
 }
@@ -1078,9 +1079,10 @@ function renderSourceFilters() {
     button.setAttribute("aria-label", `Filter to ${source.label} results`);
     button.setAttribute("aria-pressed", String(activeViewSources.has(source.id)));
     button.innerHTML = `
-      <span class="source-avatar source-filter-avatar" data-source="${source.id}">${source.icon}</span>
+      <span class="source-avatar source-filter-avatar" data-source="${source.id}"></span>
       <span>${counts.get(source.id)}</span>
     `;
+    renderSourceAvatar(button.querySelector(".source-filter-avatar"), source, source.id);
     sourceFilterList.appendChild(button);
   });
 }
@@ -1361,10 +1363,22 @@ function renderSourceAvatar(avatar, source, fallbackId) {
   if (!avatar) return;
 
   const label = source?.label || fallbackId;
-  avatar.textContent = source?.icon || fallbackId.slice(0, 2).toUpperCase();
+  avatar.replaceChildren();
   avatar.dataset.source = source?.id || fallbackId;
   avatar.setAttribute("aria-label", `${label} listing`);
   avatar.setAttribute("title", label);
+  avatar.classList.toggle("has-logo", Boolean(source?.logo));
+
+  if (source?.logo) {
+    const image = document.createElement("img");
+    image.src = source.logo;
+    image.alt = "";
+    image.loading = "lazy";
+    avatar.appendChild(image);
+    return;
+  }
+
+  avatar.textContent = source?.icon || fallbackId.slice(0, 2).toUpperCase();
 }
 
 function sourceMatchesProfile(sourceId, selectedSources) {
