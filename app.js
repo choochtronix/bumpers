@@ -1387,7 +1387,6 @@ function renderListing(listing) {
   hydrateRenderedRakumaImage(listing, image);
   renderSourceAvatar(fragment.querySelector(".source-avatar"), source, listing.source);
   fragment.querySelector(".source-chip").textContent = source?.label || listing.source;
-  fragment.querySelector(".condition").textContent = formatCondition(listing);
   fragment.querySelector("h3").textContent = listing.title;
   renderShopName(fragment.querySelector(".shop-name"), listing);
   fragment.querySelector(".price-row strong").textContent = formatPrice(listing.price);
@@ -1493,7 +1492,6 @@ function renderAlertItem(listing) {
   fragment.querySelector(".source-chip").textContent = source?.label || listing.source;
   fragment.querySelector(".alert-price").textContent = formatPrice(listing.price);
   fragment.querySelector("h4").textContent = listing.title;
-  fragment.querySelector("p").textContent = `${formatGearConfidence(listing).label} · ${listing.shop || listing.condition || ""}`;
   openLink.href = listing.url;
 
   return fragment;
@@ -1580,12 +1578,6 @@ function isUnavailableListing(listing) {
     "ended",
     "終了",
   ].some((token) => status.includes(normalizeText(token)));
-}
-
-function formatCondition(listing) {
-  const confidence = formatGearConfidence(listing);
-  const condition = cleanSourceMetadata(listing.condition, listing.source);
-  return [confidence.label, condition].filter(Boolean).join(" · ");
 }
 
 function renderShopName(element, listing) {

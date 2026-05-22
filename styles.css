@@ -1217,8 +1217,7 @@ body[data-theme="dark"] .source-filter-button.is-active {
 
 .alert-panel h3,
 .alert-panel p,
-.alert-item h4,
-.alert-item p {
+.alert-item h4 {
   margin: 0;
 }
 
@@ -1286,14 +1285,6 @@ body[data-theme="dark"] .source-filter-button.is-active {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 13px;
-}
-
-.alert-item p {
-  overflow: hidden;
-  color: var(--muted);
-  font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .alert-price {
@@ -1740,7 +1731,7 @@ body[data-theme="dark"] .back-to-top:hover {
 .listing-meta {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 8px;
   font-size: 12px;
 }
@@ -1752,13 +1743,6 @@ body[data-theme="dark"] .back-to-top:hover {
   background: var(--accent-soft);
   color: var(--accent-ink);
   font-weight: 800;
-  white-space: nowrap;
-}
-
-.condition {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
