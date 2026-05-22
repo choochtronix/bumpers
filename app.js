@@ -22,6 +22,16 @@ const SOURCE_ACCENTS = {
   offmall: "#f2a900",
   hardoff: "#f2a900",
 };
+
+const SOURCE_METADATA_ALIASES = {
+  mercari: ["Mercari", "メルカリ"],
+  "yahoo-auctions": ["Yahoo Auctions", "Yahoo Auction", "ヤフオク"],
+  "yahoo-fleamarket": ["Yahoo Fleamarket", "Yahooフリマ", "PayPayフリマ"],
+  rakuma: ["Rakuma", "ラクマ"],
+  digimart: ["Digimart", "デジマート"],
+  offmall: ["OFFMALL", "Off Mall", "Hard Off", "ハードオフ"],
+  hardoff: ["Hard Off", "ハードオフ", "OFFMALL", "Off Mall"],
+};
 const SEARCH_TERM_ALIASES = {
   oberheim: ["オーバーハイム"],
   moog: ["モーグ", "ムーグ"],
@@ -1379,7 +1389,7 @@ function renderListing(listing) {
   fragment.querySelector(".source-chip").textContent = source?.label || listing.source;
   fragment.querySelector(".condition").textContent = formatCondition(listing);
   fragment.querySelector("h3").textContent = listing.title;
-  fragment.querySelector(".shop-name").textContent = listing.shop || source?.label || "";
+  renderShopName(fragment.querySelector(".shop-name"), listing);
   fragment.querySelector(".price-row strong").textContent = formatPrice(listing.price);
   fragment.querySelector(".price-row span").textContent = relativeDate(listing.listedAt);
   fragment.querySelector(".open-link").href = listing.url;
@@ -1574,7 +1584,29 @@ function isUnavailableListing(listing) {
 
 function formatCondition(listing) {
   const confidence = formatGearConfidence(listing);
-  return [confidence.label, listing.condition].filter(Boolean).join(" · ");
+  const condition = cleanSourceMetadata(listing.condition, listing.source);
+  return [confidence.label, condition].filter(Boolean).join(" · ");
+}
+
+function renderShopName(element, listing) {
+  const shopName = cleanSourceMetadata(listing.shop, listing.source);
+  element.textContent = shopName;
+  element.hidden = !shopName;
+}
+
+function cleanSourceMetadata(value, sourceId) {
+  if (!value) return "";
+
+  const sourceAliases = SOURCE_METADATA_ALIASES[sourceId] || [labelForSource(sourceId)];
+  const cleaned = sourceAliases.reduce((text, alias) => {
+    return text.replace(new RegExp(escapeRegExp(alias), "gi"), "");
+  }, String(value));
+
+  return cleaned
+    .replace(/\s*·\s*/g, " · ")
+    .replace(/^[\s·:|/,-]+|[\s·:|/,-]+$/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }
 
 function formatGearConfidence(listing) {
