@@ -1180,9 +1180,9 @@ body[data-theme="dark"] .source-filter-button.is-active {
 }
 
 .source-filter-button[data-source="reverb"] {
-  --source-solid: #45b36b;
+  --source-solid: #f47a20;
   --source-solid-ink: #ffffff;
-  --source-solid-mark: #45b36b;
+  --source-solid-mark: #f47a20;
 }
 
 .source-filter-button[data-source="offmall"],
@@ -1585,7 +1585,7 @@ body[data-theme="dark"] .back-to-top:hover {
 }
 
 .source-avatar[data-source="reverb"] {
-  background: #45b36b;
+  background: #f47a20;
 }
 
 .source-avatar[data-source="offmall"],

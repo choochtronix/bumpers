@@ -4,7 +4,7 @@ const SOURCES = [
   { id: "yahoo-fleamarket", label: "Yahoo Fleamarket", icon: "Yf", color: "blue", logo: "assets/logos/ICONS/yahoo_flea_ic.svg" },
   { id: "rakuma", label: "Rakuma", icon: "Ra", color: "green", logo: "assets/logos/ICONS/rakuma_ic.svg" },
   { id: "digimart", label: "Digimart", icon: "D", color: "blue" },
-  { id: "reverb", label: "Reverb", icon: "Rv", color: "green" },
+  { id: "reverb", label: "Reverb", icon: "Rv", color: "orange" },
   { id: "offmall", label: "OFFMALL", icon: "O", color: "green", logo: "assets/logos/ICONS/hardoff-ic.svg" },
   { id: "five-g", label: "Five G", icon: "5G", color: "amber" },
   { id: "implant4", label: "implant4", icon: "i4", color: "rose" },
@@ -21,7 +21,7 @@ const SOURCE_ACCENTS = {
   "yahoo-fleamarket": "#1f73e8",
   rakuma: "#12a05c",
   digimart: "#0a62b7",
-  reverb: "#45b36b",
+  reverb: "#f47a20",
   offmall: "#f2a900",
   hardoff: "#f2a900",
 };
