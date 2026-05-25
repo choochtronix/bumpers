@@ -10,12 +10,16 @@ const DIGIMART_BASE_URL = "https://www.digimart.net";
 const MERCARI_BASE_URL = "https://jp.mercari.com";
 const OFFMALL_BASE_URL = "https://netmall.hardoff.co.jp";
 const RAKUMA_BASE_URL = "https://fril.jp";
+const REVERB_API_BASE_URL = "https://api.reverb.com";
+const REVERB_BASE_URL = "https://reverb.com";
 const YAHOO_AUCTIONS_BASE_URL = "https://auctions.yahoo.co.jp";
 const YAHOO_FLEAMARKET_BASE_URL = "https://paypayfleamarket.yahoo.co.jp";
 const MERCARI_CACHE_TTL_MS = 5 * 60 * 1000;
 const MERCARI_CONNECTOR_TIMEOUT_MS = 12000;
 const MERCARI_RESULT_LIMIT = 40;
 const MERCARI_TERM_LIMIT = 2;
+const REVERB_RESULT_LIMIT = 32;
+const REVERB_TERM_LIMIT = 3;
 const RAKUMA_THUMBNAIL_BATCH_SIZE = 4;
 const RAKUMA_THUMBNAIL_LIMIT = 32;
 const RAKUMA_IMAGE_PROXY_CACHE_TTL_MS = 15 * 60 * 1000;
@@ -95,11 +99,12 @@ async function handleSearch(url, response) {
   const wantsMercari = sources.length === 0 || sources.includes("mercari");
   const wantsOffmall = sources.length === 0 || sources.includes("offmall") || sources.includes("hardoff");
   const wantsRakuma = sources.length === 0 || sources.includes("rakuma");
+  const wantsReverb = sources.length === 0 || sources.includes("reverb");
   const wantsYahooAuctions = sources.length === 0 || sources.includes("yahoo-auctions");
   const wantsYahooFleamarket = sources.length === 0 || sources.includes("yahoo-fleamarket");
   const startedAt = new Date();
 
-  if ((!wantsDigimart && !wantsMercari && !wantsOffmall && !wantsRakuma && !wantsYahooAuctions && !wantsYahooFleamarket) || terms.length === 0) {
+  if ((!wantsDigimart && !wantsMercari && !wantsOffmall && !wantsRakuma && !wantsReverb && !wantsYahooAuctions && !wantsYahooFleamarket) || terms.length === 0) {
     sendJson(response, 200, { listings: [], meta: createSearchMeta(startedAt, [], [], terms) });
     return;
   }
@@ -119,6 +124,12 @@ async function handleSearch(url, response) {
 
   if (wantsRakuma) {
     sourceTasks.push(searchSourceTerms("rakuma", terms, searchRakuma));
+  }
+
+  if (wantsReverb) {
+    sourceTasks.push(searchSourceTerms("reverb", terms, searchReverb, {
+      maxTerms: REVERB_TERM_LIMIT,
+    }));
   }
 
   if (wantsYahooAuctions) {
@@ -471,6 +482,29 @@ async function searchRakuma(term) {
   return parseRakuma(await response.text());
 }
 
+async function searchReverb(term) {
+  const url = new URL("/api/listings", REVERB_API_BASE_URL);
+  url.searchParams.set("query", `country:jp ${term}`);
+  url.searchParams.set("per_page", String(REVERB_RESULT_LIMIT));
+  url.searchParams.set("display_currency", "JPY");
+  url.searchParams.set("sort", "published_at|desc");
+
+  const response = await fetch(url, {
+    headers: {
+      "user-agent": USER_AGENT,
+      "accept": "application/hal+json",
+      "accept-version": "3.0",
+      "accept-language": "ja,en-US;q=0.9,en;q=0.8",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Reverb responded with ${response.status}`);
+  }
+
+  return parseReverb(await response.json());
+}
+
 async function searchYahooAuctions(term) {
   const listingsById = new Map();
   const categorySweeps = getYahooAuctionsCategorySweeps(term);
@@ -718,6 +752,46 @@ function parseMercari(cards) {
       image: normalizeUrl(card.image, MERCARI_BASE_URL),
     };
   }).filter((listing) => listing.id !== "mercari-" && listing.title && listing.url);
+}
+
+function parseReverb(data) {
+  return (data?.listings || []).map((item) => {
+    const rawId = String(item.id || "");
+    const categories = Array.isArray(item.categories)
+      ? item.categories.map((category) => cleanText(String(category.full_name || ""))).filter(Boolean)
+      : [];
+    const condition = [
+      cleanText(String(item.condition?.display_name || "")),
+      item.state?.description && item.state?.slug !== "live" ? cleanText(String(item.state.description)) : "",
+      ...categories,
+    ].filter(Boolean).join(" · ") || "Listed";
+
+    return {
+      id: `reverb-${rawId}`,
+      source: "reverb",
+      title: cleanText(String(item.title || [item.make, item.model].filter(Boolean).join(" "))),
+      price: parseReverbPrice(item.price),
+      condition,
+      shop: cleanText(String(item.shop_name || "")),
+      listedAt: item.published_at || item.created_at || new Date().toISOString(),
+      url: normalizeUrl(item._links?.web?.href || `/item/${rawId}`, REVERB_BASE_URL),
+      image: normalizeUrl(
+        item.photos?.[0]?._links?.large_crop?.href
+          || item.photos?.[0]?._links?.small_crop?.href
+          || item._links?.photo?.href
+          || "",
+        REVERB_BASE_URL,
+      ),
+      categoryPath: categories,
+      availability: item.state?.slug || "",
+    };
+  }).filter((listing) => listing.id !== "reverb-" && listing.title && listing.url && listing.price > 0);
+}
+
+function parseReverbPrice(price) {
+  if (!price) return 0;
+  if (price.currency === "JPY") return Number(String(price.amount || "").replace(/[^\d]/g, ""));
+  return Number(String(price.amount_cents || "0").replace(/[^\d]/g, "")) / 100;
 }
 
 function parseMercariPrice(value) {

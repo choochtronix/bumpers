@@ -4,14 +4,16 @@ const SOURCES = [
   { id: "yahoo-fleamarket", label: "Yahoo Fleamarket", icon: "Yf", color: "blue", logo: "assets/logos/ICONS/yahoo_flea_ic.svg" },
   { id: "rakuma", label: "Rakuma", icon: "Ra", color: "green", logo: "assets/logos/ICONS/rakuma_ic.svg" },
   { id: "digimart", label: "Digimart", icon: "D", color: "blue" },
+  { id: "reverb", label: "Reverb", icon: "Rv", color: "green" },
   { id: "offmall", label: "OFFMALL", icon: "O", color: "green", logo: "assets/logos/ICONS/hardoff-ic.svg" },
   { id: "five-g", label: "Five G", icon: "5G", color: "amber" },
   { id: "implant4", label: "implant4", icon: "i4", color: "rose" },
   { id: "hardoff", label: "Hard Off", icon: "H", color: "green", logo: "assets/logos/ICONS/hardoff-ic.svg" },
 ];
 
-const LIVE_SOURCE_IDS = ["mercari", "yahoo-auctions", "yahoo-fleamarket", "rakuma", "digimart", "offmall", "hardoff"];
-const LIVE_SOURCE_DISPLAY_ORDER = ["yahoo-auctions", "yahoo-fleamarket", "digimart", "offmall", "hardoff", "mercari", "rakuma"];
+const LEGACY_DEFAULT_SOURCE_IDS = ["mercari", "yahoo-auctions", "yahoo-fleamarket", "rakuma", "digimart", "offmall", "five-g", "implant4", "hardoff"];
+const LIVE_SOURCE_IDS = ["mercari", "yahoo-auctions", "yahoo-fleamarket", "rakuma", "digimart", "reverb", "offmall", "hardoff"];
+const LIVE_SOURCE_DISPLAY_ORDER = ["yahoo-auctions", "yahoo-fleamarket", "digimart", "reverb", "offmall", "hardoff", "mercari", "rakuma"];
 const RESULTS_PER_PAGE = 48;
 const SOURCE_ACCENTS = {
   mercari: "#e53935",
@@ -19,6 +21,7 @@ const SOURCE_ACCENTS = {
   "yahoo-fleamarket": "#1f73e8",
   rakuma: "#12a05c",
   digimart: "#0a62b7",
+  reverb: "#45b36b",
   offmall: "#f2a900",
   hardoff: "#f2a900",
 };
@@ -29,6 +32,7 @@ const SOURCE_METADATA_ALIASES = {
   "yahoo-fleamarket": ["Yahoo Fleamarket", "Yahooフリマ", "PayPayフリマ"],
   rakuma: ["Rakuma", "ラクマ"],
   digimart: ["Digimart", "デジマート"],
+  reverb: ["Reverb", "Reverb.com"],
   offmall: ["OFFMALL", "Off Mall", "Hard Off", "ハードオフ"],
   hardoff: ["Hard Off", "ハードオフ", "OFFMALL", "Off Mall"],
 };
@@ -883,6 +887,10 @@ function createLiveSearchGroups(profile) {
 
   if (selectedSources.has("digimart")) {
     groups.push({ id: "digimart", sources: ["digimart"] });
+  }
+
+  if (selectedSources.has("reverb")) {
+    groups.push({ id: "reverb", sources: ["reverb"] });
   }
 
   if (selectedSources.has("offmall") || selectedSources.has("hardoff")) {
@@ -1941,8 +1949,22 @@ function hydrateProfile(profile) {
     terms: Array.isArray(profile.terms) ? profile.terms : defaultProfile.terms,
     excludes: Array.isArray(profile.excludes) ? profile.excludes : defaultProfile.excludes,
     noiseTerms: Array.isArray(profile.noiseTerms) ? profile.noiseTerms : [...ACCESSORY_TERMS],
-    sources: Array.isArray(profile.sources) ? profile.sources : defaultProfile.sources,
+    sources: hydrateSourceSelection(profile.sources),
   };
+}
+
+function hydrateSourceSelection(sources) {
+  if (!Array.isArray(sources)) return defaultProfile.sources;
+
+  const knownSourceIds = SOURCES.map((source) => source.id);
+  const selectedSources = sources.filter((source) => knownSourceIds.includes(source));
+  const hadEveryLegacyDefault = LEGACY_DEFAULT_SOURCE_IDS.every((source) => selectedSources.includes(source));
+
+  if (hadEveryLegacyDefault && !selectedSources.includes("reverb")) {
+    selectedSources.push("reverb");
+  }
+
+  return [...new Set(selectedSources)];
 }
 
 function loadSettings() {
