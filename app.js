@@ -370,7 +370,7 @@ const defaultProfile = {
   sources: SOURCES.map((source) => source.id),
 };
 
-let currentProfile = loadProfiles()[0] || defaultProfile;
+let currentProfile = createFreshProfile();
 let currentResults = [];
 let currentDiscoveryIds = new Set();
 let filterMode = "all";
@@ -387,9 +387,9 @@ let loadingCardId = 0;
 let backToTopFrame = 0;
 const rakumaClientThumbnailCache = new Map();
 let searchState = {
-  mode: "mock",
-  message: "Mock data",
-  detail: "Open through the local server for live search.",
+  mode: "idle",
+  message: "Ready",
+  detail: "Enter a search term to start a fresh scan.",
   errors: [],
 };
 
@@ -435,8 +435,10 @@ function initialize() {
   applyStoredTheme();
   renderSources();
   fillForm(currentProfile);
+  setActiveTitle(currentProfile.name);
   renderSavedSearches();
-  runSearch();
+  updateSearchStatus();
+  renderResults();
   bindEvents();
   updateBackToTopVisibility();
 }
@@ -787,6 +789,11 @@ function splitLines(value) {
 async function runSearch() {
   const runId = ++searchRunId;
   const profileSnapshot = cloneProfile(currentProfile);
+  if (profileSnapshot.terms.length === 0) {
+    resetToIdleSearch();
+    return;
+  }
+
   const searchGroups = createLiveSearchGroups(profileSnapshot);
 
   resetPagination();
@@ -865,6 +872,24 @@ function applySearchResult(profile, liveResult, isFinal) {
   setActiveTitle(profile.name);
   isSearching = !isFinal;
   searchState = isFinal ? liveResult : createPartialSearchState(liveResult);
+  updateSearchStatus();
+  renderResults();
+}
+
+function resetToIdleSearch() {
+  isSearching = false;
+  pendingSourceIds = new Set();
+  sourceSearchStatuses = new Map();
+  currentResults = [];
+  currentDiscoveryIds = new Set();
+  resetPagination();
+  setActiveTitle(currentProfile.name);
+  searchState = {
+    mode: "idle",
+    message: "Ready",
+    detail: "Enter a search term to start a fresh scan.",
+    errors: [],
+  };
   updateSearchStatus();
   renderResults();
 }
@@ -1048,6 +1073,8 @@ function renderResults() {
     }
   } else if (searchState.mode === "error" && visibleResults.length === 0) {
     resultGrid.innerHTML = `<div class="empty-state"><strong>Live search failed.</strong><span>${searchState.detail}</span></div>`;
+  } else if (searchState.mode === "idle") {
+    resultGrid.innerHTML = `<div class="empty-state"><strong>Start a fresh search.</strong><span>${searchState.detail}</span></div>`;
   } else if (visibleResults.length === 0) {
     resultGrid.innerHTML = `<div class="empty-state"><strong>No matching listings in this view.</strong><span>${searchState.detail || "Try another term or source."}</span></div>`;
   }
@@ -1475,6 +1502,11 @@ function renderAlertPanel() {
     return;
   }
 
+  if (searchState.mode === "idle") {
+    alertList.innerHTML = `<div class="alert-empty">Fresh finds will appear after a scan.</div>`;
+    return;
+  }
+
   if (alertListings.length === 0) {
     alertList.innerHTML = `<div class="alert-empty">No fresh finds from this scan.</div>`;
     return;
@@ -1507,6 +1539,7 @@ function renderAlertItem(listing) {
 
 function createAlertDetail(count) {
   if (isSearching) return "Scanning now";
+  if (searchState.mode === "idle") return "No scan yet";
   if (searchState.mode !== "live") return searchState.message;
   if (count === 1) return "1 fresh listing";
   return `${count} fresh listings`;
@@ -1931,15 +1964,22 @@ function updateStoredProfileScan(profile, scanSummary) {
 function loadProfiles() {
   const raw = localStorage.getItem(STORAGE_KEYS.profiles);
   if (!raw) {
-    localStorage.setItem(STORAGE_KEYS.profiles, JSON.stringify([defaultProfile]));
-    return [defaultProfile];
+    return [];
   }
 
   try {
     return JSON.parse(raw).map(hydrateProfile);
   } catch {
-    return [defaultProfile];
+    return [];
   }
+}
+
+function createFreshProfile() {
+  return hydrateProfile({
+    ...defaultProfile,
+    name: "New Search",
+    terms: [],
+  });
 }
 
 function hydrateProfile(profile) {
