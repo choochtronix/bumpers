@@ -8,25 +8,45 @@
   </head>
   <body>
     <div class="app-shell">
-      <aside class="sidebar" aria-label="Saved searches">
-        <div class="brand-row">
-          <div class="brand">
-            <div class="brand-mark" aria-hidden="true">B</div>
-            <div>
-              <h1>Bumpers</h1>
-              <p>Japan gear radar</p>
-            </div>
-          </div>
-          <div class="brand-actions">
-            <button class="theme-toggle" id="themeToggle" type="button" aria-label="Switch to dark mode" title="Switch to dark mode">
-              <span class="theme-icon" aria-hidden="true">◐</span>
-            </button>
-            <button class="theme-toggle" id="openSettings" type="button" aria-label="Open settings" title="Settings">
-              <span aria-hidden="true">⚙</span>
-            </button>
+      <header class="app-header">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">B</div>
+          <div>
+            <h1>Bumpers</h1>
+            <p>Japan gear radar</p>
           </div>
         </div>
 
+        <div class="header-actions">
+          <div class="saved-menu">
+            <button class="saved-trigger" id="openSavedSearches" type="button" aria-haspopup="dialog" aria-expanded="false">
+              <span aria-hidden="true">☆</span>
+              Saved
+            </button>
+            <div class="saved-popover" id="savedSearchPopover" hidden>
+              <div class="panel-heading">
+                <h2 id="savedTitle">Saved Searches</h2>
+                <button id="saveProfile" type="button" title="Save current search" aria-label="Save current search">＋</button>
+              </div>
+              <div class="saved-searches" id="savedSearches"></div>
+              <button class="secondary-action save-current-action" id="openSaveSearch" type="button">Save current search</button>
+            </div>
+          </div>
+
+          <button class="watching-trigger" id="topWatchingFilter" type="button" aria-pressed="false">
+            <span aria-hidden="true">☆</span>
+            Watching
+          </button>
+          <button class="theme-toggle" id="themeToggle" type="button" aria-label="Switch to dark mode" title="Switch to dark mode">
+            <span class="theme-icon" aria-hidden="true">◐</span>
+          </button>
+          <button class="theme-toggle" id="openSettings" type="button" aria-label="Open settings" title="Settings">
+            <span aria-hidden="true">⚙</span>
+          </button>
+        </div>
+      </header>
+
+      <section class="search-masthead">
         <form class="search-form" id="searchForm">
           <div class="search-terms-field">
             <span>Search</span>
@@ -40,42 +60,31 @@ WALDORF</textarea>
             </button>
           </div>
 
-          <div class="search-mode-control" aria-label="Search quality mode">
-            <button class="quality-mode-button" type="button" data-quality="all">
-              All matches
-            </button>
-            <button class="quality-mode-button" type="button" data-quality="clean">
-              <span aria-hidden="true">✓</span>
-              Clean Gear
-            </button>
-          </div>
-
           <div class="quick-search-actions">
-            <button class="primary-action" type="submit">
-              <span aria-hidden="true">⌕</span>
-              Run search
-            </button>
             <button class="secondary-action" id="openRefineSearch" type="button">
               <span aria-hidden="true">≡</span>
               Refine
             </button>
-            <button class="secondary-action" id="openSaveSearch" type="button">
-              Save search
-            </button>
           </div>
 
           <div class="refine-summary" id="refineSummary" aria-live="polite"></div>
-
         </form>
 
-        <section class="saved-panel" aria-labelledby="savedTitle">
-          <div class="panel-heading">
-            <h2 id="savedTitle">Saved Searches</h2>
-            <button id="saveProfile" type="button" title="Save current search" aria-label="Save current search">＋</button>
+        <div class="status-strip" aria-label="Search totals">
+          <div>
+            <strong id="totalCount">0</strong>
+            <span>matches</span>
           </div>
-          <div class="saved-searches" id="savedSearches"></div>
-        </section>
-      </aside>
+          <div>
+            <strong id="newCount">0</strong>
+            <span>new</span>
+          </div>
+          <div>
+            <strong id="sourceCount">0</strong>
+            <span>sources</span>
+          </div>
+        </div>
+      </section>
 
       <main class="content">
         <header class="topbar">
@@ -83,58 +92,46 @@ WALDORF</textarea>
             <p class="eyebrow">Active Search</p>
             <h2 id="activeTitle">Waldorf</h2>
           </div>
-          <div class="status-strip" aria-label="Search totals">
-            <div>
-              <strong id="totalCount">0</strong>
-              <span>matches</span>
-            </div>
-            <div>
-              <strong id="newCount">0</strong>
-              <span>new</span>
-            </div>
-            <div>
-              <strong id="sourceCount">0</strong>
-              <span>sources</span>
-            </div>
-          </div>
         </header>
 
-        <section class="controls" aria-label="Result controls">
-          <div class="segmented" id="urgencyFilter" role="tablist" aria-label="Listing filter">
-            <button class="active" type="button" data-filter="all">All</button>
-            <button type="button" data-filter="new">New</button>
-            <button type="button" data-filter="maybe">Maybe</button>
-            <button type="button" data-filter="watching">Watching</button>
-          </div>
-          <div class="result-options">
-            <button class="refine-inline-button" id="openResultRefineSearch" type="button">
-              <span aria-hidden="true">≡</span>
-              Refine
-            </button>
-            <div class="quality-mode-inline" aria-label="Search quality mode">
-              <button class="quality-mode-button" type="button" data-quality="all">All</button>
-              <button class="quality-mode-button" type="button" data-quality="clean">Clean Gear</button>
-            </div>
-            <label>
-              <span>Sort</span>
-              <select id="sortMode">
-                <option value="newest">Newest</option>
-                <option value="price-asc">Price low</option>
-                <option value="price-desc">Price high</option>
-                <option value="source">Source</option>
-              </select>
-            </label>
-          </div>
-          <div class="toolbar-actions">
-            <span class="live-status" id="liveStatus">Mock data</span>
-            <button id="markAllSeen" type="button" title="Mark all listings as seen" aria-label="Mark all listings as seen">✓</button>
-            <button id="copyDigest" type="button" title="Copy email digest" aria-label="Copy email digest">✉</button>
-          </div>
-        </section>
+        <section class="filter-bar" aria-label="Result filters">
+          <section class="source-filter-panel" aria-label="Source filter">
+            <span>Sources</span>
+            <div class="source-filter-list" id="sourceFilterList"></div>
+          </section>
 
-        <section class="source-filter-panel" aria-label="Source filter">
-          <span>Sources</span>
-          <div class="source-filter-list" id="sourceFilterList"></div>
+          <section class="controls" aria-label="Result controls">
+            <div class="segmented" id="urgencyFilter" role="tablist" aria-label="Listing filter">
+              <button class="active" type="button" data-filter="all">All</button>
+              <button type="button" data-filter="new">New</button>
+              <button type="button" data-filter="maybe">Maybe</button>
+              <button type="button" data-filter="watching">Watching</button>
+            </div>
+            <div class="result-options">
+              <button class="refine-inline-button" id="openResultRefineSearch" type="button">
+                <span aria-hidden="true">≡</span>
+                Refine
+              </button>
+              <div class="quality-mode-inline" aria-label="Search quality mode">
+                <button class="quality-mode-button" type="button" data-quality="all">All</button>
+                <button class="quality-mode-button" type="button" data-quality="clean">Clean Gear</button>
+              </div>
+              <label>
+                <span>Sort</span>
+                <select id="sortMode">
+                  <option value="newest">Newest</option>
+                  <option value="price-asc">Price low</option>
+                  <option value="price-desc">Price high</option>
+                  <option value="source">Source</option>
+                </select>
+              </label>
+            </div>
+            <div class="toolbar-actions">
+              <span class="live-status" id="liveStatus">Mock data</span>
+              <button id="markAllSeen" type="button" title="Mark all listings as seen" aria-label="Mark all listings as seen">✓</button>
+              <button id="copyDigest" type="button" title="Copy email digest" aria-label="Copy email digest">✉</button>
+            </div>
+          </section>
         </section>
 
         <section class="alert-panel" aria-labelledby="alertTitle">

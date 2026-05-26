@@ -416,6 +416,9 @@ const themeToggle = document.querySelector("#themeToggle");
 const liveStatus = document.querySelector("#liveStatus");
 const qualityModeButtons = document.querySelectorAll("[data-quality]");
 const sortModeSelect = document.querySelector("#sortMode");
+const openSavedSearchesButton = document.querySelector("#openSavedSearches");
+const savedSearchPopover = document.querySelector("#savedSearchPopover");
+const topWatchingFilter = document.querySelector("#topWatchingFilter");
 const refineSearchModal = document.querySelector("#refineSearchModal");
 const refineSummary = document.querySelector("#refineSummary");
 const saveSearchModal = document.querySelector("#saveSearchModal");
@@ -458,7 +461,7 @@ function bindEvents() {
   searchSummaryButton.addEventListener("click", openRefineSearchModal);
 
   document.querySelector("#openRefineSearch").addEventListener("click", openRefineSearchModal);
-  document.querySelector("#openResultRefineSearch").addEventListener("click", openRefineSearchModal);
+  document.querySelector("#openResultRefineSearch")?.addEventListener("click", openRefineSearchModal);
   document.querySelector("#closeRefineSearch").addEventListener("click", closeRefineSearchModal);
   document.querySelector("#cancelRefineSearch").addEventListener("click", closeRefineSearchModal);
   document.querySelector("#applyRefineSearch").addEventListener("click", applyRefineSearchOnly);
@@ -468,6 +471,8 @@ function bindEvents() {
   refineSearchModal.addEventListener("input", renderRefineSummary);
   refineSearchModal.addEventListener("change", renderRefineSummary);
 
+  openSavedSearchesButton.addEventListener("click", toggleSavedSearchPopover);
+  document.addEventListener("click", handleSavedPopoverOutsideClick);
   document.querySelector("#openSaveSearch").addEventListener("click", openSaveSearchModal);
   document.querySelector("#saveProfile").addEventListener("click", openSaveSearchModal);
   document.querySelector("#closeSaveSearch").addEventListener("click", closeSaveSearchModal);
@@ -490,6 +495,8 @@ function bindEvents() {
     event.preventDefault();
     saveSettingsFromModal();
   });
+
+  topWatchingFilter.addEventListener("click", toggleWatchingFilter);
 
   document.querySelector("#markAllSeen").addEventListener("click", () => {
     const seen = new Set(loadSet(STORAGE_KEYS.seen));
@@ -547,6 +554,7 @@ function bindEvents() {
 
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;
+    closeSavedSearchPopover();
     if (!refineSearchModal.hidden) closeRefineSearchModal();
     if (!saveSearchModal.hidden) closeSaveSearchModal();
     if (!settingsModal.hidden) closeSettingsModal();
@@ -717,8 +725,36 @@ function removeRefineTermAt(removeIndex) {
   refineTermsInput.focus();
 }
 
+function toggleSavedSearchPopover(event) {
+  event.stopPropagation();
+  if (savedSearchPopover.hidden) {
+    openSavedSearchPopover();
+  } else {
+    closeSavedSearchPopover();
+  }
+}
+
+function openSavedSearchPopover() {
+  renderSavedSearches();
+  savedSearchPopover.hidden = false;
+  openSavedSearchesButton.setAttribute("aria-expanded", "true");
+}
+
+function closeSavedSearchPopover() {
+  if (savedSearchPopover.hidden) return;
+  savedSearchPopover.hidden = true;
+  openSavedSearchesButton.setAttribute("aria-expanded", "false");
+}
+
+function handleSavedPopoverOutsideClick(event) {
+  if (savedSearchPopover.hidden) return;
+  if (event.target.closest(".saved-menu")) return;
+  closeSavedSearchPopover();
+}
+
 function openSaveSearchModal(event) {
   saveSearchReturnFocus = event?.currentTarget || document.activeElement;
+  closeSavedSearchPopover();
   const draftProfile = readProfileFromForm();
   saveSearchName.value = draftProfile.name;
   saveSearchAlert.value = draftProfile.alertMode;
@@ -1085,6 +1121,20 @@ function renderResults() {
   document.querySelector("#sourceCount").textContent = new Set(visibleResults.map((listing) => listing.source)).size;
   renderPagination(visibleResults.length, totalPages);
   renderQualityModeControls();
+  renderTopWatchingControl();
+}
+
+function toggleWatchingFilter() {
+  filterMode = filterMode === "watching" ? "all" : "watching";
+  resetPagination();
+  document.querySelectorAll("#urgencyFilter button").forEach((item) => item.classList.toggle("active", item.dataset.filter === filterMode));
+  renderResults();
+}
+
+function renderTopWatchingControl() {
+  const isWatching = filterMode === "watching";
+  topWatchingFilter.classList.toggle("is-active", isWatching);
+  topWatchingFilter.setAttribute("aria-pressed", String(isWatching));
 }
 
 function setQualityMode(mode) {
@@ -1902,6 +1952,7 @@ function renderSavedSearches() {
       <span class="saved-search-new${newCount === 0 ? " is-empty" : ""}">${newCount} new</span>
     `;
     button.addEventListener("click", () => {
+      closeSavedSearchPopover();
       currentProfile = profile;
       fillForm(profile);
       setActiveTitle(profile.name);
