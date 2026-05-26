@@ -840,7 +840,7 @@ async function runSearch() {
 }
 
 function applySearchResult(profile, liveResult, isFinal) {
-  const expandedTerms = expandSearchTerms(profile.terms);
+  const searchContext = createSearchContext(profile.terms);
   const useMockListings = liveResult.mode === "mock" || liveResult.mode === "error";
   const listings = useMockListings ? MOCK_LISTINGS : liveResult.listings;
 
@@ -848,7 +848,7 @@ function applySearchResult(profile, liveResult, isFinal) {
     .filter((listing) => sourceMatchesProfile(listing.source, profile.sources))
     .filter((listing) => profile.maxPrice <= 0 || listing.price <= profile.maxPrice)
     .filter((listing) => !isUnavailableListing(listing))
-    .filter((listing) => expandedTerms.some((term) => termMatches(normalizeText(listing.title), term)))
+    .filter((listing) => listingMatchesSearchContext(listing, searchContext))
     .filter((listing) => !profile.excludes.some((term) => termMatches(normalizeText(listing.title), term)))
     .sort((a, b) => new Date(b.listedAt) - new Date(a.listedAt));
   pruneActiveViewSources();
@@ -1359,7 +1359,7 @@ async function fetchLiveListings(profile, sourceOverride = profile.sources) {
   }
 
   try {
-    const liveSearchTerms = expandSearchTerms(profile.terms);
+    const liveSearchTerms = createSearchContext(profile.terms).sourceTerms;
     const params = new URLSearchParams({
       terms: createSourceSearchTerms(liveSearchTerms).join("|"),
       excludes: profile.excludes.join("|"),
@@ -2028,21 +2028,62 @@ function getActiveNoiseTerms() {
   return uniqueTerms([...ACCESSORY_TERMS, ...savedNoise]);
 }
 
-function expandSearchTerms(terms) {
-  const expanded = [];
+function expandSearchTerm(term) {
+  const expanded = [term];
+  const matchTerm = parseMatchTerm(term);
 
-  terms.forEach((term) => {
-    expanded.push(term);
+  if (!matchTerm.exact) {
+    const normalized = normalizeText(matchTerm.value);
+    const aliases = SEARCH_TERM_ALIASES[normalized] || [];
+    expanded.push(...aliases);
+  }
 
-    const matchTerm = parseMatchTerm(term);
-    if (!matchTerm.exact) {
-      const normalized = normalizeText(matchTerm.value);
-      const aliases = SEARCH_TERM_ALIASES[normalized] || [];
-      expanded.push(...aliases);
+  return uniqueTerms(expanded);
+}
+
+function createSearchContext(terms) {
+  const cleanedTerms = uniqueTerms(terms);
+  const primaryTerm = cleanedTerms[0] || "";
+  if (!primaryTerm) return { primaryTerms: [], refinementTerms: [], sourceTerms: [] };
+
+  const primaryTerms = expandSearchTerm(primaryTerm);
+  const refinementTerms = [];
+
+  cleanedTerms.slice(1).forEach((term) => {
+    if (isEquivalentSearchTerm(term, primaryTerms)) {
+      primaryTerms.push(...expandSearchTerm(term));
+    } else {
+      refinementTerms.push(...expandSearchTerm(term));
     }
   });
 
-  return uniqueTerms(expanded);
+  const uniquePrimaryTerms = uniqueTerms(primaryTerms);
+  const uniqueRefinementTerms = uniqueTerms(refinementTerms);
+  const sourceTerms = uniqueRefinementTerms.length === 0
+    ? uniquePrimaryTerms
+    : uniquePrimaryTerms.flatMap((primary) => uniqueRefinementTerms.map((refinement) => `${parseMatchTerm(primary).value} ${parseMatchTerm(refinement).value}`));
+
+  return {
+    primaryTerms: uniquePrimaryTerms,
+    refinementTerms: uniqueRefinementTerms,
+    sourceTerms: uniqueTerms(sourceTerms),
+  };
+}
+
+function isEquivalentSearchTerm(term, primaryTerms) {
+  const normalized = normalizeText(parseMatchTerm(term).value);
+  return primaryTerms.some((primaryTerm) => normalizeText(parseMatchTerm(primaryTerm).value) === normalized);
+}
+
+function listingMatchesSearchContext(listing, searchContext) {
+  if (searchContext.primaryTerms.length === 0) return false;
+
+  const title = normalizeText(listing.title);
+  const matchesPrimary = searchContext.primaryTerms.some((term) => termMatches(title, term));
+  const matchesRefinement = searchContext.refinementTerms.length === 0
+    || searchContext.refinementTerms.some((term) => termMatches(title, term));
+
+  return matchesPrimary && matchesRefinement;
 }
 
 function createSourceSearchTerms(terms) {
