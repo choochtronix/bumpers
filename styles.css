@@ -2213,8 +2213,8 @@ body[data-theme="dark"] .back-to-top:hover {
 .search-form {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
-  gap: 14px;
+  align-items: center;
+  gap: 10px;
 }
 
 .search-terms-field {
@@ -2232,10 +2232,11 @@ body[data-theme="dark"] .back-to-top:hover {
 .search-summary-pill,
 .quick-search-input {
   height: clamp(66px, 6vw, 82px);
-  padding: clamp(10px, 1.2vw, 13px) clamp(24px, 3vw, 34px) 0;
+  padding: 0 clamp(24px, 3vw, 34px);
   border-radius: 999px;
   font-size: clamp(30px, 4.4vw, 54px);
   font-weight: 850;
+  line-height: clamp(66px, 6vw, 82px);
 }
 
 .search-summary-arrow {
@@ -2250,14 +2251,17 @@ body[data-theme="dark"] .back-to-top:hover {
 
 .quick-search-actions {
   display: flex;
-  align-items: end;
+  align-items: center;
   gap: 0;
 }
 
 .quick-search-actions .secondary-action {
-  height: clamp(52px, 5vw, 64px);
+  height: clamp(58px, 5.4vw, 72px);
   min-height: 0;
-  padding: 0 18px;
+  padding: 0 clamp(18px, 2vw, 28px);
+  border-radius: 999px;
+  background: var(--field);
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.06);
   white-space: nowrap;
 }
 
@@ -2457,8 +2461,9 @@ body[data-theme="dark"] .refine-backdrop {
   .search-summary-pill,
   .quick-search-input {
     height: 58px;
-    padding-top: 13px;
+    padding: 0 20px;
     font-size: 26px;
+    line-height: 58px;
   }
 
   .status-strip {
