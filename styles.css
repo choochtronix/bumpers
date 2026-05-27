@@ -182,10 +182,11 @@ legend,
 }
 
 .terms-state-field {
-  display: none;
+  display: block;
 }
 
-.search-summary-pill {
+.search-summary-pill,
+.quick-search-input {
   display: grid;
   width: 100%;
   height: 48px;
@@ -203,10 +204,22 @@ legend,
 }
 
 .search-summary-pill:hover,
-.search-summary-pill:focus-visible {
+.search-summary-pill:focus-visible,
+.quick-search-input:hover,
+.quick-search-input:focus-visible {
   border-color: var(--accent);
   box-shadow: 0 0 0 4px rgba(10, 132, 255, 0.14);
   outline: none;
+}
+
+.quick-search-input {
+  display: block;
+  min-height: 48px;
+  overflow: hidden;
+  resize: none;
+  line-height: 1.15;
+  white-space: nowrap;
+  cursor: text;
 }
 
 .search-summary-text {
@@ -2216,9 +2229,10 @@ body[data-theme="dark"] .back-to-top:hover {
   clip: rect(0 0 0 0);
 }
 
-.search-summary-pill {
+.search-summary-pill,
+.quick-search-input {
   height: clamp(66px, 6vw, 82px);
-  padding: 0 clamp(24px, 3vw, 34px);
+  padding: clamp(10px, 1.2vw, 13px) clamp(24px, 3vw, 34px) 0;
   border-radius: 999px;
   font-size: clamp(30px, 4.4vw, 54px);
   font-weight: 850;
@@ -2435,12 +2449,15 @@ body[data-theme="dark"] .refine-backdrop {
   }
 
   .quick-search-actions .secondary-action,
-  .search-summary-pill {
+  .search-summary-pill,
+  .quick-search-input {
     width: 100%;
   }
 
-  .search-summary-pill {
+  .search-summary-pill,
+  .quick-search-input {
     height: 58px;
+    padding-top: 13px;
     font-size: 26px;
   }
 

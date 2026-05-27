@@ -449,16 +449,20 @@ function initialize() {
 function bindEvents() {
   searchForm.addEventListener("submit", (event) => {
     event.preventDefault();
-    syncRefineTermsToPrimary();
+    if (refineSearchModal.hidden) {
+      syncPrimaryTermsToRefine();
+    } else {
+      syncRefineTermsToPrimary();
+    }
     currentProfile = readProfileFromForm();
     renderRefineSummary();
     closeRefineSearchModal({ restoreFocus: false });
     runSearch();
   });
   termsInput.addEventListener("input", syncPrimaryTermsToRefine);
+  termsInput.addEventListener("keydown", handleQuickSearchKeydown);
   refineTermsInput.addEventListener("input", syncRefineTermsToPrimary);
   termDropdown.addEventListener("click", handleTermDropdownClick);
-  searchSummaryButton.addEventListener("click", openRefineSearchModal);
   document.addEventListener("click", closeListingActionMenus);
 
   document.querySelector("#openRefineSearch").addEventListener("click", openRefineSearchModal);
@@ -614,6 +618,13 @@ function arraysMatch(first, second) {
   return first.every((item, index) => item === second[index]);
 }
 
+function handleQuickSearchKeydown(event) {
+  if (event.isComposing || event.keyCode === 229) return;
+  if (event.key !== "Enter" || event.shiftKey) return;
+  event.preventDefault();
+  searchForm.requestSubmit();
+}
+
 function openRefineSearchModal(event) {
   refineSearchReturnFocus = event?.currentTarget || document.activeElement;
   syncPrimaryTermsToRefine();
@@ -665,6 +676,8 @@ function renderRefineSummary() {
 }
 
 function renderSearchTermsSummary() {
+  if (!searchSummaryButton || !searchSummaryText || !searchSummaryCount) return;
+
   const terms = splitLines(termsInput.value);
   const primaryTerm = terms[0] || "Search terms";
   const extraCount = Math.max(0, terms.length - 1);
