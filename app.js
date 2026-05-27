@@ -15,6 +15,8 @@ const LEGACY_DEFAULT_SOURCE_IDS = ["mercari", "yahoo-auctions", "yahoo-fleamarke
 const LIVE_SOURCE_IDS = ["mercari", "yahoo-auctions", "yahoo-fleamarket", "rakuma", "digimart", "reverb", "offmall", "hardoff"];
 const LIVE_SOURCE_DISPLAY_ORDER = ["yahoo-auctions", "yahoo-fleamarket", "digimart", "reverb", "offmall", "hardoff", "mercari", "rakuma"];
 const RESULTS_PER_PAGE = 48;
+const FEATURED_HOME_LIMIT = 12;
+const FEATURED_HOME_ALERT_LIMIT = 6;
 const SOURCE_ACCENTS = {
   mercari: "#e53935",
   "yahoo-auctions": "#d60000",
@@ -411,6 +413,7 @@ const alertTemplate = document.querySelector("#alertTemplate");
 const alertList = document.querySelector("#alertList");
 const alertCount = document.querySelector("#alertCount");
 const alertDetail = document.querySelector("#alertDetail");
+const alertTitle = document.querySelector("#alertTitle");
 const sourceFilterList = document.querySelector("#sourceFilterList");
 const themeToggle = document.querySelector("#themeToggle");
 const liveStatus = document.querySelector("#liveStatus");
@@ -1104,16 +1107,22 @@ function getCurrentAlertListings() {
 
 function renderResults() {
   const watching = loadSet(STORAGE_KEYS.watching);
-  const visibleResults = getVisibleResults(watching);
+  const featuredHomeResults = searchState.mode === "idle" ? getFeaturedHomeListings(watching) : [];
+  const isShowingFeaturedHome = featuredHomeResults.length > 0;
+  const resultSource = isShowingFeaturedHome ? featuredHomeResults : currentResults;
+  const visibleResults = getVisibleResults(watching, resultSource);
   const totalPages = getTotalPages(visibleResults.length);
   currentPage = Math.min(currentPage, totalPages);
   const pageResults = paginateResults(visibleResults);
 
   resultGrid.innerHTML = "";
-  renderSourceFilters();
-  renderAlertPanel();
+  renderSourceFilters(resultSource);
+  renderAlertPanel(featuredHomeResults);
 
   if (visibleResults.length > 0) {
+    if (isShowingFeaturedHome) {
+      resultGrid.appendChild(createFeaturedHomeHeader(visibleResults.length));
+    }
     pageResults.forEach((listing) => resultGrid.appendChild(renderListing(listing)));
     renderPendingSourceCards();
   } else if (isSearching) {
@@ -1129,7 +1138,9 @@ function renderResults() {
     resultGrid.innerHTML = `<div class="empty-state"><strong>No matching listings in this view.</strong><span>${searchState.detail || "Try another term or source."}</span></div>`;
   }
 
-  const newListings = visibleResults.filter((listing) => currentDiscoveryIds.has(listing.id));
+  const newListings = isShowingFeaturedHome
+    ? visibleResults.filter((listing) => !isSeen(listing.id))
+    : visibleResults.filter((listing) => currentDiscoveryIds.has(listing.id));
   document.querySelector("#totalCount").textContent = visibleResults.length;
   document.querySelector("#newCount").textContent = newListings.length;
   document.querySelector("#sourceCount").textContent = new Set(visibleResults.map((listing) => listing.source)).size;
@@ -1283,10 +1294,10 @@ function getSourceAccent(sourceId) {
   return SOURCE_ACCENTS[sourceId] || "#4b83d8";
 }
 
-function getVisibleResults(watching) {
-  return currentResults
+function getVisibleResults(watching, baseResults = currentResults) {
+  return baseResults
     .filter((listing) => {
-      if (filterMode === "new") return currentDiscoveryIds.has(listing.id);
+      if (filterMode === "new") return isListingMarkedNew(listing);
       if (filterMode === "maybe") return formatGearConfidence(listing).level === "maybe-gear";
       if (filterMode === "watching") return watching.includes(listing.id);
       return true;
@@ -1297,8 +1308,8 @@ function getVisibleResults(watching) {
     .sort(compareListings);
 }
 
-function renderSourceFilters() {
-  const counts = getSourceCountsForCurrentView();
+function renderSourceFilters(baseResults = currentResults) {
+  const counts = getSourceCountsForCurrentView(baseResults);
   const availableSources = SOURCES.filter((source) => shouldShowSourceFilter(source, counts));
   sourceFilterList.innerHTML = "";
 
@@ -1307,7 +1318,7 @@ function renderSourceFilters() {
     return;
   }
 
-  sourceFilterList.appendChild(createAllSourceFilterButton());
+  sourceFilterList.appendChild(createAllSourceFilterButton(baseResults));
 
   availableSources.forEach((source) => {
     const status = sourceSearchStatuses.get(source.id);
@@ -1333,20 +1344,20 @@ function renderSourceFilters() {
   });
 }
 
-function createAllSourceFilterButton() {
+function createAllSourceFilterButton(baseResults = currentResults) {
   const button = document.createElement("button");
   button.className = "source-filter-button source-filter-all";
   button.type = "button";
   button.dataset.source = "all";
   button.classList.toggle("is-active", activeViewSources.size === 0);
   button.setAttribute("aria-pressed", String(activeViewSources.size === 0));
-  button.textContent = `All ${getSourceFilteredBaseResults().length}`;
+  button.textContent = `All ${getSourceFilteredBaseResults(baseResults).length}`;
   return button;
 }
 
-function getSourceCountsForCurrentView() {
+function getSourceCountsForCurrentView(baseResults = currentResults) {
   const counts = new Map();
-  getSourceFilteredBaseResults().forEach((listing) => {
+  getSourceFilteredBaseResults(baseResults).forEach((listing) => {
     counts.set(listing.source, (counts.get(listing.source) || 0) + 1);
   });
   return counts;
@@ -1375,11 +1386,11 @@ function getSourceFilterLabel(source, count, status) {
   return `Filter to ${source.label} results, ${count} ${count === 1 ? "match" : "matches"}`;
 }
 
-function getSourceFilteredBaseResults() {
+function getSourceFilteredBaseResults(baseResults = currentResults) {
   const watching = loadSet(STORAGE_KEYS.watching);
-  return currentResults
+  return baseResults
     .filter((listing) => {
-      if (filterMode === "new") return currentDiscoveryIds.has(listing.id);
+      if (filterMode === "new") return isListingMarkedNew(listing);
       if (filterMode === "maybe") return formatGearConfidence(listing).level === "maybe-gear";
       if (filterMode === "watching") return watching.includes(listing.id);
       return true;
@@ -1483,7 +1494,7 @@ function renderListing(listing) {
   const feedback = getProfileFeedback();
   const feedbackStatus = getListingFeedbackStatus(listing, feedback);
 
-  card.classList.toggle("is-new", currentDiscoveryIds.has(listing.id));
+  card.classList.toggle("is-new", isListingMarkedNew(listing));
   card.classList.toggle("is-feedback-gear", feedbackStatus === "gear");
   card.classList.toggle("is-feedback-noise", feedbackStatus === "noise");
   imageLink.href = listing.url;
@@ -1531,6 +1542,7 @@ function renderListing(listing) {
       next.delete(listing.id);
     } else {
       next.add(listing.id);
+      recordListingSnapshot(listing);
     }
     saveSet(STORAGE_KEYS.watching, next);
     renderResults();
@@ -1612,7 +1624,19 @@ function isPlaceholderImage(image) {
   return !image || image.startsWith("data:image/svg+xml");
 }
 
-function renderAlertPanel() {
+function renderAlertPanel(featuredHomeResults = []) {
+  if (searchState.mode === "idle" && featuredHomeResults.length > 0) {
+    alertTitle.textContent = "Featured New Finds";
+    alertList.innerHTML = "";
+    alertCount.textContent = featuredHomeResults.length;
+    alertDetail.textContent = `${featuredHomeResults.length === 1 ? "1 watched item" : `${featuredHomeResults.length} watched items`}`;
+    featuredHomeResults.slice(0, FEATURED_HOME_ALERT_LIMIT).forEach((listing) => {
+      alertList.appendChild(renderAlertItem(listing));
+    });
+    return;
+  }
+
+  alertTitle.textContent = "New Finds";
   const alertListings = getCurrentAlertListings().filter((listing) => qualityFilter === "all" || isCleanGearListing(listing));
   alertList.innerHTML = "";
   alertCount.textContent = alertListings.length;
@@ -1664,6 +1688,54 @@ function createAlertDetail(count) {
   if (searchState.mode !== "live") return searchState.message;
   if (count === 1) return "1 fresh listing";
   return `${count} fresh listings`;
+}
+
+function createFeaturedHomeHeader(count) {
+  const header = document.createElement("div");
+  header.className = "featured-home-header";
+  header.innerHTML = `
+    <p class="eyebrow">Home View</p>
+    <h3>Featured New Finds</h3>
+    <span>${count} ${count === 1 ? "watched listing" : "watched listings"} from your saved items</span>
+  `;
+  return header;
+}
+
+function getFeaturedHomeListings(watchingIds = loadSet(STORAGE_KEYS.watching)) {
+  const ledger = loadLedger();
+  return watchingIds
+    .map((id) => ledger[id])
+    .filter(Boolean)
+    .map(createListingFromLedgerEntry)
+    .filter((listing) => listing.title && listing.url)
+    .filter((listing) => !isUnavailableListing(listing))
+    .filter((listing) => qualityFilter === "all" || isCleanGearListing(listing))
+    .sort((a, b) => new Date(b.lastFoundAt || b.listedAt) - new Date(a.lastFoundAt || a.listedAt))
+    .slice(0, FEATURED_HOME_LIMIT);
+}
+
+function createListingFromLedgerEntry(entry) {
+  return {
+    id: entry.id,
+    source: entry.source,
+    title: entry.title,
+    price: Number(entry.price || 0),
+    url: entry.url,
+    image: entry.image,
+    shop: entry.shop || "",
+    condition: entry.condition || "Watched",
+    availability: entry.availability || "",
+    itemStatus: entry.itemStatus || "",
+    categoryId: entry.categoryId,
+    categoryPath: Array.isArray(entry.categoryPath) ? entry.categoryPath : [],
+    listedAt: entry.listedAt || entry.lastFoundAt || entry.firstDiscoveredAt || new Date().toISOString(),
+    lastFoundAt: entry.lastFoundAt || entry.listedAt || entry.firstDiscoveredAt || "",
+  };
+}
+
+function isListingMarkedNew(listing) {
+  if (currentDiscoveryIds.has(listing.id)) return true;
+  return searchState.mode === "idle" && !isSeen(listing.id);
 }
 
 function updateSearchStatus() {
@@ -2259,25 +2331,48 @@ function recordListingDiscoveries(profile, listings) {
   const now = new Date().toISOString();
 
   listings.forEach((listing) => {
-    const previous = ledger[listing.id] || {};
-    const profileNames = new Set(previous.profileNames || []);
-    profileNames.add(profile.name);
-
-    ledger[listing.id] = {
-      ...previous,
-      id: listing.id,
-      source: listing.source,
-      title: listing.title,
-      price: listing.price,
-      url: listing.url,
-      image: listing.image,
-      firstDiscoveredAt: previous.firstDiscoveredAt || now,
+    ledger[listing.id] = createLedgerEntry(listing, ledger[listing.id], {
       lastFoundAt: now,
-      profileNames: [...profileNames],
-    };
+      profileName: profile.name,
+    });
   });
 
   saveLedger(ledger);
+}
+
+function recordListingSnapshot(listing) {
+  const ledger = loadLedger();
+  ledger[listing.id] = createLedgerEntry(listing, ledger[listing.id], {
+    lastFoundAt: ledger[listing.id]?.lastFoundAt || new Date().toISOString(),
+    profileName: currentProfile.name,
+  });
+  saveLedger(ledger);
+}
+
+function createLedgerEntry(listing, previous = {}, options = {}) {
+  const now = new Date().toISOString();
+  const profileNames = new Set(previous.profileNames || []);
+  if (options.profileName) profileNames.add(options.profileName);
+
+  return {
+    ...previous,
+    id: listing.id,
+    source: listing.source,
+    title: listing.title,
+    price: listing.price,
+    url: listing.url,
+    image: listing.image,
+    shop: listing.shop || previous.shop || "",
+    condition: listing.condition || previous.condition || "",
+    availability: listing.availability || previous.availability || "",
+    itemStatus: listing.itemStatus || previous.itemStatus || "",
+    categoryId: listing.categoryId || previous.categoryId || "",
+    categoryPath: Array.isArray(listing.categoryPath) ? listing.categoryPath : previous.categoryPath || [],
+    listedAt: listing.listedAt || previous.listedAt || "",
+    firstDiscoveredAt: previous.firstDiscoveredAt || now,
+    lastFoundAt: options.lastFoundAt || previous.lastFoundAt || now,
+    profileNames: [...profileNames],
+  };
 }
 
 function acknowledgeListings(listings) {

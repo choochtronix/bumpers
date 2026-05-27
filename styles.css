@@ -1959,6 +1959,25 @@ body[data-theme="dark"] .back-to-top:hover {
   color: var(--ink);
 }
 
+.featured-home-header {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 4px;
+  padding: 12px 2px 2px;
+}
+
+.featured-home-header h3 {
+  margin: 0;
+  font-size: clamp(28px, 3vw, 42px);
+  line-height: 1;
+}
+
+.featured-home-header span {
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 750;
+}
+
 @media (max-width: 980px) {
   .app-shell {
     grid-template-columns: 1fr;
