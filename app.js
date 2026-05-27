@@ -459,6 +459,7 @@ function bindEvents() {
   refineTermsInput.addEventListener("input", syncRefineTermsToPrimary);
   termDropdown.addEventListener("click", handleTermDropdownClick);
   searchSummaryButton.addEventListener("click", openRefineSearchModal);
+  document.addEventListener("click", closeListingActionMenus);
 
   document.querySelector("#openRefineSearch").addEventListener("click", openRefineSearchModal);
   document.querySelector("#openResultRefineSearch")?.addEventListener("click", openRefineSearchModal);
@@ -1459,6 +1460,12 @@ function renderListing(listing) {
   const hideSimilarButton = fragment.querySelector(".hide-similar-button");
   const gearButton = fragment.querySelector(".gear-button");
   const noiseButton = fragment.querySelector(".noise-button");
+  const openLink = fragment.querySelector(".open-link");
+  const moreActionButton = fragment.querySelector(".more-action-button");
+  const openMenu = fragment.querySelector(".open-menu");
+  const sourceOpenLink = fragment.querySelector(".source-open-link");
+  const buyeeOpenLink = fragment.querySelector(".buyee-open-link");
+  const copyListingLink = fragment.querySelector(".copy-listing-link");
   const watching = new Set(loadSet(STORAGE_KEYS.watching));
   const feedback = getProfileFeedback();
   const feedbackStatus = getListingFeedbackStatus(listing, feedback);
@@ -1476,11 +1483,34 @@ function renderListing(listing) {
   renderShopName(fragment.querySelector(".shop-name"), listing);
   fragment.querySelector(".price-row strong").textContent = formatPrice(listing.price);
   fragment.querySelector(".price-row span").textContent = relativeDate(listing.listedAt);
-  fragment.querySelector(".open-link").href = listing.url;
+  openLink.href = listing.url;
+  sourceOpenLink.href = listing.url;
+  sourceOpenLink.textContent = `Open ${source?.label || "listing"}`;
+  configureBuyeeLink(buyeeOpenLink, listing);
   watchButton.classList.toggle("is-watching", watching.has(listing.id));
   watchButton.textContent = watching.has(listing.id) ? "★" : "☆";
   gearButton.classList.toggle("is-active", feedbackStatus === "gear");
   noiseButton.classList.toggle("is-active", feedbackStatus === "noise");
+
+  moreActionButton.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const isOpening = openMenu.hidden;
+    closeListingActionMenus();
+    openMenu.hidden = !isOpening;
+    moreActionButton.setAttribute("aria-expanded", String(isOpening));
+  });
+
+  openMenu.addEventListener("click", (event) => {
+    event.stopPropagation();
+  });
+
+  copyListingLink.addEventListener("click", async () => {
+    await copyText(listing.url);
+    copyListingLink.textContent = "Copied";
+    setTimeout(() => {
+      copyListingLink.textContent = "Copy URL";
+    }, 1200);
+  });
 
   watchButton.addEventListener("click", () => {
     const next = new Set(loadSet(STORAGE_KEYS.watching));
@@ -1509,6 +1539,34 @@ function renderListing(listing) {
   });
 
   return fragment;
+}
+
+function configureBuyeeLink(link, listing) {
+  const buyeeUrl = createBuyeeUrl(listing);
+  if (!buyeeUrl) {
+    link.hidden = true;
+    link.removeAttribute("href");
+    return;
+  }
+
+  link.hidden = false;
+  link.href = buyeeUrl;
+}
+
+function createBuyeeUrl(listing) {
+  if (listing.source !== "yahoo-auctions") return "";
+
+  const auctionId = listing.url.match(/\/jp\/auction\/([^/?#]+)/)?.[1]
+    || String(listing.id || "").replace(/^yahoo-auctions-/, "");
+
+  return auctionId ? `https://buyee.jp/item/jdirectitems/auction/${encodeURIComponent(auctionId)}` : "";
+}
+
+function closeListingActionMenus() {
+  document.querySelectorAll(".open-menu:not([hidden])").forEach((menu) => {
+    menu.hidden = true;
+    menu.closest(".listing-action-menu")?.querySelector(".more-action-button")?.setAttribute("aria-expanded", "false");
+  });
 }
 
 async function hydrateRenderedRakumaImage(listing, imageElement) {
