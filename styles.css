@@ -139,6 +139,31 @@ a {
   line-height: 1;
 }
 
+.site-icon {
+  display: inline-block;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  background: currentColor;
+  -webkit-mask: center / contain no-repeat;
+  mask: center / contain no-repeat;
+}
+
+.site-icon-saved-search {
+  -webkit-mask-image: url("assets/ICONS-site/icon-saved-search.svg");
+  mask-image: url("assets/ICONS-site/icon-saved-search.svg");
+}
+
+.site-icon-watched {
+  -webkit-mask-image: url("assets/ICONS-site/icon-watched.svg");
+  mask-image: url("assets/ICONS-site/icon-watched.svg");
+}
+
+.site-icon-settings {
+  -webkit-mask-image: url("assets/ICONS-site/icon-settings.svg");
+  mask-image: url("assets/ICONS-site/icon-settings.svg");
+}
+
 .brand h1,
 .brand p,
 .topbar h2,
@@ -2177,7 +2202,8 @@ body[data-theme="dark"] .back-to-top:hover {
 
 .saved-trigger span,
 .watching-trigger span {
-  font-size: 20px;
+  width: 22px;
+  height: 22px;
   line-height: 1;
 }
 
