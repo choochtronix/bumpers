@@ -164,6 +164,24 @@ a {
   mask-image: url("assets/ICONS-site/icon-settings.svg");
 }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.brand-logo {
+  display: block;
+  width: clamp(230px, 26vw, 370px);
+  aspect-ratio: 1009.1 / 206.6;
+  background: currentColor;
+  -webkit-mask: url("assets/ICONS-site/bumpers_logo.svg") center / contain no-repeat;
+  mask: url("assets/ICONS-site/bumpers_logo.svg") center / contain no-repeat;
+}
+
 .brand h1,
 .brand p,
 .topbar h2,
@@ -2483,6 +2501,10 @@ body[data-theme="dark"] .refine-backdrop {
 
   .brand h1 {
     font-size: 44px;
+  }
+
+  .brand-logo {
+    width: min(260px, 72vw);
   }
 
   .search-form,
