@@ -7,6 +7,8 @@ const PORT = Number(process.env.PORT || 5173);
 const HOST = process.env.HOST || "127.0.0.1";
 const ROOT = fileURLToPath(new URL(".", import.meta.url));
 const DIGIMART_BASE_URL = "https://www.digimart.net";
+const FIVE_G_BASE_URL = "https://fiveg.net";
+const IMPLANT4_BASE_URL = "https://shop.implant4.com";
 const MERCARI_BASE_URL = "https://jp.mercari.com";
 const OFFMALL_BASE_URL = "https://netmall.hardoff.co.jp";
 const RAKUMA_BASE_URL = "https://fril.jp";
@@ -96,6 +98,8 @@ async function handleSearch(url, response) {
   const maxPrice = Number(url.searchParams.get("maxPrice") || 0);
   const sources = splitParam(url.searchParams.get("sources"));
   const wantsDigimart = sources.length === 0 || sources.includes("digimart");
+  const wantsFiveG = sources.length === 0 || sources.includes("five-g");
+  const wantsImplant4 = sources.length === 0 || sources.includes("implant4");
   const wantsMercari = sources.length === 0 || sources.includes("mercari");
   const wantsOffmall = sources.length === 0 || sources.includes("offmall") || sources.includes("hardoff");
   const wantsRakuma = sources.length === 0 || sources.includes("rakuma");
@@ -104,7 +108,7 @@ async function handleSearch(url, response) {
   const wantsYahooFleamarket = sources.length === 0 || sources.includes("yahoo-fleamarket");
   const startedAt = new Date();
 
-  if ((!wantsDigimart && !wantsMercari && !wantsOffmall && !wantsRakuma && !wantsReverb && !wantsYahooAuctions && !wantsYahooFleamarket) || terms.length === 0) {
+  if ((!wantsDigimart && !wantsFiveG && !wantsImplant4 && !wantsMercari && !wantsOffmall && !wantsRakuma && !wantsReverb && !wantsYahooAuctions && !wantsYahooFleamarket) || terms.length === 0) {
     sendJson(response, 200, { listings: [], meta: createSearchMeta(startedAt, [], [], terms) });
     return;
   }
@@ -116,6 +120,18 @@ async function handleSearch(url, response) {
 
   if (wantsDigimart) {
     sourceTasks.push(searchSourceTerms("digimart", terms, searchDigimart));
+  }
+
+  if (wantsFiveG) {
+    sourceTasks.push(searchSourceTerms("five-g", terms, searchFiveG, {
+      maxTerms: 3,
+    }));
+  }
+
+  if (wantsImplant4) {
+    sourceTasks.push(searchSourceTerms("implant4", terms, searchImplant4, {
+      maxTerms: 3,
+    }));
   }
 
   if (wantsOffmall) {
@@ -346,6 +362,47 @@ async function searchDigimart(term) {
   }
 
   return parseDigimart(await response.text());
+}
+
+async function searchFiveG(term) {
+  const url = new URL("/", FIVE_G_BASE_URL);
+  url.searchParams.set("mode", "srh");
+  url.searchParams.set("field", "product_name");
+  url.searchParams.set("keyword", term);
+
+  const response = await fetch(url, {
+    headers: {
+      "user-agent": USER_AGENT,
+      "accept-language": "ja,en-US;q=0.9,en;q=0.8",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Five G responded with ${response.status}`);
+  }
+
+  return parseFiveG(await decodeResponseBody(response));
+}
+
+async function searchImplant4(term) {
+  const url = new URL("/search", IMPLANT4_BASE_URL);
+  url.searchParams.set("type", "product");
+  url.searchParams.set("options[prefix]", "last");
+  url.searchParams.set("options[unavailable_products]", "last");
+  url.searchParams.set("q", term);
+
+  const response = await fetch(url, {
+    headers: {
+      "user-agent": USER_AGENT,
+      "accept-language": "ja,en-US;q=0.9,en;q=0.8",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`implant4 responded with ${response.status}`);
+  }
+
+  return parseImplant4(await response.text());
 }
 
 async function searchMercari(term) {
@@ -606,6 +663,76 @@ function parseDigimart(html) {
       image,
     };
   }).filter((listing) => listing.id !== "digimart-" && listing.title && listing.url);
+}
+
+function parseFiveG(html) {
+  const searchResultList = matchOne(html, /<ul class="product-list productlist-list row">([\s\S]*?)<\/ul>/) || "";
+  const blocks = searchResultList.match(/<li class="product-list__unit productlist-list__unit[\s\S]*?<\/li>/g) || [];
+  const listedAt = new Date().toISOString();
+
+  return blocks.map((block) => {
+    const href = readAttributeFromPattern(block, /<a[^>]+href="([^"]+)"[^>]+class="product-list__link"/i)
+      || readAttributeFromPattern(block, /<a[^>]+class="product-list__link"[^>]+href="([^"]+)"/i);
+    const url = normalizeRelativeUrl(href, FIVE_G_BASE_URL);
+    const rawId = url.match(/[?&]pid=(\d+)/)?.[1] || href;
+    const title = cleanText(matchOne(block, /<a[^>]+class="product-list__name[^"]*"[^>]*>([\s\S]*?)<\/a>/i));
+    const description = cleanText(matchOne(block, /<p class="product-list__expl[^"]*"[^>]*>([\s\S]*?)<\/p>/i));
+    const image = normalizeRelativeUrl(readAttributeFromPattern(block, /<img[^>]+src="([^"]+)"/i), FIVE_G_BASE_URL);
+    const price = parseYenPrice(matchOne(block, /<span class="product-list__price[^"]*"[^>]*>([\s\S]*?)<\/span>/i));
+    const condition = title.includes("中古") || description.includes("中古") ? "Used" : "Listed";
+
+    return {
+      id: `five-g-${rawId}`,
+      source: "five-g",
+      title,
+      price,
+      condition,
+      shop: "Five G",
+      listedAt,
+      url,
+      image,
+    };
+  }).filter((listing) => listing.id !== "five-g-" && listing.title && listing.url && listing.price > 0);
+}
+
+function parseImplant4(html) {
+  const collectionStart = html.indexOf('<div class="product-list product-list--collection">');
+  const collectionHtml = collectionStart >= 0 ? html.slice(collectionStart) : html;
+  const blocks = splitHtmlBlocks(collectionHtml, /<div class="product-item product-item--vertical\b/g);
+  const listedAt = new Date().toISOString();
+
+  return blocks.map((block) => {
+    const href = readAttributeFromPattern(block, /<a[^>]+href="([^"]+)"[^>]+class="product-item__title/i)
+      || readAttributeFromPattern(block, /<a[^>]+class="product-item__title[^"]*"[^>]+href="([^"]+)"/i)
+      || readAttributeFromPattern(block, /data-product-url="([^"]+)"/i);
+    const url = normalizeRelativeUrl(href, IMPLANT4_BASE_URL);
+    const rawId = url.match(/\/products\/([^/?#]+)/)?.[1] || readAttributeFromPattern(block, /data-product-url="\/products\/([^"?]+)[^"]*"/i) || href;
+    const title = cleanText(matchOne(block, /<a[^>]+class="product-item__title[^"]*"[^>]*>([\s\S]*?)<\/a>/i));
+    const vendor = cleanText(matchOne(block, /<a[^>]+class="product-item__vendor[^"]*"[^>]*>([\s\S]*?)<\/a>/i));
+    const image = normalizeRelativeUrl(
+      normalizeShopifyImage(
+        readAttributeFromPattern(block, /<img[^>]+class="product-item__primary-image[^"]*"[^>]+data-src="([^"]+)"/i)
+          || readAttributeFromPattern(block, /<img[^>]+data-src="([^"]+)"[^>]+class="product-item__primary-image/i)
+          || readAttributeFromPattern(block, /<img[^>]+src="([^"]+)"/i),
+      ),
+      IMPLANT4_BASE_URL,
+    );
+    const priceList = matchOne(block, /<div class="product-item__price-list price-list">([\s\S]*?)<\/div>/i);
+    const price = parseYenPrice(priceList);
+    const inventory = cleanText(matchOne(block, /<span class="product-item__inventory[^"]*"[^>]*>([\s\S]*?)<\/span>/i)) || "Listed";
+
+    return {
+      id: `implant4-${rawId}`,
+      source: "implant4",
+      title,
+      price,
+      condition: inventory,
+      shop: vendor ? `implant4 · ${vendor}` : "implant4",
+      listedAt,
+      url,
+      image,
+    };
+  }).filter((listing) => listing.id !== "implant4-" && listing.title && listing.url && listing.price > 0);
 }
 
 function parseOffmall(html) {
@@ -1027,6 +1154,45 @@ function splitCategoryPath(value) {
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+async function decodeResponseBody(response) {
+  const contentType = response.headers.get("content-type") || "";
+  const charset = contentType.match(/charset=([^;]+)/i)?.[1]?.trim().toLowerCase() || "utf-8";
+  const body = Buffer.from(await response.arrayBuffer());
+
+  try {
+    return new TextDecoder(charset).decode(body);
+  } catch {
+    return body.toString("utf8");
+  }
+}
+
+function splitHtmlBlocks(html, markerPattern) {
+  const starts = [...html.matchAll(markerPattern)].map((match) => match.index).filter((index) => typeof index === "number");
+  return starts.map((start, index) => html.slice(start, starts[index + 1] || html.length));
+}
+
+function parseYenPrice(value) {
+  const text = cleanText(String(value || ""));
+  const yenMatch = text.match(/(?:¥|￥)?\s*([\d,]+)\s*(?:円|¥|￥)/);
+  const rawPrice = yenMatch?.[1] || text.match(/(?:¥|￥)\s*([\d,]+)/)?.[1] || "";
+  return rawPrice ? Number(rawPrice.replace(/[^\d]/g, "")) : 0;
+}
+
+function normalizeRelativeUrl(value, baseUrl) {
+  if (!value) return "";
+  if (value.startsWith("//")) return `https:${value}`;
+
+  try {
+    return new URL(value, baseUrl).toString();
+  } catch {
+    return value;
+  }
+}
+
+function normalizeShopifyImage(value) {
+  return String(value || "").replace("{width}", "600");
 }
 
 function matchOne(value, pattern) {

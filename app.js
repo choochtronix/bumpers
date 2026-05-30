@@ -12,20 +12,22 @@ const SOURCES = [
 ];
 
 const LEGACY_DEFAULT_SOURCE_IDS = ["mercari", "yahoo-auctions", "yahoo-fleamarket", "rakuma", "digimart", "offmall", "five-g", "implant4", "hardoff"];
-const LIVE_SOURCE_IDS = ["mercari", "yahoo-auctions", "yahoo-fleamarket", "rakuma", "digimart", "reverb", "offmall", "hardoff"];
-const LIVE_SOURCE_DISPLAY_ORDER = ["yahoo-auctions", "yahoo-fleamarket", "digimart", "reverb", "offmall", "hardoff", "mercari", "rakuma"];
+const LIVE_SOURCE_IDS = ["mercari", "yahoo-auctions", "yahoo-fleamarket", "rakuma", "digimart", "reverb", "offmall", "five-g", "implant4", "hardoff"];
+const LIVE_SOURCE_DISPLAY_ORDER = ["yahoo-auctions", "yahoo-fleamarket", "digimart", "reverb", "offmall", "five-g", "implant4", "hardoff", "mercari", "rakuma"];
 const RESULTS_PER_PAGE = 48;
 const FEATURED_HOME_LIMIT = 12;
 const FEATURED_HOME_ALERT_LIMIT = 6;
-const SOURCE_ACCENTS = {
-  mercari: "#e53935",
-  "yahoo-auctions": "#d60000",
-  "yahoo-fleamarket": "#1f73e8",
-  rakuma: "#12a05c",
-  digimart: "#0a62b7",
-  reverb: "#f47a20",
-  offmall: "#f2a900",
-  hardoff: "#f2a900",
+const SOURCE_ACCENT_TOKENS = {
+  mercari: "--source-mercari",
+  "yahoo-auctions": "--source-yahoo-auctions",
+  "yahoo-fleamarket": "--source-yahoo-fleamarket",
+  rakuma: "--source-rakuma",
+  digimart: "--source-digimart",
+  reverb: "--source-reverb",
+  offmall: "--source-offmall",
+  "five-g": "--source-five-g",
+  implant4: "--source-implant4",
+  hardoff: "--source-hardoff",
 };
 
 const SOURCE_METADATA_ALIASES = {
@@ -36,6 +38,8 @@ const SOURCE_METADATA_ALIASES = {
   digimart: ["Digimart", "デジマート"],
   reverb: ["Reverb", "Reverb.com"],
   offmall: ["OFFMALL", "Off Mall", "Hard Off", "ハードオフ"],
+  "five-g": ["Five G", "FIVE G", "Five G music technology"],
+  implant4: ["implant4", "Implant4"],
   hardoff: ["Hard Off", "ハードオフ", "OFFMALL", "Off Mall"],
 };
 const SEARCH_TERM_ALIASES = {
@@ -410,6 +414,7 @@ const paginationSummary = document.querySelector("#paginationSummary");
 const paginationPage = document.querySelector("#paginationPage");
 const template = document.querySelector("#listingTemplate");
 const alertTemplate = document.querySelector("#alertTemplate");
+const alertPanel = document.querySelector(".alert-panel");
 const alertList = document.querySelector("#alertList");
 const alertCount = document.querySelector("#alertCount");
 const alertDetail = document.querySelector("#alertDetail");
@@ -421,6 +426,7 @@ const qualityModeButtons = document.querySelectorAll("[data-quality]");
 const sortModeSelect = document.querySelector("#sortMode");
 const openSavedSearchesButton = document.querySelector("#openSavedSearches");
 const savedSearchPopover = document.querySelector("#savedSearchPopover");
+const quickSaveSearchButton = document.querySelector("#quickSaveSearch");
 const topWatchingFilter = document.querySelector("#topWatchingFilter");
 const refineSearchModal = document.querySelector("#refineSearchModal");
 const refineSummary = document.querySelector("#refineSummary");
@@ -481,6 +487,7 @@ function bindEvents() {
 
   openSavedSearchesButton.addEventListener("click", toggleSavedSearchPopover);
   document.addEventListener("click", handleSavedPopoverOutsideClick);
+  quickSaveSearchButton.addEventListener("click", openSaveSearchModal);
   document.querySelector("#openSaveSearch").addEventListener("click", openSaveSearchModal);
   document.querySelector("#saveProfile").addEventListener("click", openSaveSearchModal);
   document.querySelector("#closeSaveSearch").addEventListener("click", closeSaveSearchModal);
@@ -590,6 +597,7 @@ function fillForm(profile) {
     input.checked = hydratedProfile.sources.includes(input.value);
   });
   renderRefineSummary();
+  updateQuickSaveSearchButton();
 }
 
 function readProfileFromForm() {
@@ -657,6 +665,7 @@ function syncPrimaryTermsToRefine() {
   refineTermsInput.value = termsInput.value;
   renderSearchTermsSummary();
   renderRefineTermDropdown();
+  updateQuickSaveSearchButton();
 }
 
 function syncRefineTermsToPrimary() {
@@ -664,12 +673,14 @@ function syncRefineTermsToPrimary() {
   termsInput.value = refineTermsInput.value;
   renderSearchTermsSummary();
   renderRefineTermDropdown();
+  updateQuickSaveSearchButton();
 }
 
 function renderRefineSummary() {
   if (!refineSummary) return;
   renderSearchTermsSummary();
   renderRefineTermDropdown();
+  updateQuickSaveSearchButton();
   const profile = readProfileFromForm();
   const sourceCount = profile.sources.length;
   const sourceText = `${sourceCount} ${sourceCount === 1 ? "source" : "sources"}`;
@@ -769,7 +780,37 @@ function handleSavedPopoverOutsideClick(event) {
   closeSavedSearchPopover();
 }
 
+function updateQuickSaveSearchButton() {
+  if (!quickSaveSearchButton) return;
+
+  const draftProfile = readProfileFromForm();
+  const hasSearchTerms = draftProfile.terms.length > 0;
+  const isSaved = hasSearchTerms && loadProfiles().some((profile) => profilesMatchSearch(profile, draftProfile));
+
+  quickSaveSearchButton.disabled = !hasSearchTerms;
+  quickSaveSearchButton.classList.toggle("is-saved", isSaved);
+  quickSaveSearchButton.textContent = isSaved ? "★" : "☆";
+  quickSaveSearchButton.title = isSaved ? "Current search is saved" : "Save current search";
+  quickSaveSearchButton.setAttribute("aria-label", isSaved ? "Current search is saved" : "Save current search");
+}
+
+function profilesMatchSearch(firstProfile, secondProfile) {
+  const first = hydrateProfile(firstProfile);
+  const second = hydrateProfile(secondProfile);
+
+  return arraysMatch(first.terms, second.terms)
+    && arraysMatch(first.excludes, second.excludes)
+    && arraysMatch(first.noiseTerms, second.noiseTerms)
+    && arraysMatch([...first.sources].sort(), [...second.sources].sort())
+    && Number(first.maxPrice || 0) === Number(second.maxPrice || 0)
+    && first.alertMode === second.alertMode;
+}
+
 function openSaveSearchModal(event) {
+  if (quickSaveSearchButton?.disabled && event?.currentTarget === quickSaveSearchButton) {
+    termsInput.focus();
+    return;
+  }
   saveSearchReturnFocus = event?.currentTarget || document.activeElement;
   closeSavedSearchPopover();
   const draftProfile = readProfileFromForm();
@@ -965,6 +1006,14 @@ function createLiveSearchGroups(profile) {
 
   if (selectedSources.has("digimart")) {
     groups.push({ id: "digimart", sources: ["digimart"] });
+  }
+
+  if (selectedSources.has("five-g")) {
+    groups.push({ id: "five-g", sources: ["five-g"] });
+  }
+
+  if (selectedSources.has("implant4")) {
+    groups.push({ id: "implant4", sources: ["implant4"] });
   }
 
   if (selectedSources.has("reverb")) {
@@ -1291,7 +1340,8 @@ function createSourceLoadingCard(sourceId) {
 }
 
 function getSourceAccent(sourceId) {
-  return SOURCE_ACCENTS[sourceId] || "#4b83d8";
+  const token = SOURCE_ACCENT_TOKENS[sourceId] || "--source-default";
+  return getComputedStyle(document.documentElement).getPropertyValue(token).trim() || "#4b83d8";
 }
 
 function getVisibleResults(watching, baseResults = currentResults) {
@@ -1626,6 +1676,7 @@ function isPlaceholderImage(image) {
 
 function renderAlertPanel(featuredHomeResults = []) {
   if (searchState.mode === "idle" && featuredHomeResults.length > 0) {
+    alertPanel.hidden = false;
     alertTitle.textContent = "Featured New Finds";
     alertList.innerHTML = "";
     alertCount.textContent = featuredHomeResults.length;
@@ -1642,21 +1693,12 @@ function renderAlertPanel(featuredHomeResults = []) {
   alertCount.textContent = alertListings.length;
   alertDetail.textContent = createAlertDetail(alertListings.length);
 
-  if (isSearching) {
-    alertList.innerHTML = `<div class="alert-empty">Scanning saved search sources...</div>`;
+  if (isSearching || searchState.mode === "idle" || alertListings.length === 0) {
+    alertPanel.hidden = true;
     return;
   }
 
-  if (searchState.mode === "idle") {
-    alertList.innerHTML = `<div class="alert-empty">Fresh finds will appear after a scan.</div>`;
-    return;
-  }
-
-  if (alertListings.length === 0) {
-    alertList.innerHTML = `<div class="alert-empty">No fresh finds from this scan.</div>`;
-    return;
-  }
-
+  alertPanel.hidden = false;
   alertListings.slice(0, 6).forEach((listing) => {
     alertList.appendChild(renderAlertItem(listing));
   });
@@ -2077,6 +2119,7 @@ function renderSavedSearches() {
   const profiles = loadProfiles();
   if (profiles.length === 0) {
     savedSearches.innerHTML = `<div class="empty-state">Save your current search to pin it here.</div>`;
+    updateQuickSaveSearchButton();
     return;
   }
 
@@ -2113,6 +2156,7 @@ function renderSavedSearches() {
     item.append(button, deleteButton);
     savedSearches.appendChild(item);
   });
+  updateQuickSaveSearchButton();
 }
 
 function saveProfile(profile) {
@@ -2129,6 +2173,7 @@ function deleteSavedSearch(profileName) {
   localStorage.setItem(STORAGE_KEYS.profiles, JSON.stringify(nextProfiles));
   deleteSavedSearchArtifacts(profileName);
   renderSavedSearches();
+  updateQuickSaveSearchButton();
 }
 
 function deleteSavedSearchArtifacts(profileName) {
