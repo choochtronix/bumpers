@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cursor-Reactive Sine Wave with C-Major Tone</title>
+  <style>
+    :root {
+      --stroke: #000;
+      --stroke-width: 3;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      background: transparent;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .wave-wrap {
+      position: relative;
+      width: 100vw;
+      height: 140px;
+      overflow: hidden;
+      cursor: crosshair;
+    }
+
+    svg {
+      display: block;
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+      touch-action: none;
+    }
+
+    #wavePath {
+      fill: none;
+      stroke: var(--stroke);
+      stroke-width: var(--stroke-width);
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      vector-effect: non-scaling-stroke;
+    }
+
+    .audio-hint {
+      position: absolute;
+      right: 18px;
+      bottom: 12px;
+      padding: 7px 10px;
+      border: 1px solid #000;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.78);
+      color: #000;
+      font-size: 11px;
+      line-height: 1;
+      letter-spacing: 0.02em;
+      user-select: none;
+      pointer-events: none;
+      opacity: 0.78;
+      transition: opacity 240ms ease, transform 240ms ease;
+    }
+
+    .audio-hint.is-hidden {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+  </style>
+</head>
+<body>
+  <div class="wave-wrap" aria-label="Interactive animated sine wave audio display. Click or tap once to enable sound, then move the cursor across the wave.">
+    <svg xmlns="http://www.w3.org/2000/svg"
+         viewBox="0 0 1200 140"
+         preserveAspectRatio="none"
+         role="img"
+         aria-label="Cursor-reactive animated sine wave with C-major sine tone">
+      <path id="wavePath" />
+    </svg>
+    <div class="audio-hint" id="audioHint">click / tap for sound</div>
+  </div>
+
+  <script>
+    (function () {
+      const wrap = document.querySelector('.wave-wrap');
+      const svg = document.querySelector('svg');
+      const path = document.getElementById('wavePath');
+      const audioHint = document.getElementById('audioHint');
+
+      const WIDTH = 1200;
+      const HEIGHT = 140;
+      const MID_Y = HEIGHT / 2;
+      const STEP = 12;
+      const BASE_AMPLITUDE = 24;
+      const WAVELENGTH = 180;
+      const SPEED = 0.16;
+      const RADIUS = 170;
+
+      // C-major pitch pool. Mostly clean musical tones, with a few octave jumps for sparkle.
+      const C_MAJOR = [
+        130.81, // C3
+        146.83, // D3
+        164.81, // E3
+        174.61, // F3
+        196.00, // G3
+        220.00, // A3
+        246.94, // B3
+        261.63, // C4
+        293.66, // D4
+        329.63, // E4
+        349.23, // F4
+        392.00, // G4
+        440.00, // A4
+        493.88, // B4
+        523.25, // C5
+        587.33, // D5
+        659.25, // E5
+        783.99  // G5
+      ];
+
+      let pointerX = WIDTH / 2;
+      let pointerActive = false;
+      let hoverMix = 0;
+      let lastTime = performance.now();
+      let phase = 0;
+      let lastNoteTime = 0;
+      let lastNote = 261.63;
+
+      let audioCtx = null;
+      let osc = null;
+      let gain = null;
+      let filter = null;
+      let audioStarted = false;
+
+      function clamp(v, min, max) {
+        return Math.max(min, Math.min(max, v));
+      }
+
+      function smoothNoise(x, t) {
+        return (
+          Math.sin(x * 0.19 + t * 0.006) * 0.9 +
+          Math.sin(x * 0.47 - t * 0.009) * 0.55 +
+          Math.sin(x * 0.83 + t * 0.014) * 0.25
+        );
+      }
+
+      function svgXFromEvent(evt) {
+        const rect = svg.getBoundingClientRect();
+        const ratio = WIDTH / rect.width;
+        return (evt.clientX - rect.left) * ratio;
+      }
+
+      function buildPath(points) {
+        if (!points.length) return '';
+        let d = `M ${points[0].x.toFixed(2)} ${points[0].y.toFixed(2)}`;
+        for (let i = 1; i < points.length; i++) {
+          const prev = points[i - 1];
+          const curr = points[i];
+          const cx = ((prev.x + curr.x) / 2).toFixed(2);
+          d += ` Q ${prev.x.toFixed(2)} ${prev.y.toFixed(2)} ${cx} ${((prev.y + curr.y) / 2).toFixed(2)}`;
+        }
+        const last = points[points.length - 1];
+        d += ` T ${last.x.toFixed(2)} ${last.y.toFixed(2)}`;
+        return d;
+      }
+
+      function randomCNote() {
+        let next = lastNote;
+        while (next === lastNote) {
+          next = C_MAJOR[Math.floor(Math.random() * C_MAJOR.length)];
+        }
+        lastNote = next;
+        return next;
+      }
+
+      function startAudio() {
+        if (audioStarted) {
+          if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+          return;
+        }
+
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+
+        audioCtx = new AudioContext();
+        osc = audioCtx.createOscillator();
+        gain = audioCtx.createGain();
+        filter = audioCtx.createBiquadFilter();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(261.63, audioCtx.currentTime); // C4
+
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(1600, audioCtx.currentTime);
+        filter.Q.setValueAtTime(0.4, audioCtx.currentTime);
+
+        gain.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+
+        audioStarted = true;
+        audioHint.classList.add('is-hidden');
+      }
+
+      function updateAudio(now) {
+        if (!audioStarted || !audioCtx || !osc || !gain) return;
+
+        const t = audioCtx.currentTime;
+        const targetGain = pointerActive ? 0.055 : 0.0001;
+        gain.gain.cancelScheduledValues(t);
+        gain.gain.setTargetAtTime(targetGain, t, pointerActive ? 0.035 : 0.12);
+
+        if (pointerActive && now - lastNoteTime > 135) {
+          const note = randomCNote();
+          lastNoteTime = now;
+
+          osc.frequency.cancelScheduledValues(t);
+          osc.frequency.setTargetAtTime(note, t, 0.045);
+
+          if (filter) {
+            const brightness = 900 + (pointerX / WIDTH) * 2200;
+            filter.frequency.cancelScheduledValues(t);
+            filter.frequency.setTargetAtTime(brightness, t, 0.05);
+          }
+        }
+      }
+
+      function render(now) {
+        const dt = now - lastTime;
+        lastTime = now;
+        phase += dt * SPEED;
+
+        const targetMix = pointerActive ? 1 : 0;
+        hoverMix += (targetMix - hoverMix) * 0.085;
+
+        const points = [];
+
+        for (let x = -40; x <= WIDTH + 40; x += STEP) {
+          const base = Math.sin((x + phase) / WAVELENGTH * Math.PI * 2) * BASE_AMPLITUDE;
+          const dx = x - pointerX;
+          const dist = Math.abs(dx);
+          const influence = clamp(1 - dist / RADIUS, 0, 1);
+          const falloff = influence * influence * (3 - 2 * influence);
+          const scramble = smoothNoise(x, now) * 13 + Math.sin((x * 1.4 - now * 0.045)) * 3.5;
+          const localLift = Math.sin((x + phase * 1.3) / 52) * 5;
+          const disruption = (scramble + localLift) * falloff * hoverMix;
+
+          const y = MID_Y + base + disruption;
+          points.push({ x, y });
+        }
+
+        path.setAttribute('d', buildPath(points));
+        updateAudio(now);
+        requestAnimationFrame(render);
+      }
+
+      wrap.addEventListener('pointerdown', (evt) => {
+        startAudio();
+        pointerActive = true;
+        pointerX = svgXFromEvent(evt);
+      });
+
+      svg.addEventListener('pointermove', (evt) => {
+        pointerActive = true;
+        pointerX = svgXFromEvent(evt);
+      });
+
+      svg.addEventListener('pointerenter', (evt) => {
+        pointerActive = true;
+        pointerX = svgXFromEvent(evt);
+      });
+
+      svg.addEventListener('pointerleave', () => {
+        pointerActive = false;
+      });
+
+      document.addEventListener('visibilitychange', () => {
+        if (!audioCtx) return;
+        if (document.hidden) {
+          audioCtx.suspend();
+        } else if (audioStarted) {
+          audioCtx.resume();
+        }
+      });
+
+      requestAnimationFrame(render);
+    })();
+  </script>
+</body>
+</html>
