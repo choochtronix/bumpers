@@ -794,7 +794,7 @@ function bindEvents() {
     closeRefineSearchModal({ restoreFocus: false });
     runSearch();
   });
-  termsInput.addEventListener("input", syncPrimaryTermsToRefine);
+  termsInput.addEventListener("input", handlePrimaryTermsInput);
   termsInput.addEventListener("keydown", handleQuickSearchKeydown);
   refineTermsInput.addEventListener("input", syncRefineTermsToPrimary);
   termDropdown.addEventListener("click", handleTermDropdownClick);
@@ -960,6 +960,21 @@ function handleQuickSearchKeydown(event) {
   if (event.key !== "Enter" || event.shiftKey) return;
   event.preventDefault();
   searchForm.requestSubmit();
+}
+
+function handlePrimaryTermsInput() {
+  clearSearchSpecificExcludesForNewTerms();
+  syncPrimaryTermsToRefine();
+}
+
+function clearSearchSpecificExcludesForNewTerms() {
+  const nextTerms = splitLines(termsInput.value);
+  if (arraysMatch(nextTerms, currentProfile?.terms || [])) return;
+
+  const excludesInput = document.querySelector("#excludes");
+  if (!excludesInput.value.trim()) return;
+
+  excludesInput.value = "";
 }
 
 function openRefineSearchModal(event) {
