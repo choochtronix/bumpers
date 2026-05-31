@@ -445,6 +445,7 @@ let settingsReturnFocus = null;
 
 function initialize() {
   applyStoredTheme();
+  initializeBrandWave();
   renderSources();
   fillForm(currentProfile);
   setActiveTitle(currentProfile.name);
@@ -453,6 +454,331 @@ function initialize() {
   renderResults();
   bindEvents();
   updateBackToTopVisibility();
+}
+
+function initializeBrandWave() {
+  const wrap = document.querySelector(".brand-wave-wrap");
+  const svg = document.querySelector(".brand-wave-svg");
+  const path = document.querySelector("#brandWavePath");
+  if (!wrap || !svg || !path) return;
+
+  const WIDTH = 1200;
+  const HEIGHT = 140;
+  const MID_Y = HEIGHT / 2;
+  const STEP = 12;
+  const BASE_AMPLITUDE = 24;
+  const WAVELENGTH = 180;
+  const SPEED = 0.16;
+  const RADIUS = 170;
+
+  const LOW_C_MAJOR = [
+    65.41, 73.42, 82.41, 87.31, 98.00, 110.00, 123.47,
+    130.81, 146.83, 164.81, 174.61, 196.00, 220.00, 246.94,
+  ];
+
+  const ARP_CHORDS = [
+    [261.63, 329.63, 392.00, 523.25],
+    [293.66, 349.23, 440.00, 587.33],
+    [329.63, 392.00, 493.88, 659.25],
+    [349.23, 440.00, 523.25, 698.46],
+    [392.00, 493.88, 587.33, 783.99],
+    [220.00, 261.63, 329.63, 440.00],
+  ];
+
+  const ARP_PATTERNS = [
+    [0, 1, 2, 3, 2, 1, 2, 1],
+    [0, 2, 1, 3, 2, 1, 0, 2],
+    [0, 1, 2, 1, 3, 2, 1, 0],
+    [0, 2, 3, 2, 1, 2, 0, 1],
+    [0, 1, 3, 2, 1, 0, 2, 3],
+  ];
+
+  const IDLE_NOTE = 130.81;
+  const IDLE_GAIN = 0.02;
+  const ACTIVE_GAIN = 0.055;
+  const RELEASE_GAIN = 0.0001;
+  const ARP_TRIGGER_MS = 5000;
+
+  let pointerX = WIDTH / 2;
+  let pointerActive = false;
+  let hoverMix = 0;
+  let phase = 0;
+  let lastTime = performance.now();
+  let lastNoteTime = 0;
+  let lastNote = IDLE_NOTE;
+  let hasRolledOut = false;
+  let hoverStartTime = null;
+  let arpeggioMode = false;
+  let arpSequence = [];
+  let arpIndex = 0;
+  let nextArpNoteTime = 0;
+  let audioCtx = null;
+  let osc = null;
+  let gain = null;
+  let filter = null;
+  let audioInitialized = false;
+  let audioReady = false;
+
+  function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+  }
+
+  function smoothNoise(x, time) {
+    return (
+      Math.sin(x * 0.19 + time * 0.006) * 0.9 +
+      Math.sin(x * 0.47 - time * 0.009) * 0.55 +
+      Math.sin(x * 0.83 + time * 0.014) * 0.25
+    );
+  }
+
+  function svgXFromEvent(event) {
+    const rect = svg.getBoundingClientRect();
+    const ratio = WIDTH / rect.width;
+    return (event.clientX - rect.left) * ratio;
+  }
+
+  function buildPath(points) {
+    if (!points.length) return "";
+    let d = `M ${points[0].x.toFixed(2)} ${points[0].y.toFixed(2)}`;
+    for (let i = 1; i < points.length; i += 1) {
+      const prev = points[i - 1];
+      const curr = points[i];
+      const cx = ((prev.x + curr.x) / 2).toFixed(2);
+      d += ` Q ${prev.x.toFixed(2)} ${prev.y.toFixed(2)} ${cx} ${((prev.y + curr.y) / 2).toFixed(2)}`;
+    }
+    const last = points[points.length - 1];
+    d += ` T ${last.x.toFixed(2)} ${last.y.toFixed(2)}`;
+    return d;
+  }
+
+  function randomCNote() {
+    let next = lastNote;
+    while (next === lastNote) {
+      next = LOW_C_MAJOR[Math.floor(Math.random() * LOW_C_MAJOR.length)];
+    }
+    lastNote = next;
+    return next;
+  }
+
+  function buildArpeggioSequence() {
+    const chord = ARP_CHORDS[Math.floor(Math.random() * ARP_CHORDS.length)];
+    const pattern = ARP_PATTERNS[Math.floor(Math.random() * ARP_PATTERNS.length)];
+    return pattern.map((index) => chord[index]);
+  }
+
+  function startArpeggio(now) {
+    arpeggioMode = true;
+    arpSequence = buildArpeggioSequence();
+    arpIndex = 0;
+    nextArpNoteTime = now;
+  }
+
+  function stopArpeggio() {
+    arpeggioMode = false;
+    arpSequence = [];
+    arpIndex = 0;
+    nextArpNoteTime = 0;
+  }
+
+  async function ensureAudioRunning() {
+    if (!audioCtx) return;
+    try {
+      if (audioCtx.state !== "running") {
+        await audioCtx.resume();
+      }
+      audioReady = audioCtx.state === "running";
+    } catch {
+      audioReady = false;
+    }
+  }
+
+  async function initAudio() {
+    if (audioInitialized) return;
+
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+
+    audioCtx = new AudioContext();
+    osc = audioCtx.createOscillator();
+    gain = audioCtx.createGain();
+    filter = audioCtx.createBiquadFilter();
+
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(IDLE_NOTE, audioCtx.currentTime);
+
+    filter.type = "lowpass";
+    filter.frequency.setValueAtTime(1400, audioCtx.currentTime);
+    filter.Q.setValueAtTime(0.4, audioCtx.currentTime);
+
+    gain.gain.setValueAtTime(IDLE_GAIN, audioCtx.currentTime);
+
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+
+    audioInitialized = true;
+    await ensureAudioRunning();
+  }
+
+  function engageAudio() {
+    if (!audioReady || !audioCtx || !osc || !gain || !filter) return;
+    const time = audioCtx.currentTime;
+    gain.gain.cancelScheduledValues(time);
+    gain.gain.setTargetAtTime(ACTIVE_GAIN, time, 0.035);
+    filter.frequency.cancelScheduledValues(time);
+    const brightness = 900 + (pointerX / WIDTH) * 2200;
+    filter.frequency.setTargetAtTime(brightness, time, 0.05);
+    hasRolledOut = false;
+  }
+
+  function releaseAudio() {
+    if (!audioReady || !audioCtx || !osc || !gain || !filter) return;
+    const time = audioCtx.currentTime;
+    const current = Math.max(lastNote || IDLE_NOTE, 20);
+    const downTwoOctaves = Math.max(current / 4, 20);
+
+    osc.frequency.cancelScheduledValues(time);
+    osc.frequency.setValueAtTime(current, time);
+    osc.frequency.exponentialRampToValueAtTime(downTwoOctaves, time + 0.7);
+
+    gain.gain.cancelScheduledValues(time);
+    gain.gain.setValueAtTime(Math.max(gain.gain.value, 0.0001), time);
+    gain.gain.exponentialRampToValueAtTime(RELEASE_GAIN, time + 0.7);
+
+    filter.frequency.cancelScheduledValues(time);
+    filter.frequency.setTargetAtTime(700, time, 0.09);
+    hasRolledOut = true;
+  }
+
+  function playNote(note, time, glide = 0.035) {
+    if (!osc || !filter) return;
+    lastNote = note;
+    osc.frequency.cancelScheduledValues(time);
+    osc.frequency.setTargetAtTime(note, time, glide);
+
+    const brightness = 900 + (pointerX / WIDTH) * 2200 + Math.random() * 220;
+    filter.frequency.cancelScheduledValues(time);
+    filter.frequency.setTargetAtTime(brightness, time, 0.04);
+  }
+
+  function updateAudio(now) {
+    if (!audioReady || !audioCtx || !osc || !gain || !filter) return;
+
+    const time = audioCtx.currentTime;
+    if (pointerActive) {
+      engageAudio();
+
+      if (!arpeggioMode && hoverStartTime !== null && now - hoverStartTime >= ARP_TRIGGER_MS) {
+        startArpeggio(now);
+      }
+
+      if (arpeggioMode) {
+        if (now >= nextArpNoteTime) {
+          if (arpIndex >= arpSequence.length) {
+            arpSequence = buildArpeggioSequence();
+            arpIndex = 0;
+          }
+
+          const note = arpSequence[arpIndex];
+          arpIndex += 1;
+          playNote(note, time, 0.02);
+          nextArpNoteTime = now + 145 + Math.random() * 45;
+        }
+      } else if (now - lastNoteTime > 135) {
+        const note = randomCNote();
+        lastNoteTime = now;
+        playNote(note, time, 0.045);
+      }
+    } else if (!hasRolledOut) {
+      gain.gain.cancelScheduledValues(time);
+      gain.gain.setTargetAtTime(IDLE_GAIN, time, 0.18);
+      osc.frequency.cancelScheduledValues(time);
+      osc.frequency.setTargetAtTime(IDLE_NOTE, time, 0.08);
+      filter.frequency.cancelScheduledValues(time);
+      filter.frequency.setTargetAtTime(1400, time, 0.08);
+    }
+  }
+
+  function renderStaticWave() {
+    const points = [];
+    for (let x = -40; x <= WIDTH + 40; x += STEP) {
+      const y = MID_Y + Math.sin((x / WAVELENGTH) * Math.PI * 2) * BASE_AMPLITUDE;
+      points.push({ x, y });
+    }
+    path.setAttribute("d", buildPath(points));
+  }
+
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    renderStaticWave();
+    return;
+  }
+
+  function render(now) {
+    const dt = now - lastTime;
+    lastTime = now;
+    phase += dt * SPEED;
+
+    const targetMix = pointerActive ? 1 : 0;
+    hoverMix += (targetMix - hoverMix) * 0.085;
+
+    const points = [];
+    for (let x = -40; x <= WIDTH + 40; x += STEP) {
+      const base = Math.sin(((x + phase) / WAVELENGTH) * Math.PI * 2) * BASE_AMPLITUDE;
+      const dx = x - pointerX;
+      const dist = Math.abs(dx);
+      const influence = clamp(1 - dist / RADIUS, 0, 1);
+      const falloff = influence * influence * (3 - 2 * influence);
+      const scramble = smoothNoise(x, now) * 13 + Math.sin(x * 1.4 - now * 0.045) * 3.5;
+      const localLift = Math.sin((x + phase * 1.3) / 52) * 5;
+      const disruption = (scramble + localLift) * falloff * hoverMix;
+      const y = MID_Y + base + disruption;
+      points.push({ x, y });
+    }
+
+    path.setAttribute("d", buildPath(points));
+    updateAudio(now);
+    requestAnimationFrame(render);
+  }
+
+  function handlePointer(event) {
+    pointerActive = true;
+    pointerX = svgXFromEvent(event);
+    if (hoverStartTime === null) hoverStartTime = performance.now();
+  }
+
+  async function wakeAudioFromInteraction(event) {
+    if (event) handlePointer(event);
+    await initAudio();
+    await ensureAudioRunning();
+    engageAudio();
+  }
+
+  initAudio();
+  window.addEventListener("load", ensureAudioRunning);
+  svg.addEventListener("pointerenter", wakeAudioFromInteraction);
+  svg.addEventListener("pointermove", wakeAudioFromInteraction);
+  wrap.addEventListener("pointerdown", wakeAudioFromInteraction);
+  wrap.addEventListener("touchstart", wakeAudioFromInteraction, { passive: true });
+
+  svg.addEventListener("pointerleave", () => {
+    pointerActive = false;
+    hoverStartTime = null;
+    stopArpeggio();
+    releaseAudio();
+  });
+
+  document.addEventListener("visibilitychange", async () => {
+    if (!audioCtx) return;
+    if (document.hidden) {
+      await audioCtx.suspend();
+      audioReady = false;
+    } else {
+      await ensureAudioRunning();
+    }
+  });
+
+  requestAnimationFrame(render);
 }
 
 function bindEvents() {
