@@ -361,6 +361,12 @@ const STORAGE_KEYS = {
   feedbackRules: "bumpers.feedbackRules",
 };
 
+const SAVED_SEARCH_SCHEMA_VERSION = 1;
+const LOCAL_PROFILE_USER_ID = "local";
+const savedSearchRepository = createSavedSearchRepository({
+  storageKey: STORAGE_KEYS.profiles,
+});
+
 const defaultSettings = {
   currency: "JPY",
   jpyPerUsd: 155,
@@ -1223,7 +1229,7 @@ function saveCurrentSearchFromModal() {
     alertMode: saveSearchAlert.value,
   };
   document.querySelector("#alertMode").value = currentProfile.alertMode;
-  saveProfile(currentProfile);
+  currentProfile = saveProfile(currentProfile);
   renderSavedSearches();
   setActiveTitle(currentProfile.name);
   closeSaveSearchModal();
@@ -1264,19 +1270,13 @@ function saveSettingsFromModal() {
 }
 
 function exportSavedSearches() {
-  const profiles = loadProfiles();
+  const profiles = savedSearchRepository.list();
   if (profiles.length === 0) {
     setSavedSearchTransferStatus("No saved searches to export.");
     return;
   }
 
-  const payload = {
-    app: "Bumpers",
-    type: "saved-searches",
-    version: 1,
-    exportedAt: new Date().toISOString(),
-    profiles: profiles.map((profile) => hydrateProfile(profile)),
-  };
+  const payload = savedSearchRepository.createExportPayload();
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
   const link = document.createElement("a");
   const objectUrl = URL.createObjectURL(blob);
@@ -1302,9 +1302,8 @@ async function importSavedSearchesFromFile(event) {
       return;
     }
 
-    const existingProfiles = loadProfiles();
-    const existingByName = new Map(existingProfiles.map((profile) => [profile.name, profile]));
-    const duplicateCount = importedProfiles.filter((profile) => existingByName.has(profile.name)).length;
+    const importPreview = savedSearchRepository.previewMerge(importedProfiles);
+    const duplicateCount = importPreview.duplicateCount;
     if (duplicateCount > 0) {
       const confirmed = window.confirm(`Import will replace ${duplicateCount} saved ${duplicateCount === 1 ? "search" : "searches"} with the same name. Continue?`);
       if (!confirmed) {
@@ -1313,12 +1312,7 @@ async function importSavedSearchesFromFile(event) {
       }
     }
 
-    const importedNames = new Set(importedProfiles.map((profile) => profile.name));
-    const mergedProfiles = [
-      ...importedProfiles,
-      ...existingProfiles.filter((profile) => !importedNames.has(profile.name)),
-    ];
-    localStorage.setItem(STORAGE_KEYS.profiles, JSON.stringify(mergedProfiles));
+    savedSearchRepository.replaceAll(importPreview.mergedProfiles);
     renderSavedSearches();
     updateQuickSaveSearchButton();
     setSavedSearchTransferStatus(`Imported ${importedProfiles.length} saved ${importedProfiles.length === 1 ? "search" : "searches"}.`);
@@ -1354,6 +1348,18 @@ function parseSavedSearchImport(text) {
       name: profile.name.trim(),
     }))
     .filter((profile) => profile.name && profile.terms.length > 0);
+}
+
+function findMatchingSavedSearch(profiles, candidate) {
+  const candidateKeys = new Set(getSavedSearchMergeKeys(candidate));
+  return profiles.find((profile) => getSavedSearchMergeKeys(profile).some((key) => candidateKeys.has(key)));
+}
+
+function getSavedSearchMergeKeys(profile) {
+  return [
+    isNonEmptyString(profile?.id) ? `id:${profile.id}` : "",
+    isNonEmptyString(profile?.name) ? `name:${normalizeText(profile.name)}` : "",
+  ].filter(Boolean);
 }
 
 function setSavedSearchTransferStatus(message) {
@@ -2645,17 +2651,14 @@ function renderSavedSearches() {
 }
 
 function saveProfile(profile) {
-  const hydratedProfile = hydrateProfile(profile);
-  const profiles = loadProfiles().filter((item) => item.name !== hydratedProfile.name);
-  localStorage.setItem(STORAGE_KEYS.profiles, JSON.stringify([hydratedProfile, ...profiles]));
+  return savedSearchRepository.save(profile);
 }
 
 function deleteSavedSearch(profileName) {
   const confirmed = window.confirm(`Delete saved search "${profileName}"?`);
   if (!confirmed) return;
 
-  const nextProfiles = loadProfiles().filter((item) => item.name !== profileName);
-  localStorage.setItem(STORAGE_KEYS.profiles, JSON.stringify(nextProfiles));
+  savedSearchRepository.deleteByName(profileName);
   deleteSavedSearchArtifacts(profileName);
   renderSavedSearches();
   updateQuickSaveSearchButton();
@@ -2676,26 +2679,185 @@ function deleteSavedSearchArtifacts(profileName) {
 }
 
 function updateStoredProfileScan(profile, scanSummary) {
-  const profiles = loadProfiles();
-  const nextProfiles = profiles.map((item) => {
-    if (item.name !== profile.name) return item;
-    return hydrateProfile({ ...item, ...scanSummary });
-  });
-
-  localStorage.setItem(STORAGE_KEYS.profiles, JSON.stringify(nextProfiles));
+  savedSearchRepository.updateScan(profile, scanSummary);
 }
 
 function loadProfiles() {
-  const raw = localStorage.getItem(STORAGE_KEYS.profiles);
-  if (!raw) {
-    return [];
+  return savedSearchRepository.list();
+}
+
+function createSavedSearchRepository({ storageKey }) {
+  function list() {
+    const raw = localStorage.getItem(storageKey);
+    if (!raw) return [];
+
+    try {
+      const parsedProfiles = JSON.parse(raw);
+      if (!Array.isArray(parsedProfiles)) return [];
+
+      const validProfiles = parsedProfiles.filter((profile) => profile && typeof profile === "object");
+      const hydratedProfiles = validProfiles.map(hydrateProfile);
+      if (shouldMigrateStoredProfiles(parsedProfiles) || validProfiles.length !== parsedProfiles.length) {
+        try {
+          write(hydratedProfiles);
+        } catch (error) {
+          if (!isStorageQuotaError(error)) throw error;
+          console.warn("Saved searches loaded, but local storage quota prevented migration cleanup.", error);
+        }
+      }
+      return hydratedProfiles;
+    } catch {
+      return [];
+    }
   }
 
-  try {
-    return JSON.parse(raw).map(hydrateProfile);
-  } catch {
-    return [];
+  function write(profiles) {
+    const hydratedProfiles = profiles
+      .filter((profile) => profile && typeof profile === "object")
+      .map(hydrateProfile);
+    writeStoredProfiles(storageKey, hydratedProfiles);
+    return hydratedProfiles;
   }
+
+  function save(profile) {
+    const savedAt = new Date().toISOString();
+    const existingProfiles = list();
+    const existingProfile = existingProfiles.find((item) => item.name === profile.name);
+    const hydratedProfile = hydrateProfile({
+      ...existingProfile,
+      ...profile,
+      id: profile.id || existingProfile?.id,
+      createdAt: profile.createdAt || existingProfile?.createdAt || savedAt,
+      updatedAt: savedAt,
+      sync: {
+        ...existingProfile?.sync,
+        ...profile.sync,
+        status: "local",
+        lastLocalChangeAt: savedAt,
+      },
+    });
+    const profiles = existingProfiles.filter((item) => item.name !== hydratedProfile.name);
+    write([hydratedProfile, ...profiles]);
+    return hydratedProfile;
+  }
+
+  function deleteByName(profileName) {
+    const nextProfiles = list().filter((item) => item.name !== profileName);
+    write(nextProfiles);
+    return nextProfiles;
+  }
+
+  function updateScan(profile, scanSummary) {
+    const scannedAt = scanSummary.lastScannedAt || new Date().toISOString();
+    const nextProfiles = list().map((item) => {
+      if (item.name !== profile.name) return item;
+      return hydrateProfile({
+        ...item,
+        ...scanSummary,
+        updatedAt: scannedAt,
+        sync: {
+          ...item.sync,
+          status: "local",
+          lastLocalChangeAt: scannedAt,
+        },
+      });
+    });
+
+    write(nextProfiles);
+    return nextProfiles;
+  }
+
+  function previewMerge(importedProfiles) {
+    const existingProfiles = list();
+    const duplicateCount = importedProfiles.filter((profile) => findMatchingSavedSearch(existingProfiles, profile)).length;
+    const importedKeys = new Set(importedProfiles.flatMap(getSavedSearchMergeKeys));
+    const mergedProfiles = [
+      ...importedProfiles,
+      ...existingProfiles.filter((profile) => !getSavedSearchMergeKeys(profile).some((key) => importedKeys.has(key))),
+    ];
+
+    return {
+      duplicateCount,
+      mergedProfiles,
+    };
+  }
+
+  function createExportPayload() {
+    return {
+      app: "Bumpers",
+      type: "saved-searches",
+      schemaVersion: SAVED_SEARCH_SCHEMA_VERSION,
+      storage: "local",
+      exportedAt: new Date().toISOString(),
+      profiles: list(),
+    };
+  }
+
+  return {
+    provider: "local",
+    list,
+    save,
+    deleteByName,
+    updateScan,
+    replaceAll: write,
+    previewMerge,
+    createExportPayload,
+  };
+}
+
+function shouldMigrateStoredProfiles(profiles) {
+  return profiles.some((profile) => !profile
+    || !profile.id
+    || !profile.schemaVersion
+    || !profile.userId
+    || !profile.createdAt
+    || !profile.updatedAt
+    || !profile.sync);
+}
+
+function writeStoredProfiles(storageKey, profiles) {
+  const payload = JSON.stringify(profiles.map(hydrateProfile));
+
+  try {
+    localStorage.setItem(storageKey, payload);
+  } catch (error) {
+    if (!isStorageQuotaError(error)) throw error;
+    reclaimSavedSearchStorageSpace();
+    try {
+      localStorage.setItem(storageKey, payload);
+    } catch (retryError) {
+      if (!isStorageQuotaError(retryError)) throw retryError;
+      throw new Error("Browser storage is full. Bumpers cleared search-result cache space, but the saved-search backup still could not fit.");
+    }
+  }
+}
+
+function reclaimSavedSearchStorageSpace() {
+  trimListingLedger(250);
+  trimStoredSet(STORAGE_KEYS.seen, 1000);
+}
+
+function trimListingLedger(maxEntries) {
+  const ledger = loadLedger();
+  const entries = Object.entries(ledger)
+    .sort(([, first], [, second]) => new Date(second.lastFoundAt || second.listedAt || 0) - new Date(first.lastFoundAt || first.listedAt || 0))
+    .slice(0, maxEntries);
+  localStorage.setItem(STORAGE_KEYS.listingLedger, JSON.stringify(Object.fromEntries(entries)));
+}
+
+function trimStoredSet(storageKey, maxItems) {
+  const values = loadSet(storageKey);
+  if (!Array.isArray(values) || values.length <= maxItems) return;
+  localStorage.setItem(storageKey, JSON.stringify(values.slice(-maxItems)));
+}
+
+function isStorageQuotaError(error) {
+  const isDomException = typeof DOMException !== "undefined" && error instanceof DOMException;
+  return isDomException
+    && (error.name === "QuotaExceededError"
+      || error.name === "NS_ERROR_DOM_QUOTA_REACHED"
+      || error.code === 22
+      || error.code === 1014);
 }
 
 function createFreshProfile() {
@@ -2706,15 +2868,89 @@ function createFreshProfile() {
   });
 }
 
-function hydrateProfile(profile) {
+function hydrateProfile(profile = {}) {
+  const fallbackTimestamp = new Date().toISOString();
+  const createdAt = isIsoTimestamp(profile.createdAt) ? profile.createdAt : fallbackTimestamp;
+  const updatedAt = isIsoTimestamp(profile.updatedAt) ? profile.updatedAt : createdAt;
+  const scanSummary = hydrateSavedSearchScanSummary(profile);
+
   return {
-    ...defaultProfile,
-    ...profile,
-    terms: Array.isArray(profile.terms) ? profile.terms : defaultProfile.terms,
-    excludes: Array.isArray(profile.excludes) ? profile.excludes : defaultProfile.excludes,
-    noiseTerms: Array.isArray(profile.noiseTerms) ? profile.noiseTerms : [...ACCESSORY_TERMS],
+    id: isNonEmptyString(profile.id) ? profile.id : createSavedSearchId(profile),
+    schemaVersion: Number(profile.schemaVersion) || SAVED_SEARCH_SCHEMA_VERSION,
+    userId: isNonEmptyString(profile.userId) ? profile.userId : LOCAL_PROFILE_USER_ID,
+    name: isNonEmptyString(profile.name) ? profile.name.trim() : defaultProfile.name,
+    terms: cleanStringArray(profile.terms, defaultProfile.terms),
+    excludes: cleanStringArray(profile.excludes, defaultProfile.excludes),
+    noiseTerms: cleanStringArray(profile.noiseTerms, ACCESSORY_TERMS),
+    maxPrice: sanitizePriceCap(profile.maxPrice, defaultProfile.maxPrice),
+    alertMode: ["immediate", "hourly", "daily"].includes(profile.alertMode) ? profile.alertMode : defaultProfile.alertMode,
     sources: hydrateSourceSelection(profile.sources),
+    createdAt,
+    updatedAt,
+    deletedAt: isIsoTimestamp(profile.deletedAt) ? profile.deletedAt : null,
+    sync: hydrateSavedSearchSync(profile.sync, updatedAt),
+    ...scanSummary,
   };
+}
+
+function hydrateSavedSearchScanSummary(profile = {}) {
+  return {
+    lastScannedAt: isIsoTimestamp(profile.lastScannedAt) ? profile.lastScannedAt : "",
+    lastMatchCount: sanitizeCount(profile.lastMatchCount),
+    lastNewCount: sanitizeCount(profile.lastNewCount),
+    lastSourceCount: sanitizeCount(profile.lastSourceCount),
+    lastScanStatus: isNonEmptyString(profile.lastScanStatus) ? profile.lastScanStatus : "",
+  };
+}
+
+function hydrateSavedSearchSync(sync = {}, updatedAt = new Date().toISOString()) {
+  return {
+    provider: isNonEmptyString(sync.provider) ? sync.provider : "local",
+    remoteId: isNonEmptyString(sync.remoteId) ? sync.remoteId : null,
+    status: isNonEmptyString(sync.status) ? sync.status : "local",
+    lastSyncedAt: isIsoTimestamp(sync.lastSyncedAt) ? sync.lastSyncedAt : null,
+    lastLocalChangeAt: isIsoTimestamp(sync.lastLocalChangeAt) ? sync.lastLocalChangeAt : updatedAt,
+  };
+}
+
+function createSavedSearchId(profile = {}) {
+  if (globalThis.crypto?.randomUUID) return `search_${globalThis.crypto.randomUUID()}`;
+
+  const seed = `${profile.name || "search"}-${Date.now()}-${Math.random()}`;
+  return `search_${normalizeText(seed).replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
+}
+
+function cleanStringArray(values, fallback = []) {
+  const sourceValues = Array.isArray(values) ? values : fallback;
+  const seen = new Set();
+  return sourceValues
+    .filter((value) => typeof value === "string")
+    .map((value) => value.trim())
+    .filter((value) => {
+      if (!value) return false;
+      const key = normalizeText(value);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+function sanitizePriceCap(value, fallback) {
+  const price = Number(value);
+  return Number.isFinite(price) && price >= 0 ? price : fallback;
+}
+
+function sanitizeCount(value) {
+  const count = Number(value);
+  return Number.isFinite(count) && count > 0 ? Math.round(count) : 0;
+}
+
+function isNonEmptyString(value) {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function isIsoTimestamp(value) {
+  return typeof value === "string" && !Number.isNaN(Date.parse(value));
 }
 
 function hydrateSourceSelection(sources) {
@@ -2848,7 +3084,15 @@ function loadLedger() {
 }
 
 function saveLedger(ledger) {
-  localStorage.setItem(STORAGE_KEYS.listingLedger, JSON.stringify(ledger));
+  try {
+    localStorage.setItem(STORAGE_KEYS.listingLedger, JSON.stringify(ledger));
+  } catch (error) {
+    if (!isStorageQuotaError(error)) throw error;
+    const entries = Object.entries(ledger)
+      .sort(([, first], [, second]) => new Date(second.lastFoundAt || second.listedAt || 0) - new Date(first.lastFoundAt || first.listedAt || 0))
+      .slice(0, 250);
+    localStorage.setItem(STORAGE_KEYS.listingLedger, JSON.stringify(Object.fromEntries(entries)));
+  }
 }
 
 function getNewDiscoveryIds(listings) {

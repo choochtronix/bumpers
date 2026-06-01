@@ -86,15 +86,6 @@
               <button class="quality-mode-button" type="button" data-quality="all">All</button>
               <button class="quality-mode-button" type="button" data-quality="clean">Clean Gear</button>
             </div>
-            <label>
-              <span>Sort</span>
-              <select id="sortMode">
-                <option value="newest">Newest</option>
-                <option value="price-asc">Price low</option>
-                <option value="price-desc">Price high</option>
-                <option value="source">Source</option>
-              </select>
-            </label>
           </div>
 
           <div class="refine-summary" id="refineSummary" aria-live="polite"></div>
@@ -128,6 +119,15 @@
           <section class="source-filter-panel" aria-label="Source filter">
             <span>Sources</span>
             <div class="source-filter-list" id="sourceFilterList"></div>
+            <label class="source-sort-control" aria-label="Sort results">
+              <span>Sort:</span>
+              <select id="sortMode">
+                <option value="newest">Newest</option>
+                <option value="price-asc">Price low</option>
+                <option value="price-desc">Price high</option>
+                <option value="source">Source</option>
+              </select>
+            </label>
           </section>
 
           <section class="controls" aria-label="Result controls">
