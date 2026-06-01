@@ -177,7 +177,7 @@ a {
 
 .brand-wave-path {
   fill: none;
-  stroke: #000;
+  stroke: url("#brandWaveGradient");
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 1.75;
@@ -259,6 +259,7 @@ legend,
   min-height: 48px;
   padding-right: var(--quick-search-right-padding);
   overflow: hidden;
+  overflow-y: hidden;
   resize: none;
   line-height: 1.15;
   white-space: nowrap;
@@ -325,6 +326,7 @@ legend,
 }
 
 .quick-search-save,
+.quick-search-extra,
 .quick-search-submit {
   position: absolute;
   top: 50%;
@@ -340,6 +342,24 @@ legend,
   cursor: pointer;
   padding: 0;
   transform: translateY(-50%);
+}
+
+.quick-search-extra {
+  right: 96px;
+  width: auto;
+  min-width: 58px;
+  height: 32px;
+  border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--line));
+  background: color-mix(in srgb, var(--accent) 10%, var(--field));
+  color: var(--accent);
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.quick-search-extra[hidden] {
+  display: none;
 }
 
 .quick-search-save {
@@ -2492,6 +2512,10 @@ body[data-theme="dark"] .back-to-top:hover {
   --quick-search-text-nudge: 4px;
 }
 
+.search-terms-field.has-extra-terms .quick-search-input {
+  padding-right: calc(var(--quick-search-right-padding) + 76px);
+}
+
 .quick-search-input {
   padding: calc((var(--quick-search-height) - var(--quick-search-font-size)) / 2 - var(--quick-search-text-nudge)) var(--quick-search-right-padding) 0 var(--quick-search-left-padding);
   line-height: 1;
@@ -2508,6 +2532,10 @@ body[data-theme="dark"] .back-to-top:hover {
   width: clamp(36px, 3.1vw, 44px);
   height: clamp(36px, 3.1vw, 44px);
   font-size: clamp(21px, 1.8vw, 27px);
+}
+
+.quick-search-extra {
+  right: clamp(104px, 8.7vw, 132px);
 }
 
 .search-summary-arrow {
@@ -2832,6 +2860,18 @@ body[data-theme="dark"] .refine-backdrop {
     width: 38px;
     height: 38px;
     font-size: 23px;
+  }
+
+  .quick-search-extra {
+    right: 101px;
+    height: 30px;
+    min-width: 52px;
+    padding-inline: 8px;
+    font-size: 11px;
+  }
+
+  .search-terms-field.has-extra-terms .quick-search-input {
+    padding-right: calc(var(--quick-search-right-padding) + 58px);
   }
 
   .quick-search-submit {

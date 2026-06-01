@@ -411,9 +411,7 @@ const searchForm = document.querySelector("#searchForm");
 const termsInput = document.querySelector("#terms");
 const refineTermsInput = document.querySelector("#refineTerms");
 const termDropdown = document.querySelector("#termDropdown");
-const searchSummaryButton = document.querySelector("#openSearchTerms");
-const searchSummaryText = document.querySelector("#searchSummaryText");
-const searchSummaryCount = document.querySelector("#searchSummaryCount");
+const quickSearchExtraTermsButton = document.querySelector("#quickSearchExtraTerms");
 const resultGrid = document.querySelector("#resultGrid");
 const paginationControls = document.querySelector("#paginationControls");
 const paginationSummary = document.querySelector("#paginationSummary");
@@ -745,14 +743,6 @@ function initializeBrandWave() {
     wt += 0.025;
     hoverMix += ((pointerActive ? 1 : 0) - hoverMix) * 0.085;
 
-    const elapsed = (Date.now() - pageStart) / 1000;
-    const colorFade = Math.min(1, Math.max(0, (elapsed - COLOR_S) / 2));
-    const darkTheme = document.body.dataset.theme === "dark";
-    const red = darkTheme ? 255 : Math.round(255 * colorFade);
-    const green = darkTheme ? Math.round(255 * (1 - colorFade)) : 0;
-    const blue = darkTheme ? 255 : Math.round(255 * colorFade);
-    sinePath.style.stroke = `rgb(${red}, ${green}, ${blue})`;
-
     const p1 = Math.pow(Math.abs(Math.sin(wt * 2.1)), 1.6);
     const p2 = Math.pow(Math.abs(Math.sin(wt * 0.75 + 1.1)), 1.6);
     const reactiveAmp = 28 * Math.max(0.13, p1 * 0.65 + p2 * 0.35);
@@ -828,9 +818,7 @@ function initializeBrandWave() {
 function bindEvents() {
   searchForm.addEventListener("submit", (event) => {
     event.preventDefault();
-    if (refineSearchModal.hidden) {
-      syncPrimaryTermsToRefine();
-    } else {
+    if (!refineSearchModal.hidden) {
       syncRefineTermsToPrimary();
     }
     currentProfile = readProfileFromForm();
@@ -841,6 +829,7 @@ function bindEvents() {
   termsInput.addEventListener("input", handlePrimaryTermsInput);
   termsInput.addEventListener("keydown", handleQuickSearchKeydown);
   refineTermsInput.addEventListener("input", syncRefineTermsToPrimary);
+  quickSearchExtraTermsButton?.addEventListener("click", openRefineSearchModal);
   termDropdown.addEventListener("click", handleTermDropdownClick);
   document.addEventListener("click", closeListingActionMenus);
 
@@ -964,8 +953,8 @@ function renderSources() {
 
 function fillForm(profile) {
   const hydratedProfile = hydrateProfile(profile);
-  termsInput.value = hydratedProfile.terms.join("\n");
-  syncPrimaryTermsToRefine();
+  refineTermsInput.value = hydratedProfile.terms.join("\n");
+  renderPrimarySearchTerm();
   document.querySelector("#excludes").value = hydratedProfile.excludes.join("\n");
   document.querySelector("#noiseTerms").value = hydratedProfile.noiseTerms.join("\n");
   document.querySelector("#maxPrice").value = hydratedProfile.maxPrice;
@@ -978,7 +967,7 @@ function fillForm(profile) {
 }
 
 function readProfileFromForm() {
-  const terms = splitLines(termsInput.value);
+  const terms = getSearchTermsFromForm();
 
   return {
     name: getFormProfileName(terms),
@@ -1016,6 +1005,7 @@ function handleQuickSearchKeydown(event) {
 function handlePrimaryTermsInput() {
   clearSearchSpecificExcludesForNewTerms();
   syncPrimaryTermsToRefine();
+  renderPrimarySearchTerm();
 }
 
 function clearSearchSpecificExcludesForNewTerms() {
@@ -1030,7 +1020,9 @@ function clearSearchSpecificExcludesForNewTerms() {
 
 function openRefineSearchModal(event) {
   refineSearchReturnFocus = event?.currentTarget || document.activeElement;
-  syncPrimaryTermsToRefine();
+  if (!refineTermsInput.value.trim()) {
+    syncPrimaryTermsToRefine();
+  }
   renderRefineSummary();
   refineSearchModal.hidden = false;
   document.body.classList.add("modal-open");
@@ -1053,19 +1045,33 @@ function applyRefineSearchOnly() {
 }
 
 function syncPrimaryTermsToRefine() {
-  if (refineTermsInput.value === termsInput.value) return;
-  refineTermsInput.value = termsInput.value;
+  const primaryTerms = splitLines(termsInput.value);
+  const nextValue = primaryTerms.join("\n");
+  if (refineTermsInput.value === nextValue) return;
+  refineTermsInput.value = nextValue;
   renderSearchTermsSummary();
   renderRefineTermDropdown();
   updateQuickSaveSearchButton();
 }
 
 function syncRefineTermsToPrimary() {
-  if (termsInput.value === refineTermsInput.value) return;
-  termsInput.value = refineTermsInput.value;
+  renderPrimarySearchTerm();
   renderSearchTermsSummary();
   renderRefineTermDropdown();
   updateQuickSaveSearchButton();
+}
+
+function getSearchTermsFromForm() {
+  return splitLines(refineTermsInput.value || termsInput.value);
+}
+
+function renderPrimarySearchTerm() {
+  const terms = splitLines(refineTermsInput.value);
+  const primaryTerm = terms[0] || "";
+  if (termsInput.value !== primaryTerm) {
+    termsInput.value = primaryTerm;
+  }
+  renderSearchTermsSummary();
 }
 
 function renderRefineSummary() {
@@ -1082,20 +1088,21 @@ function renderRefineSummary() {
 }
 
 function renderSearchTermsSummary() {
-  if (!searchSummaryButton || !searchSummaryText || !searchSummaryCount) return;
+  if (!quickSearchExtraTermsButton) return;
 
-  const terms = splitLines(termsInput.value);
+  const terms = getSearchTermsFromForm();
   const primaryTerm = terms[0] || "Search terms";
   const extraCount = Math.max(0, terms.length - 1);
 
-  searchSummaryText.textContent = primaryTerm;
-  searchSummaryCount.hidden = extraCount === 0;
-  searchSummaryCount.textContent = `+${extraCount} ${extraCount === 1 ? "term" : "terms"}`;
-  searchSummaryButton.setAttribute("aria-label", `Edit search terms: ${primaryTerm}${extraCount > 0 ? `, plus ${extraCount} more` : ""}`);
+  termsInput.closest(".search-terms-field")?.classList.toggle("has-extra-terms", extraCount > 0);
+  quickSearchExtraTermsButton.hidden = extraCount === 0;
+  quickSearchExtraTermsButton.textContent = `+${extraCount} ${extraCount === 1 ? "term" : "terms"}`;
+  quickSearchExtraTermsButton.setAttribute("aria-label", `Edit ${extraCount} additional search ${extraCount === 1 ? "term" : "terms"} for ${primaryTerm}`);
+  quickSearchExtraTermsButton.title = "Edit additional terms";
 }
 
 function renderRefineTermDropdown() {
-  const terms = splitLines(refineTermsInput.value);
+  const terms = getSearchTermsFromForm();
   termDropdown.hidden = terms.length < 2;
   termDropdown.innerHTML = "";
 
