@@ -16,7 +16,7 @@
       }
     </style>
     <linearGradient id="linear-gradient" x1="17.7" y1="23.9" x2="6.3" y2="4.1" gradientTransform="translate(0 26) scale(1 -1)" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#b700ff"/>
+      <stop offset="0" stop-color="#f0f"/>
       <stop offset="1" stop-color="#0072ff"/>
     </linearGradient>
   </defs>

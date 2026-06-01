@@ -100,4 +100,27 @@ body[data-theme="dark"] {
   --shadow-elevated: 0 18px 50px rgba(0, 0, 0, 0.42);
   --shadow-card: 0 14px 34px rgba(0, 0, 0, 0.34);
   --focus-ring: 0 0 0 4px rgba(90, 167, 255, 0.18);
+
+  --bg: var(--color-bg);
+  --app-bg: var(--color-bg);
+  --panel: var(--color-panel);
+  --panel-soft: var(--color-panel-soft);
+  --panel-glass: var(--color-panel-glass);
+  --ink: var(--color-ink);
+  --muted: var(--color-muted);
+  --line: var(--color-line);
+  --field: var(--color-field);
+  --button-bg: var(--color-button-bg);
+  --primary: var(--color-primary);
+  --primary-ink: var(--color-primary-ink);
+  --accent: var(--color-accent);
+  --accent-soft: var(--color-accent-soft);
+  --accent-ink: var(--color-accent-ink);
+  --blue: var(--color-accent);
+  --green: var(--color-green);
+  --rose: var(--color-rose);
+  --amber: var(--color-amber);
+  --shadow: var(--shadow-elevated);
+  --card-shadow: var(--shadow-card);
+  --image-bg: var(--color-image-bg);
 }

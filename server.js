@@ -1,10 +1,11 @@
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
+import { networkInterfaces } from "node:os";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const PORT = Number(process.env.PORT || 5173);
-const HOST = process.env.HOST || "127.0.0.1";
+const HOST = process.env.HOST || "0.0.0.0";
 const ROOT = fileURLToPath(new URL(".", import.meta.url));
 const DIGIMART_BASE_URL = "https://www.digimart.net";
 const FIVE_G_BASE_URL = "https://fiveg.net";
@@ -82,8 +83,18 @@ createServer(async (request, response) => {
     });
   }
 }).listen(PORT, HOST, () => {
-  console.log(`Bumpers running at http://${HOST}:${PORT}`);
+  console.log(`Bumpers running locally at http://127.0.0.1:${PORT}`);
+  for (const url of getLanUrls(PORT)) {
+    console.log(`Bumpers available on your Wi-Fi at ${url}`);
+  }
 });
+
+function getLanUrls(port) {
+  return Object.values(networkInterfaces())
+    .flat()
+    .filter((details) => details && details.family === "IPv4" && !details.internal)
+    .map((details) => `http://${details.address}:${port}`);
+}
 
 for (const signal of ["SIGINT", "SIGTERM"]) {
   process.on(signal, async () => {

@@ -438,6 +438,10 @@ const settingsModal = document.querySelector("#settingsModal");
 const settingsForm = document.querySelector("#settingsForm");
 const currencyToggle = document.querySelector("#currencyToggle");
 const jpyPerUsdInput = document.querySelector("#jpyPerUsd");
+const exportSavedSearchesButton = document.querySelector("#exportSavedSearches");
+const importSavedSearchesButton = document.querySelector("#importSavedSearches");
+const savedSearchImportFile = document.querySelector("#savedSearchImportFile");
+const savedSearchTransferStatus = document.querySelector("#savedSearchTransferStatus");
 const backToTopButton = document.querySelector("#backToTop");
 let refineSearchReturnFocus = null;
 let saveSearchReturnFocus = null;
@@ -457,26 +461,21 @@ function initialize() {
 }
 
 function initializeBrandWave() {
-  const wrap = document.querySelector(".brand-wave-wrap");
   const svg = document.querySelector(".brand-wave-svg");
-  const path = document.querySelector("#brandWavePath");
-  if (!wrap || !svg || !path) return;
+  const sinePath = document.querySelector("#sinePath");
+  if (!svg || !sinePath) return;
 
-  const WIDTH = 1200;
-  const HEIGHT = 140;
-  const MID_Y = HEIGHT / 2;
-  const STEP = 12;
-  const BASE_AMPLITUDE = 24;
-  const WAVELENGTH = 180;
-  const SPEED = 0.16;
+  const W = 1200;
+  const MID = 70;
+  const STEP_SIN = 10;
   const RADIUS = 170;
-
-  const LOW_C_MAJOR = [
+  const CLEAN_AMP = 24;
+  const COLOR_S = 8;
+  const LOW_C = [
     65.41, 73.42, 82.41, 87.31, 98.00, 110.00, 123.47,
     130.81, 146.83, 164.81, 174.61, 196.00, 220.00, 246.94,
   ];
-
-  const ARP_CHORDS = [
+  const CHORDS = [
     [261.63, 329.63, 392.00, 523.25],
     [293.66, 349.23, 440.00, 587.33],
     [329.63, 392.00, 493.88, 659.25],
@@ -484,108 +483,100 @@ function initializeBrandWave() {
     [392.00, 493.88, 587.33, 783.99],
     [220.00, 261.63, 329.63, 440.00],
   ];
-
-  const ARP_PATTERNS = [
+  const PATTERNS = [
     [0, 1, 2, 3, 2, 1, 2, 1],
     [0, 2, 1, 3, 2, 1, 0, 2],
     [0, 1, 2, 1, 3, 2, 1, 0],
     [0, 2, 3, 2, 1, 2, 0, 1],
     [0, 1, 3, 2, 1, 0, 2, 3],
   ];
-
   const IDLE_NOTE = 130.81;
-  const IDLE_GAIN = 0.02;
-  const ACTIVE_GAIN = 0.055;
+  const IDLE_FIFTH = 196.00;
+  const IDLE_GAIN = 0.025;
+  const ACTIVE_GAIN = 0.08;
   const RELEASE_GAIN = 0.0001;
-  const ARP_TRIGGER_MS = 5000;
+  const ARP_MS = 5000;
+  const pageStart = Date.now();
 
-  let pointerX = WIDTH / 2;
-  let pointerActive = false;
-  let hoverMix = 0;
+  let wt = 0;
   let phase = 0;
   let lastTime = performance.now();
-  let lastNoteTime = 0;
-  let lastNote = IDLE_NOTE;
+  let pointerX = W / 2;
+  let pointerActive = false;
+  let hoverMix = 0;
+  let hoverStart = null;
   let hasRolledOut = false;
-  let hoverStartTime = null;
-  let arpeggioMode = false;
-  let arpSequence = [];
-  let arpIndex = 0;
-  let nextArpNoteTime = 0;
+  let lastNoteAt = 0;
+  let lastNote = IDLE_NOTE;
+  let arpMode = false;
+  let arpSeq = [];
+  let arpIdx = 0;
+  let nextArpAt = 0;
+  let osc2LastNote = IDLE_FIFTH;
+  let osc2ArpSeq = [];
   let audioCtx = null;
-  let osc = null;
-  let gain = null;
-  let filter = null;
-  let audioInitialized = false;
+  let osc1 = null;
+  let osc2 = null;
+  let osc2Mix = null;
+  let masterGain = null;
+  let filt = null;
+  let audioInit = false;
   let audioReady = false;
+  let osc2FadeScheduled = false;
 
-  function clamp(value, min, max) {
-    return Math.max(min, Math.min(max, value));
+  const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+
+  function noise(x, now) {
+    return Math.sin(x * 0.19 + now * 0.006) * 0.9
+      + Math.sin(x * 0.47 - now * 0.009) * 0.55
+      + Math.sin(x * 0.83 + now * 0.014) * 0.25;
   }
 
-  function smoothNoise(x, time) {
-    return (
-      Math.sin(x * 0.19 + time * 0.006) * 0.9 +
-      Math.sin(x * 0.47 - time * 0.009) * 0.55 +
-      Math.sin(x * 0.83 + time * 0.014) * 0.25
-    );
-  }
-
-  function svgXFromEvent(event) {
+  function svgX(event) {
     const rect = svg.getBoundingClientRect();
-    const ratio = WIDTH / rect.width;
-    return (event.clientX - rect.left) * ratio;
+    return (event.clientX - rect.left) * (W / rect.width);
   }
 
-  function buildPath(points) {
+  function buildBezier(points) {
     if (!points.length) return "";
     let d = `M ${points[0].x.toFixed(2)} ${points[0].y.toFixed(2)}`;
     for (let i = 1; i < points.length; i += 1) {
-      const prev = points[i - 1];
-      const curr = points[i];
-      const cx = ((prev.x + curr.x) / 2).toFixed(2);
-      d += ` Q ${prev.x.toFixed(2)} ${prev.y.toFixed(2)} ${cx} ${((prev.y + curr.y) / 2).toFixed(2)}`;
+      const previous = points[i - 1];
+      const current = points[i];
+      const mx = ((previous.x + current.x) / 2).toFixed(2);
+      const my = ((previous.y + current.y) / 2).toFixed(2);
+      d += ` Q ${previous.x.toFixed(2)} ${previous.y.toFixed(2)} ${mx} ${my}`;
     }
     const last = points[points.length - 1];
     d += ` T ${last.x.toFixed(2)} ${last.y.toFixed(2)}`;
     return d;
   }
 
-  function randomCNote() {
-    let next = lastNote;
-    while (next === lastNote) {
-      next = LOW_C_MAJOR[Math.floor(Math.random() * LOW_C_MAJOR.length)];
+  function pickNote(pool, avoid) {
+    let note = avoid;
+    while (note === avoid) {
+      note = pool[Math.floor(Math.random() * pool.length)];
     }
-    lastNote = next;
-    return next;
+    return note;
   }
 
-  function buildArpeggioSequence() {
-    const chord = ARP_CHORDS[Math.floor(Math.random() * ARP_CHORDS.length)];
-    const pattern = ARP_PATTERNS[Math.floor(Math.random() * ARP_PATTERNS.length)];
-    return pattern.map((index) => chord[index]);
+  function buildArp(chord) {
+    const selectedChord = chord || CHORDS[Math.floor(Math.random() * CHORDS.length)];
+    const pattern = PATTERNS[Math.floor(Math.random() * PATTERNS.length)];
+    return pattern.map((index) => selectedChord[index]);
   }
 
-  function startArpeggio(now) {
-    arpeggioMode = true;
-    arpSequence = buildArpeggioSequence();
-    arpIndex = 0;
-    nextArpNoteTime = now;
+  function newArpPair() {
+    const chord = CHORDS[Math.floor(Math.random() * CHORDS.length)];
+    arpSeq = buildArp(chord);
+    osc2ArpSeq = buildArp(chord);
+    arpIdx = 0;
   }
 
-  function stopArpeggio() {
-    arpeggioMode = false;
-    arpSequence = [];
-    arpIndex = 0;
-    nextArpNoteTime = 0;
-  }
-
-  async function ensureAudioRunning() {
+  async function resumeAudio() {
     if (!audioCtx) return;
     try {
-      if (audioCtx.state !== "running") {
-        await audioCtx.resume();
-      }
+      if (audioCtx.state !== "running") await audioCtx.resume();
       audioReady = audioCtx.state === "running";
     } catch {
       audioReady = false;
@@ -593,178 +584,225 @@ function initializeBrandWave() {
   }
 
   async function initAudio() {
-    if (audioInitialized) return;
-
+    if (audioInit) return;
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     if (!AudioContext) return;
 
     audioCtx = new AudioContext();
-    osc = audioCtx.createOscillator();
-    gain = audioCtx.createGain();
-    filter = audioCtx.createBiquadFilter();
+    const t0 = audioCtx.currentTime;
 
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(IDLE_NOTE, audioCtx.currentTime);
+    osc1 = audioCtx.createOscillator();
+    osc1.type = "sine";
+    osc1.frequency.setValueAtTime(IDLE_NOTE, t0);
 
-    filter.type = "lowpass";
-    filter.frequency.setValueAtTime(1400, audioCtx.currentTime);
-    filter.Q.setValueAtTime(0.4, audioCtx.currentTime);
+    osc2 = audioCtx.createOscillator();
+    osc2.type = "sawtooth";
+    osc2.frequency.setValueAtTime(IDLE_FIFTH, t0);
 
-    gain.gain.setValueAtTime(IDLE_GAIN, audioCtx.currentTime);
+    osc2Mix = audioCtx.createGain();
+    osc2Mix.gain.setValueAtTime(0, t0);
 
-    osc.connect(filter);
-    filter.connect(gain);
-    gain.connect(audioCtx.destination);
-    osc.start();
+    filt = audioCtx.createBiquadFilter();
+    filt.type = "lowpass";
+    filt.frequency.setValueAtTime(800, t0);
+    filt.Q.setValueAtTime(8, t0);
 
-    audioInitialized = true;
-    await ensureAudioRunning();
+    masterGain = audioCtx.createGain();
+    masterGain.gain.setValueAtTime(IDLE_GAIN, t0);
+
+    osc1.connect(filt);
+    osc2.connect(osc2Mix);
+    osc2Mix.connect(filt);
+    filt.connect(masterGain);
+    masterGain.connect(audioCtx.destination);
+
+    osc1.start();
+    osc2.start();
+
+    audioInit = true;
+    await resumeAudio();
+  }
+
+  function fadeInGain() {
+    if (!audioReady) return;
+    const time = audioCtx.currentTime;
+    masterGain.gain.cancelScheduledValues(time);
+    masterGain.gain.setValueAtTime(0, time);
+    masterGain.gain.linearRampToValueAtTime(ACTIVE_GAIN, time + 0.2);
+    hasRolledOut = false;
   }
 
   function engageAudio() {
-    if (!audioReady || !audioCtx || !osc || !gain || !filter) return;
+    if (!audioReady) return;
     const time = audioCtx.currentTime;
-    gain.gain.cancelScheduledValues(time);
-    gain.gain.setTargetAtTime(ACTIVE_GAIN, time, 0.035);
-    filter.frequency.cancelScheduledValues(time);
-    const brightness = 900 + (pointerX / WIDTH) * 2200;
-    filter.frequency.setTargetAtTime(brightness, time, 0.05);
+    filt.frequency.cancelScheduledValues(time);
+    filt.frequency.setTargetAtTime(300 + (pointerX / W) * 2200, time, 0.05);
     hasRolledOut = false;
   }
 
   function releaseAudio() {
-    if (!audioReady || !audioCtx || !osc || !gain || !filter) return;
+    if (!audioReady) return;
     const time = audioCtx.currentTime;
-    const current = Math.max(lastNote || IDLE_NOTE, 20);
-    const downTwoOctaves = Math.max(current / 4, 20);
+    const currentOne = Math.max(lastNote, 20);
+    const currentTwo = Math.max(osc2LastNote, 20);
 
-    osc.frequency.cancelScheduledValues(time);
-    osc.frequency.setValueAtTime(current, time);
-    osc.frequency.exponentialRampToValueAtTime(downTwoOctaves, time + 0.7);
+    osc1.frequency.cancelScheduledValues(time);
+    osc1.frequency.setValueAtTime(currentOne, time);
+    osc1.frequency.exponentialRampToValueAtTime(Math.max(currentOne / 4, 20), time + 0.7);
 
-    gain.gain.cancelScheduledValues(time);
-    gain.gain.setValueAtTime(Math.max(gain.gain.value, 0.0001), time);
-    gain.gain.exponentialRampToValueAtTime(RELEASE_GAIN, time + 0.7);
+    osc2.frequency.cancelScheduledValues(time);
+    osc2.frequency.setValueAtTime(currentTwo, time);
+    osc2.frequency.exponentialRampToValueAtTime(Math.max(currentTwo / 4, 20), time + 0.7);
 
-    filter.frequency.cancelScheduledValues(time);
-    filter.frequency.setTargetAtTime(700, time, 0.09);
+    masterGain.gain.cancelScheduledValues(time);
+    masterGain.gain.setValueAtTime(Math.max(masterGain.gain.value, 0.0001), time);
+    masterGain.gain.exponentialRampToValueAtTime(RELEASE_GAIN, time + 0.7);
+
+    filt.frequency.cancelScheduledValues(time);
+    filt.frequency.setTargetAtTime(200, time, 0.09);
     hasRolledOut = true;
   }
 
-  function playNote(note, time, glide = 0.035) {
-    if (!osc || !filter) return;
-    lastNote = note;
-    osc.frequency.cancelScheduledValues(time);
-    osc.frequency.setTargetAtTime(note, time, glide);
+  function playOsc1Note(frequency, glide = 0.035) {
+    if (!osc1) return;
+    lastNote = frequency;
+    const time = audioCtx.currentTime;
+    osc1.frequency.cancelScheduledValues(time);
+    osc1.frequency.setTargetAtTime(frequency, time, glide);
+    filt.frequency.cancelScheduledValues(time);
+    filt.frequency.setTargetAtTime(300 + (pointerX / W) * 2200 + Math.random() * 180, time, 0.04);
+  }
 
-    const brightness = 900 + (pointerX / WIDTH) * 2200 + Math.random() * 220;
-    filter.frequency.cancelScheduledValues(time);
-    filter.frequency.setTargetAtTime(brightness, time, 0.04);
+  function playOsc2Note(frequency, glide = 0.04) {
+    if (!osc2) return;
+    osc2LastNote = frequency;
+    const time = audioCtx.currentTime;
+    osc2.frequency.cancelScheduledValues(time);
+    osc2.frequency.setTargetAtTime(frequency, time, glide);
   }
 
   function updateAudio(now) {
-    if (!audioReady || !audioCtx || !osc || !gain || !filter) return;
+    if (!audioReady) return;
 
-    const time = audioCtx.currentTime;
+    const elapsed = (Date.now() - pageStart) / 1000;
+    if (elapsed >= COLOR_S && !osc2FadeScheduled && osc2Mix) {
+      osc2FadeScheduled = true;
+      const time = audioCtx.currentTime;
+      osc2Mix.gain.cancelScheduledValues(time);
+      osc2Mix.gain.setValueAtTime(osc2Mix.gain.value, time);
+      osc2Mix.gain.linearRampToValueAtTime(0.55, time + 2);
+    }
+
     if (pointerActive) {
       engageAudio();
 
-      if (!arpeggioMode && hoverStartTime !== null && now - hoverStartTime >= ARP_TRIGGER_MS) {
-        startArpeggio(now);
+      if (!arpMode && hoverStart !== null && now - hoverStart >= ARP_MS) {
+        arpMode = true;
+        nextArpAt = now;
+        newArpPair();
       }
 
-      if (arpeggioMode) {
-        if (now >= nextArpNoteTime) {
-          if (arpIndex >= arpSequence.length) {
-            arpSequence = buildArpeggioSequence();
-            arpIndex = 0;
-          }
-
-          const note = arpSequence[arpIndex];
-          arpIndex += 1;
-          playNote(note, time, 0.02);
-          nextArpNoteTime = now + 145 + Math.random() * 45;
+      if (arpMode) {
+        if (now >= nextArpAt) {
+          if (arpIdx >= arpSeq.length) newArpPair();
+          playOsc1Note(arpSeq[arpIdx], 0.02);
+          if (osc2FadeScheduled) playOsc2Note(osc2ArpSeq[arpIdx], 0.025);
+          arpIdx += 1;
+          nextArpAt = now + 145 + Math.random() * 45;
         }
-      } else if (now - lastNoteTime > 135) {
-        const note = randomCNote();
-        lastNoteTime = now;
-        playNote(note, time, 0.045);
+      } else if (now - lastNoteAt > 135) {
+        lastNoteAt = now;
+        lastNote = pickNote(LOW_C, lastNote);
+        playOsc1Note(lastNote, 0.045);
+        if (osc2FadeScheduled) {
+          osc2LastNote = pickNote(LOW_C, osc2LastNote);
+          playOsc2Note(osc2LastNote, 0.05);
+        }
       }
     } else if (!hasRolledOut) {
-      gain.gain.cancelScheduledValues(time);
-      gain.gain.setTargetAtTime(IDLE_GAIN, time, 0.18);
-      osc.frequency.cancelScheduledValues(time);
-      osc.frequency.setTargetAtTime(IDLE_NOTE, time, 0.08);
-      filter.frequency.cancelScheduledValues(time);
-      filter.frequency.setTargetAtTime(1400, time, 0.08);
+      const time = audioCtx.currentTime;
+      masterGain.gain.cancelScheduledValues(time);
+      masterGain.gain.setTargetAtTime(IDLE_GAIN, time, 0.18);
+      osc1.frequency.cancelScheduledValues(time);
+      osc1.frequency.setTargetAtTime(IDLE_NOTE, time, 0.08);
+      osc2.frequency.cancelScheduledValues(time);
+      osc2.frequency.setTargetAtTime(IDLE_FIFTH, time, 0.08);
+      filt.frequency.cancelScheduledValues(time);
+      filt.frequency.setTargetAtTime(800, time, 0.08);
     }
-  }
-
-  function renderStaticWave() {
-    const points = [];
-    for (let x = -40; x <= WIDTH + 40; x += STEP) {
-      const y = MID_Y + Math.sin((x / WAVELENGTH) * Math.PI * 2) * BASE_AMPLITUDE;
-      points.push({ x, y });
-    }
-    path.setAttribute("d", buildPath(points));
-  }
-
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-    renderStaticWave();
-    return;
   }
 
   function render(now) {
     const dt = now - lastTime;
     lastTime = now;
-    phase += dt * SPEED;
+    phase += dt * 0.16;
+    wt += 0.025;
+    hoverMix += ((pointerActive ? 1 : 0) - hoverMix) * 0.085;
 
-    const targetMix = pointerActive ? 1 : 0;
-    hoverMix += (targetMix - hoverMix) * 0.085;
+    const elapsed = (Date.now() - pageStart) / 1000;
+    const colorFade = Math.min(1, Math.max(0, (elapsed - COLOR_S) / 2));
+    const darkTheme = document.body.dataset.theme === "dark";
+    const red = darkTheme ? 255 : Math.round(255 * colorFade);
+    const green = darkTheme ? Math.round(255 * (1 - colorFade)) : 0;
+    const blue = darkTheme ? 255 : Math.round(255 * colorFade);
+    sinePath.style.stroke = `rgb(${red}, ${green}, ${blue})`;
 
-    const points = [];
-    for (let x = -40; x <= WIDTH + 40; x += STEP) {
-      const base = Math.sin(((x + phase) / WAVELENGTH) * Math.PI * 2) * BASE_AMPLITUDE;
-      const dx = x - pointerX;
-      const dist = Math.abs(dx);
-      const influence = clamp(1 - dist / RADIUS, 0, 1);
+    const p1 = Math.pow(Math.abs(Math.sin(wt * 2.1)), 1.6);
+    const p2 = Math.pow(Math.abs(Math.sin(wt * 0.75 + 1.1)), 1.6);
+    const reactiveAmp = 28 * Math.max(0.13, p1 * 0.65 + p2 * 0.35);
+
+    const sinePoints = [];
+    for (let x = -40; x <= W + 40; x += STEP_SIN) {
+      const cleanY = CLEAN_AMP * Math.sin(0.022 * x - wt * 2.8);
+      const reactiveY = reactiveAmp * Math.sin(0.022 * x - wt * 2.8)
+        + reactiveAmp * 0.3 * Math.sin(0.047 * x + wt * 1.7)
+        + reactiveAmp * 0.12 * Math.sin(0.095 * x - wt * 3.6)
+        + reactiveAmp * 0.06 * Math.sin(0.19 * x + wt * 5.3)
+        + reactiveAmp * 0.03 * Math.sin(0.38 * x - wt * 8.1);
+
+      const distance = Math.abs(x - pointerX);
+      const influence = clamp(1 - distance / RADIUS, 0, 1);
       const falloff = influence * influence * (3 - 2 * influence);
-      const scramble = smoothNoise(x, now) * 13 + Math.sin(x * 1.4 - now * 0.045) * 3.5;
-      const localLift = Math.sin((x + phase * 1.3) / 52) * 5;
-      const disruption = (scramble + localLift) * falloff * hoverMix;
-      const y = MID_Y + base + disruption;
-      points.push({ x, y });
+      const scramble = noise(x, now) * 13 + Math.sin(x * 1.4 - now * 0.045) * 3.5;
+      const lift = Math.sin((x + phase * 1.3) / 52) * 5;
+      const disruption = (scramble + lift) * falloff * hoverMix;
+      sinePoints.push({
+        x,
+        y: MID + cleanY + (reactiveY - cleanY) * hoverMix + disruption,
+      });
     }
+    sinePath.setAttribute("d", buildBezier(sinePoints));
 
-    path.setAttribute("d", buildPath(points));
     updateAudio(now);
     requestAnimationFrame(render);
   }
 
-  function handlePointer(event) {
-    pointerActive = true;
-    pointerX = svgXFromEvent(event);
-    if (hoverStartTime === null) hoverStartTime = performance.now();
-  }
+  async function wake(event) {
+    const freshEntry = event?.clientX !== undefined && hoverStart === null;
 
-  async function wakeAudioFromInteraction(event) {
-    if (event) handlePointer(event);
+    if (event?.clientX !== undefined) {
+      pointerActive = true;
+      pointerX = svgX(event);
+      if (hoverStart === null) hoverStart = performance.now();
+    }
+
     await initAudio();
-    await ensureAudioRunning();
+    await resumeAudio();
+    if (freshEntry) fadeInGain();
     engageAudio();
   }
 
-  initAudio();
-  window.addEventListener("load", ensureAudioRunning);
-  svg.addEventListener("pointerenter", wakeAudioFromInteraction);
-  svg.addEventListener("pointermove", wakeAudioFromInteraction);
-  wrap.addEventListener("pointerdown", wakeAudioFromInteraction);
-  wrap.addEventListener("touchstart", wakeAudioFromInteraction, { passive: true });
-
+  svg.addEventListener("pointerenter", wake);
+  svg.addEventListener("pointermove", wake);
+  svg.addEventListener("pointerdown", wake);
+  svg.addEventListener("touchstart", wake, { passive: true });
   svg.addEventListener("pointerleave", () => {
     pointerActive = false;
-    hoverStartTime = null;
-    stopArpeggio();
+    hoverStart = null;
+    arpMode = false;
+    arpSeq = [];
+    osc2ArpSeq = [];
+    arpIdx = 0;
     releaseAudio();
   });
 
@@ -774,7 +812,7 @@ function initializeBrandWave() {
       await audioCtx.suspend();
       audioReady = false;
     } else {
-      await ensureAudioRunning();
+      await resumeAudio();
     }
   });
 
@@ -836,6 +874,9 @@ function bindEvents() {
     event.preventDefault();
     saveSettingsFromModal();
   });
+  exportSavedSearchesButton.addEventListener("click", exportSavedSearches);
+  importSavedSearchesButton.addEventListener("click", () => savedSearchImportFile.click());
+  savedSearchImportFile.addEventListener("change", importSavedSearchesFromFile);
 
   topWatchingFilter.addEventListener("click", toggleWatchingFilter);
 
@@ -885,10 +926,7 @@ function bindEvents() {
     changePage(button.dataset.pageAction);
   });
 
-  themeToggle.addEventListener("click", () => {
-    const nextTheme = document.body.dataset.theme === "dark" ? "light" : "dark";
-    setTheme(nextTheme);
-  });
+  themeToggle.addEventListener("click", toggleTheme, { capture: true });
 
   backToTopButton.addEventListener("click", scrollPageTop);
   window.addEventListener("scroll", requestBackToTopVisibilityUpdate, { passive: true });
@@ -900,6 +938,13 @@ function bindEvents() {
     if (!saveSearchModal.hidden) closeSaveSearchModal();
     if (!settingsModal.hidden) closeSettingsModal();
   });
+}
+
+function toggleTheme(event) {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+  const nextTheme = document.body.dataset.theme === "dark" ? "light" : "dark";
+  setTheme(nextTheme);
 }
 
 function renderSources() {
@@ -1187,6 +1232,7 @@ function saveCurrentSearchFromModal() {
 function openSettingsModal(event) {
   settingsReturnFocus = event?.currentTarget || document.activeElement;
   fillSettingsForm();
+  setSavedSearchTransferStatus("");
   settingsModal.hidden = false;
   document.body.classList.add("modal-open");
   currencyToggle.focus();
@@ -1215,6 +1261,104 @@ function saveSettingsFromModal() {
   renderRefineSummary();
   renderResults();
   closeSettingsModal();
+}
+
+function exportSavedSearches() {
+  const profiles = loadProfiles();
+  if (profiles.length === 0) {
+    setSavedSearchTransferStatus("No saved searches to export.");
+    return;
+  }
+
+  const payload = {
+    app: "Bumpers",
+    type: "saved-searches",
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    profiles: profiles.map((profile) => hydrateProfile(profile)),
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const link = document.createElement("a");
+  const objectUrl = URL.createObjectURL(blob);
+  const dateSlug = new Date().toISOString().slice(0, 10);
+  link.href = objectUrl;
+  link.download = `bumpers-saved-searches-${dateSlug}.json`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(objectUrl);
+  setSavedSearchTransferStatus(`Exported ${profiles.length} saved ${profiles.length === 1 ? "search" : "searches"}.`);
+}
+
+async function importSavedSearchesFromFile(event) {
+  const [file] = event.target.files || [];
+  if (!file) return;
+
+  try {
+    const text = await file.text();
+    const importedProfiles = parseSavedSearchImport(text);
+    if (importedProfiles.length === 0) {
+      setSavedSearchTransferStatus("That file did not include saved searches.");
+      return;
+    }
+
+    const existingProfiles = loadProfiles();
+    const existingByName = new Map(existingProfiles.map((profile) => [profile.name, profile]));
+    const duplicateCount = importedProfiles.filter((profile) => existingByName.has(profile.name)).length;
+    if (duplicateCount > 0) {
+      const confirmed = window.confirm(`Import will replace ${duplicateCount} saved ${duplicateCount === 1 ? "search" : "searches"} with the same name. Continue?`);
+      if (!confirmed) {
+        setSavedSearchTransferStatus("Import canceled.");
+        return;
+      }
+    }
+
+    const importedNames = new Set(importedProfiles.map((profile) => profile.name));
+    const mergedProfiles = [
+      ...importedProfiles,
+      ...existingProfiles.filter((profile) => !importedNames.has(profile.name)),
+    ];
+    localStorage.setItem(STORAGE_KEYS.profiles, JSON.stringify(mergedProfiles));
+    renderSavedSearches();
+    updateQuickSaveSearchButton();
+    setSavedSearchTransferStatus(`Imported ${importedProfiles.length} saved ${importedProfiles.length === 1 ? "search" : "searches"}.`);
+  } catch (error) {
+    setSavedSearchTransferStatus(error instanceof Error ? error.message : "Could not import saved searches.");
+  } finally {
+    event.target.value = "";
+  }
+}
+
+function parseSavedSearchImport(text) {
+  let payload;
+  try {
+    payload = JSON.parse(text);
+  } catch {
+    throw new Error("That file is not valid JSON.");
+  }
+
+  const rawProfiles = Array.isArray(payload)
+    ? payload
+    : Array.isArray(payload?.profiles)
+      ? payload.profiles
+      : [];
+
+  return rawProfiles
+    .filter((profile) => profile
+      && typeof profile.name === "string"
+      && profile.name.trim()
+      && Array.isArray(profile.terms)
+      && profile.terms.some((term) => typeof term === "string" && term.trim()))
+    .map((profile) => hydrateProfile({
+      ...profile,
+      name: profile.name.trim(),
+    }))
+    .filter((profile) => profile.name && profile.terms.length > 0);
+}
+
+function setSavedSearchTransferStatus(message) {
+  if (!savedSearchTransferStatus) return;
+  savedSearchTransferStatus.textContent = message;
 }
 
 function splitLines(value) {
