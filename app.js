@@ -5,6 +5,7 @@ const SOURCES = [
   { id: "rakuma", label: "Rakuma", icon: "Ra", color: "green", logo: "assets/logos/ICONS/rakuma_ic.svg" },
   { id: "digimart", label: "Digimart", icon: "D", color: "blue" },
   { id: "reverb", label: "Reverb", icon: "Rv", color: "orange" },
+  { id: "jimoty", label: "Jimoty", icon: "Jm", color: "orange" },
   { id: "offmall", label: "OFFMALL", icon: "O", color: "green", logo: "assets/logos/ICONS/hardoff-ic.svg" },
   { id: "five-g", label: "Five G", icon: "5G", color: "amber" },
   { id: "implant4", label: "implant4", icon: "i4", color: "rose" },
@@ -12,8 +13,8 @@ const SOURCES = [
 ];
 
 const LEGACY_DEFAULT_SOURCE_IDS = ["mercari", "yahoo-auctions", "yahoo-fleamarket", "rakuma", "digimart", "offmall", "five-g", "implant4", "hardoff"];
-const LIVE_SOURCE_IDS = ["mercari", "yahoo-auctions", "yahoo-fleamarket", "rakuma", "digimart", "reverb", "offmall", "five-g", "implant4", "hardoff"];
-const LIVE_SOURCE_DISPLAY_ORDER = ["yahoo-auctions", "yahoo-fleamarket", "digimart", "reverb", "offmall", "five-g", "implant4", "hardoff", "mercari", "rakuma"];
+const LIVE_SOURCE_IDS = ["mercari", "yahoo-auctions", "yahoo-fleamarket", "rakuma", "digimart", "reverb", "jimoty", "offmall", "five-g", "implant4", "hardoff"];
+const LIVE_SOURCE_DISPLAY_ORDER = ["yahoo-auctions", "yahoo-fleamarket", "digimart", "reverb", "jimoty", "offmall", "five-g", "implant4", "hardoff", "mercari", "rakuma"];
 const RESULTS_PER_PAGE = 48;
 const FEATURED_HOME_LIMIT = 12;
 const FEATURED_HOME_ALERT_LIMIT = 6;
@@ -24,6 +25,7 @@ const SOURCE_ACCENT_TOKENS = {
   rakuma: "--source-rakuma",
   digimart: "--source-digimart",
   reverb: "--source-reverb",
+  jimoty: "--source-jimoty",
   offmall: "--source-offmall",
   "five-g": "--source-five-g",
   implant4: "--source-implant4",
@@ -37,6 +39,7 @@ const SOURCE_METADATA_ALIASES = {
   rakuma: ["Rakuma", "ラクマ"],
   digimart: ["Digimart", "デジマート"],
   reverb: ["Reverb", "Reverb.com"],
+  jimoty: ["Jimoty", "ジモティー", "ジモティ"],
   offmall: ["OFFMALL", "Off Mall", "Hard Off", "ハードオフ"],
   "five-g": ["Five G", "FIVE G", "Five G music technology"],
   implant4: ["implant4", "Implant4"],
@@ -1005,7 +1008,6 @@ function handleQuickSearchKeydown(event) {
 function handlePrimaryTermsInput() {
   clearSearchSpecificExcludesForNewTerms();
   syncPrimaryTermsToRefine();
-  renderPrimarySearchTerm();
 }
 
 function clearSearchSpecificExcludesForNewTerms() {
@@ -1516,6 +1518,10 @@ function createLiveSearchGroups(profile) {
 
   if (selectedSources.has("reverb")) {
     groups.push({ id: "reverb", sources: ["reverb"] });
+  }
+
+  if (selectedSources.has("jimoty")) {
+    groups.push({ id: "jimoty", sources: ["jimoty"] });
   }
 
   if (selectedSources.has("offmall") || selectedSources.has("hardoff")) {
@@ -2967,8 +2973,10 @@ function hydrateSourceSelection(sources) {
   const selectedSources = sources.filter((source) => knownSourceIds.includes(source));
   const hadEveryLegacyDefault = LEGACY_DEFAULT_SOURCE_IDS.every((source) => selectedSources.includes(source));
 
-  if (hadEveryLegacyDefault && !selectedSources.includes("reverb")) {
-    selectedSources.push("reverb");
+  if (hadEveryLegacyDefault) {
+    ["reverb", "jimoty"].forEach((source) => {
+      if (!selectedSources.includes(source)) selectedSources.push(source);
+    });
   }
 
   return [...new Set(selectedSources)];

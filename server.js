@@ -10,6 +10,7 @@ const ROOT = fileURLToPath(new URL(".", import.meta.url));
 const DIGIMART_BASE_URL = "https://www.digimart.net";
 const FIVE_G_BASE_URL = "https://fiveg.net";
 const IMPLANT4_BASE_URL = "https://shop.implant4.com";
+const JIMOTY_BASE_URL = "https://jmty.jp";
 const MERCARI_BASE_URL = "https://jp.mercari.com";
 const OFFMALL_BASE_URL = "https://netmall.hardoff.co.jp";
 const RAKUMA_BASE_URL = "https://fril.jp";
@@ -111,6 +112,7 @@ async function handleSearch(url, response) {
   const wantsDigimart = sources.length === 0 || sources.includes("digimart");
   const wantsFiveG = sources.length === 0 || sources.includes("five-g");
   const wantsImplant4 = sources.length === 0 || sources.includes("implant4");
+  const wantsJimoty = sources.length === 0 || sources.includes("jimoty");
   const wantsMercari = sources.length === 0 || sources.includes("mercari");
   const wantsOffmall = sources.length === 0 || sources.includes("offmall") || sources.includes("hardoff");
   const wantsRakuma = sources.length === 0 || sources.includes("rakuma");
@@ -119,7 +121,7 @@ async function handleSearch(url, response) {
   const wantsYahooFleamarket = sources.length === 0 || sources.includes("yahoo-fleamarket");
   const startedAt = new Date();
 
-  if ((!wantsDigimart && !wantsFiveG && !wantsImplant4 && !wantsMercari && !wantsOffmall && !wantsRakuma && !wantsReverb && !wantsYahooAuctions && !wantsYahooFleamarket) || terms.length === 0) {
+  if ((!wantsDigimart && !wantsFiveG && !wantsImplant4 && !wantsJimoty && !wantsMercari && !wantsOffmall && !wantsRakuma && !wantsReverb && !wantsYahooAuctions && !wantsYahooFleamarket) || terms.length === 0) {
     sendJson(response, 200, { listings: [], meta: createSearchMeta(startedAt, [], [], terms) });
     return;
   }
@@ -141,6 +143,12 @@ async function handleSearch(url, response) {
 
   if (wantsImplant4) {
     sourceTasks.push(searchSourceTerms("implant4", terms, searchImplant4, {
+      maxTerms: 3,
+    }));
+  }
+
+  if (wantsJimoty) {
+    sourceTasks.push(searchSourceTerms("jimoty", terms, searchJimoty, {
       maxTerms: 3,
     }));
   }
@@ -298,6 +306,8 @@ function isUnavailableListing(listing) {
     "成約済",
     "ended",
     "終了",
+    "受付終了",
+    "closed",
   ].some((token) => status.includes(normalizeText(token)));
 }
 
@@ -414,6 +424,24 @@ async function searchImplant4(term) {
   }
 
   return parseImplant4(await response.text());
+}
+
+async function searchJimoty(term) {
+  const url = new URL("/all/sale-inc", JIMOTY_BASE_URL);
+  url.searchParams.set("keyword", term);
+
+  const response = await fetch(url, {
+    headers: {
+      "user-agent": USER_AGENT,
+      "accept-language": "ja,en-US;q=0.9,en;q=0.8",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Jimoty responded with ${response.status}`);
+  }
+
+  return parseJimoty(await decodeResponseBody(response));
 }
 
 async function searchMercari(term) {
@@ -744,6 +772,38 @@ function parseImplant4(html) {
       image,
     };
   }).filter((listing) => listing.id !== "implant4-" && listing.title && listing.url && listing.price > 0);
+}
+
+function parseJimoty(html) {
+  const blocks = splitHtmlBlocks(html, /<li class='p-articles-list-item'>/g);
+
+  return blocks.map((block) => {
+    const href = readAttributeFromPattern(block, /<a[^>]+class="p-item-image-link"[^>]+href="([^"]+)"/i)
+      || readAttributeFromPattern(block, /<a[^>]+href="([^"]+)"[^>]*>[\s\S]*?<\/a>/i);
+    const url = normalizeRelativeUrl(href, JIMOTY_BASE_URL);
+    const rawId = url.match(/\/article-([^/?#]+)/)?.[1] || href;
+    const title = cleanText(matchOne(block, /<div class='p-item-title'>[\s\S]*?<a[^>]*>([\s\S]*?)<\/a>/i))
+      || cleanText(readAttributeFromPattern(block, /<img[^>]+alt="([^"]+)"/i));
+    const price = parseYenPrice(matchOne(block, /<div class='p-item-most-important'>[\s\S]*?<b>([\s\S]*?)<\/b>/i));
+    const image = normalizeRelativeUrl(readAttributeFromPattern(block, /<img[^>]+class="p-item-image"[^>]+src="([^"]+)"/i), JIMOTY_BASE_URL);
+    const closeLabel = cleanText(matchOne(block, /<div class='p-item-close-text'>[\s\S]*?([\s\S]*?)<\/div>/i));
+    const area = cleanText(matchOne(block, /<div class='p-item-secondary-important'>[\s\S]*?<a[^>]*>([\s\S]*?)<\/a>/i));
+    const category = cleanText(matchOne(block, /<a href="\/all\/sale-inc\/g-[^"]+">([\s\S]*?)<\/a>/i));
+    const createdAt = cleanText(matchOne(block, /<div class='u-color-gray'>[\s\S]*?作成(\d{1,2}月\d{1,2}日)[\s\S]*?<\/div>/i));
+
+    return {
+      id: `jimoty-${rawId}`,
+      source: "jimoty",
+      title,
+      price,
+      condition: closeLabel || "Listed",
+      shop: ["Jimoty", area, category].filter(Boolean).join(" · "),
+      listedAt: parseJapaneseMonthDay(createdAt) || new Date().toISOString(),
+      url,
+      image,
+      categoryPath: category ? [category] : [],
+    };
+  }).filter((listing) => listing.id !== "jimoty-" && listing.title && listing.url);
 }
 
 function parseOffmall(html) {
@@ -1252,6 +1312,20 @@ function normalizeText(value) {
 function unixTimestampToIso(timestamp) {
   if (!timestamp) return "";
   return new Date(timestamp * 1000).toISOString();
+}
+
+function parseJapaneseMonthDay(value) {
+  const match = String(value || "").match(/(\d{1,2})月(\d{1,2})日/);
+  if (!match) return "";
+
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = Number(match[1]);
+  const day = Number(match[2]);
+  if (!month || !day) return "";
+
+  const date = new Date(Date.UTC(year, month - 1, day, 0, 0, 0));
+  return Number.isNaN(date.getTime()) ? "" : date.toISOString();
 }
 
 function createSourcePlaceholderImage(label, color) {
