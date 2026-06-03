@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import { readFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { networkInterfaces } from "node:os";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -7,6 +7,9 @@ import { fileURLToPath } from "node:url";
 const PORT = Number(process.env.PORT || 5173);
 const HOST = process.env.HOST || "0.0.0.0";
 const ROOT = fileURLToPath(new URL(".", import.meta.url));
+const CLOUD_DATA_FILE = join(ROOT, "data", "cloud-saved-searches.json");
+const CLOUD_PROFILE_USER_ID = "local";
+const CLOUD_PROFILE_EMAIL = "local@bumpers.dev";
 const DIGIMART_BASE_URL = "https://www.digimart.net";
 const FIVE_G_BASE_URL = "https://fiveg.net";
 const IMPLANT4_BASE_URL = "https://shop.implant4.com";
@@ -66,6 +69,11 @@ createServer(async (request, response) => {
       return;
     }
 
+    if (url.pathname === "/api/cloud/saved-searches") {
+      await handleCloudSavedSearches(request, response);
+      return;
+    }
+
     if (url.pathname === "/api/rakuma-image") {
       await handleRakumaImageProxy(url, response);
       return;
@@ -102,6 +110,84 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
     await closeMercariBrowser();
     process.exit(0);
   });
+}
+
+async function handleCloudSavedSearches(request, response) {
+  if (request.method === "GET") {
+    sendJson(response, 200, await readCloudSavedSearches());
+    return;
+  }
+
+  if (request.method === "PUT") {
+    const payload = await readJsonBody(request);
+    const nextCloudState = createCloudSavedSearchState(payload);
+    await writeCloudSavedSearches(nextCloudState);
+    sendJson(response, 200, nextCloudState);
+    return;
+  }
+
+  response.writeHead(405, {
+    "allow": "GET, PUT",
+    "content-type": "application/json; charset=utf-8",
+  });
+  response.end(JSON.stringify({ error: "method_not_allowed" }));
+}
+
+async function readCloudSavedSearches() {
+  try {
+    const cloudState = JSON.parse(await readFile(CLOUD_DATA_FILE, "utf8"));
+    return createCloudSavedSearchState(cloudState);
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+    const emptyState = createCloudSavedSearchState();
+    await writeCloudSavedSearches(emptyState);
+    return emptyState;
+  }
+}
+
+async function writeCloudSavedSearches(payload) {
+  await mkdir(join(ROOT, "data"), { recursive: true });
+  await writeFile(CLOUD_DATA_FILE, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
+}
+
+async function readJsonBody(request) {
+  let body = "";
+
+  for await (const chunk of request) {
+    body += chunk;
+    if (body.length > 1_000_000) {
+      throw new Error("Cloud saved-search payload is too large.");
+    }
+  }
+
+  if (!body.trim()) return {};
+  return JSON.parse(body);
+}
+
+function createCloudSavedSearchState(payload = {}) {
+  const now = new Date().toISOString();
+  const profiles = Array.isArray(payload.profiles)
+    ? payload.profiles
+      .filter((profile) => profile && typeof profile === "object")
+      .map((profile) => ({
+        ...profile,
+        userId: typeof profile.userId === "string" && profile.userId.trim() ? profile.userId.trim() : CLOUD_PROFILE_USER_ID,
+      }))
+    : [];
+
+  return {
+    app: "Bumpers",
+    type: "saved-searches",
+    schemaVersion: Number(payload.schemaVersion) || 1,
+    storage: "cloud-emulator",
+    user: {
+      id: payload.user?.id || CLOUD_PROFILE_USER_ID,
+      email: payload.user?.email || CLOUD_PROFILE_EMAIL,
+      name: payload.user?.name || "Local Bumpers User",
+    },
+    updatedAt: now,
+    profiles,
+  };
 }
 
 async function handleSearch(url, response) {

@@ -366,6 +366,11 @@ const STORAGE_KEYS = {
 
 const SAVED_SEARCH_SCHEMA_VERSION = 1;
 const LOCAL_PROFILE_USER_ID = "local";
+const CLOUD_EMULATOR_USER = {
+  id: LOCAL_PROFILE_USER_ID,
+  email: "local@bumpers.dev",
+  name: "Local Bumpers User",
+};
 const savedSearchRepository = createSavedSearchRepository({
   storageKey: STORAGE_KEYS.profiles,
 });
@@ -445,6 +450,9 @@ const settingsModal = document.querySelector("#settingsModal");
 const settingsForm = document.querySelector("#settingsForm");
 const currencyToggle = document.querySelector("#currencyToggle");
 const jpyPerUsdInput = document.querySelector("#jpyPerUsd");
+const cloudProfileEmail = document.querySelector("#cloudProfileEmail");
+const pullCloudSavedSearchesButton = document.querySelector("#pullCloudSavedSearches");
+const pushCloudSavedSearchesButton = document.querySelector("#pushCloudSavedSearches");
 const exportSavedSearchesButton = document.querySelector("#exportSavedSearches");
 const importSavedSearchesButton = document.querySelector("#importSavedSearches");
 const savedSearchImportFile = document.querySelector("#savedSearchImportFile");
@@ -872,6 +880,8 @@ function bindEvents() {
     event.preventDefault();
     saveSettingsFromModal();
   });
+  pullCloudSavedSearchesButton.addEventListener("click", pullCloudSavedSearches);
+  pushCloudSavedSearchesButton.addEventListener("click", pushCloudSavedSearches);
   exportSavedSearchesButton.addEventListener("click", exportSavedSearches);
   importSavedSearchesButton.addEventListener("click", () => savedSearchImportFile.click());
   savedSearchImportFile.addEventListener("change", importSavedSearchesFromFile);
@@ -1264,6 +1274,7 @@ function closeSettingsModal() {
 function fillSettingsForm() {
   currencyToggle.checked = appSettings.currency === "USD";
   jpyPerUsdInput.value = appSettings.jpyPerUsd;
+  if (cloudProfileEmail) cloudProfileEmail.textContent = CLOUD_EMULATOR_USER.email;
 }
 
 function saveSettingsFromModal() {
@@ -1276,6 +1287,131 @@ function saveSettingsFromModal() {
   renderRefineSummary();
   renderResults();
   closeSettingsModal();
+}
+
+async function pullCloudSavedSearches() {
+  setSavedSearchTransferStatus("Pulling saved searches from cloud emulator...");
+  setCloudSyncButtonsDisabled(true);
+
+  try {
+    const payload = await fetchCloudSavedSearches();
+    const cloudProfiles = parseSavedSearchProfilesFromPayload(payload)
+      .map((profile) => prepareCloudProfileForLocal(profile, payload.updatedAt));
+
+    if (cloudProfiles.length === 0) {
+      setSavedSearchTransferStatus("Cloud emulator has no saved searches yet.");
+      return;
+    }
+
+    const importPreview = savedSearchRepository.previewMerge(cloudProfiles);
+    if (importPreview.duplicateCount > 0) {
+      const confirmed = window.confirm(`Cloud pull will replace ${importPreview.duplicateCount} local saved ${importPreview.duplicateCount === 1 ? "search" : "searches"} with matching cloud versions. Continue?`);
+      if (!confirmed) {
+        setSavedSearchTransferStatus("Cloud pull canceled.");
+        return;
+      }
+    }
+
+    savedSearchRepository.replaceAll(importPreview.mergedProfiles);
+    renderSavedSearches();
+    updateQuickSaveSearchButton();
+    setSavedSearchTransferStatus(`Pulled ${cloudProfiles.length} saved ${cloudProfiles.length === 1 ? "search" : "searches"} from cloud emulator.`);
+  } catch (error) {
+    setSavedSearchTransferStatus(error instanceof Error ? error.message : "Could not pull from cloud emulator.");
+  } finally {
+    setCloudSyncButtonsDisabled(false);
+  }
+}
+
+async function pushCloudSavedSearches() {
+  const localProfiles = savedSearchRepository.list();
+  if (localProfiles.length === 0) {
+    setSavedSearchTransferStatus("No saved searches to push.");
+    return;
+  }
+
+  setSavedSearchTransferStatus("Pushing saved searches to cloud emulator...");
+  setCloudSyncButtonsDisabled(true);
+
+  try {
+    const syncedAt = new Date().toISOString();
+    const profiles = localProfiles.map((profile) => prepareLocalProfileForCloud(profile, syncedAt));
+    const payload = await putCloudSavedSearches({
+      app: "Bumpers",
+      type: "saved-searches",
+      schemaVersion: SAVED_SEARCH_SCHEMA_VERSION,
+      storage: "cloud-emulator",
+      user: CLOUD_EMULATOR_USER,
+      profiles,
+    });
+    const syncedProfiles = parseSavedSearchProfilesFromPayload(payload)
+      .map((profile) => prepareCloudProfileForLocal(profile, payload.updatedAt));
+
+    if (syncedProfiles.length > 0) {
+      savedSearchRepository.replaceAll(syncedProfiles);
+      renderSavedSearches();
+      updateQuickSaveSearchButton();
+    }
+
+    setSavedSearchTransferStatus(`Pushed ${profiles.length} saved ${profiles.length === 1 ? "search" : "searches"} to cloud emulator.`);
+  } catch (error) {
+    setSavedSearchTransferStatus(error instanceof Error ? error.message : "Could not push to cloud emulator.");
+  } finally {
+    setCloudSyncButtonsDisabled(false);
+  }
+}
+
+async function fetchCloudSavedSearches() {
+  const response = await fetch("/api/cloud/saved-searches", { cache: "no-store" });
+  if (!response.ok) throw new Error(`Cloud emulator responded with ${response.status}.`);
+  return response.json();
+}
+
+async function putCloudSavedSearches(payload) {
+  const response = await fetch("/api/cloud/saved-searches", {
+    method: "PUT",
+    headers: {
+      "content-type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) throw new Error(`Cloud emulator responded with ${response.status}.`);
+  return response.json();
+}
+
+function setCloudSyncButtonsDisabled(disabled) {
+  pullCloudSavedSearchesButton.disabled = disabled;
+  pushCloudSavedSearchesButton.disabled = disabled;
+}
+
+function prepareLocalProfileForCloud(profile, syncedAt = new Date().toISOString()) {
+  return hydrateProfile({
+    ...profile,
+    userId: CLOUD_EMULATOR_USER.id,
+    updatedAt: profile.updatedAt || syncedAt,
+    sync: {
+      ...profile.sync,
+      provider: "cloud-emulator",
+      remoteId: profile.sync?.remoteId || profile.id,
+      status: "synced",
+      lastSyncedAt: syncedAt,
+    },
+  });
+}
+
+function prepareCloudProfileForLocal(profile, syncedAt = new Date().toISOString()) {
+  return hydrateProfile({
+    ...profile,
+    userId: CLOUD_EMULATOR_USER.id,
+    sync: {
+      ...profile.sync,
+      provider: "cloud-emulator",
+      remoteId: profile.sync?.remoteId || profile.id,
+      status: "synced",
+      lastSyncedAt: isIsoTimestamp(syncedAt) ? syncedAt : new Date().toISOString(),
+    },
+  });
 }
 
 function exportSavedSearches() {
@@ -1340,6 +1476,10 @@ function parseSavedSearchImport(text) {
     throw new Error("That file is not valid JSON.");
   }
 
+  return parseSavedSearchProfilesFromPayload(payload);
+}
+
+function parseSavedSearchProfilesFromPayload(payload) {
   const rawProfiles = Array.isArray(payload)
     ? payload
     : Array.isArray(payload?.profiles)

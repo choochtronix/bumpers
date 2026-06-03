@@ -778,9 +778,7 @@ fieldset {
   width: 18px;
   height: 18px;
   flex: 0 0 auto;
-  background: currentColor;
-  -webkit-mask: url("assets/ICONS-site/icon-refine.svg") center / contain no-repeat;
-  mask: url("assets/ICONS-site/icon-refine.svg") center / contain no-repeat;
+  background: url("assets/ICONS-site/icon-refine.svg") center / contain no-repeat;
 }
 
 .saved-panel {
@@ -961,6 +959,26 @@ fieldset {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
+}
+
+.settings-cloud-profile {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--panel-soft);
+}
+
+.settings-cloud-profile span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.settings-cloud-profile strong {
+  font-size: 15px;
 }
 
 .settings-status {
@@ -2707,9 +2725,8 @@ body[data-theme="dark"] .back-to-top:hover {
 }
 
 .refine-backdrop {
-  align-items: flex-start;
-  justify-content: flex-start;
-  padding: clamp(120px, 11vw, 170px) clamp(22px, 3vw, 42px) 34px;
+  place-items: center;
+  padding: clamp(16px, 4vw, 42px);
   background: color-mix(in srgb, var(--bg) 50%, rgba(255, 255, 255, 0.46));
   backdrop-filter: blur(18px) saturate(0.82);
 }
@@ -2720,10 +2737,10 @@ body[data-theme="dark"] .refine-backdrop {
 
 .refine-modal {
   width: min(860px, calc(100vw - 44px));
-  max-height: calc(100vh - 150px);
+  max-height: calc(100vh - clamp(32px, 8vw, 84px));
   border-radius: var(--radius-sheet);
   animation: refineDrop 170ms ease-out;
-  transform-origin: top left;
+  transform-origin: center center;
 }
 
 @keyframes refineDrop {
@@ -2923,8 +2940,7 @@ body[data-theme="dark"] .refine-backdrop {
   }
 
   .refine-backdrop {
-    align-items: end;
-    justify-content: center;
+    place-items: center;
     padding: 10px;
   }
 
@@ -2932,7 +2948,7 @@ body[data-theme="dark"] .refine-backdrop {
     width: 100%;
     max-height: calc(100vh - 20px);
     border-radius: var(--radius-sheet);
-    transform-origin: bottom center;
+    transform-origin: center center;
   }
 }
 
@@ -3267,8 +3283,7 @@ body[data-theme="dark"] .refine-backdrop {
   }
 
   .refine-backdrop {
-    align-items: end;
-    justify-content: center;
+    place-items: center;
     padding: 10px;
     background: color-mix(in srgb, var(--bg) 34%, rgba(0, 0, 0, 0.52));
     backdrop-filter: blur(16px) saturate(0.9);
@@ -3276,10 +3291,10 @@ body[data-theme="dark"] .refine-backdrop {
 
   .refine-modal {
     width: 100%;
-    max-height: min(88dvh, 760px);
-    border-radius: 28px 28px 18px 18px;
-    animation: refineSheetUp 180ms ease-out;
-    transform-origin: bottom center;
+    max-height: min(calc(100dvh - 20px), 760px);
+    border-radius: var(--radius-sheet);
+    animation: refineDrop 170ms ease-out;
+    transform-origin: center center;
   }
 
   .refine-panel {

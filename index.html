@@ -340,7 +340,17 @@ stand
           <section class="settings-section" aria-labelledby="savedSearchSyncTitle">
             <div>
               <h3 id="savedSearchSyncTitle">Saved searches</h3>
-              <p>Move saved searches between browsers and devices with a Bumpers backup file.</p>
+              <p>Sync saved searches through the local cloud emulator, or move them manually with a backup file.</p>
+            </div>
+
+            <div class="settings-cloud-profile">
+              <span>Cloud emulator</span>
+              <strong id="cloudProfileEmail">local@bumpers.dev</strong>
+            </div>
+
+            <div class="settings-actions">
+              <button class="secondary-action" id="pullCloudSavedSearches" type="button">Pull from cloud</button>
+              <button class="secondary-action" id="pushCloudSavedSearches" type="button">Push to cloud</button>
             </div>
 
             <div class="settings-actions">
