@@ -20,7 +20,6 @@
       .knob-rotor {
         transform-box:    view-box;
         transform-origin: 50% 50%;
-        animation:        knob-turn 2.4s ease-in-out infinite;
       }
 
       @keyframes knob-turn {
