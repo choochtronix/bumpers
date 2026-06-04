@@ -354,6 +354,171 @@ const MOCK_LISTINGS = [
   },
 ];
 
+const STARTER_FRESH_FIND_LISTINGS = [
+  {
+    id: "starter-moog-vintage-synths",
+    source: "mercari",
+    title: "Moog vintage synths in Japan",
+    priceLabel: "Explore",
+    condition: "Starter search",
+    listedAt: "2026-06-04T09:00:00+09:00",
+    url: "https://jp.mercari.com/en/search?keyword=Moog%20synthesizer&sort=created_time&order=desc&status=on_sale",
+    image: createStarterSynthArtwork("Moog", "#d8e6f7", "#171a1d"),
+    isStarterFreshFind: true,
+  },
+  {
+    id: "starter-oberheim-japan",
+    source: "yahoo-auctions",
+    title: "Oberheim auctions and modules",
+    priceLabel: "Explore",
+    condition: "Starter search",
+    listedAt: "2026-06-04T08:00:00+09:00",
+    url: "https://auctions.yahoo.co.jp/search/search?p=Oberheim%20synthesizer&exflg=1&s1=new&o1=d",
+    image: createStarterSynthArtwork("Oberheim", "#ead8c8", "#1f2023"),
+    isStarterFreshFind: true,
+  },
+  {
+    id: "starter-roland-classics",
+    source: "yahoo-fleamarket",
+    title: "Roland Juno, Jupiter and drum machines",
+    priceLabel: "Explore",
+    condition: "Starter search",
+    listedAt: "2026-06-04T07:00:00+09:00",
+    url: "https://paypayfleamarket.yahoo.co.jp/search/Roland%20synthesizer",
+    image: createStarterSynthArtwork("Roland", "#d7cec1", "#12171a"),
+    isStarterFreshFind: true,
+  },
+  {
+    id: "starter-sequential-circuits",
+    source: "digimart",
+    title: "Sequential Circuits and Prophet gear",
+    priceLabel: "Explore",
+    condition: "Starter search",
+    listedAt: "2026-06-04T06:00:00+09:00",
+    url: "https://www.digimart.net/search?keywordAnd=Sequential%20Circuits",
+    image: createStarterSynthArtwork("Sequential", "#dae6dd", "#181b1c"),
+    isStarterFreshFind: true,
+  },
+  {
+    id: "starter-arp-vintage",
+    source: "reverb",
+    title: "Vintage synth listings shipping from Japan",
+    priceLabel: "Explore",
+    condition: "Starter search",
+    listedAt: "2026-06-04T05:00:00+09:00",
+    url: "https://reverb.com/marketplace?query=country%3Ajp%20vintage%20synthesizer",
+    image: createStarterSynthArtwork("Vintage", "#e6e0ec", "#151515"),
+    isStarterFreshFind: true,
+  },
+  {
+    id: "starter-hardoff-synths",
+    source: "offmall",
+    title: "Hard Off synths, samplers and modules",
+    priceLabel: "Explore",
+    condition: "Starter search",
+    listedAt: "2026-06-04T04:00:00+09:00",
+    url: "https://netmall.hardoff.co.jp/search/?q=%E3%82%B7%E3%83%B3%E3%82%BB%E3%82%B5%E3%82%A4%E3%82%B6%E3%83%BC",
+    image: createStarterSynthArtwork("Hard Off", "#e9e4d6", "#1a1f22"),
+    isStarterFreshFind: true,
+  },
+  {
+    id: "starter-five-g-vintage",
+    source: "five-g",
+    title: "Five G vintage synthesizer inventory",
+    priceLabel: "Explore",
+    condition: "Starter search",
+    listedAt: "2026-06-04T03:00:00+09:00",
+    url: "https://fiveg.net/",
+    image: createStarterSynthArtwork("Five G", "#d3e0e4", "#111416"),
+    isStarterFreshFind: true,
+  },
+  {
+    id: "starter-implant4-rare-synths",
+    source: "implant4",
+    title: "Rare synths and boutique used gear",
+    priceLabel: "Explore",
+    condition: "Starter search",
+    listedAt: "2026-06-04T02:00:00+09:00",
+    url: "https://shop.implant4.com/search?type=product&options%5Bprefix%5D=last&options%5Bunavailable_products%5D=last&q=synthesizer",
+    image: createStarterSynthArtwork("implant4", "#e7d7da", "#171a1d"),
+    isStarterFreshFind: true,
+  },
+];
+const STARTER_FRESH_FIND_TERMS = [
+  "Moog synthesizer",
+  "Oberheim",
+  "Roland Juno",
+  "Roland Jupiter",
+  "Sequential Prophet",
+  "Sequential Circuits",
+  "ARP synthesizer",
+  "Korg MS-20",
+  "Yamaha CS",
+  "vintage synthesizer",
+];
+const STARTER_FRESH_FIND_SOURCE_IDS = ["yahoo-auctions", "digimart", "offmall", "mercari", "reverb"];
+const STARTER_FRESH_FIND_EXCLUDES = [
+  "CD",
+  "LP",
+  "record",
+  "book",
+  "brochure",
+  "magazine",
+  "manual",
+  "miniature",
+  "pamphlet",
+  "poster",
+  "score",
+  "shirt",
+  "songbook",
+  "sticker",
+  "t shirt",
+  "t-shirt",
+  "tee",
+  "video",
+  "vhs",
+  "patch book",
+  "Tシャツ",
+  "カタログ",
+  "キーボード・マガジン",
+  "マガジン",
+  "パンフレット",
+  "マニュアル",
+  "ムック",
+  "楽譜",
+  "映像",
+  "雑誌",
+  "ミニチュア",
+  "取扱説明書",
+];
+
+function createStarterSynthArtwork(label, background, panel) {
+  const safeLabel = String(label).replace(/[<>&"]/g, "");
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 900">
+      <rect width="900" height="900" fill="${background}"/>
+      <circle cx="720" cy="170" r="150" fill="rgba(255,255,255,0.24)"/>
+      <g transform="translate(80 255) rotate(-8 370 170)">
+        <rect x="0" y="0" width="740" height="252" rx="34" fill="${panel}"/>
+        <rect x="52" y="118" width="640" height="112" rx="14" fill="#fafaf5"/>
+        <g fill="#101416">
+          ${Array.from({ length: 18 }, (_, index) => `<rect x="${82 + index * 34}" y="118" width="17" height="72"/>`).join("")}
+        </g>
+        <g fill="#d64b64">
+          ${Array.from({ length: 6 }, (_, index) => `<circle cx="${156 + index * 86}" cy="54" r="17"/>`).join("")}
+        </g>
+        <g fill="#55b982">
+          ${Array.from({ length: 6 }, (_, index) => `<circle cx="${184 + index * 86}" cy="88" r="11"/>`).join("")}
+        </g>
+        <rect x="560" y="34" width="88" height="48" rx="8" fill="#94e0ff"/>
+      </g>
+      <text x="70" y="800" fill="#111416" font-family="Arial, Helvetica, sans-serif" font-size="76" font-weight="900">${safeLabel}</text>
+    </svg>
+  `;
+
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+}
+
 const STORAGE_KEYS = {
   profiles: "bumpers.profiles",
   seen: "bumpers.seen",
@@ -405,6 +570,9 @@ let sourceSearchStatuses = new Map();
 let searchRunId = 0;
 let loadingCardId = 0;
 let backToTopFrame = 0;
+let starterFreshFindStatus = "idle";
+let starterFreshFindListings = [];
+let starterFreshFindTerms = [];
 const rakumaClientThumbnailCache = new Map();
 let searchState = {
   mode: "idle",
@@ -921,7 +1089,13 @@ function bindEvents() {
   });
 
   qualityModeButtons.forEach((button) => {
-    button.addEventListener("click", () => setQualityMode(button.dataset.quality));
+    button.addEventListener("click", () => {
+      if (button.dataset.quality === "clean") {
+        setQualityMode(qualityFilter === "clean" ? "all" : "clean");
+        return;
+      }
+      setQualityMode(button.dataset.quality);
+    });
   });
 
   sortModeSelect.addEventListener("change", () => {
@@ -1822,6 +1996,7 @@ function getCurrentAlertListings() {
 
 function renderResults() {
   const watching = loadSet(STORAGE_KEYS.watching);
+  if (searchState.mode === "idle") ensureStarterFreshFindListings(watching);
   const featuredHomeResults = searchState.mode === "idle" ? getFeaturedHomeListings(watching) : [];
   const isShowingFeaturedHome = featuredHomeResults.length > 0;
   const resultSource = isShowingFeaturedHome ? featuredHomeResults : currentResults;
@@ -1891,6 +2066,7 @@ function renderQualityModeControls() {
     const isActive = button.dataset.quality === qualityFilter;
     button.classList.toggle("active", isActive);
     button.setAttribute("aria-pressed", String(isActive));
+    if (button.dataset.quality === "clean") button.setAttribute("aria-checked", String(isActive));
   });
 }
 
@@ -2213,10 +2389,8 @@ function renderListing(listing, options = {}) {
   const feedback = getProfileFeedback();
   const feedbackStatus = getListingFeedbackStatus(listing, feedback);
   const isFeaturedHome = Boolean(options.isFeaturedHome);
-  const isFeaturedLead = Boolean(options.isFeaturedLead);
 
   card.classList.toggle("is-featured-home-card", isFeaturedHome);
-  card.classList.toggle("is-featured-lead", isFeaturedLead);
   card.classList.toggle("is-new", isListingMarkedNew(listing));
   card.classList.toggle("is-feedback-gear", feedbackStatus === "gear");
   card.classList.toggle("is-feedback-noise", feedbackStatus === "noise");
@@ -2233,7 +2407,7 @@ function renderListing(listing, options = {}) {
   fragment.querySelector(".source-chip").textContent = source?.label || listing.source;
   fragment.querySelector("h3").textContent = listing.title;
   renderShopName(fragment.querySelector(".shop-name"), listing);
-  fragment.querySelector(".price-row strong").textContent = formatPrice(listing.price);
+  fragment.querySelector(".price-row strong").textContent = listing.priceLabel || formatPrice(listing.price);
   fragment.querySelector(".price-row span").textContent = relativeDate(listing.listedAt);
   openLink.href = listing.url;
   imageLink.addEventListener("click", (event) => handlePrimaryListingOpen(event, listing.url));
@@ -2455,36 +2629,97 @@ function createAlertDetail(count) {
   return `${count} fresh listings`;
 }
 
-function createFeaturedHomeHeader(count) {
+function createFeaturedHomeHeader(count, options = {}) {
   const header = document.createElement("div");
   header.className = "featured-home-header";
+  const isStarter = Boolean(options.isStarter);
+  const isStarterLive = Boolean(options.isStarterLive);
+  const isStarterLoading = Boolean(options.isStarterLoading);
+  const seedLabel = starterFreshFindTerms.length > 0 ? starterFreshFindTerms.join(" + ") : "vintage synths";
   header.innerHTML = `
-    <p class="eyebrow">Home View</p>
     <h3>Fresh Finds</h3>
-    <span>${count} ${count === 1 ? "watched listing" : "watched listings"} from your saved searches and watched gear</span>
+    <span>${isStarterLive
+      ? `${count} live ${count === 1 ? "listing" : "listings"} from ${seedLabel}`
+      : isStarterLoading
+        ? `Scanning latest vintage synth listings for ${seedLabel}`
+        : isStarter
+          ? "Vintage synth portals to get you digging right away"
+          : `${count} ${count === 1 ? "watched listing" : "watched listings"} from your saved searches and watched gear`
+    }</span>
   `;
   return header;
 }
 
 function createFeaturedHomeSection(listings) {
+  const isStarter = listings.some((listing) => listing.isStarterFreshFind);
+  const isStarterLive = listings.some((listing) => listing.isStarterLiveFreshFind);
+  const isStarterLoading = isStarter && starterFreshFindStatus === "loading";
   const section = document.createElement("section");
-  section.className = "featured-home-section";
+  section.className = [
+    "featured-home-section",
+    isStarter ? "is-starter-fresh-finds" : "",
+    isStarterLive ? "is-live-starter-fresh-finds" : "",
+    isStarterLoading ? "is-loading-starter-fresh-finds" : "",
+  ].filter(Boolean).join(" ");
   section.setAttribute("aria-label", "Fresh Finds from saved searches");
-  section.appendChild(createFeaturedHomeHeader(listings.length));
+  section.appendChild(createFeaturedHomeHeader(listings.length, { isStarter, isStarterLive, isStarterLoading }));
+
+  const carousel = document.createElement("div");
+  carousel.className = "featured-home-carousel";
+
+  const previousButton = document.createElement("button");
+  previousButton.className = "featured-carousel-control featured-carousel-control-prev";
+  previousButton.type = "button";
+  previousButton.setAttribute("aria-label", "Show previous Fresh Finds");
+  previousButton.textContent = "‹";
 
   const rail = document.createElement("div");
   rail.className = "featured-home-rail";
-  listings.forEach((listing, index) => {
-    rail.appendChild(renderListing(listing, { isFeaturedHome: true, isFeaturedLead: index === 0 }));
+  listings.forEach((listing) => {
+    rail.appendChild(renderListing(listing, { isFeaturedHome: true }));
   });
-  section.appendChild(rail);
+
+  const nextButton = document.createElement("button");
+  nextButton.className = "featured-carousel-control featured-carousel-control-next";
+  nextButton.type = "button";
+  nextButton.setAttribute("aria-label", "Show more Fresh Finds");
+  nextButton.textContent = "›";
+
+  carousel.append(previousButton, rail, nextButton);
+  section.appendChild(carousel);
+  setupFeaturedHomeCarousel(rail, previousButton, nextButton);
 
   return section;
 }
 
+function setupFeaturedHomeCarousel(rail, previousButton, nextButton) {
+  const scrollByPage = (direction) => {
+    const distance = Math.max(rail.clientWidth * 0.82, 260);
+    rail.scrollBy({ left: direction * distance, behavior: "smooth" });
+  };
+
+  const updateControls = () => {
+    const maxScroll = rail.scrollWidth - rail.clientWidth;
+    const hasOverflow = maxScroll > 8;
+    previousButton.hidden = !hasOverflow;
+    nextButton.hidden = !hasOverflow;
+    previousButton.disabled = rail.scrollLeft <= 8;
+    nextButton.disabled = rail.scrollLeft >= maxScroll - 8;
+  };
+
+  previousButton.addEventListener("click", () => scrollByPage(-1));
+  nextButton.addEventListener("click", () => scrollByPage(1));
+  rail.addEventListener("scroll", updateControls, { passive: true });
+  if ("ResizeObserver" in window) {
+    const resizeObserver = new ResizeObserver(updateControls);
+    resizeObserver.observe(rail);
+  }
+  requestAnimationFrame(updateControls);
+}
+
 function getFeaturedHomeListings(watchingIds = loadSet(STORAGE_KEYS.watching)) {
   const ledger = loadLedger();
-  return watchingIds
+  const watchedListings = watchingIds
     .map((id) => ledger[id])
     .filter(Boolean)
     .map(createListingFromLedgerEntry)
@@ -2493,6 +2728,85 @@ function getFeaturedHomeListings(watchingIds = loadSet(STORAGE_KEYS.watching)) {
     .filter((listing) => qualityFilter === "all" || isCleanGearListing(listing))
     .sort((a, b) => new Date(b.lastFoundAt || b.listedAt) - new Date(a.lastFoundAt || a.listedAt))
     .slice(0, FEATURED_HOME_LIMIT);
+
+  if (watchedListings.length > 0) return watchedListings;
+  if (starterFreshFindListings.length > 0) return starterFreshFindListings;
+  return STARTER_FRESH_FIND_LISTINGS;
+}
+
+function hasWatchedListingSnapshots(watchingIds = loadSet(STORAGE_KEYS.watching)) {
+  const ledger = loadLedger();
+  return watchingIds.some((id) => ledger[id]);
+}
+
+function ensureStarterFreshFindListings(watchingIds = loadSet(STORAGE_KEYS.watching)) {
+  if (hasWatchedListingSnapshots(watchingIds)) return;
+  if (starterFreshFindStatus !== "idle") return;
+  if (location.protocol === "file:") return;
+
+  starterFreshFindStatus = "loading";
+  starterFreshFindTerms = pickStarterFreshFindTerms();
+
+  fetchStarterFreshFindListings()
+    .then((listings) => {
+      starterFreshFindListings = listings;
+      starterFreshFindStatus = listings.length > 0 ? "live" : "fallback";
+      if (searchState.mode === "idle" && !hasWatchedListingSnapshots()) renderResults();
+    })
+    .catch((error) => {
+      console.warn("Starter Fresh Finds unavailable; keeping portal cards.", error);
+      starterFreshFindStatus = "fallback";
+      if (searchState.mode === "idle" && !hasWatchedListingSnapshots()) renderResults();
+    });
+}
+
+function pickStarterFreshFindTerms() {
+  const shuffled = [...STARTER_FRESH_FIND_TERMS].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, 2);
+}
+
+async function fetchStarterFreshFindListings() {
+  const params = new URLSearchParams({
+    terms: starterFreshFindTerms.join("|"),
+    excludes: STARTER_FRESH_FIND_EXCLUDES.join("|"),
+    maxPrice: "0",
+    sources: STARTER_FRESH_FIND_SOURCE_IDS.join("|"),
+  });
+  const response = await fetch(`/api/search?${params.toString()}`, { cache: "no-store" });
+  if (!response.ok) throw new Error(`Starter Fresh Finds failed with ${response.status}`);
+
+  const payload = await response.json();
+  const listings = Array.isArray(payload.listings) ? payload.listings : [];
+  return listings
+    .filter((listing) => STARTER_FRESH_FIND_SOURCE_IDS.includes(listing.source))
+    .filter((listing) => !isUnavailableListing(listing))
+    .filter((listing) => isCleanGearListing(listing))
+    .filter((listing) => !hasStarterFreshFindNoise(listing))
+    .filter((listing) => matchesStarterFreshFindTerm(listing) || hasStarterGearSignal(listing))
+    .sort((a, b) => new Date(b.listedAt) - new Date(a.listedAt))
+    .slice(0, FEATURED_HOME_LIMIT)
+    .map((listing) => ({
+      ...listing,
+      isStarterLiveFreshFind: true,
+    }));
+}
+
+function matchesStarterFreshFindTerm(listing) {
+  const title = normalizeText(listing.title);
+  return starterFreshFindTerms.some((term) => {
+    const expandedTerms = expandSearchTerm(term);
+    return expandedTerms.some((expandedTerm) => termMatches(title, expandedTerm));
+  });
+}
+
+function hasStarterGearSignal(listing) {
+  const searchable = normalizeText(`${listing.title} ${listing.condition || ""} ${listing.shop || ""}`);
+  return countMatchingTerms(searchable, GEAR_SIGNAL_TERMS) > 0 || countBrandModelSignals(searchable) > 0;
+}
+
+function hasStarterFreshFindNoise(listing) {
+  const searchable = normalizeText(`${listing.title} ${listing.condition || ""} ${listing.shop || ""}`);
+  return STARTER_FRESH_FIND_EXCLUDES.some((term) => searchable.includes(normalizeText(term)));
 }
 
 function createListingFromLedgerEntry(entry) {

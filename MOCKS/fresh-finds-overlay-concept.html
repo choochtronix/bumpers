@@ -9,7 +9,7 @@
         --ink: #111416;
         --muted: #70766f;
         --paper: #f4f5f2;
-        --rose: #b63b60;
+        --rose: #0072ff;
         --shadow: 0 30px 80px rgba(22, 25, 28, 0.18), 0 8px 22px rgba(22, 25, 28, 0.1);
       }
 
@@ -56,7 +56,8 @@
 
       h1 {
         margin: 0;
-        font-size: clamp(48px, 6vw, 92px);
+        color: #4d514c;
+        font-size: clamp(38px, 6vw, 82px);
         line-height: 0.9;
       }
 
@@ -79,27 +80,37 @@
       }
 
       .overlay-wall {
-        display: grid;
-        grid-template-columns: minmax(420px, 1.26fr) repeat(3, minmax(230px, 0.86fr));
+        display: flex;
         gap: 24px;
         align-items: stretch;
+        overflow-x: auto;
+        padding: 4px 2px 30px;
+        scroll-padding-inline: 2px;
+        scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .overlay-wall::-webkit-scrollbar {
+        display: none;
       }
 
       .find-card {
         position: relative;
-        min-height: 420px;
+        flex: 0 0 clamp(270px, 22vw, 340px);
+        aspect-ratio: 1 / 1;
+        min-height: 0;
         overflow: hidden;
         border-radius: 32px;
         background: #222;
         color: #fff;
         box-shadow: var(--shadow);
         text-decoration: none;
+        scroll-snap-align: start;
         transform: translateZ(0);
       }
 
       .find-card.lead {
-        grid-row: span 2;
-        min-height: 720px;
+        min-height: 0;
       }
 
       .photo {
@@ -239,9 +250,9 @@
       }
 
       .lead .copy h2 {
-        font-size: clamp(38px, 4.4vw, 64px);
-        line-height: 0.96;
-        -webkit-line-clamp: 3;
+        font-size: 25px;
+        line-height: 1.08;
+        -webkit-line-clamp: 2;
       }
 
       .price {
@@ -251,12 +262,12 @@
       }
 
       .lead .price {
-        font-size: clamp(44px, 4.5vw, 62px);
+        font-size: 30px;
       }
 
       @media (max-width: 1120px) {
         .overlay-wall {
-          grid-template-columns: minmax(330px, 1.1fr) repeat(2, minmax(230px, 0.92fr));
+          gap: 20px;
         }
       }
 
@@ -271,7 +282,7 @@
         }
 
         h1 {
-          font-size: clamp(42px, 13vw, 64px);
+          font-size: clamp(32px, 13vw, 54px);
         }
 
         .heading span {
@@ -305,7 +316,7 @@
         .find-card,
         .find-card.lead {
           flex: 0 0 min(82vw, 390px);
-          min-height: 480px;
+          min-height: 0;
           scroll-snap-align: start;
         }
 

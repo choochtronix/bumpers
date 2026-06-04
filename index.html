@@ -91,27 +91,12 @@
             </button>
             <div class="quality-mode-inline" aria-label="Search quality mode">
               <button class="quality-mode-button" type="button" data-quality="all">All</button>
-              <button class="quality-mode-button" type="button" data-quality="clean">Clean Gear</button>
+              <button class="quality-mode-button" type="button" data-quality="clean" role="switch">Clean Gear</button>
             </div>
           </div>
 
           <div class="refine-summary" id="refineSummary" aria-live="polite"></div>
         </form>
-
-        <div class="status-strip" aria-label="Search totals">
-          <div>
-            <strong id="totalCount">0</strong>
-            <span>matches</span>
-          </div>
-          <div>
-            <strong id="newCount">0</strong>
-            <span>new</span>
-          </div>
-          <div>
-            <strong id="sourceCount">0</strong>
-            <span>sources</span>
-          </div>
-        </div>
       </section>
 
       <main class="content">
@@ -126,15 +111,31 @@
           <section class="source-filter-panel" aria-label="Source filter">
             <span>Sources</span>
             <div class="source-filter-list" id="sourceFilterList"></div>
-            <label class="source-sort-control" aria-label="Sort results">
-              <span>Sort:</span>
-              <select id="sortMode">
-                <option value="newest">Newest</option>
-                <option value="price-asc">Price low</option>
-                <option value="price-desc">Price high</option>
-                <option value="source">Source</option>
-              </select>
-            </label>
+            <div class="source-row-meta">
+              <label class="source-sort-control" aria-label="Sort results">
+                <span>Sort:</span>
+                <select id="sortMode">
+                  <option value="newest">Newest</option>
+                  <option value="price-asc">Price low</option>
+                  <option value="price-desc">Price high</option>
+                  <option value="source">Source</option>
+                </select>
+              </label>
+              <div class="status-strip" aria-label="Search totals">
+                <div>
+                  <strong id="totalCount">0</strong>
+                  <span>matches</span>
+                </div>
+                <div>
+                  <strong id="newCount">0</strong>
+                  <span>new</span>
+                </div>
+                <div>
+                  <strong id="sourceCount">0</strong>
+                  <span>sources</span>
+                </div>
+              </div>
+            </div>
           </section>
 
           <section class="controls" aria-label="Result controls">
