@@ -44,7 +44,7 @@
   --radius-sheet: 24px;
   --radius-pill: 999px;
   --shadow-elevated: 0 18px 50px rgba(20, 24, 28, 0.12);
-  --shadow-card: 0 8px 28px rgba(25, 30, 35, 0.07);
+  --shadow-card: 0 22px 54px rgba(25, 30, 35, 0.16), 0 5px 16px rgba(25, 30, 35, 0.08);
   --focus-ring: 0 0 0 4px rgba(10, 132, 255, 0.14);
   --motion-fast: 140ms ease;
   --motion-standard: 160ms ease;
@@ -99,7 +99,7 @@ body[data-theme="dark"] {
   --color-amber: #e6a746;
   --color-image-bg: #22272b;
   --shadow-elevated: 0 18px 50px rgba(0, 0, 0, 0.42);
-  --shadow-card: 0 14px 34px rgba(0, 0, 0, 0.34);
+  --shadow-card: 0 24px 58px rgba(0, 0, 0, 0.54), 0 5px 18px rgba(0, 0, 0, 0.34);
   --focus-ring: 0 0 0 4px rgba(90, 167, 255, 0.18);
 
   --bg: var(--color-bg);

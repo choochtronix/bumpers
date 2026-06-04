@@ -416,6 +416,7 @@ let searchState = {
 const sourceList = document.querySelector("#sourceList");
 const savedSearches = document.querySelector("#savedSearches");
 const searchForm = document.querySelector("#searchForm");
+const brandHomeLink = document.querySelector("#brandHomeLink");
 const termsInput = document.querySelector("#terms");
 const refineTermsInput = document.querySelector("#refineTerms");
 const termDropdown = document.querySelector("#termDropdown");
@@ -827,6 +828,7 @@ function initializeBrandWave() {
 }
 
 function bindEvents() {
+  brandHomeLink.addEventListener("click", resetHomeView);
   searchForm.addEventListener("submit", (event) => {
     event.preventDefault();
     if (!refineSearchModal.hidden) {
@@ -946,6 +948,24 @@ function bindEvents() {
     if (!saveSearchModal.hidden) closeSaveSearchModal();
     if (!settingsModal.hidden) closeSettingsModal();
   });
+}
+
+function resetHomeView(event) {
+  event?.preventDefault?.();
+  searchRunId += 1;
+  currentProfile = createFreshProfile();
+  fillForm(currentProfile);
+  activeViewSources.clear();
+  filterMode = "all";
+  document.querySelectorAll("#urgencyFilter button").forEach((item) => item.classList.toggle("active", item.dataset.filter === filterMode));
+  currentResults = [];
+  currentDiscoveryIds = new Set();
+  closeSavedSearchPopover();
+  closeRefineSearchModal({ restoreFocus: false });
+  closeSaveSearchModal({ restoreFocus: false });
+  closeSettingsModal({ restoreFocus: false });
+  resetToIdleSearch();
+  scrollPageTop();
 }
 
 function toggleTheme(event) {
@@ -1233,10 +1253,11 @@ function openSaveSearchModal(event) {
   saveSearchName.select();
 }
 
-function closeSaveSearchModal() {
+function closeSaveSearchModal(options = {}) {
+  const { restoreFocus = true } = options;
   saveSearchModal.hidden = true;
   document.body.classList.remove("modal-open");
-  saveSearchReturnFocus?.focus?.();
+  if (restoreFocus) saveSearchReturnFocus?.focus?.();
   saveSearchReturnFocus = null;
 }
 
@@ -1263,11 +1284,12 @@ function openSettingsModal(event) {
   currencyToggle.focus();
 }
 
-function closeSettingsModal() {
+function closeSettingsModal(options = {}) {
+  const { restoreFocus = true } = options;
   if (settingsModal.hidden) return;
   settingsModal.hidden = true;
   document.body.classList.remove("modal-open");
-  settingsReturnFocus?.focus?.();
+  if (restoreFocus) settingsReturnFocus?.focus?.();
   settingsReturnFocus = null;
 }
 
@@ -1809,6 +1831,7 @@ function renderResults() {
   const pageResults = paginateResults(visibleResults);
 
   resultGrid.innerHTML = "";
+  resultGrid.classList.toggle("is-featured-home", isShowingFeaturedHome);
   renderSourceFilters(resultSource);
   renderAlertPanel(featuredHomeResults);
 
@@ -1816,7 +1839,7 @@ function renderResults() {
     if (isShowingFeaturedHome) {
       resultGrid.appendChild(createFeaturedHomeHeader(visibleResults.length));
     }
-    pageResults.forEach((listing) => resultGrid.appendChild(renderListing(listing)));
+    pageResults.forEach((listing) => resultGrid.appendChild(renderListing(listing, { isFeaturedHome: isShowingFeaturedHome })));
     renderPendingSourceCards();
   } else if (isSearching) {
     renderPendingSourceCards();
@@ -2168,7 +2191,7 @@ async function fetchLiveListings(profile, sourceOverride = profile.sources) {
   }
 }
 
-function renderListing(listing) {
+function renderListing(listing, options = {}) {
   const fragment = template.content.cloneNode(true);
   const card = fragment.querySelector(".listing-card");
   const imageLink = fragment.querySelector(".image-link");
@@ -2187,10 +2210,17 @@ function renderListing(listing) {
   const watching = new Set(loadSet(STORAGE_KEYS.watching));
   const feedback = getProfileFeedback();
   const feedbackStatus = getListingFeedbackStatus(listing, feedback);
+  const isFeaturedHome = Boolean(options.isFeaturedHome);
 
+  card.classList.toggle("is-featured-home-card", isFeaturedHome);
   card.classList.toggle("is-new", isListingMarkedNew(listing));
   card.classList.toggle("is-feedback-gear", feedbackStatus === "gear");
   card.classList.toggle("is-feedback-noise", feedbackStatus === "noise");
+  if (isFeaturedHome) {
+    card.tabIndex = 0;
+    card.setAttribute("role", "link");
+    card.setAttribute("aria-label", `Open ${listing.title}`);
+  }
   imageLink.href = listing.url;
   image.src = listing.image;
   image.alt = listing.title;
@@ -2206,7 +2236,9 @@ function renderListing(listing) {
   sourceOpenLink.textContent = `Open ${source?.label || "listing"}`;
   configureBuyeeLink(buyeeOpenLink, listing);
   watchButton.classList.toggle("is-watching", watching.has(listing.id));
-  watchButton.textContent = watching.has(listing.id) ? "★" : "☆";
+  watchButton.textContent = watching.has(listing.id) ? "♥" : "♡";
+  watchButton.setAttribute("aria-label", watching.has(listing.id) ? "Remove from watching" : "Watch listing");
+  watchButton.title = watching.has(listing.id) ? "Remove from watching" : "Watch listing";
   gearButton.classList.toggle("is-active", feedbackStatus === "gear");
   noiseButton.classList.toggle("is-active", feedbackStatus === "noise");
 
@@ -2257,7 +2289,24 @@ function renderListing(listing) {
     renderResults();
   });
 
+  if (isFeaturedHome) {
+    card.addEventListener("click", (event) => {
+      if (event.target.closest("a, button")) return;
+      openExternalListing(listing.url);
+    });
+    card.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      openExternalListing(listing.url);
+    });
+  }
+
   return fragment;
+}
+
+function openExternalListing(url) {
+  const openedWindow = window.open(url, "_blank", "noopener,noreferrer");
+  if (openedWindow) openedWindow.opener = null;
 }
 
 function configureBuyeeLink(link, listing) {
@@ -2321,16 +2370,18 @@ function isPlaceholderImage(image) {
 function renderAlertPanel(featuredHomeResults = []) {
   if (searchState.mode === "idle" && featuredHomeResults.length > 0) {
     alertPanel.hidden = false;
+    alertPanel.classList.add("is-featured-home");
     alertTitle.textContent = "Featured New Finds";
     alertList.innerHTML = "";
     alertCount.textContent = featuredHomeResults.length;
     alertDetail.textContent = `${featuredHomeResults.length === 1 ? "1 watched item" : `${featuredHomeResults.length} watched items`}`;
     featuredHomeResults.slice(0, FEATURED_HOME_ALERT_LIMIT).forEach((listing) => {
-      alertList.appendChild(renderAlertItem(listing));
+      alertList.appendChild(renderAlertItem(listing, { isFeaturedHome: true }));
     });
     return;
   }
 
+  alertPanel.classList.remove("is-featured-home");
   alertTitle.textContent = "New Finds";
   const alertListings = getCurrentAlertListings().filter((listing) => qualityFilter === "all" || isCleanGearListing(listing));
   alertList.innerHTML = "";
@@ -2348,13 +2399,21 @@ function renderAlertPanel(featuredHomeResults = []) {
   });
 }
 
-function renderAlertItem(listing) {
+function renderAlertItem(listing, options = {}) {
   const fragment = alertTemplate.content.cloneNode(true);
+  const item = fragment.querySelector(".alert-item");
   const source = SOURCES.find((item) => item.id === listing.source);
   const imageLink = fragment.querySelector(".alert-thumb");
   const image = fragment.querySelector("img");
   const openLink = fragment.querySelector(".alert-open");
+  const isFeaturedHome = Boolean(options.isFeaturedHome);
 
+  item.classList.toggle("is-featured-home-item", isFeaturedHome);
+  if (isFeaturedHome) {
+    item.tabIndex = 0;
+    item.setAttribute("role", "link");
+    item.setAttribute("aria-label", `Open ${listing.title}`);
+  }
   imageLink.href = listing.url;
   image.src = listing.image;
   image.alt = listing.title;
@@ -2364,6 +2423,18 @@ function renderAlertItem(listing) {
   fragment.querySelector(".alert-price").textContent = formatPrice(listing.price);
   fragment.querySelector("h4").textContent = listing.title;
   openLink.href = listing.url;
+
+  if (isFeaturedHome) {
+    item.addEventListener("click", (event) => {
+      if (event.target.closest("a, button")) return;
+      openExternalListing(listing.url);
+    });
+    item.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      openExternalListing(listing.url);
+    });
+  }
 
   return fragment;
 }

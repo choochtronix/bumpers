@@ -22,7 +22,7 @@
             <path id="sinePath" class="brand-wave-path brand-wave-path-sine" />
           </svg>
         </div>
-        <div class="brand">
+        <a class="brand brand-home-link" id="brandHomeLink" href="./" aria-label="Return to Bumpers home">
           <div class="brand-mark" aria-hidden="true">B</div>
           <div>
             <div class="brand-logo-stage">
@@ -33,7 +33,7 @@
             </div>
             <p>Japan gear radar</p>
           </div>
-        </div>
+        </a>
 
         <div class="header-actions">
           <div class="saved-menu">
@@ -371,11 +371,14 @@ stand
 
     <template id="listingTemplate">
       <article class="listing-card">
-        <a class="image-link" target="_blank" rel="noreferrer">
-          <img alt="" loading="lazy" />
-          <span class="new-pill">New</span>
-          <span class="source-avatar"></span>
-        </a>
+        <div class="image-stage">
+          <a class="image-link" target="_blank" rel="noreferrer">
+            <img alt="" loading="lazy" />
+            <span class="new-pill">New</span>
+            <span class="source-avatar"></span>
+          </a>
+          <button class="watch-button" type="button" title="Watch listing" aria-label="Watch listing">♡</button>
+        </div>
         <div class="listing-body">
           <div class="listing-meta">
             <span class="source-chip"></span>
@@ -387,7 +390,6 @@ stand
             <span></span>
           </div>
           <div class="card-actions">
-            <button class="watch-button" type="button" title="Watch listing" aria-label="Watch listing">☆</button>
             <button class="feedback-button hide-similar-button" type="button" title="Hide listings with similar noise signals">Hide similar</button>
             <button class="feedback-button gear-button" type="button" title="Train Bumpers that this is gear">This is gear</button>
             <button class="feedback-button noise-button" type="button" title="Train Bumpers that this is noise">This is noise</button>
