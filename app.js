@@ -1837,10 +1837,12 @@ function renderResults() {
 
   if (visibleResults.length > 0) {
     if (isShowingFeaturedHome) {
-      resultGrid.appendChild(createFeaturedHomeHeader(visibleResults.length));
+      const featuredSection = createFeaturedHomeSection(visibleResults);
+      resultGrid.appendChild(featuredSection);
+    } else {
+      pageResults.forEach((listing) => resultGrid.appendChild(renderListing(listing)));
+      renderPendingSourceCards();
     }
-    pageResults.forEach((listing) => resultGrid.appendChild(renderListing(listing, { isFeaturedHome: isShowingFeaturedHome })));
-    renderPendingSourceCards();
   } else if (isSearching) {
     renderPendingSourceCards();
     if (resultGrid.childElementCount === 0) {
@@ -2211,8 +2213,10 @@ function renderListing(listing, options = {}) {
   const feedback = getProfileFeedback();
   const feedbackStatus = getListingFeedbackStatus(listing, feedback);
   const isFeaturedHome = Boolean(options.isFeaturedHome);
+  const isFeaturedLead = Boolean(options.isFeaturedLead);
 
   card.classList.toggle("is-featured-home-card", isFeaturedHome);
+  card.classList.toggle("is-featured-lead", isFeaturedLead);
   card.classList.toggle("is-new", isListingMarkedNew(listing));
   card.classList.toggle("is-feedback-gear", feedbackStatus === "gear");
   card.classList.toggle("is-feedback-noise", feedbackStatus === "noise");
@@ -2232,6 +2236,8 @@ function renderListing(listing, options = {}) {
   fragment.querySelector(".price-row strong").textContent = formatPrice(listing.price);
   fragment.querySelector(".price-row span").textContent = relativeDate(listing.listedAt);
   openLink.href = listing.url;
+  imageLink.addEventListener("click", (event) => handlePrimaryListingOpen(event, listing.url));
+  openLink.addEventListener("click", (event) => handlePrimaryListingOpen(event, listing.url));
   sourceOpenLink.href = listing.url;
   sourceOpenLink.textContent = `Open ${source?.label || "listing"}`;
   configureBuyeeLink(buyeeOpenLink, listing);
@@ -2309,6 +2315,12 @@ function openExternalListing(url) {
   if (openedWindow) openedWindow.opener = null;
 }
 
+function handlePrimaryListingOpen(event, url) {
+  if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+  event.preventDefault();
+  openExternalListing(url);
+}
+
 function configureBuyeeLink(link, listing) {
   const buyeeUrl = createBuyeeUrl(listing);
   if (!buyeeUrl) {
@@ -2368,16 +2380,12 @@ function isPlaceholderImage(image) {
 }
 
 function renderAlertPanel(featuredHomeResults = []) {
-  if (searchState.mode === "idle" && featuredHomeResults.length > 0) {
-    alertPanel.hidden = false;
-    alertPanel.classList.add("is-featured-home");
-    alertTitle.textContent = "Featured New Finds";
+  if (searchState.mode === "idle") {
+    alertPanel.hidden = true;
+    alertPanel.classList.remove("is-featured-home");
     alertList.innerHTML = "";
-    alertCount.textContent = featuredHomeResults.length;
-    alertDetail.textContent = `${featuredHomeResults.length === 1 ? "1 watched item" : `${featuredHomeResults.length} watched items`}`;
-    featuredHomeResults.slice(0, FEATURED_HOME_ALERT_LIMIT).forEach((listing) => {
-      alertList.appendChild(renderAlertItem(listing, { isFeaturedHome: true }));
-    });
+    alertCount.textContent = "0";
+    alertDetail.textContent = "No scan yet";
     return;
   }
 
@@ -2452,10 +2460,26 @@ function createFeaturedHomeHeader(count) {
   header.className = "featured-home-header";
   header.innerHTML = `
     <p class="eyebrow">Home View</p>
-    <h3>Featured New Finds</h3>
-    <span>${count} ${count === 1 ? "watched listing" : "watched listings"} from your saved items</span>
+    <h3>Fresh Finds</h3>
+    <span>${count} ${count === 1 ? "watched listing" : "watched listings"} from your saved searches and watched gear</span>
   `;
   return header;
+}
+
+function createFeaturedHomeSection(listings) {
+  const section = document.createElement("section");
+  section.className = "featured-home-section";
+  section.setAttribute("aria-label", "Fresh Finds from saved searches");
+  section.appendChild(createFeaturedHomeHeader(listings.length));
+
+  const rail = document.createElement("div");
+  rail.className = "featured-home-rail";
+  listings.forEach((listing, index) => {
+    rail.appendChild(renderListing(listing, { isFeaturedHome: true, isFeaturedLead: index === 0 }));
+  });
+  section.appendChild(rail);
+
+  return section;
 }
 
 function getFeaturedHomeListings(watchingIds = loadSet(STORAGE_KEYS.watching)) {
