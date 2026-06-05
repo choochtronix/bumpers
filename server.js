@@ -8,8 +8,12 @@ const PORT = Number(process.env.PORT || 5173);
 const HOST = process.env.HOST || "0.0.0.0";
 const ROOT = fileURLToPath(new URL(".", import.meta.url));
 const CLOUD_DATA_FILE = join(ROOT, "data", "cloud-saved-searches.json");
-const CLOUD_PROFILE_USER_ID = "local";
-const CLOUD_PROFILE_EMAIL = "local@bumpers.dev";
+const SUPABASE_URL = process.env.SUPABASE_URL || "";
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+const CLOUD_PROVIDER = process.env.BUMPERS_CLOUD_PROVIDER || (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY ? "supabase" : "file");
+const CLOUD_PROFILE_USER_ID = process.env.BUMPERS_CLOUD_USER_ID || "local";
+const CLOUD_PROFILE_EMAIL = process.env.BUMPERS_CLOUD_USER_EMAIL || "local@bumpers.dev";
+const CLOUD_PROFILE_NAME = process.env.BUMPERS_CLOUD_USER_NAME || "Local Bumpers User";
 const DIGIMART_BASE_URL = "https://www.digimart.net";
 const FIVE_G_BASE_URL = "https://fiveg.net";
 const IMPLANT4_BASE_URL = "https://shop.implant4.com";
@@ -134,6 +138,10 @@ async function handleCloudSavedSearches(request, response) {
 }
 
 async function readCloudSavedSearches() {
+  if (isSupabaseCloudEnabled()) {
+    return readSupabaseSavedSearches();
+  }
+
   try {
     const cloudState = JSON.parse(await readFile(CLOUD_DATA_FILE, "utf8"));
     return createCloudSavedSearchState(cloudState);
@@ -146,8 +154,13 @@ async function readCloudSavedSearches() {
 }
 
 async function writeCloudSavedSearches(payload) {
+  if (isSupabaseCloudEnabled()) {
+    return writeSupabaseSavedSearches(payload);
+  }
+
   await mkdir(join(ROOT, "data"), { recursive: true });
   await writeFile(CLOUD_DATA_FILE, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
+  return payload;
 }
 
 async function readJsonBody(request) {
@@ -179,15 +192,180 @@ function createCloudSavedSearchState(payload = {}) {
     app: "Bumpers",
     type: "saved-searches",
     schemaVersion: Number(payload.schemaVersion) || 1,
-    storage: "cloud-emulator",
+    storage: isSupabaseCloudEnabled() ? "supabase" : "cloud-emulator",
     user: {
       id: payload.user?.id || CLOUD_PROFILE_USER_ID,
       email: payload.user?.email || CLOUD_PROFILE_EMAIL,
-      name: payload.user?.name || "Local Bumpers User",
+      name: payload.user?.name || CLOUD_PROFILE_NAME,
     },
     updatedAt: now,
     profiles,
   };
+}
+
+function isSupabaseCloudEnabled() {
+  return CLOUD_PROVIDER === "supabase" && Boolean(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY);
+}
+
+async function readSupabaseSavedSearches() {
+  const rows = await fetchSupabaseSavedSearchRows();
+  return createCloudSavedSearchState({
+    storage: "supabase",
+    user: getCloudUser(),
+    profiles: rows.map(rowToSavedSearchProfile),
+  });
+}
+
+async function writeSupabaseSavedSearches(payload = {}) {
+  const state = createCloudSavedSearchState({
+    ...payload,
+    storage: "supabase",
+    user: payload.user || getCloudUser(),
+  });
+  const userId = state.user.id;
+  const rows = state.profiles.map((profile) => savedSearchProfileToRow(profile, userId));
+
+  await supabaseRequest(`/rest/v1/saved_searches?user_id=eq.${encodeURIComponent(userId)}`, {
+    method: "DELETE",
+    headers: {
+      prefer: "return=minimal",
+    },
+  });
+
+  if (rows.length === 0) {
+    return createCloudSavedSearchState({ storage: "supabase", user: state.user, profiles: [] });
+  }
+
+  const insertedRows = await supabaseRequest("/rest/v1/saved_searches", {
+    method: "POST",
+    headers: {
+      prefer: "return=representation",
+    },
+    body: JSON.stringify(rows),
+  });
+
+  return createCloudSavedSearchState({
+    storage: "supabase",
+    user: state.user,
+    profiles: Array.isArray(insertedRows) ? insertedRows.map(rowToSavedSearchProfile) : state.profiles,
+  });
+}
+
+async function fetchSupabaseSavedSearchRows() {
+  const userId = encodeURIComponent(CLOUD_PROFILE_USER_ID);
+  const query = `/rest/v1/saved_searches?user_id=eq.${userId}&deleted_at=is.null&order=updated_at.desc`;
+  const rows = await supabaseRequest(query);
+  return Array.isArray(rows) ? rows : [];
+}
+
+async function supabaseRequest(path, options = {}) {
+  const baseUrl = SUPABASE_URL.replace(/\/+$/, "");
+  const response = await fetch(`${baseUrl}${path}`, {
+    ...options,
+    headers: {
+      apikey: SUPABASE_SERVICE_ROLE_KEY,
+      authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+      "content-type": "application/json",
+      ...(options.headers || {}),
+    },
+  });
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(`Supabase cloud sync responded with ${response.status}: ${message || response.statusText}`);
+  }
+
+  if (response.status === 204) return null;
+  const text = await response.text();
+  return text ? JSON.parse(text) : null;
+}
+
+function getCloudUser() {
+  return {
+    id: CLOUD_PROFILE_USER_ID,
+    email: CLOUD_PROFILE_EMAIL,
+    name: CLOUD_PROFILE_NAME,
+  };
+}
+
+function savedSearchProfileToRow(profile, userId = CLOUD_PROFILE_USER_ID) {
+  return {
+    id: String(profile.id || createServerSearchId(profile.name)),
+    user_id: userId,
+    schema_version: Number(profile.schemaVersion) || 1,
+    name: String(profile.name || "Untitled Search"),
+    terms: normalizeArrayField(profile.terms),
+    excludes: normalizeArrayField(profile.excludes),
+    noise_terms: normalizeArrayField(profile.noiseTerms),
+    sources: normalizeArrayField(profile.sources),
+    max_price: Number(profile.maxPrice || 0),
+    alert_mode: String(profile.alertMode || "immediate"),
+    created_at: normalizeIsoField(profile.createdAt),
+    updated_at: normalizeIsoField(profile.updatedAt),
+    deleted_at: normalizeNullableIsoField(profile.deletedAt),
+    last_scanned_at: normalizeNullableIsoField(profile.lastScannedAt),
+    last_match_count: Number(profile.lastMatchCount || 0),
+    last_new_count: Number(profile.lastNewCount || 0),
+    last_source_count: Number(profile.lastSourceCount || 0),
+    last_scan_status: profile.lastScanStatus ? String(profile.lastScanStatus) : null,
+  };
+}
+
+function rowToSavedSearchProfile(row) {
+  const syncedAt = normalizeIsoField(row.updated_at);
+
+  return {
+    id: String(row.id || createServerSearchId(row.name)),
+    schemaVersion: Number(row.schema_version) || 1,
+    userId: String(row.user_id || CLOUD_PROFILE_USER_ID),
+    name: String(row.name || "Untitled Search"),
+    terms: normalizeArrayField(row.terms),
+    excludes: normalizeArrayField(row.excludes),
+    noiseTerms: normalizeArrayField(row.noise_terms),
+    sources: normalizeArrayField(row.sources),
+    maxPrice: Number(row.max_price || 0),
+    alertMode: String(row.alert_mode || "immediate"),
+    createdAt: normalizeIsoField(row.created_at),
+    updatedAt: syncedAt,
+    deletedAt: row.deleted_at || null,
+    sync: {
+      provider: "supabase",
+      remoteId: String(row.id || ""),
+      status: "synced",
+      lastSyncedAt: syncedAt,
+      lastLocalChangeAt: syncedAt,
+    },
+    lastScannedAt: row.last_scanned_at || null,
+    lastMatchCount: Number(row.last_match_count || 0),
+    lastNewCount: Number(row.last_new_count || 0),
+    lastSourceCount: Number(row.last_source_count || 0),
+    lastScanStatus: row.last_scan_status || null,
+  };
+}
+
+function normalizeArrayField(value) {
+  return Array.isArray(value)
+    ? value.map((item) => String(item).trim()).filter(Boolean)
+    : [];
+}
+
+function normalizeIsoField(value) {
+  const date = value ? new Date(value) : new Date();
+  return Number.isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString();
+}
+
+function normalizeNullableIsoField(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
+function createServerSearchId(name = "search") {
+  const slug = String(name).toLocaleLowerCase("ja-JP").normalize("NFKC")
+    .replace(/[^a-z0-9ぁ-んァ-ン一-龯]+/gi, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 42) || "search";
+  return `search_${slug}_${Date.now().toString(36)}`;
 }
 
 async function handleSearch(url, response) {

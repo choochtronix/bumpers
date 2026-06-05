@@ -570,6 +570,7 @@ let sourceSearchStatuses = new Map();
 let searchRunId = 0;
 let loadingCardId = 0;
 let backToTopFrame = 0;
+let mobileSearchOverlayFrame = 0;
 let starterFreshFindStatus = "idle";
 let starterFreshFindListings = [];
 let starterFreshFindTerms = [];
@@ -586,6 +587,9 @@ const savedSearches = document.querySelector("#savedSearches");
 const searchForm = document.querySelector("#searchForm");
 const brandHomeLink = document.querySelector("#brandHomeLink");
 const termsInput = document.querySelector("#terms");
+const mobileSearchOverlay = document.querySelector("#mobileSearchOverlay");
+const mobileSearchForm = document.querySelector("#mobileSearchForm");
+const mobileSearchInput = document.querySelector("#mobileSearchInput");
 const refineTermsInput = document.querySelector("#refineTerms");
 const termDropdown = document.querySelector("#termDropdown");
 const quickSearchExtraTermsButton = document.querySelector("#quickSearchExtraTerms");
@@ -642,6 +646,7 @@ function initialize() {
   renderResults();
   bindEvents();
   updateBackToTopVisibility();
+  updateMobileSearchOverlayVisibility();
 }
 
 function initializeBrandWave() {
@@ -1009,6 +1014,8 @@ function bindEvents() {
   });
   termsInput.addEventListener("input", handlePrimaryTermsInput);
   termsInput.addEventListener("keydown", handleQuickSearchKeydown);
+  mobileSearchInput?.addEventListener("input", handleMobileSearchInput);
+  mobileSearchForm?.addEventListener("submit", handleMobileSearchSubmit);
   refineTermsInput.addEventListener("input", syncRefineTermsToPrimary);
   quickSearchExtraTermsButton?.addEventListener("click", openRefineSearchModal);
   termDropdown.addEventListener("click", handleTermDropdownClick);
@@ -1114,6 +1121,8 @@ function bindEvents() {
 
   backToTopButton.addEventListener("click", scrollPageTop);
   window.addEventListener("scroll", requestBackToTopVisibilityUpdate, { passive: true });
+  window.addEventListener("scroll", requestMobileSearchOverlayUpdate, { passive: true });
+  window.addEventListener("resize", requestMobileSearchOverlayUpdate);
 
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;
@@ -1212,6 +1221,33 @@ function handleQuickSearchKeydown(event) {
 function handlePrimaryTermsInput() {
   clearSearchSpecificExcludesForNewTerms();
   syncPrimaryTermsToRefine();
+  syncMobileSearchInputFromPrimary();
+}
+
+function handleMobileSearchInput() {
+  if (!mobileSearchInput) return;
+  if (termsInput.value !== mobileSearchInput.value) {
+    termsInput.value = mobileSearchInput.value;
+    handlePrimaryTermsInput();
+  }
+}
+
+function handleMobileSearchSubmit(event) {
+  event.preventDefault();
+  if (mobileSearchInput && termsInput.value !== mobileSearchInput.value) {
+    termsInput.value = mobileSearchInput.value;
+    handlePrimaryTermsInput();
+  }
+  searchForm.requestSubmit();
+}
+
+function syncMobileSearchInputFromPrimary(options = {}) {
+  if (!mobileSearchInput) return;
+  const { force = false } = options;
+  if (!force && document.activeElement === mobileSearchInput) return;
+  if (mobileSearchInput.value !== termsInput.value) {
+    mobileSearchInput.value = termsInput.value;
+  }
 }
 
 function clearSearchSpecificExcludesForNewTerms() {
@@ -1232,6 +1268,7 @@ function openRefineSearchModal(event) {
   renderRefineSummary();
   refineSearchModal.hidden = false;
   document.body.classList.add("modal-open");
+  updateMobileSearchOverlayVisibility();
   refineTermsInput.focus();
 }
 
@@ -1240,6 +1277,7 @@ function closeRefineSearchModal(options = {}) {
   if (refineSearchModal.hidden) return;
   refineSearchModal.hidden = true;
   document.body.classList.remove("modal-open");
+  updateMobileSearchOverlayVisibility();
   if (restoreFocus) refineSearchReturnFocus?.focus();
 }
 
@@ -1277,6 +1315,7 @@ function renderPrimarySearchTerm() {
   if (termsInput.value !== primaryTerm) {
     termsInput.value = primaryTerm;
   }
+  syncMobileSearchInputFromPrimary({ force: true });
   renderSearchTermsSummary();
 }
 
@@ -1423,6 +1462,7 @@ function openSaveSearchModal(event) {
   saveSearchAlert.value = draftProfile.alertMode;
   saveSearchModal.hidden = false;
   document.body.classList.add("modal-open");
+  updateMobileSearchOverlayVisibility();
   saveSearchName.focus();
   saveSearchName.select();
 }
@@ -1431,6 +1471,7 @@ function closeSaveSearchModal(options = {}) {
   const { restoreFocus = true } = options;
   saveSearchModal.hidden = true;
   document.body.classList.remove("modal-open");
+  updateMobileSearchOverlayVisibility();
   if (restoreFocus) saveSearchReturnFocus?.focus?.();
   saveSearchReturnFocus = null;
 }
@@ -1455,6 +1496,7 @@ function openSettingsModal(event) {
   setSavedSearchTransferStatus("");
   settingsModal.hidden = false;
   document.body.classList.add("modal-open");
+  updateMobileSearchOverlayVisibility();
   currencyToggle.focus();
 }
 
@@ -1463,6 +1505,7 @@ function closeSettingsModal(options = {}) {
   if (settingsModal.hidden) return;
   settingsModal.hidden = true;
   document.body.classList.remove("modal-open");
+  updateMobileSearchOverlayVisibility();
   if (restoreFocus) settingsReturnFocus?.focus?.();
   settingsReturnFocus = null;
 }
@@ -1486,16 +1529,16 @@ function saveSettingsFromModal() {
 }
 
 async function pullCloudSavedSearches() {
-  setSavedSearchTransferStatus("Pulling saved searches from cloud emulator...");
+  setSavedSearchTransferStatus("Pulling saved searches from cloud sync...");
   setCloudSyncButtonsDisabled(true);
 
   try {
     const payload = await fetchCloudSavedSearches();
     const cloudProfiles = parseSavedSearchProfilesFromPayload(payload)
-      .map((profile) => prepareCloudProfileForLocal(profile, payload.updatedAt));
+      .map((profile) => prepareCloudProfileForLocal(profile, payload.updatedAt, payload.storage));
 
     if (cloudProfiles.length === 0) {
-      setSavedSearchTransferStatus("Cloud emulator has no saved searches yet.");
+      setSavedSearchTransferStatus("Cloud sync has no saved searches yet.");
       return;
     }
 
@@ -1511,9 +1554,9 @@ async function pullCloudSavedSearches() {
     savedSearchRepository.replaceAll(importPreview.mergedProfiles);
     renderSavedSearches();
     updateQuickSaveSearchButton();
-    setSavedSearchTransferStatus(`Pulled ${cloudProfiles.length} saved ${cloudProfiles.length === 1 ? "search" : "searches"} from cloud emulator.`);
+    setSavedSearchTransferStatus(`Pulled ${cloudProfiles.length} saved ${cloudProfiles.length === 1 ? "search" : "searches"} from cloud sync.`);
   } catch (error) {
-    setSavedSearchTransferStatus(error instanceof Error ? error.message : "Could not pull from cloud emulator.");
+    setSavedSearchTransferStatus(error instanceof Error ? error.message : "Could not pull from cloud sync.");
   } finally {
     setCloudSyncButtonsDisabled(false);
   }
@@ -1526,7 +1569,7 @@ async function pushCloudSavedSearches() {
     return;
   }
 
-  setSavedSearchTransferStatus("Pushing saved searches to cloud emulator...");
+  setSavedSearchTransferStatus("Pushing saved searches to cloud sync...");
   setCloudSyncButtonsDisabled(true);
 
   try {
@@ -1536,12 +1579,12 @@ async function pushCloudSavedSearches() {
       app: "Bumpers",
       type: "saved-searches",
       schemaVersion: SAVED_SEARCH_SCHEMA_VERSION,
-      storage: "cloud-emulator",
+      storage: "cloud",
       user: CLOUD_EMULATOR_USER,
       profiles,
     });
     const syncedProfiles = parseSavedSearchProfilesFromPayload(payload)
-      .map((profile) => prepareCloudProfileForLocal(profile, payload.updatedAt));
+      .map((profile) => prepareCloudProfileForLocal(profile, payload.updatedAt, payload.storage));
 
     if (syncedProfiles.length > 0) {
       savedSearchRepository.replaceAll(syncedProfiles);
@@ -1549,9 +1592,9 @@ async function pushCloudSavedSearches() {
       updateQuickSaveSearchButton();
     }
 
-    setSavedSearchTransferStatus(`Pushed ${profiles.length} saved ${profiles.length === 1 ? "search" : "searches"} to cloud emulator.`);
+    setSavedSearchTransferStatus(`Pushed ${profiles.length} saved ${profiles.length === 1 ? "search" : "searches"} to cloud sync.`);
   } catch (error) {
-    setSavedSearchTransferStatus(error instanceof Error ? error.message : "Could not push to cloud emulator.");
+    setSavedSearchTransferStatus(error instanceof Error ? error.message : "Could not push to cloud sync.");
   } finally {
     setCloudSyncButtonsDisabled(false);
   }
@@ -1588,7 +1631,7 @@ function prepareLocalProfileForCloud(profile, syncedAt = new Date().toISOString(
     updatedAt: profile.updatedAt || syncedAt,
     sync: {
       ...profile.sync,
-      provider: "cloud-emulator",
+      provider: "cloud",
       remoteId: profile.sync?.remoteId || profile.id,
       status: "synced",
       lastSyncedAt: syncedAt,
@@ -1596,13 +1639,13 @@ function prepareLocalProfileForCloud(profile, syncedAt = new Date().toISOString(
   });
 }
 
-function prepareCloudProfileForLocal(profile, syncedAt = new Date().toISOString()) {
+function prepareCloudProfileForLocal(profile, syncedAt = new Date().toISOString(), provider = "cloud") {
   return hydrateProfile({
     ...profile,
     userId: CLOUD_EMULATOR_USER.id,
     sync: {
       ...profile.sync,
-      provider: "cloud-emulator",
+      provider: provider || profile.sync?.provider || "cloud",
       remoteId: profile.sync?.remoteId || profile.id,
       status: "synced",
       lastSyncedAt: isIsoTimestamp(syncedAt) ? syncedAt : new Date().toISOString(),
@@ -1982,6 +2025,30 @@ function requestBackToTopVisibilityUpdate() {
 function updateBackToTopVisibility() {
   backToTopButton.hidden = window.scrollY < 520;
   updateBackToTopPlacement();
+}
+
+function requestMobileSearchOverlayUpdate() {
+  if (mobileSearchOverlayFrame) return;
+  mobileSearchOverlayFrame = window.requestAnimationFrame(() => {
+    mobileSearchOverlayFrame = 0;
+    updateMobileSearchOverlayVisibility();
+  });
+}
+
+function updateMobileSearchOverlayVisibility() {
+  if (!mobileSearchOverlay) return;
+
+  const isMobile = window.matchMedia?.("(max-width: 720px)").matches ?? window.innerWidth <= 720;
+  const searchField = termsInput.closest(".search-terms-field");
+  const searchFieldBottom = searchField?.getBoundingClientRect().bottom ?? 0;
+  const modalIsOpen = document.body.classList.contains("modal-open");
+  const mainSearchIsVisible = searchFieldBottom > 0;
+
+  mobileSearchOverlay.hidden = !isMobile || modalIsOpen || mainSearchIsVisible;
+
+  if (!mobileSearchOverlay.hidden) {
+    syncMobileSearchInputFromPrimary();
+  }
 }
 
 function updateBackToTopPlacement() {
