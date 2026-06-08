@@ -13,6 +13,11 @@
   --color-button-bg: #ffffff;
   --color-primary: #171a1d;
   --color-primary-ink: #ffffff;
+  --color-secondary-button-stroke: #cfd4cc;
+  --color-secondary-button-ink: #151515;
+  --color-secondary-button-bg: #ffffff;
+  --color-secondary-button-hover-bg: #151515;
+  --color-secondary-button-hover-ink: #ffffff;
   --color-accent: #0a84ff;
   --color-accent-soft: rgba(10, 132, 255, 0.12);
   --color-accent-ink: #075fb6;
@@ -65,6 +70,11 @@
   --button-bg: var(--color-button-bg);
   --primary: var(--color-primary);
   --primary-ink: var(--color-primary-ink);
+  --secondary-button-stroke: var(--color-secondary-button-stroke);
+  --secondary-button-ink: var(--color-secondary-button-ink);
+  --secondary-button-bg: var(--color-secondary-button-bg);
+  --secondary-button-hover-bg: var(--color-secondary-button-hover-bg);
+  --secondary-button-hover-ink: var(--color-secondary-button-hover-ink);
   --accent: var(--color-accent);
   --accent-soft: var(--color-accent-soft);
   --accent-ink: var(--color-accent-ink);
@@ -91,6 +101,11 @@ body[data-theme="dark"] {
   --color-button-bg: #202428;
   --color-primary: #f2f4f4;
   --color-primary-ink: #101214;
+  --color-secondary-button-stroke: #f2f4f4;
+  --color-secondary-button-ink: #f2f4f4;
+  --color-secondary-button-bg: transparent;
+  --color-secondary-button-hover-bg: #f2f4f4;
+  --color-secondary-button-hover-ink: #101214;
   --color-accent: #5aa7ff;
   --color-accent-soft: rgba(90, 167, 255, 0.17);
   --color-accent-ink: #a8d0ff;
@@ -114,6 +129,11 @@ body[data-theme="dark"] {
   --button-bg: var(--color-button-bg);
   --primary: var(--color-primary);
   --primary-ink: var(--color-primary-ink);
+  --secondary-button-stroke: var(--color-secondary-button-stroke);
+  --secondary-button-ink: var(--color-secondary-button-ink);
+  --secondary-button-bg: var(--color-secondary-button-bg);
+  --secondary-button-hover-bg: var(--color-secondary-button-hover-bg);
+  --secondary-button-hover-ink: var(--color-secondary-button-hover-ink);
   --accent: var(--color-accent);
   --accent-soft: var(--color-accent-soft);
   --accent-ink: var(--color-accent-ink);

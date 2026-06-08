@@ -78,7 +78,7 @@
           </div>
 
           <div class="quick-search-actions">
-            <button class="secondary-action" id="openRefineSearch" type="button">
+            <button class="secondary-action bumpers-secondary-button" id="openRefineSearch" type="button">
               <span class="refine-icon" aria-hidden="true"></span>
               Refine
             </button>
@@ -91,7 +91,7 @@
             </button>
             <div class="quality-mode-inline" aria-label="Search quality mode">
               <button class="quality-mode-button" type="button" data-quality="all">All</button>
-              <button class="quality-mode-button" type="button" data-quality="clean" role="switch">Clean Gear</button>
+              <button class="quality-mode-button" type="button" data-quality="clean" role="switch">Gear Mode</button>
             </div>
           </div>
 
@@ -119,6 +119,16 @@
             <span>Sources</span>
             <div class="source-filter-list" id="sourceFilterList"></div>
             <div class="source-row-meta">
+              <div class="result-view-toggle" id="resultViewToggle" role="group" aria-label="Result view">
+                <button class="result-view-button is-active" type="button" data-result-view="grid" aria-pressed="true" title="Card view">
+                  <span class="result-view-icon result-view-icon-grid" aria-hidden="true"></span>
+                  <span class="sr-only">Card view</span>
+                </button>
+                <button class="result-view-button" type="button" data-result-view="list" aria-pressed="false" title="List view">
+                  <span class="result-view-icon result-view-icon-list" aria-hidden="true"></span>
+                  <span class="sr-only">List view</span>
+                </button>
+              </div>
               <label class="source-sort-control" aria-label="Sort results">
                 <span>Sort:</span>
                 <select id="sortMode">
@@ -128,20 +138,6 @@
                   <option value="source">Source</option>
                 </select>
               </label>
-              <div class="status-strip" aria-label="Search totals">
-                <div>
-                  <strong id="totalCount">0</strong>
-                  <span>matches</span>
-                </div>
-                <div>
-                  <strong id="newCount">0</strong>
-                  <span>new</span>
-                </div>
-                <div>
-                  <strong id="sourceCount">0</strong>
-                  <span>sources</span>
-                </div>
-              </div>
             </div>
           </section>
 
@@ -327,47 +323,94 @@ stand
             <button class="icon-action" id="closeSettings" type="button" aria-label="Close settings">×</button>
           </div>
 
-          <section class="settings-section" aria-labelledby="currencySettingsTitle">
-            <div>
-              <h3 id="currencySettingsTitle">Currency</h3>
-              <p>Display listing prices in JPY or estimated USD. Source filters still use JPY.</p>
-            </div>
+          <div class="settings-tabs" role="tablist" aria-label="Settings sections">
+            <button class="settings-tab is-active" id="settingsTabGeneral" type="button" role="tab" aria-selected="true" aria-controls="settingsPanelGeneral" data-settings-tab="general">General</button>
+            <button class="settings-tab" id="settingsTabAccount" type="button" role="tab" aria-selected="false" aria-controls="settingsPanelAccount" data-settings-tab="account">Account</button>
+            <button class="settings-tab" id="settingsTabData" type="button" role="tab" aria-selected="false" aria-controls="settingsPanelData" data-settings-tab="data">Data</button>
+          </div>
 
-            <label class="setting-toggle">
-              <span>Display USD</span>
-              <input id="currencyToggle" type="checkbox" />
-              <span class="toggle-track" aria-hidden="true"></span>
-            </label>
+          <div class="settings-scroll">
+            <section class="settings-panel is-active" id="settingsPanelGeneral" role="tabpanel" aria-labelledby="settingsTabGeneral" data-settings-panel="general">
+              <div class="settings-section" aria-labelledby="currencySettingsTitle">
+                <div>
+                  <h3 id="currencySettingsTitle">Currency</h3>
+                  <p>Display listing prices in JPY or estimated USD. Source filters still use JPY.</p>
+                </div>
 
-            <label>
-              <span>JPY per USD</span>
-              <input id="jpyPerUsd" type="number" min="1" step="0.01" inputmode="decimal" />
-            </label>
-          </section>
+                <label class="setting-toggle">
+                  <span>Display USD</span>
+                  <input id="currencyToggle" type="checkbox" />
+                  <span class="toggle-track" aria-hidden="true"></span>
+                </label>
 
-          <section class="settings-section" aria-labelledby="savedSearchSyncTitle">
-            <div>
-              <h3 id="savedSearchSyncTitle">Saved searches</h3>
-              <p>Sync saved searches through local cloud storage now, and Supabase when configured.</p>
-            </div>
+                <label>
+                  <span>JPY per USD</span>
+                  <input id="jpyPerUsd" type="number" min="1" step="0.01" inputmode="decimal" />
+                </label>
+              </div>
+            </section>
 
-            <div class="settings-cloud-profile">
-              <span>Cloud profile</span>
-              <strong id="cloudProfileEmail">local@bumpers.dev</strong>
-            </div>
+            <section class="settings-panel" id="settingsPanelAccount" role="tabpanel" aria-labelledby="settingsTabAccount" data-settings-panel="account" hidden>
+              <div class="settings-section account-section" aria-labelledby="accountSettingsTitle">
+                <div>
+                  <h3 id="accountSettingsTitle">Account</h3>
+                  <p>Sign in to keep saved searches available across desktop, mobile web, and the future iOS app.</p>
+                </div>
 
-            <div class="settings-actions">
-              <button class="secondary-action" id="pullCloudSavedSearches" type="button">Pull from cloud</button>
-              <button class="secondary-action" id="pushCloudSavedSearches" type="button">Push to cloud</button>
-            </div>
+                <div class="account-panel" id="signedOutAccountPanel">
+                  <label>
+                    <span>Email</span>
+                    <input id="accountEmailInput" type="email" autocomplete="email" placeholder="you@example.com" />
+                  </label>
+                  <button class="primary-action" id="sendSignInLink" type="button">Send sign-in link</button>
+                </div>
 
-            <div class="settings-actions">
-              <button class="secondary-action" id="exportSavedSearches" type="button">Export saved searches</button>
-              <button class="secondary-action" id="importSavedSearches" type="button">Import saved searches</button>
-              <input id="savedSearchImportFile" type="file" accept="application/json,.json" hidden />
-            </div>
-            <p class="settings-status" id="savedSearchTransferStatus" aria-live="polite"></p>
-          </section>
+                <div class="account-panel account-panel-signed-in" id="signedInAccountPanel" hidden>
+                  <div class="settings-cloud-profile">
+                    <span>Signed in as</span>
+                    <strong id="accountEmailDisplay">alpha@bumpers.local</strong>
+                  </div>
+                  <div class="settings-actions">
+                    <button class="secondary-action" id="syncAccountSavedSearches" type="button">Sync now</button>
+                    <button class="secondary-action" id="signOutAccount" type="button">Sign out</button>
+                  </div>
+                  <p class="settings-sync-detail" id="accountSyncDetail">Last synced: never</p>
+                </div>
+
+                <p class="settings-status" id="accountStatus" aria-live="polite"></p>
+              </div>
+            </section>
+
+            <section class="settings-panel" id="settingsPanelData" role="tabpanel" aria-labelledby="settingsTabData" data-settings-panel="data" hidden>
+              <div class="settings-section" aria-labelledby="savedSearchSyncTitle">
+                <div>
+                  <h3 id="savedSearchSyncTitle">Saved searches</h3>
+                  <p>Sync saved searches through local cloud storage now, and Supabase when configured.</p>
+                </div>
+
+                <div class="settings-actions">
+                  <button class="secondary-action" id="exportSavedSearches" type="button">Export saved searches</button>
+                  <button class="secondary-action" id="importSavedSearches" type="button">Import saved searches</button>
+                  <input id="savedSearchImportFile" type="file" accept="application/json,.json" hidden />
+                </div>
+
+                <details class="settings-advanced">
+                  <summary>Advanced sync tools</summary>
+                  <div class="settings-cloud-profile">
+                    <span>Cloud profile</span>
+                    <strong id="cloudProfileEmail">local@bumpers.dev</strong>
+                  </div>
+
+                  <div class="settings-actions">
+                    <button class="secondary-action" id="pullCloudSavedSearches" type="button">Pull from cloud</button>
+                    <button class="secondary-action" id="pushCloudSavedSearches" type="button">Push to cloud</button>
+                  </div>
+                </details>
+
+                <p class="settings-status" id="savedSearchTransferStatus" aria-live="polite"></p>
+              </div>
+            </section>
+          </div>
 
           <div class="modal-actions">
             <button class="secondary-action" id="cancelSettings" type="button">Cancel</button>

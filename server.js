@@ -1,4 +1,5 @@
 import { createServer } from "node:http";
+import { existsSync, readFileSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { networkInterfaces } from "node:os";
 import { extname, join, normalize } from "node:path";
@@ -7,13 +8,16 @@ import { fileURLToPath } from "node:url";
 const PORT = Number(process.env.PORT || 5173);
 const HOST = process.env.HOST || "0.0.0.0";
 const ROOT = fileURLToPath(new URL(".", import.meta.url));
+loadLocalEnvFiles([".env.local", ".env"]);
 const CLOUD_DATA_FILE = join(ROOT, "data", "cloud-saved-searches.json");
 const SUPABASE_URL = process.env.SUPABASE_URL || "";
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || "";
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 const CLOUD_PROVIDER = process.env.BUMPERS_CLOUD_PROVIDER || (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY ? "supabase" : "file");
 const CLOUD_PROFILE_USER_ID = process.env.BUMPERS_CLOUD_USER_ID || "local";
 const CLOUD_PROFILE_EMAIL = process.env.BUMPERS_CLOUD_USER_EMAIL || "local@bumpers.dev";
 const CLOUD_PROFILE_NAME = process.env.BUMPERS_CLOUD_USER_NAME || "Local Bumpers User";
+const REQUIRE_INVITE = process.env.BUMPERS_REQUIRE_INVITE === "true";
 const DIGIMART_BASE_URL = "https://www.digimart.net";
 const FIVE_G_BASE_URL = "https://fiveg.net";
 const IMPLANT4_BASE_URL = "https://shop.implant4.com";
@@ -73,8 +77,18 @@ createServer(async (request, response) => {
       return;
     }
 
+    if (url.pathname === "/api/auth/config") {
+      handleAuthConfig(request, response);
+      return;
+    }
+
     if (url.pathname === "/api/cloud/saved-searches") {
       await handleCloudSavedSearches(request, response);
+      return;
+    }
+
+    if (url.pathname === "/api/cloud/profile") {
+      await handleCloudProfile(request, response);
       return;
     }
 
@@ -116,17 +130,79 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
   });
 }
 
+function loadLocalEnvFiles(fileNames) {
+  for (const fileName of fileNames) {
+    const filePath = join(ROOT, fileName);
+    if (!existsSync(filePath)) continue;
+
+    const lines = readFileSync(filePath, "utf8").split(/\r?\n/);
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+
+      const separatorIndex = trimmed.indexOf("=");
+      if (separatorIndex === -1) continue;
+
+      const key = trimmed.slice(0, separatorIndex).trim();
+      const rawValue = trimmed.slice(separatorIndex + 1).trim();
+      if (!key || process.env[key] !== undefined) continue;
+
+      process.env[key] = rawValue.replace(/^["']|["']$/g, "");
+    }
+  }
+}
+
+function handleAuthConfig(request, response) {
+  if (request.method !== "GET") {
+    response.writeHead(405, {
+      "allow": "GET",
+      "content-type": "application/json; charset=utf-8",
+    });
+    response.end(JSON.stringify({ error: "method_not_allowed" }));
+    return;
+  }
+
+  sendJson(response, 200, {
+    provider: "supabase",
+    enabled: Boolean(SUPABASE_URL && SUPABASE_ANON_KEY),
+    supabaseUrl: SUPABASE_URL,
+    anonKey: SUPABASE_ANON_KEY,
+    redirectTo: getRequestOrigin(request),
+  });
+}
+
+function getRequestOrigin(request) {
+  const protocol = request.headers["x-forwarded-proto"] || "http";
+  const host = request.headers["x-forwarded-host"] || request.headers.host || `127.0.0.1:${PORT}`;
+  return `${protocol}://${host}`;
+}
+
 async function handleCloudSavedSearches(request, response) {
+  let cloudUser;
+  try {
+    cloudUser = await getRequestCloudUser(request);
+  } catch (error) {
+    if (error instanceof AuthVerificationError) {
+      sendJson(response, 401, {
+        error: "auth_verification_failed",
+        message: error.message,
+      });
+      return;
+    }
+
+    throw error;
+  }
+
   if (request.method === "GET") {
-    sendJson(response, 200, await readCloudSavedSearches());
+    sendJson(response, 200, await readCloudSavedSearches(cloudUser));
     return;
   }
 
   if (request.method === "PUT") {
     const payload = await readJsonBody(request);
-    const nextCloudState = createCloudSavedSearchState(payload);
-    await writeCloudSavedSearches(nextCloudState);
-    sendJson(response, 200, nextCloudState);
+    const nextCloudState = createCloudSavedSearchState(payload, cloudUser);
+    const savedCloudState = await writeCloudSavedSearches(nextCloudState, cloudUser);
+    sendJson(response, 200, savedCloudState);
     return;
   }
 
@@ -137,25 +213,103 @@ async function handleCloudSavedSearches(request, response) {
   response.end(JSON.stringify({ error: "method_not_allowed" }));
 }
 
-async function readCloudSavedSearches() {
+async function handleCloudProfile(request, response) {
+  let cloudUser;
+  try {
+    cloudUser = await getRequestCloudUser(request);
+  } catch (error) {
+    if (error instanceof AuthVerificationError) {
+      sendJson(response, 401, {
+        error: "auth_verification_failed",
+        message: error.message,
+      });
+      return;
+    }
+
+    throw error;
+  }
+
+  if (request.method === "GET") {
+    try {
+      sendJson(response, 200, await readCloudProfile(cloudUser));
+    } catch (error) {
+      sendCloudSetupError(response, error);
+    }
+    return;
+  }
+
+  if (request.method === "PUT") {
+    try {
+      const payload = await readJsonBody(request);
+      sendJson(response, 200, await writeCloudProfile(cloudUser, payload));
+    } catch (error) {
+      sendCloudSetupError(response, error);
+    }
+    return;
+  }
+
+  response.writeHead(405, {
+    "allow": "GET, PUT",
+    "content-type": "application/json; charset=utf-8",
+  });
+  response.end(JSON.stringify({ error: "method_not_allowed" }));
+}
+
+function sendCloudSetupError(response, error) {
+  const message = error instanceof Error ? error.message : String(error);
+  const isMissingProfileTable = message.includes("user_profiles") && message.includes("PGRST205");
+
+  if (isMissingProfileTable) {
+    sendJson(response, 424, {
+      error: "cloud_profile_setup_required",
+      message: "Run the user_profiles SQL from docs/supabase-alpha-cloud-sync.md, then restart Bumpers.",
+    });
+    return;
+  }
+
+  throw error;
+}
+
+async function readCloudProfile(cloudUser = getCloudUser()) {
   if (isSupabaseCloudEnabled()) {
-    return readSupabaseSavedSearches();
+    return readSupabaseUserProfile(cloudUser);
+  }
+
+  return createCloudProfileState({ user: cloudUser });
+}
+
+async function writeCloudProfile(cloudUser = getCloudUser(), payload = {}) {
+  const nextProfile = createCloudProfileState({
+    ...payload,
+    user: cloudUser,
+  });
+
+  if (isSupabaseCloudEnabled()) {
+    return writeSupabaseUserProfile(nextProfile);
+  }
+
+  return nextProfile;
+}
+
+async function readCloudSavedSearches(cloudUser = getCloudUser()) {
+  if (isSupabaseCloudEnabled()) {
+    return readSupabaseSavedSearches(cloudUser);
   }
 
   try {
     const cloudState = JSON.parse(await readFile(CLOUD_DATA_FILE, "utf8"));
-    return createCloudSavedSearchState(cloudState);
+    return createCloudSavedSearchState(cloudState, cloudUser);
   } catch (error) {
     if (error?.code !== "ENOENT") throw error;
-    const emptyState = createCloudSavedSearchState();
-    await writeCloudSavedSearches(emptyState);
+    const emptyState = createCloudSavedSearchState({}, cloudUser);
+    await writeCloudSavedSearches(emptyState, cloudUser);
     return emptyState;
   }
 }
 
-async function writeCloudSavedSearches(payload) {
+async function writeCloudSavedSearches(payload, cloudUser = getCloudUser()) {
   if (isSupabaseCloudEnabled()) {
-    return writeSupabaseSavedSearches(payload);
+    return writeSupabaseSavedSearches(payload, cloudUser);
   }
 
   await mkdir(join(ROOT, "data"), { recursive: true });
@@ -177,14 +331,15 @@ async function readJsonBody(request) {
   return JSON.parse(body);
 }
 
-function createCloudSavedSearchState(payload = {}) {
+function createCloudSavedSearchState(payload = {}, cloudUser = getCloudUser()) {
   const now = new Date().toISOString();
+  const user = normalizeCloudUser(payload.user || cloudUser);
   const profiles = Array.isArray(payload.profiles)
     ? payload.profiles
       .filter((profile) => profile && typeof profile === "object")
       .map((profile) => ({
         ...profile,
-        userId: typeof profile.userId === "string" && profile.userId.trim() ? profile.userId.trim() : CLOUD_PROFILE_USER_ID,
+        userId: user.id,
       }))
     : [];
 
@@ -193,11 +348,7 @@ function createCloudSavedSearchState(payload = {}) {
     type: "saved-searches",
     schemaVersion: Number(payload.schemaVersion) || 1,
     storage: isSupabaseCloudEnabled() ? "supabase" : "cloud-emulator",
-    user: {
-      id: payload.user?.id || CLOUD_PROFILE_USER_ID,
-      email: payload.user?.email || CLOUD_PROFILE_EMAIL,
-      name: payload.user?.name || CLOUD_PROFILE_NAME,
-    },
+    user,
     updatedAt: now,
     profiles,
   };
@@ -207,21 +358,40 @@ function isSupabaseCloudEnabled() {
   return CLOUD_PROVIDER === "supabase" && Boolean(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY);
 }
 
-async function readSupabaseSavedSearches() {
-  const rows = await fetchSupabaseSavedSearchRows();
-  return createCloudSavedSearchState({
-    storage: "supabase",
-    user: getCloudUser(),
-    profiles: rows.map(rowToSavedSearchProfile),
-  });
+function createCloudProfileState(payload = {}) {
+  const now = new Date().toISOString();
+  const user = normalizeCloudUser(payload.user);
+
+  return {
+    app: "Bumpers",
+    type: "user-profile",
+    schemaVersion: Number(payload.schemaVersion) || 1,
+    storage: isSupabaseCloudEnabled() ? "supabase" : "cloud-emulator",
+    user,
+    invite: {
+      required: REQUIRE_INVITE,
+      status: payload.invite?.status || "not_required",
+    },
+    preferences: normalizePreferences(payload.preferences),
+    updatedAt: normalizeIsoField(payload.updatedAt || now),
+  };
 }
 
-async function writeSupabaseSavedSearches(payload = {}) {
+async function readSupabaseSavedSearches(cloudUser = getCloudUser()) {
+  const rows = await fetchSupabaseSavedSearchRows(cloudUser.id);
+  return createCloudSavedSearchState({
+    storage: "supabase",
+    user: cloudUser,
+    profiles: rows.map(rowToSavedSearchProfile),
+  }, cloudUser);
+}
+
+async function writeSupabaseSavedSearches(payload = {}, cloudUser = getCloudUser()) {
   const state = createCloudSavedSearchState({
     ...payload,
     storage: "supabase",
-    user: payload.user || getCloudUser(),
-  });
+    user: cloudUser,
+  }, cloudUser);
   const userId = state.user.id;
   const rows = state.profiles.map((profile) => savedSearchProfileToRow(profile, userId));
 
@@ -233,13 +403,13 @@ async function writeSupabaseSavedSearches(payload = {}) {
   });
 
   if (rows.length === 0) {
-    return createCloudSavedSearchState({ storage: "supabase", user: state.user, profiles: [] });
+    return createCloudSavedSearchState({ storage: "supabase", user: state.user, profiles: [] }, state.user);
   }
 
-  const insertedRows = await supabaseRequest("/rest/v1/saved_searches", {
+  const insertedRows = await supabaseRequest("/rest/v1/saved_searches?on_conflict=id", {
     method: "POST",
     headers: {
-      prefer: "return=representation",
+      prefer: "resolution=merge-duplicates,return=representation",
     },
     body: JSON.stringify(rows),
   });
@@ -248,14 +418,127 @@ async function writeSupabaseSavedSearches(payload = {}) {
     storage: "supabase",
     user: state.user,
     profiles: Array.isArray(insertedRows) ? insertedRows.map(rowToSavedSearchProfile) : state.profiles,
+  }, state.user);
+}
+
+async function fetchSupabaseSavedSearchRows(userId = CLOUD_PROFILE_USER_ID) {
+  const encodedUserId = encodeURIComponent(userId);
+  const query = `/rest/v1/saved_searches?user_id=eq.${encodedUserId}&deleted_at=is.null&order=updated_at.desc`;
+  const rows = await supabaseRequest(query);
+  return Array.isArray(rows) ? rows : [];
+}
+
+async function getRequestCloudUser(request) {
+  const token = getBearerToken(request);
+  if (!token || !SUPABASE_URL || !SUPABASE_ANON_KEY) return getCloudUser();
+
+  try {
+    const cloudUser = await fetchSupabaseAuthUser(token);
+    await assertUserInvite(cloudUser);
+    return cloudUser;
+  } catch (error) {
+    if (error instanceof AuthVerificationError) throw error;
+    console.warn("Supabase auth verification failed.", error);
+    throw new AuthVerificationError("Your cloud session could not be verified. Sign out and sign in again.");
+  }
+}
+
+class AuthVerificationError extends Error {}
+
+function getBearerToken(request) {
+  const authorization = request.headers.authorization || "";
+  const match = authorization.match(/^Bearer\s+(.+)$/i);
+  return match ? match[1].trim() : "";
+}
+
+async function fetchSupabaseAuthUser(accessToken) {
+  const baseUrl = SUPABASE_URL.replace(/\/+$/, "");
+  const response = await fetch(`${baseUrl}/auth/v1/user`, {
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      authorization: `Bearer ${accessToken}`,
+      "content-type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(`Supabase auth verification responded with ${response.status}: ${message || response.statusText}`);
+  }
+
+  const user = await response.json();
+  return normalizeCloudUser({
+    id: user.id,
+    email: user.email,
+    name: user.user_metadata?.name || user.email || CLOUD_PROFILE_NAME,
   });
 }
 
-async function fetchSupabaseSavedSearchRows() {
-  const userId = encodeURIComponent(CLOUD_PROFILE_USER_ID);
-  const query = `/rest/v1/saved_searches?user_id=eq.${userId}&deleted_at=is.null&order=updated_at.desc`;
-  const rows = await supabaseRequest(query);
-  return Array.isArray(rows) ? rows : [];
+async function assertUserInvite(cloudUser) {
+  if (!REQUIRE_INVITE || !isSupabaseCloudEnabled()) return;
+
+  const invitedEmail = normalizeEmail(cloudUser.email);
+  const rows = await supabaseRequest("/rest/v1/alpha_invites?status=eq.active&select=email&limit=1000");
+  const isInvited = Array.isArray(rows)
+    && rows.some((row) => normalizeEmail(row.email) === invitedEmail);
+
+  if (isInvited) return;
+
+  throw new AuthVerificationError("This Bumpers alpha is invite-only. Ask Craig to add your email to the invite list.");
+}
+
+async function readSupabaseUserProfile(cloudUser = getCloudUser()) {
+  const rows = await supabaseRequest(`/rest/v1/user_profiles?user_id=eq.${encodeURIComponent(cloudUser.id)}&limit=1`);
+  if (Array.isArray(rows) && rows[0]) {
+    return rowToCloudProfile(rows[0], cloudUser);
+  }
+
+  return writeSupabaseUserProfile(createCloudProfileState({
+    user: cloudUser,
+    invite: {
+      required: REQUIRE_INVITE,
+      status: REQUIRE_INVITE ? "active" : "not_required",
+    },
+    preferences: {},
+  }));
+}
+
+async function writeSupabaseUserProfile(profileState) {
+  const state = createCloudProfileState(profileState);
+  const rows = await supabaseRequest("/rest/v1/user_profiles?on_conflict=user_id", {
+    method: "POST",
+    headers: {
+      prefer: "resolution=merge-duplicates,return=representation",
+    },
+    body: JSON.stringify([{
+      user_id: state.user.id,
+      email: state.user.email,
+      name: state.user.name,
+      preferences: state.preferences,
+      invite_status: state.invite.status,
+      updated_at: state.updatedAt,
+    }]),
+  });
+
+  return Array.isArray(rows) && rows[0] ? rowToCloudProfile(rows[0], state.user) : state;
+}
+
+function rowToCloudProfile(row, fallbackUser = getCloudUser()) {
+  const user = normalizeCloudUser({
+    id: row.user_id || fallbackUser.id,
+    email: row.email || fallbackUser.email,
+    name: row.name || fallbackUser.name,
+  });
+
+  return createCloudProfileState({
+    user,
+    invite: {
+      required: REQUIRE_INVITE,
+      status: row.invite_status || (REQUIRE_INVITE ? "active" : "not_required"),
+    },
+    preferences: row.preferences || {},
+    updatedAt: row.updated_at,
+  });
 }
 
 async function supabaseRequest(path, options = {}) {
@@ -281,16 +564,53 @@ async function supabaseRequest(path, options = {}) {
 }
 
 function getCloudUser() {
-  return {
+  return normalizeCloudUser({
     id: CLOUD_PROFILE_USER_ID,
     email: CLOUD_PROFILE_EMAIL,
     name: CLOUD_PROFILE_NAME,
+  });
+}
+
+function normalizeCloudUser(user = {}) {
+  return {
+    id: typeof user.id === "string" && user.id.trim() ? user.id.trim() : CLOUD_PROFILE_USER_ID,
+    email: normalizeEmail(user.email) || CLOUD_PROFILE_EMAIL,
+    name: typeof user.name === "string" && user.name.trim() ? user.name.trim() : CLOUD_PROFILE_NAME,
+  };
+}
+
+function normalizeEmail(value) {
+  return typeof value === "string" ? value.trim().toLowerCase() : "";
+}
+
+function normalizePreferences(preferences = {}) {
+  const currency = preferences.currency === "USD" ? "USD" : preferences.currency === "JPY" ? "JPY" : undefined;
+  const jpyPerUsd = Number(preferences.jpyPerUsd);
+  const theme = ["light", "dark"].includes(preferences.theme) ? preferences.theme : undefined;
+  const watchedListingIds = Array.isArray(preferences.watchedListingIds)
+    ? { watchedListingIds: normalizeArrayField(preferences.watchedListingIds) }
+    : {};
+  const watchedListingLedger = preferences.watchedListingLedger && typeof preferences.watchedListingLedger === "object" && !Array.isArray(preferences.watchedListingLedger)
+    ? { watchedListingLedger: preferences.watchedListingLedger }
+    : {};
+  const feedbackRules = preferences.feedbackRules && typeof preferences.feedbackRules === "object" && !Array.isArray(preferences.feedbackRules)
+    ? { feedbackRules: preferences.feedbackRules }
+    : {};
+
+  return {
+    ...(currency ? { currency } : {}),
+    ...(Number.isFinite(jpyPerUsd) && jpyPerUsd > 0 ? { jpyPerUsd } : {}),
+    ...(theme ? { theme } : {}),
+    ...(Array.isArray(preferences.defaultSources) ? { defaultSources: normalizeArrayField(preferences.defaultSources) } : {}),
+    ...watchedListingIds,
+    ...watchedListingLedger,
+    ...feedbackRules,
   };
 }
 
 function savedSearchProfileToRow(profile, userId = CLOUD_PROFILE_USER_ID) {
   return {
-    id: String(profile.id || createServerSearchId(profile.name)),
+    id: createSupabaseSavedSearchRowId(profile, userId),
     user_id: userId,
     schema_version: Number(profile.schemaVersion) || 1,
     name: String(profile.name || "Untitled Search"),
@@ -313,11 +633,12 @@ function savedSearchProfileToRow(profile, userId = CLOUD_PROFILE_USER_ID) {
 
 function rowToSavedSearchProfile(row) {
   const syncedAt = normalizeIsoField(row.updated_at);
+  const userId = String(row.user_id || CLOUD_PROFILE_USER_ID);
 
   return {
-    id: String(row.id || createServerSearchId(row.name)),
+    id: stripSupabaseSavedSearchRowId(row.id, userId) || createServerSearchId(row.name),
     schemaVersion: Number(row.schema_version) || 1,
-    userId: String(row.user_id || CLOUD_PROFILE_USER_ID),
+    userId,
     name: String(row.name || "Untitled Search"),
     terms: normalizeArrayField(row.terms),
     excludes: normalizeArrayField(row.excludes),
@@ -341,6 +662,18 @@ function rowToSavedSearchProfile(row) {
     lastSourceCount: Number(row.last_source_count || 0),
     lastScanStatus: row.last_scan_status || null,
   };
+}
+
+function createSupabaseSavedSearchRowId(profile, userId) {
+  const profileId = String(profile.id || profile.sync?.remoteId || createServerSearchId(profile.name));
+  if (profileId.startsWith(`${userId}:`)) return profileId;
+  return `${userId}:${profileId}`;
+}
+
+function stripSupabaseSavedSearchRowId(rowId, userId) {
+  const value = String(rowId || "");
+  const prefix = `${userId}:`;
+  return value.startsWith(prefix) ? value.slice(prefix.length) : value;
 }
 
 function normalizeArrayField(value) {
@@ -1425,13 +1758,32 @@ function splitParam(value) {
 function createSourceSearchTerms(terms) {
   const seen = new Set();
   return terms
-    .map((term) => parseMatchTerm(term).value)
+    .flatMap((term) => createSourceSearchTermVariants(parseMatchTerm(term).value))
     .filter((term) => {
       const normalized = normalizeText(term);
       if (!normalized || seen.has(normalized)) return false;
       seen.add(normalized);
       return true;
     });
+}
+
+function createSourceSearchTermVariants(term) {
+  const value = String(term || "").trim();
+  if (!value) return [];
+
+  const variants = [value];
+  const compactableSeparatorPattern = /([a-zA-Z])[\s._/-]+(\d)/g;
+  if (compactableSeparatorPattern.test(value)) {
+    variants.push(value.replace(/([a-zA-Z])[\s._/-]+(\d)/g, "$1-$2"));
+    variants.push(value.replace(/([a-zA-Z])[\s._/-]+(\d)/g, "$1$2"));
+  }
+  const compactModelPattern = /([a-zA-Z]+)(\d+)/g;
+  if (compactModelPattern.test(value)) {
+    variants.push(value.replace(/([a-zA-Z]+)(\d+)/g, "$1-$2"));
+    variants.push(value.replace(/([a-zA-Z]+)(\d+)/g, "$1 $2"));
+  }
+
+  return variants;
 }
 
 function termMatches(searchable, term) {
@@ -1447,7 +1799,7 @@ function termMatches(searchable, term) {
     return new RegExp(`(^|[^a-z0-9])${escapeRegExp(normalized)}($|[^a-z0-9])`).test(searchable);
   }
 
-  return searchable.includes(normalized);
+  return searchable.includes(normalized) || flexibleSeparatorMatches(searchable, normalized);
 }
 
 function parseMatchTerm(term) {
@@ -1474,10 +1826,28 @@ function exactPhraseMatches(searchable, normalizedPhrase) {
   const phrase = normalizedPhrase.replace(/\s+/g, " ").trim();
   if (!phrase) return false;
 
-  const phrasePattern = phrase.split(/\s+/).map(escapeRegExp).join("\\s+");
+  const phrasePattern = createFlexiblePhrasePattern(phrase);
   const startBoundary = /^[a-z0-9]/.test(phrase) ? "(^|[^a-z0-9])" : "";
   const endBoundary = /[a-z0-9]$/.test(phrase) ? "($|[^a-z0-9])" : "";
   return new RegExp(`${startBoundary}${phrasePattern}${endBoundary}`).test(searchable);
+}
+
+function flexibleSeparatorMatches(searchable, normalizedTerm) {
+  if (!/[a-z0-9][\s._/-]+[a-z0-9]/.test(normalizedTerm) && !/[a-z]+\d|\d+[a-z]/.test(normalizedTerm)) return false;
+
+  const startBoundary = /^[a-z0-9]/.test(normalizedTerm) ? "(^|[^a-z0-9])" : "";
+  const endBoundary = /[a-z0-9]$/.test(normalizedTerm) ? "($|[^a-z0-9])" : "";
+  return new RegExp(`${startBoundary}${createFlexiblePhrasePattern(normalizedTerm)}${endBoundary}`).test(searchable);
+}
+
+function createFlexiblePhrasePattern(value) {
+  return value
+    .split(/[\s._/-]+/)
+    .filter(Boolean)
+    .map(escapeRegExp)
+    .join("[\\s._/-]*")
+    .replace(/([a-z])(\d)/gi, "$1[\\s._/-]*$2")
+    .replace(/(\d)([a-z])/gi, "$1[\\s._/-]*$2");
 }
 
 function escapeRegExp(value) {

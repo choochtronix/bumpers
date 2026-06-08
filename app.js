@@ -525,6 +525,8 @@ const STORAGE_KEYS = {
   watching: "bumpers.watching",
   theme: "bumpers.theme",
   settings: "bumpers.settings",
+  authSession: "bumpers.authSession",
+  cloudSyncMeta: "bumpers.cloudSyncMeta",
   listingLedger: "bumpers.listingLedger",
   feedbackRules: "bumpers.feedbackRules",
 };
@@ -540,9 +542,19 @@ const savedSearchRepository = createSavedSearchRepository({
   storageKey: STORAGE_KEYS.profiles,
 });
 
+let authState = {
+  config: null,
+  session: null,
+  user: null,
+  callbackError: null,
+  accountNotice: "",
+  lastSyncedAt: "",
+};
+
 const defaultSettings = {
   currency: "JPY",
   jpyPerUsd: 155,
+  resultView: "grid",
 };
 
 const defaultProfile = {
@@ -574,6 +586,7 @@ let mobileSearchOverlayFrame = 0;
 let starterFreshFindStatus = "idle";
 let starterFreshFindListings = [];
 let starterFreshFindTerms = [];
+let isSourceRowExpanded = false;
 const rakumaClientThumbnailCache = new Map();
 let searchState = {
   mode: "idle",
@@ -609,6 +622,7 @@ const themeToggle = document.querySelector("#themeToggle");
 const liveStatus = document.querySelector("#liveStatus");
 const qualityModeButtons = document.querySelectorAll("[data-quality]");
 const sortModeSelect = document.querySelector("#sortMode");
+const resultViewButtons = document.querySelectorAll("[data-result-view]");
 const openSavedSearchesButton = document.querySelector("#openSavedSearches");
 const savedSearchPopover = document.querySelector("#savedSearchPopover");
 const quickSaveSearchButton = document.querySelector("#quickSaveSearch");
@@ -621,8 +635,19 @@ const saveSearchName = document.querySelector("#saveSearchName");
 const saveSearchAlert = document.querySelector("#saveSearchAlert");
 const settingsModal = document.querySelector("#settingsModal");
 const settingsForm = document.querySelector("#settingsForm");
+const settingsTabs = [...document.querySelectorAll("[data-settings-tab]")];
+const settingsPanels = [...document.querySelectorAll("[data-settings-panel]")];
 const currencyToggle = document.querySelector("#currencyToggle");
 const jpyPerUsdInput = document.querySelector("#jpyPerUsd");
+const signedOutAccountPanel = document.querySelector("#signedOutAccountPanel");
+const signedInAccountPanel = document.querySelector("#signedInAccountPanel");
+const accountEmailInput = document.querySelector("#accountEmailInput");
+const accountEmailDisplay = document.querySelector("#accountEmailDisplay");
+const accountStatus = document.querySelector("#accountStatus");
+const accountSyncDetail = document.querySelector("#accountSyncDetail");
+const sendSignInLinkButton = document.querySelector("#sendSignInLink");
+const syncAccountSavedSearchesButton = document.querySelector("#syncAccountSavedSearches");
+const signOutAccountButton = document.querySelector("#signOutAccount");
 const cloudProfileEmail = document.querySelector("#cloudProfileEmail");
 const pullCloudSavedSearchesButton = document.querySelector("#pullCloudSavedSearches");
 const pushCloudSavedSearchesButton = document.querySelector("#pushCloudSavedSearches");
@@ -634,6 +659,10 @@ const backToTopButton = document.querySelector("#backToTop");
 let refineSearchReturnFocus = null;
 let saveSearchReturnFocus = null;
 let settingsReturnFocus = null;
+let savedSearchAutoSyncTimer = 0;
+let profileAutoSyncTimer = 0;
+let isSavedSearchAutoSyncing = false;
+let isProfileAutoSyncing = false;
 
 function initialize() {
   applyStoredTheme();
@@ -647,6 +676,7 @@ function initialize() {
   bindEvents();
   updateBackToTopVisibility();
   updateMobileSearchOverlayVisibility();
+  initializeAuth();
 }
 
 function initializeBrandWave() {
@@ -1019,6 +1049,7 @@ function bindEvents() {
   refineTermsInput.addEventListener("input", syncRefineTermsToPrimary);
   quickSearchExtraTermsButton?.addEventListener("click", openRefineSearchModal);
   termDropdown.addEventListener("click", handleTermDropdownClick);
+  resultGrid.addEventListener("click", handleResultGridAction);
   document.addEventListener("click", closeListingActionMenus);
 
   document.querySelector("#openRefineSearch").addEventListener("click", openRefineSearchModal);
@@ -1057,8 +1088,15 @@ function bindEvents() {
     event.preventDefault();
     saveSettingsFromModal();
   });
+  settingsTabs.forEach((tab) => {
+    tab.addEventListener("click", () => setActiveSettingsTab(tab.dataset.settingsTab));
+    tab.addEventListener("keydown", handleSettingsTabKeydown);
+  });
   pullCloudSavedSearchesButton.addEventListener("click", pullCloudSavedSearches);
   pushCloudSavedSearchesButton.addEventListener("click", pushCloudSavedSearches);
+  sendSignInLinkButton?.addEventListener("click", handleAccountSignInShell);
+  syncAccountSavedSearchesButton?.addEventListener("click", syncAccountCloudData);
+  signOutAccountButton?.addEventListener("click", handleAccountSignOutShell);
   exportSavedSearchesButton.addEventListener("click", exportSavedSearches);
   importSavedSearchesButton.addEventListener("click", () => savedSearchImportFile.click());
   savedSearchImportFile.addEventListener("change", importSavedSearchesFromFile);
@@ -1090,6 +1128,16 @@ function bindEvents() {
   sourceFilterList.addEventListener("click", (event) => {
     const button = event.target.closest("button");
     if (!button) return;
+    if (button.dataset.source === "all") {
+      if (activeViewSources.size > 0) {
+        activeViewSources.clear();
+      } else {
+        isSourceRowExpanded = !isSourceRowExpanded;
+      }
+      resetPagination();
+      renderResults();
+      return;
+    }
     toggleViewSource(button.dataset.source || "");
     resetPagination();
     renderResults();
@@ -1109,6 +1157,10 @@ function bindEvents() {
     sortMode = sortModeSelect.value;
     resetPagination();
     renderResults();
+  });
+
+  resultViewButtons.forEach((button) => {
+    button.addEventListener("click", () => setResultView(button.dataset.resultView));
   });
 
   paginationControls.addEventListener("click", (event) => {
@@ -1156,6 +1208,7 @@ function toggleTheme(event) {
   event?.stopPropagation?.();
   const nextTheme = document.body.dataset.theme === "dark" ? "light" : "dark";
   setTheme(nextTheme);
+  pushCloudProfilePreferences({ silent: true });
 }
 
 function renderSources() {
@@ -1487,6 +1540,7 @@ function saveCurrentSearchFromModal() {
   currentProfile = saveProfile(currentProfile);
   renderSavedSearches();
   setActiveTitle(currentProfile.name);
+  queueSavedSearchAutoSync("save-search");
   closeSaveSearchModal();
 }
 
@@ -1494,6 +1548,7 @@ function openSettingsModal(event) {
   settingsReturnFocus = event?.currentTarget || document.activeElement;
   fillSettingsForm();
   setSavedSearchTransferStatus("");
+  setActiveSettingsTab("general", { focus: false });
   settingsModal.hidden = false;
   document.body.classList.add("modal-open");
   updateMobileSearchOverlayVisibility();
@@ -1513,22 +1568,628 @@ function closeSettingsModal(options = {}) {
 function fillSettingsForm() {
   currencyToggle.checked = appSettings.currency === "USD";
   jpyPerUsdInput.value = appSettings.jpyPerUsd;
-  if (cloudProfileEmail) cloudProfileEmail.textContent = CLOUD_EMULATOR_USER.email;
+  if (cloudProfileEmail) cloudProfileEmail.textContent = getCloudSyncUser().email;
+  renderAccountShell(authState.user);
 }
 
-function saveSettingsFromModal() {
+function setActiveSettingsTab(tabName = "general", options = {}) {
+  const nextTabName = settingsTabs.some((tab) => tab.dataset.settingsTab === tabName) ? tabName : "general";
+  settingsTabs.forEach((tab) => {
+    const isActive = tab.dataset.settingsTab === nextTabName;
+    tab.classList.toggle("is-active", isActive);
+    tab.setAttribute("aria-selected", String(isActive));
+    tab.tabIndex = isActive ? 0 : -1;
+    if (isActive && options.focus) tab.focus();
+  });
+  settingsPanels.forEach((panel) => {
+    const isActive = panel.dataset.settingsPanel === nextTabName;
+    panel.classList.toggle("is-active", isActive);
+    panel.hidden = !isActive;
+  });
+}
+
+function handleSettingsTabKeydown(event) {
+  if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+  event.preventDefault();
+
+  const currentIndex = settingsTabs.indexOf(event.currentTarget);
+  if (currentIndex < 0) return;
+
+  let nextIndex = currentIndex;
+  if (event.key === "ArrowLeft") nextIndex = (currentIndex - 1 + settingsTabs.length) % settingsTabs.length;
+  if (event.key === "ArrowRight") nextIndex = (currentIndex + 1) % settingsTabs.length;
+  if (event.key === "Home") nextIndex = 0;
+  if (event.key === "End") nextIndex = settingsTabs.length - 1;
+
+  setActiveSettingsTab(settingsTabs[nextIndex].dataset.settingsTab, { focus: true });
+}
+
+function renderAccountShell(account = null) {
+  const isSignedIn = Boolean(account?.email);
+  if (signedOutAccountPanel) signedOutAccountPanel.hidden = isSignedIn;
+  if (signedInAccountPanel) signedInAccountPanel.hidden = !isSignedIn;
+  if (accountEmailDisplay) accountEmailDisplay.textContent = account?.email || CLOUD_EMULATOR_USER.email;
+  if (accountStatus) {
+    accountStatus.textContent = isSignedIn
+      ? authState.accountNotice || "Signed in. Saved searches now sync with this account."
+      : getSignedOutAccountStatus();
+  }
+  renderAccountSyncDetail();
+}
+
+function renderAccountSyncDetail() {
+  if (!accountSyncDetail) return;
+
+  if (!authState.user?.id) {
+    accountSyncDetail.textContent = "Last synced: sign in to sync";
+    return;
+  }
+
+  accountSyncDetail.textContent = authState.lastSyncedAt
+    ? `Last synced: ${formatSyncTimestamp(authState.lastSyncedAt)}`
+    : "Last synced: never";
+}
+
+function formatSyncTimestamp(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "unknown";
+  return date.toLocaleString([], {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function readCloudSyncMeta() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEYS.cloudSyncMeta) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function writeCloudSyncMeta(nextMeta = {}) {
+  localStorage.setItem(STORAGE_KEYS.cloudSyncMeta, JSON.stringify(nextMeta));
+}
+
+function markCloudSynced(syncedAt = new Date().toISOString()) {
+  authState.lastSyncedAt = syncedAt;
+  writeCloudSyncMeta({
+    ...readCloudSyncMeta(),
+    lastSyncedAt: syncedAt,
+    userId: authState.user?.id || "",
+    email: authState.user?.email || "",
+  });
+  renderAccountSyncDetail();
+}
+
+function getSignedOutAccountStatus() {
+  if (authState.callbackError) return authState.callbackError;
+  if (!authState.config) return "Checking account sign-in setup...";
+  if (!authState.config.enabled) return "Add SUPABASE_ANON_KEY to enable email sign-in.";
+  return "Enter your email and Bumpers will send a Supabase sign-in link.";
+}
+
+async function initializeAuth() {
+  authState.config = await fetchAuthConfig();
+  authState.lastSyncedAt = readCloudSyncMeta().lastSyncedAt || "";
+  authState.session = readAuthSessionFromCallback() || readStoredAuthSession();
+  authState.user = null;
+
+  if (authState.session && authState.config?.enabled) {
+    await hydrateAuthUser();
+  }
+
+  renderAccountShell(authState.user);
+}
+
+async function fetchAuthConfig() {
+  try {
+    const response = await fetch("/api/auth/config", { cache: "no-store" });
+    if (!response.ok) throw new Error(`Auth config responded with ${response.status}.`);
+    return response.json();
+  } catch (error) {
+    console.warn("Could not load auth config.", error);
+    return {
+      provider: "supabase",
+      enabled: false,
+      supabaseUrl: "",
+      anonKey: "",
+      redirectTo: window.location.origin,
+    };
+  }
+}
+
+async function hydrateAuthUser() {
+  try {
+    authState.session = await refreshAuthSessionIfNeeded(authState.session);
+    authState.user = await fetchSupabaseUser(authState.session.access_token);
+    authState.accountNotice = "";
+  } catch (error) {
+    console.warn("Could not restore auth session.", error);
+    clearStoredAuthSession();
+    authState.session = null;
+    authState.user = null;
+    authState.accountNotice = "";
+    return;
+  }
+
+  try {
+    await pullCloudProfilePreferences({ silent: true, surfaceErrors: true });
+    authState.accountNotice = "";
+  } catch (error) {
+    console.warn("Could not sync profile preferences yet.", error);
+    authState.accountNotice = error instanceof Error
+      ? error.message
+      : "Signed in, but cloud sync needs attention.";
+  }
+}
+
+function readAuthSessionFromCallback() {
+  if (!window.location.hash.includes("access_token") && !window.location.hash.includes("error=")) return null;
+
+  const params = new URLSearchParams(window.location.hash.slice(1));
+
+  if (params.has("error")) {
+    authState.callbackError = formatAuthCallbackError(params);
+    window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+    return null;
+  }
+
+  const session = normalizeAuthSession({
+    access_token: params.get("access_token"),
+    refresh_token: params.get("refresh_token"),
+    expires_at: params.get("expires_at"),
+    expires_in: params.get("expires_in"),
+    token_type: params.get("token_type"),
+  });
+
+  window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+
+  if (!session) return null;
+  storeAuthSession(session);
+  return session;
+}
+
+function formatAuthCallbackError(params) {
+  const code = params.get("error_code") || params.get("error") || "auth_error";
+  const description = params.get("error_description") || "Supabase could not complete sign-in.";
+
+  if (code === "otp_expired") {
+    return "That sign-in link was already used, expired, or opened by an email privacy scanner. Send a fresh link and open only the newest email.";
+  }
+
+  return `${description} (${code})`;
+}
+
+function readStoredAuthSession() {
+  try {
+    return normalizeAuthSession(JSON.parse(localStorage.getItem(STORAGE_KEYS.authSession) || "null"));
+  } catch (error) {
+    return null;
+  }
+}
+
+function storeAuthSession(session) {
+  localStorage.setItem(STORAGE_KEYS.authSession, JSON.stringify(session));
+}
+
+function clearStoredAuthSession() {
+  localStorage.removeItem(STORAGE_KEYS.authSession);
+}
+
+function normalizeAuthSession(rawSession) {
+  if (!rawSession?.access_token) return null;
+
+  const expiresAt = Number(rawSession.expires_at)
+    || Math.floor(Date.now() / 1000) + Number(rawSession.expires_in || 3600);
+
+  return {
+    access_token: rawSession.access_token,
+    refresh_token: rawSession.refresh_token || "",
+    expires_at: expiresAt,
+    token_type: rawSession.token_type || "bearer",
+  };
+}
+
+async function refreshAuthSessionIfNeeded(session) {
+  if (!session?.refresh_token) return session;
+
+  const expiresSoon = Number(session.expires_at || 0) * 1000 < Date.now() + 60_000;
+  if (!expiresSoon) return session;
+
+  const response = await fetch(`${getSupabaseAuthBaseUrl()}/token?grant_type=refresh_token`, {
+    method: "POST",
+    headers: getSupabaseAnonHeaders(),
+    body: JSON.stringify({ refresh_token: session.refresh_token }),
+  });
+
+  if (!response.ok) throw new Error("Your sign-in session expired. Please send a new sign-in link.");
+
+  const nextSession = normalizeAuthSession(await response.json());
+  storeAuthSession(nextSession);
+  return nextSession;
+}
+
+async function fetchSupabaseUser(accessToken) {
+  const response = await fetch(`${getSupabaseAuthBaseUrl()}/user`, {
+    headers: getSupabaseAuthHeaders(accessToken),
+  });
+
+  if (!response.ok) throw new Error("Could not load the signed-in Supabase user.");
+
+  const user = await response.json();
+  return {
+    id: user.id,
+    email: user.email,
+  };
+}
+
+async function sendSupabaseMagicLink(email) {
+  const response = await fetch(`${getSupabaseAuthBaseUrl()}/otp`, {
+    method: "POST",
+    headers: getSupabaseAnonHeaders(),
+    body: JSON.stringify({
+      email,
+      create_user: true,
+      data: {
+        app: "Bumpers",
+      },
+      options: {
+        email_redirect_to: getAuthRedirectUrl(),
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    const errorPayload = await readJsonResponse(response);
+    const message = errorPayload?.msg || errorPayload?.message || "Supabase could not send that sign-in link.";
+    throw new Error(message);
+  }
+}
+
+async function signOutAccount() {
+  signOutAccountButton.disabled = true;
+  syncAccountSavedSearchesButton.disabled = true;
+  accountStatus.textContent = "Signing out...";
+
+  try {
+    if (authState.session?.access_token && authState.config?.enabled) {
+      await fetch(`${getSupabaseAuthBaseUrl()}/logout`, {
+        method: "POST",
+        headers: getSupabaseAuthHeaders(authState.session.access_token),
+      });
+    }
+  } catch (error) {
+    console.warn("Supabase sign-out request failed.", error);
+  } finally {
+    clearStoredAuthSession();
+    authState.session = null;
+    authState.user = null;
+    authState.accountNotice = "";
+    authState.lastSyncedAt = "";
+    signOutAccountButton.disabled = false;
+    syncAccountSavedSearchesButton.disabled = false;
+    renderAccountShell();
+    accountStatus.textContent = "Signed out on this browser.";
+  }
+}
+
+function getSupabaseAuthBaseUrl() {
+  return `${authState.config.supabaseUrl.replace(/\/+$/, "")}/auth/v1`;
+}
+
+function getSupabaseAnonHeaders() {
+  return {
+    apikey: authState.config.anonKey,
+    authorization: `Bearer ${authState.config.anonKey}`,
+    "content-type": "application/json",
+  };
+}
+
+function getSupabaseAuthHeaders(accessToken) {
+  return {
+    apikey: authState.config.anonKey,
+    authorization: `Bearer ${accessToken}`,
+    "content-type": "application/json",
+  };
+}
+
+function getAuthRedirectUrl() {
+  const configuredRedirect = authState.config?.redirectTo || window.location.origin;
+  return `${configuredRedirect.replace(/\/+$/, "")}${window.location.pathname}`;
+}
+
+async function readJsonResponse(response) {
+  try {
+    return await response.json();
+  } catch (error) {
+    return null;
+  }
+}
+
+async function handleAccountSignInShell() {
+  const email = accountEmailInput?.value.trim();
+  authState.accountNotice = "";
+  if (!email) {
+    accountStatus.textContent = "Enter an email address first.";
+    accountEmailInput?.focus();
+    return;
+  }
+
+  if (!authState.config?.enabled) {
+    accountStatus.textContent = "Email sign-in is not configured yet. Add SUPABASE_ANON_KEY and restart Bumpers.";
+    return;
+  }
+
+  sendSignInLinkButton.disabled = true;
+  accountStatus.textContent = `Sending sign-in link to ${email}...`;
+
+  try {
+    await sendSupabaseMagicLink(email);
+    accountStatus.textContent = `Check ${email} for a Bumpers sign-in link.`;
+  } catch (error) {
+    accountStatus.textContent = error instanceof Error ? error.message : "Could not send sign-in link.";
+  } finally {
+    sendSignInLinkButton.disabled = false;
+  }
+}
+
+function handleAccountSignOutShell() {
+  signOutAccount();
+}
+
+async function saveSettingsFromModal() {
   const nextRate = Number(jpyPerUsdInput.value);
   appSettings = {
+    ...appSettings,
     currency: currencyToggle.checked ? "USD" : "JPY",
     jpyPerUsd: Number.isFinite(nextRate) && nextRate > 0 ? nextRate : defaultSettings.jpyPerUsd,
   };
   localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(appSettings));
   renderRefineSummary();
   renderResults();
+  await pushCloudProfilePreferences({ silent: true });
   closeSettingsModal();
 }
 
-async function pullCloudSavedSearches() {
+async function syncAccountCloudData() {
+  setAccountStatus("Syncing account profile and saved searches...");
+  setCloudSyncButtonsDisabled(true);
+
+  try {
+    await pushCloudProfilePreferences({ silent: true, surfaceErrors: true });
+    await pullCloudProfilePreferences({ silent: true, surfaceErrors: true });
+    await pushCloudSavedSearches({
+      allowEmpty: true,
+      checkConflicts: true,
+      rethrow: true,
+    });
+    await pullCloudSavedSearches({ rethrow: true });
+    authState.accountNotice = "";
+    markCloudSynced();
+    setAccountStatus("Account profile and saved searches are synced.");
+  } catch (error) {
+    authState.accountNotice = error instanceof Error ? error.message : "Could not sync account data.";
+    setAccountStatus(error instanceof Error ? error.message : "Could not sync account data.");
+  } finally {
+    setCloudSyncButtonsDisabled(false);
+  }
+}
+
+async function pullCloudProfilePreferences(options = {}) {
+  if (!authState.user?.id) return null;
+
+  try {
+    const payload = await fetchCloudProfile();
+    applyCloudPreferences(payload.preferences || {});
+    authState.accountNotice = "";
+    markCloudSynced(payload.updatedAt);
+    if (!options.silent) setAccountStatus("Profile preferences pulled from cloud.");
+    return payload;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Could not pull profile preferences.";
+    if (!options.silent) setAccountStatus(message);
+    if (options.surfaceErrors) throw new Error(message);
+    if (options.silent) return null;
+    throw error;
+  }
+}
+
+async function pushCloudProfilePreferences(options = {}) {
+  if (!authState.user?.id) return null;
+
+  try {
+    const payload = await putCloudProfile({
+      app: "Bumpers",
+      type: "user-profile",
+      schemaVersion: 1,
+      user: getCloudSyncUser(),
+      preferences: getLocalPreferencePayload(),
+    });
+    authState.accountNotice = "";
+    markCloudSynced(payload.updatedAt);
+    if (!options.silent) setAccountStatus("Profile preferences pushed to cloud.");
+    return payload;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Could not push profile preferences.";
+    if (!options.silent) setAccountStatus(message);
+    if (options.surfaceErrors) throw new Error(message);
+    if (options.silent) return null;
+    throw error;
+  }
+}
+
+async function fetchCloudProfile() {
+  const response = await fetch("/api/cloud/profile", {
+    cache: "no-store",
+    headers: await getCloudSyncHeaders(),
+  });
+  if (!response.ok) throw new Error(await getCloudResponseError(response, "Cloud profile responded with an error."));
+  return response.json();
+}
+
+async function putCloudProfile(payload) {
+  const response = await fetch("/api/cloud/profile", {
+    method: "PUT",
+    headers: await getCloudSyncHeaders({ "content-type": "application/json" }),
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) throw new Error(await getCloudResponseError(response, "Cloud profile responded with an error."));
+  return response.json();
+}
+
+function applyCloudPreferences(preferences = {}) {
+  const nextSettings = hydrateSettings({
+    ...appSettings,
+    currency: preferences.currency || appSettings.currency,
+    jpyPerUsd: preferences.jpyPerUsd || appSettings.jpyPerUsd,
+    resultView: preferences.resultView || appSettings.resultView,
+  });
+  appSettings = nextSettings;
+  localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(appSettings));
+
+  if (preferences.theme === "light" || preferences.theme === "dark") {
+    setTheme(preferences.theme);
+  }
+
+  if (Array.isArray(preferences.watchedListingIds)) {
+    saveSet(STORAGE_KEYS.watching, new Set(preferences.watchedListingIds));
+  }
+
+  if (preferences.watchedListingLedger && typeof preferences.watchedListingLedger === "object") {
+    saveLedger({
+      ...loadLedger(),
+      ...preferences.watchedListingLedger,
+    });
+  }
+
+  if (preferences.feedbackRules && typeof preferences.feedbackRules === "object") {
+    saveFeedbackRules(preferences.feedbackRules, { skipSync: true });
+  }
+
+  fillSettingsForm();
+  renderRefineSummary();
+  renderResults();
+}
+
+function getLocalPreferencePayload() {
+  const watchedListingIds = loadSet(STORAGE_KEYS.watching);
+  return {
+    currency: appSettings.currency,
+    jpyPerUsd: appSettings.jpyPerUsd,
+    resultView: appSettings.resultView,
+    theme: document.body.dataset.theme || "light",
+    watchedListingIds,
+    watchedListingLedger: getWatchedListingLedger(watchedListingIds),
+    feedbackRules: loadFeedbackRules(),
+  };
+}
+
+function getWatchedListingLedger(watchedListingIds = loadSet(STORAGE_KEYS.watching)) {
+  const ledger = loadLedger();
+  return watchedListingIds.reduce((selected, id) => {
+    if (ledger[id]) selected[id] = ledger[id];
+    return selected;
+  }, {});
+}
+
+function setAccountStatus(message) {
+  if (accountStatus) accountStatus.textContent = message;
+}
+
+async function ensureSavedSearchCloudPushIsSafe() {
+  if (!authState.user?.id) return true;
+
+  const payload = await fetchCloudSavedSearches();
+  const cloudProfiles = parseSavedSearchProfilesFromPayload(payload);
+  if (cloudProfiles.length === 0) return true;
+
+  const lastSyncedAt = authState.lastSyncedAt || readCloudSyncMeta().lastSyncedAt || "";
+  const latestCloudUpdatedAt = getLatestSavedSearchUpdatedAt(cloudProfiles, payload.updatedAt);
+
+  if (!lastSyncedAt) {
+    throw new Error("Cloud has saved searches for this account. Pull from cloud before pushing local changes.");
+  }
+
+  if (isTimestampAfter(latestCloudUpdatedAt, lastSyncedAt, 1000)) {
+    throw new Error("Cloud has newer saved-search changes. Use Pull from cloud before pushing local changes.");
+  }
+
+  return true;
+}
+
+function getLatestSavedSearchUpdatedAt(profiles = [], fallback = "") {
+  return profiles.reduce((latest, profile) => {
+    const candidate = profile.updatedAt || profile.sync?.lastSyncedAt || "";
+    return isTimestampAfter(candidate, latest) ? candidate : latest;
+  }, fallback || "");
+}
+
+function isTimestampAfter(candidate, reference, toleranceMs = 0) {
+  const candidateTime = new Date(candidate || 0).getTime();
+  const referenceTime = new Date(reference || 0).getTime();
+  if (!Number.isFinite(candidateTime) || !Number.isFinite(referenceTime)) return false;
+  return candidateTime > referenceTime + toleranceMs;
+}
+
+function queueSavedSearchAutoSync(reason = "saved-search-change", options = {}) {
+  if (!authState.user?.id) {
+    setSavedSearchTransferStatus("Saved locally. Sign in to sync across devices.");
+    return;
+  }
+
+  clearTimeout(savedSearchAutoSyncTimer);
+  setSavedSearchTransferStatus("Auto-sync queued.");
+  savedSearchAutoSyncTimer = window.setTimeout(() => {
+    runSavedSearchAutoSync(reason, options);
+  }, options.delay ?? 1800);
+}
+
+async function runSavedSearchAutoSync(reason = "saved-search-change", options = {}) {
+  if (isSavedSearchAutoSyncing || !authState.user?.id) return;
+  isSavedSearchAutoSyncing = true;
+
+  try {
+    await pushCloudSavedSearches({
+      auto: true,
+      allowEmpty: Boolean(options.allowEmpty),
+      checkConflicts: true,
+      rethrow: true,
+    });
+  } catch (error) {
+    console.warn(`Saved-search auto-sync failed after ${reason}.`, error);
+  } finally {
+    isSavedSearchAutoSyncing = false;
+  }
+}
+
+function queueProfileAutoSync(reason = "profile-preference-change", options = {}) {
+  if (!authState.user?.id) return;
+
+  clearTimeout(profileAutoSyncTimer);
+  profileAutoSyncTimer = window.setTimeout(() => {
+    runProfileAutoSync(reason);
+  }, options.delay ?? 1800);
+}
+
+async function runProfileAutoSync(reason = "profile-preference-change") {
+  if (isProfileAutoSyncing || !authState.user?.id) return;
+  isProfileAutoSyncing = true;
+
+  try {
+    await pushCloudProfilePreferences({ silent: true, surfaceErrors: true });
+  } catch (error) {
+    console.warn(`Profile auto-sync failed after ${reason}.`, error);
+    authState.accountNotice = error instanceof Error ? error.message : "Cloud profile auto-sync needs attention.";
+    renderAccountShell(authState.user);
+  } finally {
+    isProfileAutoSyncing = false;
+  }
+}
+
+async function pullCloudSavedSearches(options = {}) {
   setSavedSearchTransferStatus("Pulling saved searches from cloud sync...");
   setCloudSyncButtonsDisabled(true);
 
@@ -1538,6 +2199,8 @@ async function pullCloudSavedSearches() {
       .map((profile) => prepareCloudProfileForLocal(profile, payload.updatedAt, payload.storage));
 
     if (cloudProfiles.length === 0) {
+      authState.accountNotice = "";
+      markCloudSynced(payload.updatedAt);
       setSavedSearchTransferStatus("Cloud sync has no saved searches yet.");
       return;
     }
@@ -1552,27 +2215,38 @@ async function pullCloudSavedSearches() {
     }
 
     savedSearchRepository.replaceAll(importPreview.mergedProfiles);
+    authState.accountNotice = "";
+    markCloudSynced(payload.updatedAt);
+    renderAccountShell(authState.user);
     renderSavedSearches();
     updateQuickSaveSearchButton();
     setSavedSearchTransferStatus(`Pulled ${cloudProfiles.length} saved ${cloudProfiles.length === 1 ? "search" : "searches"} from cloud sync.`);
   } catch (error) {
-    setSavedSearchTransferStatus(error instanceof Error ? error.message : "Could not pull from cloud sync.");
+    const message = error instanceof Error ? error.message : "Could not pull from cloud sync.";
+    authState.accountNotice = message;
+    setAccountStatus(message);
+    setSavedSearchTransferStatus(message);
+    if (options.rethrow) throw error;
   } finally {
     setCloudSyncButtonsDisabled(false);
   }
 }
 
-async function pushCloudSavedSearches() {
+async function pushCloudSavedSearches(options = {}) {
   const localProfiles = savedSearchRepository.list();
-  if (localProfiles.length === 0) {
+  if (localProfiles.length === 0 && !options.allowEmpty) {
     setSavedSearchTransferStatus("No saved searches to push.");
     return;
   }
 
-  setSavedSearchTransferStatus("Pushing saved searches to cloud sync...");
+  setSavedSearchTransferStatus(options.auto ? "Auto-syncing saved searches..." : "Pushing saved searches to cloud sync...");
   setCloudSyncButtonsDisabled(true);
 
   try {
+    if (options.checkConflicts) {
+      await ensureSavedSearchCloudPushIsSafe({ rethrow: Boolean(options.rethrow) });
+    }
+
     const syncedAt = new Date().toISOString();
     const profiles = localProfiles.map((profile) => prepareLocalProfileForCloud(profile, syncedAt));
     const payload = await putCloudSavedSearches({
@@ -1580,11 +2254,15 @@ async function pushCloudSavedSearches() {
       type: "saved-searches",
       schemaVersion: SAVED_SEARCH_SCHEMA_VERSION,
       storage: "cloud",
-      user: CLOUD_EMULATOR_USER,
+      user: getCloudSyncUser(),
       profiles,
     });
     const syncedProfiles = parseSavedSearchProfilesFromPayload(payload)
       .map((profile) => prepareCloudProfileForLocal(profile, payload.updatedAt, payload.storage));
+
+    authState.accountNotice = "";
+    markCloudSynced(payload.updatedAt);
+    renderAccountShell(authState.user);
 
     if (syncedProfiles.length > 0) {
       savedSearchRepository.replaceAll(syncedProfiles);
@@ -1592,31 +2270,70 @@ async function pushCloudSavedSearches() {
       updateQuickSaveSearchButton();
     }
 
-    setSavedSearchTransferStatus(`Pushed ${profiles.length} saved ${profiles.length === 1 ? "search" : "searches"} to cloud sync.`);
+    setSavedSearchTransferStatus(options.auto
+      ? `Auto-synced ${profiles.length} saved ${profiles.length === 1 ? "search" : "searches"}.`
+      : `Pushed ${profiles.length} saved ${profiles.length === 1 ? "search" : "searches"} to cloud sync.`);
   } catch (error) {
-    setSavedSearchTransferStatus(error instanceof Error ? error.message : "Could not push to cloud sync.");
+    const message = error instanceof Error ? error.message : "Could not push to cloud sync.";
+    authState.accountNotice = message;
+    setAccountStatus(message);
+    setSavedSearchTransferStatus(message);
+    if (options.rethrow) throw error;
   } finally {
     setCloudSyncButtonsDisabled(false);
   }
 }
 
 async function fetchCloudSavedSearches() {
-  const response = await fetch("/api/cloud/saved-searches", { cache: "no-store" });
-  if (!response.ok) throw new Error(`Cloud emulator responded with ${response.status}.`);
+  const response = await fetch("/api/cloud/saved-searches", {
+    cache: "no-store",
+    headers: await getCloudSyncHeaders(),
+  });
+  if (!response.ok) throw new Error(await getCloudResponseError(response, `Cloud emulator responded with ${response.status}.`));
   return response.json();
 }
 
 async function putCloudSavedSearches(payload) {
   const response = await fetch("/api/cloud/saved-searches", {
     method: "PUT",
-    headers: {
-      "content-type": "application/json",
-    },
+    headers: await getCloudSyncHeaders({ "content-type": "application/json" }),
     body: JSON.stringify(payload),
   });
 
-  if (!response.ok) throw new Error(`Cloud emulator responded with ${response.status}.`);
+  if (!response.ok) throw new Error(await getCloudResponseError(response, `Cloud emulator responded with ${response.status}.`));
   return response.json();
+}
+
+async function getCloudResponseError(response, fallback) {
+  try {
+    const payload = await response.json();
+    return payload.message || payload.error || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+async function getCloudSyncHeaders(headers = {}) {
+  if (authState.session?.access_token && authState.config?.enabled) {
+    authState.session = await refreshAuthSessionIfNeeded(authState.session);
+  }
+
+  return {
+    ...headers,
+    ...(authState.session?.access_token ? { authorization: `Bearer ${authState.session.access_token}` } : {}),
+  };
+}
+
+function getCloudSyncUser() {
+  if (authState.user?.id) {
+    return {
+      id: authState.user.id,
+      email: authState.user.email || CLOUD_EMULATOR_USER.email,
+      name: authState.user.email || CLOUD_EMULATOR_USER.name,
+    };
+  }
+
+  return CLOUD_EMULATOR_USER;
 }
 
 function setCloudSyncButtonsDisabled(disabled) {
@@ -1625,9 +2342,10 @@ function setCloudSyncButtonsDisabled(disabled) {
 }
 
 function prepareLocalProfileForCloud(profile, syncedAt = new Date().toISOString()) {
+  const cloudUser = getCloudSyncUser();
   return hydrateProfile({
     ...profile,
-    userId: CLOUD_EMULATOR_USER.id,
+    userId: cloudUser.id,
     updatedAt: profile.updatedAt || syncedAt,
     sync: {
       ...profile.sync,
@@ -1640,9 +2358,10 @@ function prepareLocalProfileForCloud(profile, syncedAt = new Date().toISOString(
 }
 
 function prepareCloudProfileForLocal(profile, syncedAt = new Date().toISOString(), provider = "cloud") {
+  const cloudUser = getCloudSyncUser();
   return hydrateProfile({
     ...profile,
-    userId: CLOUD_EMULATOR_USER.id,
+    userId: cloudUser.id,
     sync: {
       ...profile.sync,
       provider: provider || profile.sync?.provider || "cloud",
@@ -1700,6 +2419,7 @@ async function importSavedSearchesFromFile(event) {
     renderSavedSearches();
     updateQuickSaveSearchButton();
     setSavedSearchTransferStatus(`Imported ${importedProfiles.length} saved ${importedProfiles.length === 1 ? "search" : "searches"}.`);
+    queueSavedSearchAutoSync("import-searches", { allowEmpty: true });
   } catch (error) {
     setSavedSearchTransferStatus(error instanceof Error ? error.message : "Could not import saved searches.");
   } finally {
@@ -1769,6 +2489,7 @@ async function runSearch() {
 
   const searchGroups = createLiveSearchGroups(profileSnapshot);
 
+  activeViewSources.clear();
   resetPagination();
   isSearching = true;
   pendingSourceIds = new Set(searchGroups.filter((group) => group.id !== "mock").map((group) => group.id));
@@ -1840,6 +2561,7 @@ function applySearchResult(profile, liveResult, isFinal) {
     currentProfile = hydrateProfile({ ...currentProfile, ...scanSummary });
     updateStoredProfileScan(currentProfile, scanSummary);
     renderSavedSearches();
+    queueSavedSearchAutoSync("scan-summary", { delay: 4500 });
   }
 
   setActiveTitle(profile.name);
@@ -2074,6 +2796,7 @@ function renderResults() {
 
   resultGrid.innerHTML = "";
   resultGrid.classList.toggle("is-featured-home", isShowingFeaturedHome);
+  resultGrid.classList.toggle("is-list-view", !isShowingFeaturedHome && appSettings.resultView === "list");
   renderSourceFilters(resultSource);
   renderAlertPanel(featuredHomeResults);
 
@@ -2095,18 +2818,87 @@ function renderResults() {
   } else if (searchState.mode === "idle") {
     resultGrid.innerHTML = `<div class="empty-state"><strong>Start a fresh search.</strong><span>${searchState.detail}</span></div>`;
   } else if (visibleResults.length === 0) {
-    resultGrid.innerHTML = `<div class="empty-state"><strong>No matching listings in this view.</strong><span>${searchState.detail || "Try another term or source."}</span></div>`;
+    resultGrid.innerHTML = createNoResultsMessage(resultSource);
   }
 
-  const newListings = isShowingFeaturedHome
-    ? visibleResults.filter((listing) => !isSeen(listing.id))
-    : visibleResults.filter((listing) => currentDiscoveryIds.has(listing.id));
-  document.querySelector("#totalCount").textContent = visibleResults.length;
-  document.querySelector("#newCount").textContent = newListings.length;
-  document.querySelector("#sourceCount").textContent = new Set(visibleResults.map((listing) => listing.source)).size;
   renderPagination(visibleResults.length, totalPages);
   renderQualityModeControls();
+  renderResultViewControls(isShowingFeaturedHome);
   renderTopWatchingControl();
+}
+
+function handleResultGridAction(event) {
+  const button = event.target.closest("[data-result-action]");
+  if (!button) return;
+
+  if (button.dataset.resultAction === "clear-view-filters") {
+    clearResultViewFilters();
+  }
+}
+
+function clearResultViewFilters() {
+  filterMode = "all";
+  qualityFilter = "all";
+  activeViewSources.clear();
+  resetPagination();
+  document.querySelectorAll("#urgencyFilter button").forEach((item) => item.classList.toggle("active", item.dataset.filter === filterMode));
+  renderResults();
+}
+
+function createNoResultsMessage(baseResults = currentResults) {
+  if (baseResults.length === 0) {
+    const constraintSummary = getSearchConstraintSummary();
+    return `
+      <div class="empty-state">
+        <strong>No matching live listings.</strong>
+        <span>${searchState.detail || "Try another term or source."}</span>
+        ${constraintSummary ? `<span>${constraintSummary}</span>` : ""}
+      </div>
+    `;
+  }
+
+  const blockers = getActiveResultFilterLabels();
+  const hiddenDetail = `${baseResults.length} ${baseResults.length === 1 ? "listing was" : "listings were"} returned, but ${blockers.length > 0 ? blockers.join(", ") : "view filters"} hid them in this browser.`;
+  return `
+    <div class="empty-state">
+      <strong>Results hidden by this browser’s view filters.</strong>
+      <span>${hiddenDetail}</span>
+      <button class="bumpers-secondary-button empty-state-action" type="button" data-result-action="clear-view-filters">Show all returned listings</button>
+    </div>
+  `;
+}
+
+function getActiveResultFilterLabels() {
+  const labels = [];
+  if (filterMode !== "all") labels.push(`${capitalize(filterMode)} view`);
+  if (qualityFilter === "clean") labels.push("Gear Mode");
+  if (activeViewSources.size > 0) labels.push("source filter");
+  return labels;
+}
+
+function getSearchConstraintSummary() {
+  const parts = [];
+  const selectedSources = currentProfile.sources || [];
+  if (selectedSources.length > 0 && selectedSources.length < SOURCES.length) {
+    parts.push(`${selectedSources.length} selected sources`);
+  }
+  if ((currentProfile.excludes || []).length > 0) {
+    parts.push(`${currentProfile.excludes.length} exclude terms`);
+  }
+  if (currentProfile.maxPrice > 0) {
+    parts.push(`max ${formatPrice(currentProfile.maxPrice)}`);
+  }
+  if (qualityFilter === "clean") parts.push("Gear Mode");
+  if (filterMode !== "all") {
+    parts.push(`${capitalize(filterMode)} view`);
+  }
+
+  return parts.length > 0 ? `This browser is using: ${parts.join(" · ")}.` : "";
+}
+
+function capitalize(value) {
+  const text = String(value || "");
+  return text ? text.charAt(0).toUpperCase() + text.slice(1) : "";
 }
 
 function toggleWatchingFilter() {
@@ -2134,6 +2926,28 @@ function renderQualityModeControls() {
     button.classList.toggle("active", isActive);
     button.setAttribute("aria-pressed", String(isActive));
     if (button.dataset.quality === "clean") button.setAttribute("aria-checked", String(isActive));
+  });
+}
+
+function setResultView(mode = "grid") {
+  const resultView = mode === "list" ? "list" : "grid";
+  if (appSettings.resultView === resultView) return;
+
+  appSettings = {
+    ...appSettings,
+    resultView,
+  };
+  localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(appSettings));
+  renderResults();
+  queueProfileAutoSync("result-view");
+}
+
+function renderResultViewControls(isShowingFeaturedHome = false) {
+  resultViewButtons.forEach((button) => {
+    const isActive = button.dataset.resultView === appSettings.resultView;
+    button.classList.toggle("is-active", isActive);
+    button.disabled = isShowingFeaturedHome;
+    button.setAttribute("aria-pressed", String(isActive));
   });
 }
 
@@ -2274,19 +3088,21 @@ function renderSourceFilters(baseResults = currentResults) {
   const counts = getSourceCountsForCurrentView(baseResults);
   const availableSources = SOURCES.filter((source) => shouldShowSourceFilter(source, counts));
   sourceFilterList.innerHTML = "";
+  sourceFilterList.classList.toggle("is-expanded", isSourceRowExpanded);
+  sourceFilterList.classList.toggle("is-collapsed", !isSourceRowExpanded);
 
   if (availableSources.length === 0) {
-    sourceFilterList.innerHTML = `<button class="source-filter-button is-active" type="button" disabled>All</button>`;
+    sourceFilterList.innerHTML = `<button class="source-filter-button source-filter-all is-active" type="button" disabled>0 Matches</button>`;
     return;
   }
 
-  sourceFilterList.appendChild(createAllSourceFilterButton(baseResults));
+  sourceFilterList.appendChild(createAllSourceFilterButton(createSourceFilterSummary(counts)));
 
   availableSources.forEach((source) => {
     const status = sourceSearchStatuses.get(source.id);
     const count = counts.get(source.id) || 0;
     const button = document.createElement("button");
-    button.className = "source-filter-button";
+    button.className = "source-filter-button source-filter-source";
     button.type = "button";
     button.dataset.source = source.id;
     button.dataset.status = status || "ready";
@@ -2306,15 +3122,70 @@ function renderSourceFilters(baseResults = currentResults) {
   });
 }
 
-function createAllSourceFilterButton(baseResults = currentResults) {
+function createAllSourceFilterButton(summary) {
   const button = document.createElement("button");
   button.className = "source-filter-button source-filter-all";
   button.type = "button";
   button.dataset.source = "all";
   button.classList.toggle("is-active", activeViewSources.size === 0);
+  button.classList.toggle("is-filter-reset", activeViewSources.size > 0);
+  button.classList.toggle("is-expanded", isSourceRowExpanded);
   button.setAttribute("aria-pressed", String(activeViewSources.size === 0));
-  button.textContent = `All ${getSourceFilteredBaseResults(baseResults).length}`;
+  button.setAttribute("aria-expanded", String(isSourceRowExpanded));
+  button.setAttribute("aria-label", getSourceFilterSummaryLabel(summary));
+  button.title = activeViewSources.size > 0 ? "Back to all sources" : isSourceRowExpanded ? "Hide sources" : "See sources";
+  button.innerHTML = `
+    <span class="source-filter-all-label">${summary.label}</span>
+    <span class="source-filter-disclosure" aria-hidden="true"></span>
+  `;
   return button;
+}
+
+function createSourceFilterSummary(counts) {
+  const activeSources = [...activeViewSources].filter((sourceId) => counts.has(sourceId) || sourceSearchStatuses.has(sourceId));
+
+  if (activeSources.length === 1) {
+    const sourceId = activeSources[0];
+    const source = SOURCES.find((item) => item.id === sourceId);
+    const count = counts.get(sourceId) || 0;
+    return {
+      count,
+      label: `${formatMatchTotal(count)} ${source?.label || "Source"} ${matchLabel(count)}`,
+      activeSources,
+    };
+  }
+
+  if (activeSources.length > 1) {
+    const count = activeSources.reduce((total, sourceId) => total + (counts.get(sourceId) || 0), 0);
+    return {
+      count,
+      label: `${formatMatchTotal(count)} ${matchLabel(count)}`,
+      activeSources,
+    };
+  }
+
+  const count = [...counts.values()].reduce((total, value) => total + value, 0);
+  return {
+    count,
+    label: `${formatMatchTotal(count)} ${matchLabel(count)}`,
+    activeSources: [],
+  };
+}
+
+function formatMatchTotal(count) {
+  return String(Math.max(0, count));
+}
+
+function matchLabel(count) {
+  return count === 1 ? "Match" : "Matches";
+}
+
+function getSourceFilterSummaryLabel(summary) {
+  if (summary.activeSources.length > 0) {
+    return `Show all sources. ${summary.label} currently visible.`;
+  }
+
+  return `${isSourceRowExpanded ? "Hide sources" : "See sources"}. ${summary.label}.`;
 }
 
 function getSourceCountsForCurrentView(baseResults = currentResults) {
@@ -2518,6 +3389,7 @@ function renderListing(listing, options = {}) {
       recordListingSnapshot(listing);
     }
     saveSet(STORAGE_KEYS.watching, next);
+    queueProfileAutoSync("watch-listing");
     renderResults();
   });
 
@@ -3128,8 +4000,9 @@ function loadFeedbackRules() {
   }
 }
 
-function saveFeedbackRules(value) {
+function saveFeedbackRules(value, options = {}) {
   localStorage.setItem(STORAGE_KEYS.feedbackRules, JSON.stringify(value));
+  if (!options.skipSync) queueProfileAutoSync("feedback-rules");
 }
 
 function hydrateFeedback(feedback = {}) {
@@ -3184,7 +4057,7 @@ function termMatches(searchable, term) {
     return new RegExp(`(^|[^a-z0-9])${escapeRegExp(normalized)}($|[^a-z0-9])`).test(searchable);
   }
 
-  return searchable.includes(normalized);
+  return searchable.includes(normalized) || flexibleSeparatorMatches(searchable, normalized);
 }
 
 function parseMatchTerm(term) {
@@ -3211,10 +4084,28 @@ function exactPhraseMatches(searchable, normalizedPhrase) {
   const phrase = normalizedPhrase.replace(/\s+/g, " ").trim();
   if (!phrase) return false;
 
-  const phrasePattern = phrase.split(/\s+/).map(escapeRegExp).join("\\s+");
+  const phrasePattern = createFlexiblePhrasePattern(phrase);
   const startBoundary = /^[a-z0-9]/.test(phrase) ? "(^|[^a-z0-9])" : "";
   const endBoundary = /[a-z0-9]$/.test(phrase) ? "($|[^a-z0-9])" : "";
   return new RegExp(`${startBoundary}${phrasePattern}${endBoundary}`).test(searchable);
+}
+
+function flexibleSeparatorMatches(searchable, normalizedTerm) {
+  if (!/[a-z0-9][\s._/-]+[a-z0-9]/.test(normalizedTerm) && !/[a-z]+\d|\d+[a-z]/.test(normalizedTerm)) return false;
+
+  const startBoundary = /^[a-z0-9]/.test(normalizedTerm) ? "(^|[^a-z0-9])" : "";
+  const endBoundary = /[a-z0-9]$/.test(normalizedTerm) ? "($|[^a-z0-9])" : "";
+  return new RegExp(`${startBoundary}${createFlexiblePhrasePattern(normalizedTerm)}${endBoundary}`).test(searchable);
+}
+
+function createFlexiblePhrasePattern(value) {
+  return value
+    .split(/[\s._/-]+/)
+    .filter(Boolean)
+    .map(escapeRegExp)
+    .join("[\\s._/-]*")
+    .replace(/([a-z])(\d)/gi, "$1[\\s._/-]*$2")
+    .replace(/(\d)([a-z])/gi, "$1[\\s._/-]*$2");
 }
 
 function escapeRegExp(value) {
@@ -3291,6 +4182,7 @@ function deleteSavedSearch(profileName) {
   deleteSavedSearchArtifacts(profileName);
   renderSavedSearches();
   updateQuickSaveSearchButton();
+  queueSavedSearchAutoSync("delete-search", { allowEmpty: true });
 }
 
 function deleteSavedSearchArtifacts(profileName) {
@@ -3611,6 +4503,7 @@ function hydrateSettings(settings) {
   return {
     currency: settings.currency === "USD" ? "USD" : "JPY",
     jpyPerUsd: Number.isFinite(rate) && rate > 0 ? rate : defaultSettings.jpyPerUsd,
+    resultView: settings.resultView === "list" ? "list" : "grid",
   };
 }
 
@@ -3678,7 +4571,26 @@ function listingMatchesSearchContext(listing, searchContext) {
 }
 
 function createSourceSearchTerms(terms) {
-  return uniqueTerms(terms.map((term) => parseMatchTerm(term).value));
+  return uniqueTerms(terms.flatMap((term) => createSourceSearchTermVariants(parseMatchTerm(term).value)));
+}
+
+function createSourceSearchTermVariants(term) {
+  const value = String(term || "").trim();
+  if (!value) return [];
+
+  const variants = [value];
+  const compactableSeparatorPattern = /([a-zA-Z])[\s._/-]+(\d)/g;
+  if (compactableSeparatorPattern.test(value)) {
+    variants.push(value.replace(/([a-zA-Z])[\s._/-]+(\d)/g, "$1-$2"));
+    variants.push(value.replace(/([a-zA-Z])[\s._/-]+(\d)/g, "$1$2"));
+  }
+  const compactModelPattern = /([a-zA-Z]+)(\d+)/g;
+  if (compactModelPattern.test(value)) {
+    variants.push(value.replace(/([a-zA-Z]+)(\d+)/g, "$1-$2"));
+    variants.push(value.replace(/([a-zA-Z]+)(\d+)/g, "$1 $2"));
+  }
+
+  return variants;
 }
 
 function uniqueTerms(terms) {

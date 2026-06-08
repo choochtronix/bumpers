@@ -17,12 +17,14 @@ out/
 .env
 .env.local
 .env.*.local
+Supabase/
 
 # Local app data
 *.sqlite
 *.sqlite3
 *.db
 data/cloud-saved-searches.json
+bumpers-saved-searches-*.json
 cache/
 screenshots/
 
