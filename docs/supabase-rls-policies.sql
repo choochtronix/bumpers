@@ -1,4 +1,4 @@
--- Bumpers basic Row Level Security policies.
+-- Brrtz basic Row Level Security policies.
 -- Run after creating saved_searches and user_profiles.
 -- The Node server uses SUPABASE_SERVICE_ROLE_KEY and continues to bypass RLS.
 

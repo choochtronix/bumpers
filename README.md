@@ -1,4 +1,4 @@
-# Bumpers
+# Brrtz
 
 Local-first search cockpit for finding synthesizers, electronic instruments, and pro audio gear across Japanese auction, flea market, and shop sources.
 
@@ -18,7 +18,7 @@ This first build is a static desktop web app prototype. It includes:
 - Live Yahoo Auctions, Digimart, and OFFMALL connector support when run through the local server
 - Local listing discovery tracking for future alert workflows
 - Gear confidence scoring to keep Yahoo records, books, clothing, and other marketplace noise out of Clean Gear results
-- Local feedback buttons for teaching Bumpers which listings are gear, noise, or similar noise to hide
+- Local feedback buttons for teaching Brrtz which listings are gear, noise, or similar noise to hide
 - Marketplace source badges on listing thumbnails for faster visual scanning
 - View-only source filter chips for quickly narrowing visible results by marketplace
 
@@ -38,7 +38,7 @@ Then open:
 http://localhost:5173
 ```
 
-Live runs store discovered listing IDs in local browser storage. This lets Bumpers tell the difference between listings it has already found before and listings discovered on the current scan, which is the base layer for saved-search alerts.
+Live runs store discovered listing IDs in local browser storage. This lets Brrtz tell the difference between listings it has already found before and listings discovered on the current scan, which is the base layer for saved-search alerts.
 
 The Daily Radar panel shows fresh discoveries from the current scan. Saved searches also keep their latest scan time, match count, and new-find count so the sidebar can act as a quick daily checklist.
 

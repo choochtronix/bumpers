@@ -1,4 +1,4 @@
-# Bumpers Beta Friends Launch Todo
+# Brrtz Beta Friends Launch Todo
 
 Goal: launch an invite-only public beta for a small group of trusted friends.
 
@@ -13,7 +13,7 @@ Target: week of June 8, 2026
 
 ## Launch Criteria
 
-- [ ] Bumpers is reachable from a public beta URL.
+- [ ] Brrtz is reachable from a public beta URL.
 - [ ] Invite-only access works for approved beta users.
 - [ ] Supabase profile, preferences, saved searches, watched gear, and feedback sync across browsers.
 - [ ] No secrets are committed to GitHub.
@@ -29,7 +29,7 @@ Target: week of June 8, 2026
 | Status | Task | Owner | Acceptance |
 |---|---|---|---|
 | Done | Confirm invite-only gate | Codex/Craig | Uninvited email cannot sync; invited email can sign in and sync. |
-| Doing | Confirm saved-search sync | Craig | Chrome, Safari, and mobile browser show the same saved searches after sync. |
+| Done | Confirm saved-search sync | Craig | Chrome, Safari, and mobile browser show the same saved searches after sync. |
 | Doing | Confirm watched gear sync | Craig | Watch/unwatch state survives browser reload and appears in a second browser. |
 | Done | Confirm feedback sync | Craig | "This is gear" and "This is noise" feedback persists after sync. |
 | Done | Document required production env vars | Codex | Public beta setup has a checklist with variable names and no secret values: `docs/production-env-checklist.md`. |
@@ -38,7 +38,7 @@ Target: week of June 8, 2026
 
 | Status | Task | Owner | Acceptance |
 |---|---|---|---|
-| Todo | Add region concept to product architecture | Codex | Bumpers has a documented first-class `region` object for Japan and future regions. |
+| Todo | Add region concept to product architecture | Codex | Brrtz has a documented first-class `region` object for Japan and future regions. |
 | Todo | Define Japan beta region | Codex/Craig | Japan config includes currency, locale, default sources, and clean-gear defaults. |
 | Todo | Stub Bay Area region | Codex/Craig | Bay Area config is documented as a future config, not a separate app fork. |
 | Todo | Identify UI placement for region selector | Codex/Craig | Decision recorded: Settings, search header, or onboarding. |
@@ -50,7 +50,7 @@ Target: week of June 8, 2026
 |---|---|---|---|
 | Todo | Choose beta hosting path | Craig/Codex | One path is selected for the beta: Render, Railway, Fly.io, VPS, or another option. |
 | Todo | Configure production secrets outside Git | Craig/Codex | Supabase keys and invite settings live in host env vars only. |
-| Todo | Test public URL | Craig | A friend can open Bumpers outside Craig's local Wi-Fi. |
+| Todo | Test public URL | Craig | A friend can open Brrtz outside Craig's local Wi-Fi. |
 | Todo | Smoke test search from public URL | Craig | At least one saved search returns live results through the hosted app. |
 
 ### 4. UI / Mobile Polish
@@ -60,7 +60,7 @@ Target: week of June 8, 2026
 | Todo | Mobile header final pass | Codex | Logo, wave, utility icons, search, and controls do not overlap on iPhone. |
 | Todo | Settings modal beta pass | Codex | Account, sync, invite, and import/export controls fit on mobile. |
 | Todo | List/card view sanity check | Craig | Both views are usable on mobile and desktop. |
-| Todo | Gear Mode visual pass | Craig/Codex | Gear Mode feels like a primary Bumpers feature without cluttering search. |
+| Todo | Gear Mode visual pass | Craig/Codex | Gear Mode feels like a primary Brrtz feature without cluttering search. |
 
 ### 5. Search Quality
 
@@ -69,7 +69,7 @@ Target: week of June 8, 2026
 | Todo | Validate top saved searches | Craig | 5-10 real saved searches return useful results. |
 | Todo | Note bad-result examples | Craig | URLs and search terms are added under Known Issues. |
 | Todo | Confirm source health | Codex | Enabled beta sources have a basic working/failing status. |
-| Todo | Check "new" discovery behavior | Craig/Codex | New listings are understood as first-seen-by-Bumpers discoveries. |
+| Todo | Check "new" discovery behavior | Craig/Codex | New listings are understood as first-seen-by-Brrtz discoveries. |
 
 ## Region Architecture Notes
 
@@ -101,24 +101,24 @@ const bayAreaRegion = {
 };
 ```
 
-Decision for beta: ship Japan as the active region, and add the region object now so future US expansion does not require a second Bumpers app.
+Decision for beta: ship Japan as the active region, and add the region object now so future US expansion does not require a second Brrtz app.
 
 ## Known Issues
 
-- Invite gate check, June 8: passed. Bumpers blocks unauthenticated cloud sync with `401` when invite mode is enabled, and invited sign-in works.
-- Saved-search sync check, June 8: migrated 10 alpha-only saved searches into the signed-in Gmail profile. Gmail cloud profile now has 28 active saved searches; Safari should pull the same count after refresh/sign-in.
+- Invite gate check, June 8: passed. Brrtz blocks unauthenticated cloud sync with `401` when invite mode is enabled, and invited sign-in works.
+- Saved-search sync check, June 8: passed in Chrome and Safari. Migrated 10 alpha-only saved searches into the signed-in Gmail profile, then both browsers mirrored the same 28 cloud saved searches after Resend SMTP was configured for `brrtz.com`.
 - Watched gear sync check, June 8: code already queues profile auto-sync after watch/unwatch. Supabase profile currently has 1 watched listing and 1 watched-listing snapshot; second-browser visual confirmation is still pending.
 - Feedback sync check, June 8: passed at the cloud-storage layer. Supabase has 1 synced gear feedback entry and 5 synced noise feedback entries for the signed-in Gmail profile.
-- Safari stale-session check, June 8: Bumpers now clears local auth state when Supabase rejects a cloud token as unverifiable, so Safari should prompt for a clean sign-in instead of looping on sync failure.
+- Safari stale-session check, June 8: Brrtz now clears local auth state when Supabase rejects a cloud token as unverifiable, so Safari should prompt for a clean sign-in instead of looping on sync failure.
 - Production env checklist, June 8: added `docs/production-env-checklist.md` with required beta variables, secret handling notes, Supabase table requirements, invite SQL, and pre-launch checks.
 
 ## Beta Tester Notes
 
-What Bumpers does:
+What Brrtz does:
 
 - Searches multiple used gear sources with synth/pro-audio filtering.
 - Lets users save searches, watch listings, and sync across browsers.
-- Highlights newly discovered listings that Bumpers has not seen before.
+- Highlights newly discovered listings that Brrtz has not seen before.
 
 What testers should try:
 

@@ -1,6 +1,6 @@
 # Saved Search Cloud Schema
 
-Bumpers saved searches now use a cloud-ready record shape while still storing data locally in `localStorage` under `bumpers.profiles`.
+Brrtz saved searches now use a cloud-ready record shape while still storing data locally in `localStorage` under `bumpers.profiles`.
 
 ## Current Storage Mode
 

@@ -536,7 +536,7 @@ const LOCAL_PROFILE_USER_ID = "local";
 const CLOUD_EMULATOR_USER = {
   id: LOCAL_PROFILE_USER_ID,
   email: "local@bumpers.dev",
-  name: "Local Bumpers User",
+  name: "Local Brrtz User",
 };
 const savedSearchRepository = createSavedSearchRepository({
   storageKey: STORAGE_KEYS.profiles,
@@ -1668,7 +1668,7 @@ function getSignedOutAccountStatus() {
   if (authState.callbackError) return authState.callbackError;
   if (!authState.config) return "Checking account sign-in setup...";
   if (!authState.config.enabled) return "Add SUPABASE_ANON_KEY to enable email sign-in.";
-  return "Enter your email and Bumpers will send a Supabase sign-in link.";
+  return "Enter your email and Brrtz will send a Supabase sign-in link.";
 }
 
 async function initializeAuth() {
@@ -1846,7 +1846,7 @@ async function sendSupabaseMagicLink(email) {
       email,
       create_user: true,
       data: {
-        app: "Bumpers",
+        app: "Brrtz",
       },
       options: {
         email_redirect_to: getAuthRedirectUrl(),
@@ -1931,7 +1931,7 @@ async function handleAccountSignInShell() {
   }
 
   if (!authState.config?.enabled) {
-    accountStatus.textContent = "Email sign-in is not configured yet. Add SUPABASE_ANON_KEY and restart Bumpers.";
+    accountStatus.textContent = "Email sign-in is not configured yet. Add SUPABASE_ANON_KEY and restart Brrtz.";
     return;
   }
 
@@ -1940,7 +1940,7 @@ async function handleAccountSignInShell() {
 
   try {
     await sendSupabaseMagicLink(email);
-    accountStatus.textContent = `Check ${email} for a Bumpers sign-in link.`;
+    accountStatus.textContent = `Check ${email} for a Brrtz sign-in link.`;
   } catch (error) {
     accountStatus.textContent = error instanceof Error ? error.message : "Could not send sign-in link.";
   } finally {
@@ -2016,7 +2016,7 @@ async function pushCloudProfilePreferences(options = {}) {
 
   try {
     const payload = await putCloudProfile({
-      app: "Bumpers",
+      app: "Brrtz",
       type: "user-profile",
       schemaVersion: 1,
       user: getCloudSyncUser(),
@@ -2266,7 +2266,7 @@ async function pushCloudSavedSearches(options = {}) {
     const syncedAt = new Date().toISOString();
     const profiles = localProfiles.map((profile) => prepareLocalProfileForCloud(profile, syncedAt));
     const payload = await putCloudSavedSearches({
-      app: "Bumpers",
+      app: "Brrtz",
       type: "saved-searches",
       schemaVersion: SAVED_SEARCH_SCHEMA_VERSION,
       storage: "cloud",
@@ -2402,7 +2402,7 @@ function exportSavedSearches() {
   const objectUrl = URL.createObjectURL(blob);
   const dateSlug = new Date().toISOString().slice(0, 10);
   link.href = objectUrl;
-  link.download = `bumpers-saved-searches-${dateSlug}.json`;
+  link.download = `brrtz-saved-searches-${dateSlug}.json`;
   document.body.appendChild(link);
   link.click();
   link.remove();
@@ -4322,7 +4322,7 @@ function createSavedSearchRepository({ storageKey }) {
 
   function createExportPayload() {
     return {
-      app: "Bumpers",
+      app: "Brrtz",
       type: "saved-searches",
       schemaVersion: SAVED_SEARCH_SCHEMA_VERSION,
       storage: "local",
@@ -4365,7 +4365,7 @@ function writeStoredProfiles(storageKey, profiles) {
       localStorage.setItem(storageKey, payload);
     } catch (retryError) {
       if (!isStorageQuotaError(retryError)) throw retryError;
-      throw new Error("Browser storage is full. Bumpers cleared search-result cache space, but the saved-search backup still could not fit.");
+      throw new Error("Browser storage is full. Brrtz cleared search-result cache space, but the saved-search backup still could not fit.");
     }
   }
 }
@@ -4784,7 +4784,7 @@ function formatShortDate(value) {
 
 function createEmailDigest(profile, listings) {
   if (listings.length === 0) {
-    return `Bumpers: ${profile.name}\n\nNo new listings.`;
+    return `Brrtz: ${profile.name}\n\nNo new listings.`;
   }
 
   const lines = listings.map((listing) => {
@@ -4792,7 +4792,7 @@ function createEmailDigest(profile, listings) {
     return `${listing.title}\n${formatPrice(listing.price)} · ${source}\n${listing.url}`;
   });
 
-  return `Bumpers: ${profile.name}\nAlert mode: ${profile.alertMode}\n\n${lines.join("\n\n")}`;
+  return `Brrtz: ${profile.name}\nAlert mode: ${profile.alertMode}\n\n${lines.join("\n\n")}`;
 }
 
 async function copyText(value) {

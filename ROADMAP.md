@@ -1,11 +1,11 @@
-# Bumpers Roadmap
+# Brrtz Roadmap
 
-Bumpers is a gear-search radar for synthesizers, electronic music instruments, and pro-audio listings. The near-term product is focused on Japan used-gear sources, with cloud sync and invite-only beta access. The long-term product should support multiple regions without forking the codebase.
+Brrtz is a gear-search radar for synthesizers, electronic music instruments, and pro-audio listings. The near-term product is focused on Japan used-gear sources, with cloud sync and invite-only beta access. The long-term product should support multiple regions without forking the codebase.
 
 ## Product Principles
 
 - Search original sources directly whenever possible.
-- Keep Gear Mode as the signature Bumpers filtering experience.
+- Keep Gear Mode as the signature Brrtz filtering experience.
 - Make saved searches and watched gear portable across desktop, mobile web, and the future iOS app.
 - Treat regions as configuration, not separate apps.
 - Keep the interface visual, fast, and enjoyable, but avoid hiding core search controls.
@@ -92,7 +92,7 @@ Candidate sources:
 
 Focus:
 
-- Choose production hosting for Bumpers server/search connectors.
+- Choose production hosting for Brrtz server/search connectors.
 - Keep secrets in hosted environment variables.
 - Add production logging for source failures and slow connectors.
 - Add source health indicators.

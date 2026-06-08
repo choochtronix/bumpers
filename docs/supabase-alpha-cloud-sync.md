@@ -1,14 +1,14 @@
 # Supabase Alpha Cloud Sync
 
-This is the first production-shaped cloud step for Bumpers:
+This is the first production-shaped cloud step for Brrtz:
 
-`Bumpers UI -> Node server/search connectors -> Supabase profiles/saved searches`
+`Brrtz UI -> Node server/search connectors -> Supabase profiles/saved searches`
 
-The app remains local-first. If Supabase is not configured, Bumpers keeps using the local cloud emulator at `data/cloud-saved-searches.json`.
+The app remains local-first. If Supabase is not configured, Brrtz keeps using the local cloud emulator at `data/cloud-saved-searches.json`.
 
 ## 1. Create A Supabase Project
 
-Create a small Supabase project for the Bumpers alpha. The free tier is enough for friend testing saved searches and profile preferences.
+Create a small Supabase project for the Brrtz alpha. The free tier is enough for friend testing saved searches and profile preferences.
 
 ## 2. Create The Saved Searches Table
 
@@ -69,7 +69,7 @@ For the current alpha adapter, the Node server uses the Supabase service role ke
 
 ## 3. Enable Basic RLS Policies
 
-Run this after the tables above exist. This lets authenticated Supabase users access only their own saved searches and profile rows if Bumpers later reads directly from the client. The current Node server continues to work because `service_role` bypasses RLS.
+Run this after the tables above exist. This lets authenticated Supabase users access only their own saved searches and profile rows if Brrtz later reads directly from the client. The current Node server continues to work because `service_role` bypasses RLS.
 
 The same SQL lives in `docs/supabase-rls-policies.sql`.
 
@@ -149,7 +149,7 @@ Copy `.env.example` to `.env.local` or set these variables in your host:
 BUMPERS_CLOUD_PROVIDER=supabase
 BUMPERS_CLOUD_USER_ID=alpha
 BUMPERS_CLOUD_USER_EMAIL=alpha@bumpers.local
-BUMPERS_CLOUD_USER_NAME="Bumpers Alpha User"
+BUMPERS_CLOUD_USER_NAME="Brrtz Alpha User"
 BUMPERS_REQUIRE_INVITE=false
 
 SUPABASE_URL=https://your-project-ref.supabase.co
@@ -159,7 +159,7 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 
 `SUPABASE_ANON_KEY` is the public anon key from Supabase Project Settings -> API. It is safe for browser auth flows when Row Level Security is configured for user-owned tables. Keep `SUPABASE_SERVICE_ROLE_KEY` private in `.env.local` only.
 
-When signed in, cloud saved-search sync uses the authenticated Supabase user id. When signed out, Bumpers falls back to the configured alpha profile so local testing still works.
+When signed in, cloud saved-search sync uses the authenticated Supabase user id. When signed out, Brrtz falls back to the configured alpha profile so local testing still works.
 
 Current alpha cloud data:
 
@@ -169,7 +169,7 @@ Current alpha cloud data:
 - Saved-search create/delete/import/scan updates auto-sync in the background when signed in.
 - Watched listing and feedback changes auto-sync through profile preferences when signed in.
 - Manual Settings -> Account -> Sync now remains the backup sync path.
-- Background saved-search pushes check whether cloud data is newer than this browser's last sync. If another browser changed saved searches first, Bumpers pauses the push and asks you to Pull from cloud before pushing.
+- Background saved-search pushes check whether cloud data is newer than this browser's last sync. If another browser changed saved searches first, Brrtz pauses the push and asks you to Pull from cloud before pushing.
 
 Leave `BUMPERS_REQUIRE_INVITE=false` while you are testing your own login. Change it to `true` when friend testing should be invite-only, then add allowed emails:
 
@@ -184,10 +184,10 @@ The current alpha gate is an email allowlist, not a typed invite-code field. Tha
 
 1. Add the tester email to `alpha_invites` with `status = 'active'`.
 2. Set `BUMPERS_REQUIRE_INVITE=true` in `.env.local`.
-3. Restart Bumpers.
+3. Restart Brrtz.
 4. Have the tester sign in from Settings -> Account.
 
-Bumpers normalizes invite email checks by trimming spaces and comparing lowercase emails. This avoids browser-to-browser mismatches caused by case or accidental whitespace in the invite row.
+Brrtz normalizes invite email checks by trimming spaces and comparing lowercase emails. This avoids browser-to-browser mismatches caused by case or accidental whitespace in the invite row.
 
 To confirm the blocked-user message, temporarily pause a tester:
 
@@ -197,7 +197,7 @@ set status = 'paused'
 where email = 'friend@example.com';
 ```
 
-Then use Settings -> Account -> Sync now. Bumpers should show the invite-only message returned by the server. Restore access with:
+Then use Settings -> Account -> Sync now. Brrtz should show the invite-only message returned by the server. Restore access with:
 
 ```sql
 update public.alpha_invites
@@ -205,7 +205,7 @@ set status = 'active'
 where email = 'friend@example.com';
 ```
 
-## 5. Run Bumpers
+## 5. Run Brrtz
 
 ```bash
 npm start
@@ -232,7 +232,7 @@ Pass 3 adds:
 - Account-level profile preferences in `user_profiles`.
 - Optional invite-only account enforcement with `alpha_invites` and `BUMPERS_REQUIRE_INVITE=true`.
 
-To test magic links locally, add your local Bumpers URL to Supabase Auth redirect URLs:
+To test magic links locally, add your local Brrtz URL to Supabase Auth redirect URLs:
 
 - `http://127.0.0.1:5173`
 - Your Wi-Fi preview URL, for example `http://192.168.x.x:5173`

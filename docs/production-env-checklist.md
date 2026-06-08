@@ -1,6 +1,8 @@
-# Bumpers Production Environment Checklist
+# Brrtz Production Environment Checklist
 
 Use this checklist when deploying the friends-only beta. It names the required environment variables without storing real secret values.
+
+For the external account/service inventory, see `docs/account-services-register.md`.
 
 ## Rule Zero
 
@@ -23,7 +25,7 @@ Production values should live in the hosting provider's environment/secrets pane
 | Variable | Required | Secret? | Example | Notes |
 |---|---:|---:|---|---|
 | `PORT` | Host-dependent | No | `5173` | Many hosts inject this automatically. Do not hardcode if host provides it. |
-| `HOST` | Usually no | No | `0.0.0.0` | Bumpers defaults to `0.0.0.0`, which is correct for most hosted Node apps. |
+| `HOST` | Usually no | No | `0.0.0.0` | Brrtz defaults to `0.0.0.0`, which is correct for most hosted Node apps. |
 
 ## Local / Fallback Only
 
@@ -33,7 +35,7 @@ These are useful for local development but should not be relied on for the publi
 |---|---:|---:|---|---|
 | `BUMPERS_CLOUD_USER_ID` | No | No | `alpha` | Local fallback user id when not using authenticated Supabase sessions. |
 | `BUMPERS_CLOUD_USER_EMAIL` | No | No | `alpha@bumpers.local` | Local fallback email. |
-| `BUMPERS_CLOUD_USER_NAME` | No | No | `Bumpers Alpha User` | Local fallback display name. |
+| `BUMPERS_CLOUD_USER_NAME` | No | No | `Brrtz Alpha User` | Local fallback display name. |
 
 ## Supabase Tables Needed
 
@@ -78,7 +80,7 @@ where email = 'friend@example.com';
 
 ## Current Beta Recommendation
 
-Use a Node-friendly host for the first friends beta because Bumpers currently includes server-side search connectors and Supabase service-role operations.
+Use a Node-friendly host for the first friends beta because Brrtz currently includes server-side search connectors and Supabase service-role operations.
 
 Good candidates:
 

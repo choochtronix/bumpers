@@ -16,7 +16,7 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 const CLOUD_PROVIDER = process.env.BUMPERS_CLOUD_PROVIDER || (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY ? "supabase" : "file");
 const CLOUD_PROFILE_USER_ID = process.env.BUMPERS_CLOUD_USER_ID || "local";
 const CLOUD_PROFILE_EMAIL = process.env.BUMPERS_CLOUD_USER_EMAIL || "local@bumpers.dev";
-const CLOUD_PROFILE_NAME = process.env.BUMPERS_CLOUD_USER_NAME || "Local Bumpers User";
+const CLOUD_PROFILE_NAME = process.env.BUMPERS_CLOUD_USER_NAME || "Local Brrtz User";
 const REQUIRE_INVITE = process.env.BUMPERS_REQUIRE_INVITE === "true";
 const DIGIMART_BASE_URL = "https://www.digimart.net";
 const FIVE_G_BASE_URL = "https://fiveg.net";
@@ -53,7 +53,7 @@ const YAHOO_AUCTIONS_RHYTHM_TERMS = [
   "リズムマシン",
   "リズムボックス",
 ];
-const USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 (KHTML, like Gecko) Bumpers/0.1 local personal gear search";
+const USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 (KHTML, like Gecko) Brrtz/0.1 local personal gear search";
 const mercariCache = new Map();
 const rakumaThumbnailCache = new Map();
 const rakumaImageProxyCache = new Map();
@@ -110,9 +110,9 @@ createServer(async (request, response) => {
     });
   }
 }).listen(PORT, HOST, () => {
-  console.log(`Bumpers running locally at http://127.0.0.1:${PORT}`);
+  console.log(`Brrtz running locally at http://127.0.0.1:${PORT}`);
   for (const url of getLanUrls(PORT)) {
-    console.log(`Bumpers available on your Wi-Fi at ${url}`);
+    console.log(`Brrtz available on your Wi-Fi at ${url}`);
   }
 });
 
@@ -262,7 +262,7 @@ function sendCloudSetupError(response, error) {
   if (isMissingProfileTable) {
     sendJson(response, 424, {
       error: "cloud_profile_setup_required",
-      message: "Run the user_profiles SQL from docs/supabase-alpha-cloud-sync.md, then restart Bumpers.",
+      message: "Run the user_profiles SQL from docs/supabase-alpha-cloud-sync.md, then restart Brrtz.",
     });
     return;
   }
@@ -344,7 +344,7 @@ function createCloudSavedSearchState(payload = {}, cloudUser = getCloudUser()) {
     : [];
 
   return {
-    app: "Bumpers",
+    app: "Brrtz",
     type: "saved-searches",
     schemaVersion: Number(payload.schemaVersion) || 1,
     storage: isSupabaseCloudEnabled() ? "supabase" : "cloud-emulator",
@@ -363,7 +363,7 @@ function createCloudProfileState(payload = {}) {
   const user = normalizeCloudUser(payload.user);
 
   return {
-    app: "Bumpers",
+    app: "Brrtz",
     type: "user-profile",
     schemaVersion: Number(payload.schemaVersion) || 1,
     storage: isSupabaseCloudEnabled() ? "supabase" : "cloud-emulator",
@@ -432,14 +432,14 @@ async function getRequestCloudUser(request) {
   const token = getBearerToken(request);
   if (!token) {
     if (REQUIRE_INVITE && isSupabaseCloudEnabled()) {
-      throw new AuthVerificationError("Sign in is required to use Bumpers cloud sync.");
+      throw new AuthVerificationError("Sign in is required to use Brrtz cloud sync.");
     }
     return getCloudUser();
   }
 
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
     if (REQUIRE_INVITE && isSupabaseCloudEnabled()) {
-      throw new AuthVerificationError("Bumpers cloud auth is not configured for invite-only sync.");
+      throw new AuthVerificationError("Brrtz cloud auth is not configured for invite-only sync.");
     }
     return getCloudUser();
   }
@@ -496,7 +496,7 @@ async function assertUserInvite(cloudUser) {
 
   if (isInvited) return;
 
-  throw new AuthVerificationError("This Bumpers alpha is invite-only. Ask Craig to add your email to the invite list.");
+  throw new AuthVerificationError("This Brrtz alpha is invite-only. Ask Craig to add your email to the invite list.");
 }
 
 async function readSupabaseUserProfile(cloudUser = getCloudUser()) {

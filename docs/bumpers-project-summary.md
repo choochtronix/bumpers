@@ -1,17 +1,17 @@
-# Bumpers Project Summary
+# Brrtz Project Summary
 
 Last updated: 2026-06-07
 
-## What Bumpers Is
+## What Brrtz Is
 
-Bumpers is a local-first search radar for finding synthesizers, electronic music instruments, and pro audio gear across Japanese auction, flea market, and shop sources.
+Brrtz is a local-first search radar for finding synthesizers, electronic music instruments, and pro audio gear across Japanese auction, flea market, and shop sources.
 
-The core user problem is repetitive search: vintage synth and pro-audio listings are scattered across Yahoo Auctions, Mercari, Rakuma, OFFMALL, Digimart, Reverb Japan listings, and smaller Japanese gear shops. Bumpers gives the user one focused search surface, saved searches, visual source filtering, clean-gear filtering, and new-listing detection.
+The core user problem is repetitive search: vintage synth and pro-audio listings are scattered across Yahoo Auctions, Mercari, Rakuma, OFFMALL, Digimart, Reverb Japan listings, and smaller Japanese gear shops. Brrtz gives the user one focused search surface, saved searches, visual source filtering, clean-gear filtering, and new-listing detection.
 
 The intended long-term shape is:
 
 ```text
-Bumpers responsive web UI
+Brrtz responsive web UI
   -> Node search connector server
   -> Supabase auth, profiles, saved searches
   -> future iOS app using the same backend/data model
@@ -21,7 +21,7 @@ The current development strategy is to keep one shared codebase and one shared d
 
 ## Current Product Behavior
 
-Bumpers currently supports:
+Brrtz currently supports:
 
 - Multi-source search from one primary search field.
 - Saved searches with terms, exclusions, source choices, max price, and alert mode.
@@ -69,7 +69,7 @@ Main files:
 - `app.js`: UI state, saved searches, search orchestration, filtering, auth client flow, cloud sync calls.
 - `styles.css`: app layout, responsive behavior, component styling.
 - `design-system.css`: shared design tokens and system cleanup layer.
-- `assets/`: source logos, Bumpers logo, favicon, refine/search/settings/watch icons, waveform graphics.
+- `assets/`: source logos, Brrtz logo, favicon, refine/search/settings/watch icons, waveform graphics.
 - `MOCKS/`: visual experiments for Fresh Finds and Daily Radar layouts.
 
 The frontend is currently vanilla HTML/CSS/JavaScript. It deliberately avoids a heavy framework while the product behavior and visual language are still being shaped.
@@ -186,7 +186,7 @@ Current flow:
 
 1. Add a tester email to `public.alpha_invites`.
 2. Set `BUMPERS_REQUIRE_INVITE=true`.
-3. Restart the local Bumpers server.
+3. Restart the local Brrtz server.
 4. Tester signs in using Settings -> Account.
 5. Server checks the authenticated Supabase email against active invite rows.
 
@@ -198,7 +198,7 @@ Known operational note:
 
 ## UI And Visual Direction
 
-Bumpers is intentionally image-forward and media-like rather than dense enterprise software.
+Brrtz is intentionally image-forward and media-like rather than dense enterprise software.
 
 Current design direction:
 
@@ -210,7 +210,7 @@ Current design direction:
 - Minimal default home view with a strong search field.
 - Saved searches hidden from the default canvas but accessible through top controls.
 - Refine modal centered, with background blur.
-- Header branding with Bumpers logo and waveform animation.
+- Header branding with Brrtz logo and waveform animation.
 - Mobile-first considerations are now being folded into the same responsive web build.
 
 Important assets:
@@ -245,7 +245,7 @@ For iPhone/mobile preview on the same Wi-Fi, use the local network URL printed b
 http://192.168.x.x:5173
 ```
 
-For remote mobile testing outside the home network, Tailscale is the likely workflow: run Bumpers on the Mac, connect phone and Mac to the same Tailnet, then open the Mac Tailscale IP with port `5173`.
+For remote mobile testing outside the home network, Tailscale is the likely workflow: run Brrtz on the Mac, connect phone and Mac to the same Tailnet, then open the Mac Tailscale IP with port `5173`.
 
 ## Current Known Gaps / Next Good Steps
 
@@ -277,7 +277,7 @@ Alerts:
 
 ## Useful Mental Model For Another Agent
 
-Treat Bumpers as:
+Treat Brrtz as:
 
 1. A local-first responsive web app.
 2. A connector-based search aggregator.
