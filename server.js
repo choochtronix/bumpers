@@ -430,7 +430,19 @@ async function fetchSupabaseSavedSearchRows(userId = CLOUD_PROFILE_USER_ID) {
 
 async function getRequestCloudUser(request) {
   const token = getBearerToken(request);
-  if (!token || !SUPABASE_URL || !SUPABASE_ANON_KEY) return getCloudUser();
+  if (!token) {
+    if (REQUIRE_INVITE && isSupabaseCloudEnabled()) {
+      throw new AuthVerificationError("Sign in is required to use Bumpers cloud sync.");
+    }
+    return getCloudUser();
+  }
+
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    if (REQUIRE_INVITE && isSupabaseCloudEnabled()) {
+      throw new AuthVerificationError("Bumpers cloud auth is not configured for invite-only sync.");
+    }
+    return getCloudUser();
+  }
 
   try {
     const cloudUser = await fetchSupabaseAuthUser(token);

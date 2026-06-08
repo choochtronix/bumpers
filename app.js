@@ -1779,6 +1779,18 @@ function clearStoredAuthSession() {
   localStorage.removeItem(STORAGE_KEYS.authSession);
 }
 
+function clearInvalidCloudSession(message = "Your cloud session could not be verified. Sign out and sign in again.") {
+  clearStoredAuthSession();
+  authState.session = null;
+  authState.user = null;
+  authState.accountNotice = message;
+  renderAccountShell();
+}
+
+function isCloudAuthSessionError(message = "") {
+  return /cloud session could not be verified|sign-in session expired|sign in is required/i.test(message);
+}
+
 function normalizeAuthSession(rawSession) {
   if (!rawSession?.access_token) return null;
 
@@ -1972,6 +1984,7 @@ async function syncAccountCloudData() {
     setAccountStatus("Account profile and saved searches are synced.");
   } catch (error) {
     authState.accountNotice = error instanceof Error ? error.message : "Could not sync account data.";
+    if (isCloudAuthSessionError(authState.accountNotice)) clearInvalidCloudSession(authState.accountNotice);
     setAccountStatus(error instanceof Error ? error.message : "Could not sync account data.");
   } finally {
     setCloudSyncButtonsDisabled(false);
@@ -1990,6 +2003,7 @@ async function pullCloudProfilePreferences(options = {}) {
     return payload;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Could not pull profile preferences.";
+    if (isCloudAuthSessionError(message)) clearInvalidCloudSession(message);
     if (!options.silent) setAccountStatus(message);
     if (options.surfaceErrors) throw new Error(message);
     if (options.silent) return null;
@@ -2014,6 +2028,7 @@ async function pushCloudProfilePreferences(options = {}) {
     return payload;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Could not push profile preferences.";
+    if (isCloudAuthSessionError(message)) clearInvalidCloudSession(message);
     if (!options.silent) setAccountStatus(message);
     if (options.surfaceErrors) throw new Error(message);
     if (options.silent) return null;
@@ -2224,6 +2239,7 @@ async function pullCloudSavedSearches(options = {}) {
   } catch (error) {
     const message = error instanceof Error ? error.message : "Could not pull from cloud sync.";
     authState.accountNotice = message;
+    if (isCloudAuthSessionError(message)) clearInvalidCloudSession(message);
     setAccountStatus(message);
     setSavedSearchTransferStatus(message);
     if (options.rethrow) throw error;
@@ -2276,6 +2292,7 @@ async function pushCloudSavedSearches(options = {}) {
   } catch (error) {
     const message = error instanceof Error ? error.message : "Could not push to cloud sync.";
     authState.accountNotice = message;
+    if (isCloudAuthSessionError(message)) clearInvalidCloudSession(message);
     setAccountStatus(message);
     setSavedSearchTransferStatus(message);
     if (options.rethrow) throw error;
