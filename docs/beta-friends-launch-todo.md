@@ -31,7 +31,7 @@ Target: week of June 8, 2026
 | Done | Confirm invite-only gate | Codex/Craig | Uninvited email cannot sync; invited email can sign in and sync. |
 | Doing | Confirm saved-search sync | Craig | Chrome, Safari, and mobile browser show the same saved searches after sync. |
 | Doing | Confirm watched gear sync | Craig | Watch/unwatch state survives browser reload and appears in a second browser. |
-| Doing | Confirm feedback sync | Craig | "This is gear" and "This is noise" feedback persists after sync. |
+| Done | Confirm feedback sync | Craig | "This is gear" and "This is noise" feedback persists after sync. |
 | Done | Document required production env vars | Codex | Public beta setup has a checklist with variable names and no secret values: `docs/production-env-checklist.md`. |
 
 ### 2. Region Architecture
@@ -108,7 +108,7 @@ Decision for beta: ship Japan as the active region, and add the region object no
 - Invite gate check, June 8: passed. Bumpers blocks unauthenticated cloud sync with `401` when invite mode is enabled, and invited sign-in works.
 - Saved-search sync check, June 8: migrated 10 alpha-only saved searches into the signed-in Gmail profile. Gmail cloud profile now has 28 active saved searches; Safari should pull the same count after refresh/sign-in.
 - Watched gear sync check, June 8: code already queues profile auto-sync after watch/unwatch. Supabase profile currently has 1 watched listing and 1 watched-listing snapshot; second-browser visual confirmation is still pending.
-- Feedback sync check, June 8: code queues profile auto-sync after "This is gear," "This is noise," and "Hide similar." Supabase currently has 5 synced noise feedback entries for the signed-in Gmail profile; gear feedback still needs one manual test entry before final acceptance.
+- Feedback sync check, June 8: passed at the cloud-storage layer. Supabase has 1 synced gear feedback entry and 5 synced noise feedback entries for the signed-in Gmail profile.
 - Safari stale-session check, June 8: Bumpers now clears local auth state when Supabase rejects a cloud token as unverifiable, so Safari should prompt for a clean sign-in instead of looping on sync failure.
 - Production env checklist, June 8: added `docs/production-env-checklist.md` with required beta variables, secret handling notes, Supabase table requirements, invite SQL, and pre-launch checks.
 
