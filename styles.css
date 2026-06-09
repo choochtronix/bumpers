@@ -1995,6 +1995,18 @@ body[data-theme="dark"] .source-filter-button.is-active {
   --source-solid-mark: var(--source-reverb);
 }
 
+.source-filter-button[data-source="reverb-us"] {
+  --source-solid: var(--source-reverb);
+  --source-solid-ink: var(--source-ink-on-color);
+  --source-solid-mark: var(--source-reverb);
+}
+
+.source-filter-button[data-source="craigslist-sfbay"] {
+  --source-solid: var(--source-craigslist);
+  --source-solid-ink: var(--source-ink-on-color);
+  --source-solid-mark: var(--source-craigslist);
+}
+
 .source-filter-button[data-source="jimoty"] {
   --source-solid: var(--source-jimoty);
   --source-solid-ink: var(--source-ink-on-color);
@@ -2733,6 +2745,14 @@ body[data-theme="dark"] .listing-card.is-featured-home-card {
 
 .source-avatar[data-source="reverb"] {
   background: var(--source-reverb);
+}
+
+.source-avatar[data-source="reverb-us"] {
+  background: var(--source-reverb);
+}
+
+.source-avatar[data-source="craigslist-sfbay"] {
+  background: var(--source-craigslist);
 }
 
 .source-avatar[data-source="jimoty"] {

@@ -33,6 +33,7 @@ const OFFMALL_BASE_URL = "https://netmall.hardoff.co.jp";
 const RAKUMA_BASE_URL = "https://fril.jp";
 const REVERB_API_BASE_URL = "https://api.reverb.com";
 const REVERB_BASE_URL = "https://reverb.com";
+const CRAIGSLIST_SFBAY_BASE_URL = "https://sfbay.craigslist.org";
 const YAHOO_AUCTIONS_BASE_URL = "https://auctions.yahoo.co.jp";
 const YAHOO_FLEAMARKET_BASE_URL = "https://paypayfleamarket.yahoo.co.jp";
 const MERCARI_CACHE_TTL_MS = 5 * 60 * 1000;
@@ -371,8 +372,10 @@ function getSourceHealthSearchFn(sourceId) {
     jimoty: searchJimoty,
     mercari: searchMercari,
     offmall: searchOffmall,
+    "craigslist-sfbay": searchCraigslistSfbay,
     rakuma: searchRakuma,
     reverb: searchReverb,
+    "reverb-us": searchReverbUs,
     "yahoo-auctions": searchYahooAuctions,
     "yahoo-fleamarket": searchYahooFleamarket,
   }[sourceId] || null;
@@ -743,6 +746,7 @@ function normalizePreferences(preferences = {}) {
     : {};
 
   return {
+    ...(typeof preferences.regionId === "string" && preferences.regionId.trim() ? { regionId: preferences.regionId.trim() } : {}),
     ...(currency ? { currency } : {}),
     ...(Number.isFinite(jpyPerUsd) && jpyPerUsd > 0 ? { jpyPerUsd } : {}),
     ...(theme ? { theme } : {}),
@@ -851,19 +855,23 @@ async function handleSearch(url, response) {
   const excludes = splitParam(url.searchParams.get("excludes"));
   const maxPrice = Number(url.searchParams.get("maxPrice") || 0);
   const sources = splitParam(url.searchParams.get("sources"));
+  const regionId = url.searchParams.get("region") === "bay-area" ? "bay-area" : "japan";
+  const regionCurrency = regionId === "bay-area" ? "USD" : "JPY";
   const wantsDigimart = sources.length === 0 || sources.includes("digimart");
   const wantsFiveG = sources.length === 0 || sources.includes("five-g");
   const wantsImplant4 = sources.length === 0 || sources.includes("implant4");
+  const wantsCraigslistSfbay = sources.length === 0 || sources.includes("craigslist-sfbay");
   const wantsJimoty = sources.length === 0 || sources.includes("jimoty");
   const wantsMercari = sources.length === 0 || sources.includes("mercari");
   const wantsOffmall = sources.length === 0 || sources.includes("offmall") || sources.includes("hardoff");
   const wantsRakuma = sources.length === 0 || sources.includes("rakuma");
   const wantsReverb = sources.length === 0 || sources.includes("reverb");
+  const wantsReverbUs = sources.length === 0 || sources.includes("reverb-us");
   const wantsYahooAuctions = sources.length === 0 || sources.includes("yahoo-auctions");
   const wantsYahooFleamarket = sources.length === 0 || sources.includes("yahoo-fleamarket");
   const startedAt = new Date();
 
-  if ((!wantsDigimart && !wantsFiveG && !wantsImplant4 && !wantsJimoty && !wantsMercari && !wantsOffmall && !wantsRakuma && !wantsReverb && !wantsYahooAuctions && !wantsYahooFleamarket) || terms.length === 0) {
+  if ((!wantsDigimart && !wantsFiveG && !wantsImplant4 && !wantsCraigslistSfbay && !wantsJimoty && !wantsMercari && !wantsOffmall && !wantsRakuma && !wantsReverb && !wantsReverbUs && !wantsYahooAuctions && !wantsYahooFleamarket) || terms.length === 0) {
     sendJson(response, 200, { listings: [], meta: createSearchMeta(startedAt, [], [], terms) });
     return;
   }
@@ -889,6 +897,13 @@ async function handleSearch(url, response) {
     }));
   }
 
+  if (wantsCraigslistSfbay) {
+    sourceTasks.push(searchSourceTerms("craigslist-sfbay", terms, searchCraigslistSfbay, {
+      maxTerms: 2,
+      termDelayMs: 250,
+    }));
+  }
+
   if (wantsJimoty) {
     sourceTasks.push(searchSourceTerms("jimoty", terms, searchJimoty, {
       maxTerms: 3,
@@ -905,6 +920,12 @@ async function handleSearch(url, response) {
 
   if (wantsReverb) {
     sourceTasks.push(searchSourceTerms("reverb", terms, searchReverb, {
+      maxTerms: REVERB_TERM_LIMIT,
+    }));
+  }
+
+  if (wantsReverbUs) {
+    sourceTasks.push(searchSourceTerms("reverb-us", terms, searchReverbUs, {
       maxTerms: REVERB_TERM_LIMIT,
     }));
   }
@@ -933,7 +954,10 @@ async function handleSearch(url, response) {
 
   const listings = [...listingsById.values()].sort((a, b) => new Date(b.listedAt) - new Date(a.listedAt));
   await hydrateRakumaThumbnails(listings.filter((listing) => listing.source === "rakuma"));
-  const normalizedListings = attachNormalizedListings(listings);
+  const normalizedListings = attachNormalizedListings(listings, {
+    regionId,
+    currency: regionCurrency,
+  });
 
   sendJson(response, 200, {
     listings: normalizedListings,
@@ -1322,10 +1346,28 @@ async function searchRakuma(term) {
 }
 
 async function searchReverb(term) {
+  return searchReverbListings(term, {
+    sourceId: "reverb",
+    countryFilter: "country:jp",
+    displayCurrency: "JPY",
+    acceptLanguage: "ja,en-US;q=0.9,en;q=0.8",
+  });
+}
+
+async function searchReverbUs(term) {
+  return searchReverbListings(term, {
+    sourceId: "reverb-us",
+    countryFilter: "country:us",
+    displayCurrency: "USD",
+    acceptLanguage: "en-US,en;q=0.9",
+  });
+}
+
+async function searchReverbListings(term, options = {}) {
   const url = new URL("/api/listings", REVERB_API_BASE_URL);
-  url.searchParams.set("query", `country:jp ${term}`);
+  url.searchParams.set("query", [options.countryFilter, term].filter(Boolean).join(" "));
   url.searchParams.set("per_page", String(REVERB_RESULT_LIMIT));
-  url.searchParams.set("display_currency", "JPY");
+  url.searchParams.set("display_currency", options.displayCurrency || "JPY");
   url.searchParams.set("sort", "published_at|desc");
 
   const response = await fetch(url, {
@@ -1333,7 +1375,7 @@ async function searchReverb(term) {
       "user-agent": USER_AGENT,
       "accept": "application/hal+json",
       "accept-version": "3.0",
-      "accept-language": "ja,en-US;q=0.9,en;q=0.8",
+      "accept-language": options.acceptLanguage || "ja,en-US;q=0.9,en;q=0.8",
     },
   });
 
@@ -1341,7 +1383,26 @@ async function searchReverb(term) {
     throw new Error(`Reverb responded with ${response.status}`);
   }
 
-  return parseReverb(await response.json());
+  return parseReverb(await response.json(), { sourceId: options.sourceId || "reverb" });
+}
+
+async function searchCraigslistSfbay(term) {
+  const url = new URL("/search/msa", CRAIGSLIST_SFBAY_BASE_URL);
+  url.searchParams.set("query", term);
+  url.searchParams.set("sort", "date");
+
+  const response = await fetch(url, {
+    headers: {
+      "user-agent": USER_AGENT,
+      "accept-language": "en-US,en;q=0.9",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Craigslist SF Bay responded with ${response.status}`);
+  }
+
+  return parseCraigslistSfbay(await response.text());
 }
 
 async function searchYahooAuctions(term) {
@@ -1695,7 +1756,70 @@ function parseMercari(cards) {
   }).filter((listing) => listing.id !== "mercari-" && listing.title && listing.url);
 }
 
-function parseReverb(data) {
+function parseCraigslistSfbay(html) {
+  const structuredListings = parseCraigslistStructuredListings(html);
+  const blocks = splitHtmlBlocks(html, /<li class="cl-static-search-result"(?=[\s>])/g);
+  const listedAt = new Date().toISOString();
+
+  return blocks.map((block, index) => {
+    const href = normalizeUrl(readAttributeFromPattern(block, /<a[^>]+href="([^"]+)"/i), CRAIGSLIST_SFBAY_BASE_URL);
+    const rawId = href.match(/\/(\d+)\.html(?:$|\?)/)?.[1] || `${Date.now()}-${index}`;
+    const structured = structuredListings.get(index) || {};
+    const title = cleanText(matchOne(block, /class="title">([\s\S]*?)<\/div>/i)) || structured.title || "";
+    const price = parseUsdPrice(matchOne(block, /class="price">([\s\S]*?)<\/div>/i)) || structured.price || 0;
+    const location = cleanText(matchOne(block, /class="location">([\s\S]*?)<\/div>/i)) || structured.location || "";
+
+    return {
+      id: `craigslist-sfbay-${rawId}`,
+      source: "craigslist-sfbay",
+      title,
+      price,
+      condition: "Listed",
+      shop: location ? `Craigslist SF Bay · ${location}` : "Craigslist SF Bay",
+      listedAt,
+      url: href,
+      image: structured.image || "",
+      categoryPath: ["For Sale", "Musical Instruments"],
+    };
+  }).filter((listing) => listing.id !== "craigslist-sfbay-" && listing.title && listing.url);
+}
+
+function parseCraigslistStructuredListings(html) {
+  const json = matchOne(html, /<script[^>]+id="ld_searchpage_results"[^>]*>([\s\S]*?)<\/script>/i);
+  const listingsByIndex = new Map();
+  if (!json.trim()) return listingsByIndex;
+
+  try {
+    const payload = JSON.parse(json.trim());
+    (payload.itemListElement || []).forEach((entry, index) => {
+      const item = entry?.item || {};
+      const offer = item.offers || {};
+      const place = offer.availableAtOrFrom || {};
+      const address = place.address || {};
+      const image = Array.isArray(item.image) ? item.image[0] : item.image;
+      const position = Number(entry.position);
+
+      listingsByIndex.set(Number.isFinite(position) ? position : index, {
+        title: cleanText(String(item.name || "")),
+        price: parseUsdPrice(offer.price),
+        image: normalizeUrl(String(image || ""), CRAIGSLIST_SFBAY_BASE_URL),
+        location: cleanText(String(address.addressLocality || "")),
+      });
+    });
+  } catch {
+    return listingsByIndex;
+  }
+
+  return listingsByIndex;
+}
+
+function parseUsdPrice(value) {
+  const rawPrice = String(value || "").match(/([\d,.]+)/)?.[1] || "";
+  return rawPrice ? Number(rawPrice.replace(/[^\d.]/g, "")) : 0;
+}
+
+function parseReverb(data, options = {}) {
+  const sourceId = options.sourceId || "reverb";
   return (data?.listings || []).map((item) => {
     const rawId = String(item.id || "");
     const categories = Array.isArray(item.categories)
@@ -1708,8 +1832,8 @@ function parseReverb(data) {
     ].filter(Boolean).join(" · ") || "Listed";
 
     return {
-      id: `reverb-${rawId}`,
-      source: "reverb",
+      id: `${sourceId}-${rawId}`,
+      source: sourceId,
       title: cleanText(String(item.title || [item.make, item.model].filter(Boolean).join(" "))),
       price: parseReverbPrice(item.price),
       condition,
@@ -1726,7 +1850,7 @@ function parseReverb(data) {
       categoryPath: categories,
       availability: item.state?.slug || "",
     };
-  }).filter((listing) => listing.id !== "reverb-" && listing.title && listing.url && listing.price > 0);
+  }).filter((listing) => listing.id !== `${sourceId}-` && listing.title && listing.url && listing.price > 0);
 }
 
 function parseReverbPrice(price) {

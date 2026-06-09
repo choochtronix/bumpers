@@ -88,7 +88,33 @@ Selected beta path:
 
 - Railway project from GitHub repo.
 - Dockerfile in repo root.
-- Custom domain: `beta.brrtz.com`.
+- Custom domain: `brrtz.com`.
 - Health check: `/api/health`.
 
 Use Codex Sites later if/when the frontend and backend are separated or the build shape is confirmed compatible.
+
+## Current Production URLs
+
+Primary public beta:
+
+```text
+https://brrtz.com
+```
+
+Railway fallback:
+
+```text
+https://brrtz-beta-production.up.railway.app
+```
+
+Supabase Auth should use:
+
+```text
+Site URL:
+https://brrtz.com
+
+Redirect URLs:
+https://brrtz.com/*
+https://brrtz-beta-production.up.railway.app/*
+http://127.0.0.1:5173/*
+```

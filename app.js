@@ -5,6 +5,8 @@ const SOURCES = [
   { id: "rakuma", label: "Rakuma", icon: "Ra", color: "green", logo: "assets/logos/ICONS/rakuma_ic.svg" },
   { id: "digimart", label: "Digimart", icon: "D", color: "blue" },
   { id: "reverb", label: "Reverb", icon: "Rv", color: "orange" },
+  { id: "reverb-us", label: "Reverb US", icon: "Rv", color: "orange" },
+  { id: "craigslist-sfbay", label: "Craigslist SF", icon: "CL", color: "purple" },
   { id: "jimoty", label: "Jimoty", icon: "Jm", color: "orange" },
   { id: "offmall", label: "OFFMALL", icon: "O", color: "green", logo: "assets/logos/ICONS/hardoff-ic.svg" },
   { id: "five-g", label: "Five G", icon: "5G", color: "amber" },
@@ -13,8 +15,8 @@ const SOURCES = [
 ];
 
 const LEGACY_DEFAULT_SOURCE_IDS = ["mercari", "yahoo-auctions", "yahoo-fleamarket", "rakuma", "digimart", "offmall", "five-g", "implant4", "hardoff"];
-const LIVE_SOURCE_IDS = ["mercari", "yahoo-auctions", "yahoo-fleamarket", "rakuma", "digimart", "reverb", "jimoty", "offmall", "five-g", "implant4", "hardoff"];
-const LIVE_SOURCE_DISPLAY_ORDER = ["yahoo-auctions", "yahoo-fleamarket", "digimart", "reverb", "jimoty", "offmall", "five-g", "implant4", "hardoff", "mercari", "rakuma"];
+const LIVE_SOURCE_IDS = ["mercari", "yahoo-auctions", "yahoo-fleamarket", "rakuma", "digimart", "reverb", "reverb-us", "craigslist-sfbay", "jimoty", "offmall", "five-g", "implant4", "hardoff"];
+const LIVE_SOURCE_DISPLAY_ORDER = ["craigslist-sfbay", "reverb-us", "yahoo-auctions", "yahoo-fleamarket", "digimart", "reverb", "jimoty", "offmall", "five-g", "implant4", "hardoff", "mercari", "rakuma"];
 const REGION_CONFIG = typeof window !== "undefined" ? window.BRRTZ_REGION_CONFIG : null;
 const ACTIVE_REGION = REGION_CONFIG?.activeRegion || {
   id: "japan",
@@ -38,6 +40,8 @@ const SOURCE_ACCENT_TOKENS = {
   rakuma: "--source-rakuma",
   digimart: "--source-digimart",
   reverb: "--source-reverb",
+  "reverb-us": "--source-reverb",
+  "craigslist-sfbay": "--source-craigslist",
   jimoty: "--source-jimoty",
   offmall: "--source-offmall",
   "five-g": "--source-five-g",
@@ -52,6 +56,8 @@ const SOURCE_METADATA_ALIASES = {
   rakuma: ["Rakuma", "ラクマ"],
   digimart: ["Digimart", "デジマート"],
   reverb: ["Reverb", "Reverb.com"],
+  "reverb-us": ["Reverb US", "Reverb", "Reverb.com"],
+  "craigslist-sfbay": ["Craigslist SF", "Craigslist", "SF Bay Craigslist"],
   jimoty: ["Jimoty", "ジモティー", "ジモティ"],
   offmall: ["OFFMALL", "Off Mall", "Hard Off", "ハードオフ"],
   "five-g": ["Five G", "FIVE G", "Five G music technology"],
@@ -565,6 +571,7 @@ let authState = {
 };
 
 const defaultSettings = {
+  regionId: ACTIVE_REGION.id || "japan",
   currency: ACTIVE_REGION.currency || "JPY",
   jpyPerUsd: 155,
   resultView: "grid",
@@ -580,15 +587,15 @@ const defaultProfile = {
   sources: hydrateRegionSources(ACTIVE_REGION.sources),
 };
 
+let appSettings = loadSettings();
 let currentProfile = createFreshProfile();
 let currentResults = [];
 let currentDiscoveryIds = new Set();
 let filterMode = "all";
-let qualityFilter = ACTIVE_REGION.searchDefaults?.cleanGear === false ? "all" : "clean";
+let qualityFilter = getActiveRegion().searchDefaults?.cleanGear === false ? "all" : "clean";
 let sortMode = "newest";
 let activeViewSources = new Set();
 let currentPage = 1;
-let appSettings = loadSettings();
 let isSearching = false;
 let pendingSourceIds = new Set();
 let sourceSearchStatuses = new Map();
@@ -652,6 +659,7 @@ const settingsTabs = [...document.querySelectorAll("[data-settings-tab]")];
 const settingsPanels = [...document.querySelectorAll("[data-settings-panel]")];
 const currencyToggle = document.querySelector("#currencyToggle");
 const jpyPerUsdInput = document.querySelector("#jpyPerUsd");
+const regionSelect = document.querySelector("#regionSelect");
 const signedOutAccountPanel = document.querySelector("#signedOutAccountPanel");
 const signedInAccountPanel = document.querySelector("#signedInAccountPanel");
 const accountEmailInput = document.querySelector("#accountEmailInput");
@@ -1224,8 +1232,53 @@ function toggleTheme(event) {
   pushCloudProfilePreferences({ silent: true });
 }
 
+function getAvailableRegions() {
+  const regions = Array.isArray(REGION_CONFIG?.regions) ? REGION_CONFIG.regions : [ACTIVE_REGION];
+  return regions.filter((region) => region?.id);
+}
+
+function getSelectableRegions() {
+  return getAvailableRegions().filter((region) => region.status !== "future");
+}
+
+function sanitizeRegionId(regionId) {
+  const availableRegions = getSelectableRegions();
+  return availableRegions.some((region) => region.id === regionId)
+    ? regionId
+    : (defaultSettings.regionId || ACTIVE_REGION.id || "japan");
+}
+
+function getRegionById(regionId) {
+  return getAvailableRegions().find((region) => region.id === sanitizeRegionId(regionId)) || ACTIVE_REGION;
+}
+
+function getActiveRegion() {
+  return getRegionById(appSettings?.regionId || defaultSettings.regionId);
+}
+
+function getRegionSourceIds(regionId = appSettings?.regionId) {
+  return hydrateRegionSources(getRegionById(regionId).sources);
+}
+
+function getVisibleSources(regionId = appSettings?.regionId) {
+  const sourceIds = new Set(getRegionSourceIds(regionId));
+  return SOURCES.filter((source) => sourceIds.has(source.id));
+}
+
+function getRegionDefaultMaxPrice(regionId = appSettings?.regionId) {
+  return Number(getRegionById(regionId).searchDefaults?.maxPrice) || 2000000;
+}
+
+function renderRegionOptions() {
+  if (!regionSelect) return;
+  regionSelect.innerHTML = getSelectableRegions().map((region) => {
+    const statusLabel = region.status === "beta" ? " Beta" : "";
+    return `<option value="${region.id}">${region.label}${statusLabel}</option>`;
+  }).join("");
+}
+
 function renderSources() {
-  sourceList.innerHTML = SOURCES.map((source) => `
+  sourceList.innerHTML = getVisibleSources().map((source) => `
     <label class="source-toggle">
       <input type="checkbox" name="sources" value="${source.id}" form="searchForm" checked />
       <span>${source.label}</span>
@@ -1579,6 +1632,8 @@ function closeSettingsModal(options = {}) {
 }
 
 function fillSettingsForm() {
+  renderRegionOptions();
+  if (regionSelect) regionSelect.value = sanitizeRegionId(appSettings.regionId);
   currencyToggle.checked = appSettings.currency === "USD";
   jpyPerUsdInput.value = appSettings.jpyPerUsd;
   if (cloudProfileEmail) cloudProfileEmail.textContent = getCloudSyncUser().email;
@@ -1966,15 +2021,33 @@ function handleAccountSignOutShell() {
 }
 
 async function saveSettingsFromModal() {
+  const previousRegionId = sanitizeRegionId(appSettings.regionId);
+  const nextRegionId = sanitizeRegionId(regionSelect?.value || previousRegionId);
+  const regionChanged = previousRegionId !== nextRegionId;
+  const nextRegion = getRegionById(nextRegionId);
   const nextRate = Number(jpyPerUsdInput.value);
   appSettings = {
     ...appSettings,
-    currency: currencyToggle.checked ? "USD" : "JPY",
+    regionId: nextRegionId,
+    currency: regionChanged ? nextRegion.currency : (currencyToggle.checked ? "USD" : "JPY"),
     jpyPerUsd: Number.isFinite(nextRate) && nextRate > 0 ? nextRate : defaultSettings.jpyPerUsd,
   };
   localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(appSettings));
-  renderRefineSummary();
-  renderResults();
+
+  if (regionChanged) {
+    qualityFilter = nextRegion.searchDefaults?.cleanGear === false ? "all" : "clean";
+    activeViewSources.clear();
+    pendingSourceIds = new Set();
+    sourceSearchStatuses = new Map();
+    currentProfile = createFreshProfile();
+    renderSources();
+    fillForm(currentProfile);
+    resetToIdleSearch();
+  } else {
+    renderRefineSummary();
+    renderResults();
+  }
+
   await pushCloudProfilePreferences({ silent: true });
   closeSettingsModal();
 }
@@ -2069,14 +2142,17 @@ async function putCloudProfile(payload) {
 }
 
 function applyCloudPreferences(preferences = {}) {
+  const previousRegionId = sanitizeRegionId(appSettings.regionId);
   const nextSettings = hydrateSettings({
     ...appSettings,
+    regionId: preferences.regionId || appSettings.regionId,
     currency: preferences.currency || appSettings.currency,
     jpyPerUsd: preferences.jpyPerUsd || appSettings.jpyPerUsd,
     resultView: preferences.resultView || appSettings.resultView,
   });
   appSettings = nextSettings;
   localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(appSettings));
+  const regionChanged = previousRegionId !== sanitizeRegionId(appSettings.regionId);
 
   if (preferences.theme === "light" || preferences.theme === "dark") {
     setTheme(preferences.theme);
@@ -2098,13 +2174,25 @@ function applyCloudPreferences(preferences = {}) {
   }
 
   fillSettingsForm();
-  renderRefineSummary();
-  renderResults();
+  if (regionChanged) {
+    qualityFilter = getActiveRegion().searchDefaults?.cleanGear === false ? "all" : "clean";
+    activeViewSources.clear();
+    pendingSourceIds = new Set();
+    sourceSearchStatuses = new Map();
+    currentProfile = createFreshProfile();
+    renderSources();
+    fillForm(currentProfile);
+    resetToIdleSearch();
+  } else {
+    renderRefineSummary();
+    renderResults();
+  }
 }
 
 function getLocalPreferencePayload() {
   const watchedListingIds = loadSet(STORAGE_KEYS.watching);
   return {
+    regionId: appSettings.regionId,
     currency: appSettings.currency,
     jpyPerUsd: appSettings.jpyPerUsd,
     resultView: appSettings.resultView,
@@ -2651,6 +2739,14 @@ function createLiveSearchGroups(profile) {
     groups.push({ id: "reverb", sources: ["reverb"] });
   }
 
+  if (selectedSources.has("reverb-us")) {
+    groups.push({ id: "reverb-us", sources: ["reverb-us"] });
+  }
+
+  if (selectedSources.has("craigslist-sfbay")) {
+    groups.push({ id: "craigslist-sfbay", sources: ["craigslist-sfbay"] });
+  }
+
   if (selectedSources.has("jimoty")) {
     groups.push({ id: "jimoty", sources: ["jimoty"] });
   }
@@ -3116,7 +3212,7 @@ function getVisibleResults(watching, baseResults = currentResults) {
 
 function renderSourceFilters(baseResults = currentResults) {
   const counts = getSourceCountsForCurrentView(baseResults);
-  const availableSources = SOURCES.filter((source) => shouldShowSourceFilter(source, counts));
+  const availableSources = getVisibleSources().filter((source) => shouldShowSourceFilter(source, counts));
   sourceFilterList.innerHTML = "";
   sourceFilterList.classList.toggle("is-expanded", isSourceRowExpanded);
   sourceFilterList.classList.toggle("is-collapsed", !isSourceRowExpanded);
@@ -3303,6 +3399,7 @@ async function fetchLiveListings(profile, sourceOverride = profile.sources) {
       excludes: profile.excludes.join("|"),
       maxPrice: String(profile.maxPrice || 0),
       sources: sources.join("|"),
+      region: getActiveRegion().id,
     });
     const response = await fetch(`/api/search?${params.toString()}`, { cache: "no-store" });
 
@@ -4412,10 +4509,13 @@ function isStorageQuotaError(error) {
 }
 
 function createFreshProfile() {
+  const regionSources = getRegionSourceIds();
   return hydrateProfile({
     ...defaultProfile,
     name: "New Search",
     terms: [],
+    maxPrice: getRegionDefaultMaxPrice(),
+    sources: regionSources,
   });
 }
 
@@ -4505,19 +4605,20 @@ function isIsoTimestamp(value) {
 }
 
 function hydrateSourceSelection(sources) {
-  if (!Array.isArray(sources)) return defaultProfile.sources;
+  if (!Array.isArray(sources)) return getRegionSourceIds();
 
   const knownSourceIds = SOURCES.map((source) => source.id);
   const selectedSources = sources.filter((source) => knownSourceIds.includes(source));
   const hadEveryLegacyDefault = LEGACY_DEFAULT_SOURCE_IDS.every((source) => selectedSources.includes(source));
 
-  if (hadEveryLegacyDefault) {
+  if (getActiveRegion().id === "japan" && hadEveryLegacyDefault) {
     ["reverb", "jimoty"].forEach((source) => {
       if (!selectedSources.includes(source)) selectedSources.push(source);
     });
   }
 
-  return [...new Set(selectedSources)];
+  const dedupedSources = [...new Set(selectedSources)];
+  return dedupedSources.length > 0 ? dedupedSources : getRegionSourceIds();
 }
 
 function hydrateRegionSources(sourceIds = []) {
@@ -4526,7 +4627,7 @@ function hydrateRegionSources(sourceIds = []) {
     ? sourceIds.filter((sourceId) => knownSourceIds.has(sourceId))
     : [];
 
-  return regionSources.length > 0 ? regionSources : SOURCES.map((source) => source.id);
+  return regionSources.length > 0 ? regionSources : ACTIVE_REGION.sources;
 }
 
 function loadSettings() {
@@ -4539,8 +4640,12 @@ function loadSettings() {
 
 function hydrateSettings(settings) {
   const rate = Number(settings.jpyPerUsd);
+  const regionId = sanitizeRegionId(settings.regionId || defaultSettings.regionId);
+  const region = getRegionById(regionId);
+  const requestedCurrency = settings.currency === "USD" ? "USD" : settings.currency === "JPY" ? "JPY" : "";
   return {
-    currency: settings.currency === "USD" ? "USD" : "JPY",
+    regionId,
+    currency: requestedCurrency || region.currency || defaultSettings.currency,
     jpyPerUsd: Number.isFinite(rate) && rate > 0 ? rate : defaultSettings.jpyPerUsd,
     resultView: settings.resultView === "list" ? "list" : "grid",
   };
@@ -4769,19 +4874,23 @@ function normalizeText(value) {
 }
 
 function formatPrice(value) {
+  const nativeCurrency = getActiveRegion().currency === "USD" ? "USD" : "JPY";
+
   if (appSettings.currency === "USD") {
+    const usdValue = nativeCurrency === "USD" ? value : value / appSettings.jpyPerUsd;
     return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: "USD",
       maximumFractionDigits: 0,
-    }).format(value / appSettings.jpyPerUsd);
+    }).format(usdValue);
   }
 
+  const jpyValue = nativeCurrency === "USD" ? value * appSettings.jpyPerUsd : value;
   return new Intl.NumberFormat("ja-JP", {
     style: "currency",
     currency: "JPY",
     maximumFractionDigits: 0,
-  }).format(value);
+  }).format(jpyValue);
 }
 
 function relativeDate(value) {

@@ -13,8 +13,8 @@ Target: week of June 8, 2026
 
 ## Launch Criteria
 
-- [ ] Brrtz is reachable from a public beta URL.
-- [ ] Invite-only access works for approved beta users.
+- [x] Brrtz is reachable from a public beta URL.
+- [x] Invite-only access works for approved beta users.
 - [ ] Supabase profile, preferences, saved searches, watched gear, and feedback sync across browsers.
 - [ ] No secrets are committed to GitHub.
 - [ ] Mobile layout is usable on iPhone-sized screens.
@@ -49,8 +49,8 @@ Target: week of June 8, 2026
 | Status | Task | Owner | Acceptance |
 |---|---|---|---|
 | Done | Choose beta hosting path | Craig/Codex | Railway + Docker selected for the beta. |
-| Todo | Configure production secrets outside Git | Craig/Codex | Supabase keys and invite settings live in host env vars only. |
-| Todo | Test public URL | Craig | A friend can open Brrtz outside Craig's local Wi-Fi. |
+| Done | Configure production secrets outside Git | Craig/Codex | Supabase keys and invite settings live in host env vars only. |
+| Done | Test public URL | Craig | Brrtz is live at `https://brrtz.com` and `/api/health` returns `ok=true`. |
 | Todo | Smoke test search from public URL | Craig | At least one saved search returns live results through the hosted app. |
 
 ### 4. UI / Mobile Polish
@@ -93,7 +93,7 @@ const bayAreaRegion = {
   label: "Bay Area",
   currency: "USD",
   defaultLocale: "en-US",
-  sources: ["craigslist-sfbay", "reverb-us", "ebay-us"],
+  sources: ["craigslist-sfbay", "reverb-us"],
   searchDefaults: {
     cleanGear: true,
     maxDistanceMiles: 75
@@ -109,6 +109,8 @@ Region selector placement decision, June 8: put region selection in Settings -> 
 
 Region regression check, June 8: validated `app.js`, `server.js`, and `regions.js` with Node syntax checks. Local search smoke tests against Japan source groups returned live listings without connector errors for Waldorf, Roland Juno 106, and Oberheim across Yahoo Auctions, Yahoo Fleamarket, Digimart, OFFMALL, Rakuma, Mercari, Five G, implant4, and Reverb.
 
+Bay Area beta source pass, June 9: Bay Area is now selectable in Settings -> General as a beta region. The first live California source set is intentionally lean: Craigslist SF Bay and Reverb US. Reverb US uses the Reverb country filter for US listings, while Craigslist SF Bay reads the public musical-instruments search page and normalizes listing title, price, city, URL, and image when available. eBay US, Craigslist LA/OC/SD, Facebook Marketplace, OfferUp, and specialty California synth shops remain follow-up source candidates.
+
 ## Known Issues
 
 - Invite gate check, June 8: passed. Brrtz blocks unauthenticated cloud sync with `401` when invite mode is enabled, and invited sign-in works.
@@ -117,6 +119,7 @@ Region regression check, June 8: validated `app.js`, `server.js`, and `regions.j
 - Feedback sync check, June 8: passed at the cloud-storage layer. Supabase has 1 synced gear feedback entry and 5 synced noise feedback entries for the signed-in Gmail profile.
 - Safari stale-session check, June 8: Brrtz now clears local auth state when Supabase rejects a cloud token as unverifiable, so Safari should prompt for a clean sign-in instead of looping on sync failure.
 - Production env checklist, June 8: added `docs/production-env-checklist.md` with required beta variables, secret handling notes, Supabase table requirements, invite SQL, and pre-launch checks.
+- Public beta launch, June 9: Brrtz is live at `https://brrtz.com` on Railway with Supabase Auth and cloud pull confirmed. DNS/TLS launch notes are recorded in `docs/beta-launch-milestone-2026-06-09.md`.
 
 ## Beta Tester Notes
 

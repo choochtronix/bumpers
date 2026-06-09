@@ -1,6 +1,6 @@
 # Brrtz Account And Services Register
 
-Last updated: June 8, 2026
+Last updated: June 9, 2026
 
 This document tracks the external accounts and services used by Brrtz. It is intentionally non-secret: do not add API keys, passwords, recovery codes, service role keys, or private tokens to this file.
 
@@ -11,6 +11,7 @@ Note: the product has been renamed from Bumpers to Brrtz. Some code, environment
 | Service | Role In Brrtz | Current Status |
 |---|---|---|
 | Porkbun | Domain registrar and DNS host for `brrtz.com` | Active |
+| Railway | Public web hosting for the invite-only beta | Active production beta |
 | Supabase | Auth, user profiles, invite gate, cloud saved-search/profile sync | Active alpha/beta backend |
 | Resend | Transactional email sender for Supabase auth magic links | Active SMTP provider |
 
@@ -36,6 +37,8 @@ brrtz.com
 
 - `brrtz.com` has been verified in Resend.
 - Resend DNS records are managed through Porkbun.
+- `brrtz.com` points to the Railway production beta service.
+- Porkbun uses an `ALIAS` record for the root domain because root `CNAME` records are not allowed.
 - Email sending should use addresses at the verified domain, for example:
 
 ```text
@@ -48,6 +51,97 @@ no-reply@brrtz.com
 - Porkbun account access controls the domain and DNS, so protect it with a strong password and 2FA.
 - Do not put Porkbun login credentials in the repo.
 - DNS changes can affect sign-in emails and future public website access.
+
+### Current Railway DNS Records
+
+Public app root:
+
+```text
+Type: ALIAS
+Host: blank/root
+Value: 1bhfx7oc.up.railway.app
+TTL: 600
+```
+
+Railway ownership verification:
+
+```text
+Type: TXT
+Host: _railway-verify
+Value: railway-verify=53ccf8afdd66b56df2dd9ebd35744a9ad022ca36f0838e84bfb09164e21ab051
+TTL: 600
+```
+
+Launch note: old root and wildcard `A` records pointing at Porkbun/parking infrastructure were removed so the Railway ALIAS could take over `brrtz.com`.
+
+## Railway
+
+### What It Is Used For
+
+Railway hosts the public invite-only Brrtz beta.
+
+Current public URL:
+
+```text
+https://brrtz.com
+```
+
+Railway fallback URL:
+
+```text
+https://brrtz-beta-production.up.railway.app
+```
+
+### Current Railway Setup
+
+```text
+Project: supportive-light
+Environment: production
+Service: brrtz-beta
+GitHub repo: choochtronix/bumpers
+Branch: main
+Root directory: /
+Runtime: Dockerfile
+Detected service port: 8080
+```
+
+Health check:
+
+```text
+https://brrtz.com/api/health
+```
+
+Expected state:
+
+```text
+ok=true
+app=brrtz
+cloudProvider=supabase
+inviteRequired=true
+supabaseConfigured=true
+```
+
+### Railway Environment Variables
+
+Railway stores production secrets and config for:
+
+```text
+BUMPERS_CLOUD_PROVIDER
+BUMPERS_REQUIRE_INVITE
+BUMPERS_JOB_TOKEN
+SUPABASE_URL
+SUPABASE_ANON_KEY
+SUPABASE_SERVICE_ROLE_KEY
+```
+
+The real values must stay in Railway and must not be committed to GitHub.
+
+### Security Notes
+
+- Protect Railway account access with a strong password and 2FA.
+- `SUPABASE_SERVICE_ROLE_KEY` must stay server-side in Railway only.
+- If GitHub auto-deploy stops working, re-check Railway GitHub App access to `choochtronix/bumpers`.
+- Keep the Railway fallback URL in Supabase Auth redirects during beta.
 
 ## Supabase
 
@@ -83,6 +177,22 @@ Current behavior:
 - Invite-only access checks `public.alpha_invites` when `BUMPERS_REQUIRE_INVITE=true`.
 - The Node server uses the Supabase service role key server-side only.
 - Browser sign-in uses the Supabase anon/publishable key.
+
+### Current Auth URLs
+
+Site URL:
+
+```text
+https://brrtz.com
+```
+
+Allowed redirect URLs:
+
+```text
+https://brrtz.com/*
+https://brrtz-beta-production.up.railway.app/*
+http://127.0.0.1:5173/*
+```
 
 ### Environment Variables
 
@@ -178,10 +288,11 @@ Sender name: Brrtz
 ## Production / Beta Friend Launch Checklist
 
 - [ ] Confirm `brrtz.com` remains verified in Resend.
+- [ ] Confirm `https://brrtz.com/api/health` returns `ok=true`.
+- [ ] Confirm Supabase Site URL is `https://brrtz.com`.
 - [ ] Confirm Supabase SMTP uses Resend, not Supabase's default sender.
 - [ ] Confirm sender email is `login@brrtz.com` or another verified `@brrtz.com` address.
 - [ ] Confirm invited tester emails exist in `public.alpha_invites`.
 - [ ] Confirm `BUMPERS_REQUIRE_INVITE=true` in the beta environment.
 - [ ] Confirm service role key exists only in server-side environment variables.
 - [ ] Confirm no `.env.local`, API key, service role key, Resend key, or Porkbun credential is committed.
-
