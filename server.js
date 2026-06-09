@@ -78,6 +78,11 @@ createServer(async (request, response) => {
   try {
     const url = new URL(request.url || "/", `http://${request.headers.host}`);
 
+    if (url.pathname === "/api/health") {
+      handleHealthCheck(request, response);
+      return;
+    }
+
     if (url.pathname === "/api/search") {
       await handleSearch(url, response);
       return;
@@ -189,6 +194,26 @@ function handleAuthConfig(request, response) {
     supabaseUrl: SUPABASE_URL,
     anonKey: SUPABASE_ANON_KEY,
     redirectTo: getRequestOrigin(request),
+  });
+}
+
+function handleHealthCheck(request, response) {
+  if (request.method !== "GET") {
+    response.writeHead(405, {
+      "allow": "GET",
+      "content-type": "application/json; charset=utf-8",
+    });
+    response.end(JSON.stringify({ error: "method_not_allowed" }));
+    return;
+  }
+
+  sendJson(response, 200, {
+    ok: true,
+    app: "brrtz",
+    cloudProvider: CLOUD_PROVIDER,
+    inviteRequired: REQUIRE_INVITE,
+    supabaseConfigured: Boolean(SUPABASE_URL && SUPABASE_ANON_KEY && SUPABASE_SERVICE_ROLE_KEY),
+    checkedAt: new Date().toISOString(),
   });
 }
 

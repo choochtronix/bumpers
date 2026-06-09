@@ -16,6 +16,7 @@ Production values should live in the hosting provider's environment/secrets pane
 |---|---:|---:|---|---|
 | `BUMPERS_CLOUD_PROVIDER` | Yes | No | `supabase` | Enables Supabase-backed cloud sync. |
 | `BUMPERS_REQUIRE_INVITE` | Yes | No | `true` | Must be `true` for beta friends launch. |
+| `BUMPERS_JOB_TOKEN` | Yes | Yes | `make-a-long-random-secret` | Protects beta ops/job routes such as source health checks. |
 | `SUPABASE_URL` | Yes | No | `https://your-project-ref.supabase.co` | Project URL from Supabase Project Settings. |
 | `SUPABASE_ANON_KEY` | Yes | Public-ish | `sb_publishable_...` | Used for browser auth. Safe to expose only with RLS configured. |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | Yes | `sb_secret_...` | Server-only. Never expose in browser or commit. |
@@ -69,6 +70,7 @@ where email = 'friend@example.com';
 ## Pre-Launch Checks
 
 - [ ] `BUMPERS_REQUIRE_INVITE=true` in production.
+- [ ] `BUMPERS_JOB_TOKEN` is set to a long random value in production.
 - [ ] `SUPABASE_SERVICE_ROLE_KEY` is set only in server/host secrets.
 - [ ] `SUPABASE_ANON_KEY` is set for browser sign-in.
 - [ ] Supabase RLS policies have been applied.
@@ -80,13 +82,13 @@ where email = 'friend@example.com';
 
 ## Current Beta Recommendation
 
-Use a Node-friendly host for the first friends beta because Brrtz currently includes server-side search connectors and Supabase service-role operations.
+Use Railway with Docker for the first friends beta because Brrtz currently includes server-side search connectors, Supabase service-role operations, and Playwright/browser automation.
 
-Good candidates:
+Selected beta path:
 
-- Render
-- Railway
-- Fly.io
-- VPS
+- Railway project from GitHub repo.
+- Dockerfile in repo root.
+- Custom domain: `beta.brrtz.com`.
+- Health check: `/api/health`.
 
 Use Codex Sites later if/when the frontend and backend are separated or the build shape is confirmed compatible.

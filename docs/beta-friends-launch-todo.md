@@ -48,7 +48,7 @@ Target: week of June 8, 2026
 
 | Status | Task | Owner | Acceptance |
 |---|---|---|---|
-| Todo | Choose beta hosting path | Craig/Codex | One path is selected for the beta: Render, Railway, Fly.io, VPS, or another option. |
+| Done | Choose beta hosting path | Craig/Codex | Railway + Docker selected for the beta. |
 | Todo | Configure production secrets outside Git | Craig/Codex | Supabase keys and invite settings live in host env vars only. |
 | Todo | Test public URL | Craig | A friend can open Brrtz outside Craig's local Wi-Fi. |
 | Todo | Smoke test search from public URL | Craig | At least one saved search returns live results through the hosted app. |
