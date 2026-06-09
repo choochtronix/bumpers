@@ -30,7 +30,7 @@ Target: week of June 8, 2026
 |---|---|---|---|
 | Done | Confirm invite-only gate | Codex/Craig | Uninvited email cannot sync; invited email can sign in and sync. |
 | Done | Confirm saved-search sync | Craig | Chrome, Safari, and mobile browser show the same saved searches after sync. |
-| Doing | Confirm watched gear sync | Craig | Watch/unwatch state survives browser reload and appears in a second browser. |
+| Done | Confirm watched gear sync | Craig | Watch/unwatch state survives browser reload and appears in a second browser. |
 | Done | Confirm feedback sync | Craig | "This is gear" and "This is noise" feedback persists after sync. |
 | Done | Document required production env vars | Codex | Public beta setup has a checklist with variable names and no secret values: `docs/production-env-checklist.md`. |
 
@@ -38,11 +38,11 @@ Target: week of June 8, 2026
 
 | Status | Task | Owner | Acceptance |
 |---|---|---|---|
-| Todo | Add region concept to product architecture | Codex | Brrtz has a documented first-class `region` object for Japan and future regions. |
-| Todo | Define Japan beta region | Codex/Craig | Japan config includes currency, locale, default sources, and clean-gear defaults. |
-| Todo | Stub Bay Area region | Codex/Craig | Bay Area config is documented as a future config, not a separate app fork. |
-| Todo | Identify UI placement for region selector | Codex/Craig | Decision recorded: Settings, search header, or onboarding. |
-| Todo | Confirm no search regression from region prep | Codex | Current Japan searches continue using existing source behavior. |
+| Done | Add region concept to product architecture | Codex | Brrtz has a documented first-class `region` object for Japan and future regions. |
+| Done | Define Japan beta region | Codex/Craig | Japan config includes currency, locale, default sources, and clean-gear defaults. |
+| Done | Stub Bay Area region | Codex/Craig | Bay Area config is documented as a future config, not a separate app fork. |
+| Done | Identify UI placement for region selector | Codex/Craig | Decision recorded: Settings, search header, or onboarding. |
+| Done | Confirm no search regression from region prep | Codex | Current Japan searches continue using existing source behavior. |
 
 ### 3. Public Beta Hosting
 
@@ -103,11 +103,17 @@ const bayAreaRegion = {
 
 Decision for beta: ship Japan as the active region, and add the region object now so future US expansion does not require a second Brrtz app.
 
+Implementation note, June 8: `regions.js` now defines `window.BRRTZ_REGION_CONFIG` with Japan as the active region and Bay Area as a future region stub. `app.js` reads the active region for default currency, default max price, default source ids, and Gear Mode default without changing existing saved-search behavior.
+
+Region selector placement decision, June 8: put region selection in Settings -> General for beta. Keep Japan as the active default, show Bay Area as a disabled/coming-soon region when useful, and avoid adding a persistent region selector to the main search header until multiple live regions are available. Future onboarding can ask for region once Brrtz supports more than Japan. Saved searches should become region-scoped when multi-region search ships; watched gear can remain global.
+
+Region regression check, June 8: validated `app.js`, `server.js`, and `regions.js` with Node syntax checks. Local search smoke tests against Japan source groups returned live listings without connector errors for Waldorf, Roland Juno 106, and Oberheim across Yahoo Auctions, Yahoo Fleamarket, Digimart, OFFMALL, Rakuma, Mercari, Five G, implant4, and Reverb.
+
 ## Known Issues
 
 - Invite gate check, June 8: passed. Brrtz blocks unauthenticated cloud sync with `401` when invite mode is enabled, and invited sign-in works.
 - Saved-search sync check, June 8: passed in Chrome and Safari. Migrated 10 alpha-only saved searches into the signed-in Gmail profile, then both browsers mirrored the same 28 cloud saved searches after Resend SMTP was configured for `brrtz.com`.
-- Watched gear sync check, June 8: code already queues profile auto-sync after watch/unwatch. Supabase profile currently has 1 watched listing and 1 watched-listing snapshot; second-browser visual confirmation is still pending.
+- Watched gear sync check, June 8: passed in Browser A and Browser B. Watch/unwatch state syncs through the cloud profile and the same listing heart appeared in the second browser after pull/sync.
 - Feedback sync check, June 8: passed at the cloud-storage layer. Supabase has 1 synced gear feedback entry and 5 synced noise feedback entries for the signed-in Gmail profile.
 - Safari stale-session check, June 8: Brrtz now clears local auth state when Supabase rejects a cloud token as unverifiable, so Safari should prompt for a clean sign-in instead of looping on sync failure.
 - Production env checklist, June 8: added `docs/production-env-checklist.md` with required beta variables, secret handling notes, Supabase table requirements, invite SQL, and pre-launch checks.

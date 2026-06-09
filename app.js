@@ -15,6 +15,19 @@ const SOURCES = [
 const LEGACY_DEFAULT_SOURCE_IDS = ["mercari", "yahoo-auctions", "yahoo-fleamarket", "rakuma", "digimart", "offmall", "five-g", "implant4", "hardoff"];
 const LIVE_SOURCE_IDS = ["mercari", "yahoo-auctions", "yahoo-fleamarket", "rakuma", "digimart", "reverb", "jimoty", "offmall", "five-g", "implant4", "hardoff"];
 const LIVE_SOURCE_DISPLAY_ORDER = ["yahoo-auctions", "yahoo-fleamarket", "digimart", "reverb", "jimoty", "offmall", "five-g", "implant4", "hardoff", "mercari", "rakuma"];
+const REGION_CONFIG = typeof window !== "undefined" ? window.BRRTZ_REGION_CONFIG : null;
+const ACTIVE_REGION = REGION_CONFIG?.activeRegion || {
+  id: "japan",
+  label: "Japan",
+  currency: "JPY",
+  defaultLocale: "ja-JP",
+  sources: LIVE_SOURCE_IDS,
+  searchDefaults: {
+    cleanGear: true,
+    maxResults: 80,
+    maxPrice: 2000000,
+  },
+};
 const RESULTS_PER_PAGE = 48;
 const FEATURED_HOME_LIMIT = 12;
 const FEATURED_HOME_ALERT_LIMIT = 6;
@@ -552,7 +565,7 @@ let authState = {
 };
 
 const defaultSettings = {
-  currency: "JPY",
+  currency: ACTIVE_REGION.currency || "JPY",
   jpyPerUsd: 155,
   resultView: "grid",
 };
@@ -562,16 +575,16 @@ const defaultProfile = {
   terms: ["Waldorf", "ワルドルフ", "WALDORF"],
   excludes: ["manual", "magnet", "power cord", "doll", "Fashionist", "shirt", "CD", "Moments to Remember", "record", "shoes"],
   noiseTerms: [...ACCESSORY_TERMS],
-  maxPrice: 2000000,
+  maxPrice: ACTIVE_REGION.searchDefaults?.maxPrice || 2000000,
   alertMode: "immediate",
-  sources: SOURCES.map((source) => source.id),
+  sources: hydrateRegionSources(ACTIVE_REGION.sources),
 };
 
 let currentProfile = createFreshProfile();
 let currentResults = [];
 let currentDiscoveryIds = new Set();
 let filterMode = "all";
-let qualityFilter = "clean";
+let qualityFilter = ACTIVE_REGION.searchDefaults?.cleanGear === false ? "all" : "clean";
 let sortMode = "newest";
 let activeViewSources = new Set();
 let currentPage = 1;
@@ -4505,6 +4518,15 @@ function hydrateSourceSelection(sources) {
   }
 
   return [...new Set(selectedSources)];
+}
+
+function hydrateRegionSources(sourceIds = []) {
+  const knownSourceIds = new Set(SOURCES.map((source) => source.id));
+  const regionSources = Array.isArray(sourceIds)
+    ? sourceIds.filter((sourceId) => knownSourceIds.has(sourceId))
+    : [];
+
+  return regionSources.length > 0 ? regionSources : SOURCES.map((source) => source.id);
 }
 
 function loadSettings() {

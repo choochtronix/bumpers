@@ -4,6 +4,10 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { networkInterfaces } from "node:os";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
+import { attachNormalizedListings } from "./src/agents/listingNormalizerAgent.js";
+import { runSourceHealthAgent } from "./src/agents/sourceHealthAgent.js";
+import { appendSourceHealthLogs, readSourceHealthState } from "./src/lib/sourceHealthStore.js";
+import { getCheckableSources, SOURCE_REGISTRY } from "./src/sources/sourceRegistry.js";
 
 const PORT = Number(process.env.PORT || 5173);
 const HOST = process.env.HOST || "0.0.0.0";
@@ -18,6 +22,8 @@ const CLOUD_PROFILE_USER_ID = process.env.BUMPERS_CLOUD_USER_ID || "local";
 const CLOUD_PROFILE_EMAIL = process.env.BUMPERS_CLOUD_USER_EMAIL || "local@bumpers.dev";
 const CLOUD_PROFILE_NAME = process.env.BUMPERS_CLOUD_USER_NAME || "Local Brrtz User";
 const REQUIRE_INVITE = process.env.BUMPERS_REQUIRE_INVITE === "true";
+const JOB_TOKEN = process.env.BUMPERS_JOB_TOKEN || "";
+const SOURCE_HEALTH_FILE = join(ROOT, "data", "agent-source-health.json");
 const DIGIMART_BASE_URL = "https://www.digimart.net";
 const FIVE_G_BASE_URL = "https://fiveg.net";
 const IMPLANT4_BASE_URL = "https://shop.implant4.com";
@@ -89,6 +95,21 @@ createServer(async (request, response) => {
 
     if (url.pathname === "/api/cloud/profile") {
       await handleCloudProfile(request, response);
+      return;
+    }
+
+    if (url.pathname === "/api/admin/sources") {
+      await handleAdminSources(request, response);
+      return;
+    }
+
+    if (url.pathname === "/api/admin/sources/health") {
+      await handleAdminSourceHealth(request, response);
+      return;
+    }
+
+    if (url.pathname === "/api/jobs/source-health") {
+      await handleSourceHealthJob(request, url, response);
       return;
     }
 
@@ -253,6 +274,93 @@ async function handleCloudProfile(request, response) {
     "content-type": "application/json; charset=utf-8",
   });
   response.end(JSON.stringify({ error: "method_not_allowed" }));
+}
+
+async function handleAdminSources(request, response) {
+  if (!isAuthorizedOpsRequest(request)) {
+    sendJson(response, 403, { error: "forbidden" });
+    return;
+  }
+
+  sendJson(response, 200, {
+    sources: SOURCE_REGISTRY,
+    count: SOURCE_REGISTRY.length,
+  });
+}
+
+async function handleAdminSourceHealth(request, response) {
+  if (!isAuthorizedOpsRequest(request)) {
+    sendJson(response, 403, { error: "forbidden" });
+    return;
+  }
+
+  sendJson(response, 200, await readSourceHealthState(SOURCE_HEALTH_FILE));
+}
+
+async function handleSourceHealthJob(request, url, response) {
+  if (!isAuthorizedOpsRequest(request)) {
+    sendJson(response, 403, { error: "forbidden" });
+    return;
+  }
+
+  const regionId = url.searchParams.get("region") || "japan";
+  const sourceIds = splitParam(url.searchParams.get("sources"));
+  const checkableSources = getCheckableSources()
+    .filter((source) => source.regionId === regionId)
+    .filter((source) => sourceIds.length === 0 || sourceIds.includes(source.id))
+    .filter((source) => Boolean(getSourceHealthSearchFn(source.id)));
+
+  const result = await runSourceHealthAgent({
+    sources: checkableSources,
+    checkSource: checkSourceHealthSource,
+  });
+  const state = await appendSourceHealthLogs(SOURCE_HEALTH_FILE, result.logs);
+
+  sendJson(response, 200, {
+    ...result,
+    persisted: true,
+    sourceCount: checkableSources.length,
+    latestState: state.sources,
+  });
+}
+
+async function checkSourceHealthSource(source) {
+  const searchFn = getSourceHealthSearchFn(source.id);
+  if (!searchFn) {
+    return {
+      listingsFound: 0,
+      errorMessage: `No health adapter wired for ${source.id}`,
+    };
+  }
+
+  const term = source.testQuery || "synth";
+  const listings = await searchFn(term);
+  return { listingsFound: Array.isArray(listings) ? listings.length : 0 };
+}
+
+function getSourceHealthSearchFn(sourceId) {
+  return {
+    digimart: searchDigimart,
+    "five-g": searchFiveG,
+    implant4: searchImplant4,
+    jimoty: searchJimoty,
+    mercari: searchMercari,
+    offmall: searchOffmall,
+    rakuma: searchRakuma,
+    reverb: searchReverb,
+    "yahoo-auctions": searchYahooAuctions,
+    "yahoo-fleamarket": searchYahooFleamarket,
+  }[sourceId] || null;
+}
+
+function isAuthorizedOpsRequest(request) {
+  if (JOB_TOKEN) {
+    const authorization = request.headers.authorization || "";
+    return authorization === `Bearer ${JOB_TOKEN}`;
+  }
+
+  const address = request.socket?.remoteAddress || "";
+  return ["127.0.0.1", "::1", "::ffff:127.0.0.1"].includes(address);
 }
 
 function sendCloudSetupError(response, error) {
@@ -800,9 +908,10 @@ async function handleSearch(url, response) {
 
   const listings = [...listingsById.values()].sort((a, b) => new Date(b.listedAt) - new Date(a.listedAt));
   await hydrateRakumaThumbnails(listings.filter((listing) => listing.source === "rakuma"));
+  const normalizedListings = attachNormalizedListings(listings);
 
   sendJson(response, 200, {
-    listings,
+    listings: normalizedListings,
     meta: createSearchMeta(startedAt, sourceStats, errors, terms),
   });
 }

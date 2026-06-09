@@ -26,6 +26,8 @@ Goals:
 
 Regions should become first-class objects that define currency, locale, source availability, and search defaults.
 
+Current implementation file: `regions.js`.
+
 Example active beta region:
 
 ```js
@@ -61,9 +63,14 @@ const bayAreaRegion = {
 Open questions:
 
 - Should LA be a separate region or a sibling metro inside a broader US region model?
-- Should region selection live in onboarding, Settings, or the main search header?
-- Should saved searches be region-scoped by default?
-- Should watched gear be global or region-scoped?
+
+Region decisions:
+
+- Region selection should live in Settings -> General for beta. Avoid a persistent main-header selector until more than one live region exists.
+- Future onboarding can ask for region once Brrtz supports multiple live regions.
+- Saved searches should become region-scoped by default when multi-region search ships.
+- Watched gear can remain global across regions.
+- Bay Area and US source candidates are tracked in `docs/bay-area-source-seeds.md`.
 
 ## Phase 1: Japan Beta
 
@@ -87,6 +94,26 @@ Candidate sources:
 - Jimoty
 - Five G
 - implant4
+
+## Phase 1.5: Agentic Ops Foundation
+
+Focus:
+
+- Source registry and candidate-source visibility.
+- Listing normalization as a shared quality layer.
+- Source health checks and logs.
+- Future duplicate/noise detection.
+- Future saved-search matching jobs.
+- Future beta feedback digest.
+
+Implementation notes:
+
+- Phase One brief: `docs/brrtz_phase_one_agentic_structure_codex_brief.md`
+- Source registry: `src/sources/sourceRegistry.js`
+- Gear taxonomy: `src/lib/gearTaxonomy.js`
+- Listing normalizer: `src/lib/normalization.js`
+- Source Health Agent: `src/agents/sourceHealthAgent.js`
+- Supabase schema draft: `docs/sql/phase-one-agentic-schema.sql`
 
 ## Phase 2: Public Web Foundation
 

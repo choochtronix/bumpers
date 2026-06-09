@@ -5,7 +5,8 @@
   "description": "Local-first gear search radar for Japanese synth and pro audio listings.",
   "type": "module",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "jobs:source-health": "node src/jobs/runSourceHealth.js"
   },
   "dependencies": {
     "playwright": "^1.60.0"

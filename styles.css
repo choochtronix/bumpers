@@ -149,10 +149,10 @@ a {
 .brand-logo {
   display: block;
   width: clamp(230px, 26vw, 370px);
-  aspect-ratio: 1009.1 / 206.6;
+  aspect-ratio: 600.6 / 163.8;
   background: currentColor;
-  -webkit-mask: url("assets/ICONS-site/bumpers_logo.svg") center / contain no-repeat;
-  mask: url("assets/ICONS-site/bumpers_logo.svg") center / contain no-repeat;
+  -webkit-mask: url("assets/ICONS-site/brrtz_logo.svg") center / contain no-repeat;
+  mask: url("assets/ICONS-site/brrtz_logo.svg") center / contain no-repeat;
   transition: transform 160ms ease;
 }
 
@@ -3254,9 +3254,9 @@ body[data-theme="dark"] .listing-card.is-featured-home-card {
 .featured-home-header h3 {
   margin: 0;
   color: #4d514c;
-  font-size: clamp(28px, 4.2vw, 56px);
-  font-weight: 650;
-  line-height: 0.96;
+  font-size: clamp(11px, 1.7vw, 22px);
+  font-weight: 600;
+  line-height: 1.05;
   letter-spacing: 0;
 }
 
@@ -4321,7 +4321,7 @@ body[data-theme="dark"] .refine-backdrop {
   }
 
   .featured-home-header h3 {
-    font-size: clamp(26px, 10vw, 42px);
+    font-size: clamp(10px, 4vw, 17px);
   }
 
   .featured-home-header span {
