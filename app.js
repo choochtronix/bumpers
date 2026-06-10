@@ -6,7 +6,8 @@ const SOURCES = [
   { id: "digimart", label: "Digimart", icon: "D", color: "blue" },
   { id: "reverb", label: "Reverb", icon: "Rv", color: "orange" },
   { id: "reverb-us", label: "Reverb US", icon: "Rv", color: "orange" },
-  { id: "craigslist-sfbay", label: "Craigslist SF", icon: "CL", color: "purple" },
+  { id: "craigslist-sfbay", label: "Craigslist SF", icon: "SF", color: "purple" },
+  { id: "craigslist-la", label: "Craigslist LA", icon: "LA", color: "purple" },
   { id: "jimoty", label: "Jimoty", icon: "Jm", color: "orange" },
   { id: "offmall", label: "OFFMALL", icon: "O", color: "green", logo: "assets/logos/ICONS/hardoff-ic.svg" },
   { id: "five-g", label: "Five G", icon: "5G", color: "amber" },
@@ -15,8 +16,8 @@ const SOURCES = [
 ];
 
 const LEGACY_DEFAULT_SOURCE_IDS = ["mercari", "yahoo-auctions", "yahoo-fleamarket", "rakuma", "digimart", "offmall", "five-g", "implant4", "hardoff"];
-const LIVE_SOURCE_IDS = ["mercari", "yahoo-auctions", "yahoo-fleamarket", "rakuma", "digimart", "reverb", "reverb-us", "craigslist-sfbay", "jimoty", "offmall", "five-g", "implant4", "hardoff"];
-const LIVE_SOURCE_DISPLAY_ORDER = ["craigslist-sfbay", "reverb-us", "yahoo-auctions", "yahoo-fleamarket", "digimart", "reverb", "jimoty", "offmall", "five-g", "implant4", "hardoff", "mercari", "rakuma"];
+const LIVE_SOURCE_IDS = ["mercari", "yahoo-auctions", "yahoo-fleamarket", "rakuma", "digimart", "reverb", "reverb-us", "craigslist-sfbay", "craigslist-la", "jimoty", "offmall", "five-g", "implant4", "hardoff"];
+const LIVE_SOURCE_DISPLAY_ORDER = ["craigslist-sfbay", "craigslist-la", "reverb-us", "yahoo-auctions", "yahoo-fleamarket", "digimart", "reverb", "jimoty", "offmall", "five-g", "implant4", "hardoff", "mercari", "rakuma"];
 const REGION_CONFIG = typeof window !== "undefined" ? window.BRRTZ_REGION_CONFIG : null;
 const ACTIVE_REGION = REGION_CONFIG?.activeRegion || {
   id: "japan",
@@ -42,6 +43,7 @@ const SOURCE_ACCENT_TOKENS = {
   reverb: "--source-reverb",
   "reverb-us": "--source-reverb",
   "craigslist-sfbay": "--source-craigslist",
+  "craigslist-la": "--source-craigslist",
   jimoty: "--source-jimoty",
   offmall: "--source-offmall",
   "five-g": "--source-five-g",
@@ -58,6 +60,7 @@ const SOURCE_METADATA_ALIASES = {
   reverb: ["Reverb", "Reverb.com"],
   "reverb-us": ["Reverb US", "Reverb", "Reverb.com"],
   "craigslist-sfbay": ["Craigslist SF", "Craigslist", "SF Bay Craigslist"],
+  "craigslist-la": ["Craigslist LA", "Craigslist Los Angeles", "LA Craigslist"],
   jimoty: ["Jimoty", "ジモティー", "ジモティ"],
   offmall: ["OFFMALL", "Off Mall", "Hard Off", "ハードオフ"],
   "five-g": ["Five G", "FIVE G", "Five G music technology"],
@@ -2745,6 +2748,10 @@ function createLiveSearchGroups(profile) {
 
   if (selectedSources.has("craigslist-sfbay")) {
     groups.push({ id: "craigslist-sfbay", sources: ["craigslist-sfbay"] });
+  }
+
+  if (selectedSources.has("craigslist-la")) {
+    groups.push({ id: "craigslist-la", sources: ["craigslist-la"] });
   }
 
   if (selectedSources.has("jimoty")) {

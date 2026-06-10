@@ -52,7 +52,7 @@ const bayAreaRegion = {
   label: "Bay Area",
   currency: "USD",
   defaultLocale: "en-US",
-  sources: ["craigslist-sfbay", "reverb-us", "ebay-us"],
+  sources: ["craigslist-sfbay", "craigslist-la", "reverb-us", "ebay-us"],
   searchDefaults: {
     cleanGear: true,
     maxDistanceMiles: 75
@@ -140,7 +140,7 @@ Focus:
 
 - Bay Area region.
 - LA region or broader US metro model.
-- Craigslist, Reverb US, and eBay US source connectors.
+- Craigslist SF Bay/LA, Reverb US, and eBay US source connectors.
 - Distance and local-pickup filtering.
 - USD-first pricing and locale behavior.
 

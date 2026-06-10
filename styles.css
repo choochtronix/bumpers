@@ -2001,7 +2001,8 @@ body[data-theme="dark"] .source-filter-button.is-active {
   --source-solid-mark: var(--source-reverb);
 }
 
-.source-filter-button[data-source="craigslist-sfbay"] {
+.source-filter-button[data-source="craigslist-sfbay"],
+.source-filter-button[data-source="craigslist-la"] {
   --source-solid: var(--source-craigslist);
   --source-solid-ink: var(--source-ink-on-color);
   --source-solid-mark: var(--source-craigslist);
@@ -2751,7 +2752,8 @@ body[data-theme="dark"] .listing-card.is-featured-home-card {
   background: var(--source-reverb);
 }
 
-.source-avatar[data-source="craigslist-sfbay"] {
+.source-avatar[data-source="craigslist-sfbay"],
+.source-avatar[data-source="craigslist-la"] {
   background: var(--source-craigslist);
 }
 

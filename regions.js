@@ -31,7 +31,7 @@ window.BRRTZ_REGION_CONFIG = (() => {
       currency: "USD",
       defaultLocale: "en-US",
       status: "beta",
-      sources: ["craigslist-sfbay", "reverb-us"],
+      sources: ["craigslist-sfbay", "craigslist-la", "reverb-us"],
       searchDefaults: {
         cleanGear: true,
         maxResults: 80,

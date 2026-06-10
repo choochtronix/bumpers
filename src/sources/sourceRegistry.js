@@ -197,6 +197,21 @@ export const SOURCE_REGISTRY = [
     testQuery: "synth",
     notes: "Manual/search-link first until safe access path is confirmed.",
   },
+
+  {
+    id: "craigslist-la",
+    name: "Craigslist Los Angeles",
+    slug: "craigslist-la",
+    regionId: "bay-area",
+    url: "https://losangeles.craigslist.org/search/msa?query=synth",
+    type: "classifieds",
+    accessType: SOURCE_ACCESS_TYPES.SEARCH_URL,
+    status: SOURCE_STATUSES.TESTING,
+    reliabilityScore: 62,
+    noiseScore: 45,
+    testQuery: "synth",
+    notes: "Live Craigslist connector for Los Angeles beta coverage; shares the Craigslist region parser.",
+  },
   {
     id: "facebook-marketplace",
     name: "Facebook Marketplace Musical Instruments",

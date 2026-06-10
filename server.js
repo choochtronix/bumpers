@@ -34,6 +34,7 @@ const RAKUMA_BASE_URL = "https://fril.jp";
 const REVERB_API_BASE_URL = "https://api.reverb.com";
 const REVERB_BASE_URL = "https://reverb.com";
 const CRAIGSLIST_SFBAY_BASE_URL = "https://sfbay.craigslist.org";
+const CRAIGSLIST_LA_BASE_URL = "https://losangeles.craigslist.org";
 const YAHOO_AUCTIONS_BASE_URL = "https://auctions.yahoo.co.jp";
 const YAHOO_FLEAMARKET_BASE_URL = "https://paypayfleamarket.yahoo.co.jp";
 const MERCARI_CACHE_TTL_MS = 5 * 60 * 1000;
@@ -861,6 +862,7 @@ async function handleSearch(url, response) {
   const wantsFiveG = sources.length === 0 || sources.includes("five-g");
   const wantsImplant4 = sources.length === 0 || sources.includes("implant4");
   const wantsCraigslistSfbay = sources.length === 0 || sources.includes("craigslist-sfbay");
+  const wantsCraigslistLa = sources.length === 0 || sources.includes("craigslist-la");
   const wantsJimoty = sources.length === 0 || sources.includes("jimoty");
   const wantsMercari = sources.length === 0 || sources.includes("mercari");
   const wantsOffmall = sources.length === 0 || sources.includes("offmall") || sources.includes("hardoff");
@@ -871,7 +873,7 @@ async function handleSearch(url, response) {
   const wantsYahooFleamarket = sources.length === 0 || sources.includes("yahoo-fleamarket");
   const startedAt = new Date();
 
-  if ((!wantsDigimart && !wantsFiveG && !wantsImplant4 && !wantsCraigslistSfbay && !wantsJimoty && !wantsMercari && !wantsOffmall && !wantsRakuma && !wantsReverb && !wantsReverbUs && !wantsYahooAuctions && !wantsYahooFleamarket) || terms.length === 0) {
+  if ((!wantsDigimart && !wantsFiveG && !wantsImplant4 && !wantsCraigslistSfbay && !wantsCraigslistLa && !wantsJimoty && !wantsMercari && !wantsOffmall && !wantsRakuma && !wantsReverb && !wantsReverbUs && !wantsYahooAuctions && !wantsYahooFleamarket) || terms.length === 0) {
     sendJson(response, 200, { listings: [], meta: createSearchMeta(startedAt, [], [], terms) });
     return;
   }
@@ -899,6 +901,13 @@ async function handleSearch(url, response) {
 
   if (wantsCraigslistSfbay) {
     sourceTasks.push(searchSourceTerms("craigslist-sfbay", terms, searchCraigslistSfbay, {
+      maxTerms: 2,
+      termDelayMs: 250,
+    }));
+  }
+
+  if (wantsCraigslistLa) {
+    sourceTasks.push(searchSourceTerms("craigslist-la", terms, searchCraigslistLa, {
       maxTerms: 2,
       termDelayMs: 250,
     }));
@@ -1387,7 +1396,23 @@ async function searchReverbListings(term, options = {}) {
 }
 
 async function searchCraigslistSfbay(term) {
-  const url = new URL("/search/msa", CRAIGSLIST_SFBAY_BASE_URL);
+  return searchCraigslistRegion(term, {
+    sourceId: "craigslist-sfbay",
+    baseUrl: CRAIGSLIST_SFBAY_BASE_URL,
+    label: "Craigslist SF Bay",
+  });
+}
+
+async function searchCraigslistLa(term) {
+  return searchCraigslistRegion(term, {
+    sourceId: "craigslist-la",
+    baseUrl: CRAIGSLIST_LA_BASE_URL,
+    label: "Craigslist LA",
+  });
+}
+
+async function searchCraigslistRegion(term, options) {
+  const url = new URL("/search/msa", options.baseUrl);
   url.searchParams.set("query", term);
   url.searchParams.set("sort", "date");
 
@@ -1399,10 +1424,10 @@ async function searchCraigslistSfbay(term) {
   });
 
   if (!response.ok) {
-    throw new Error(`Craigslist SF Bay responded with ${response.status}`);
+    throw new Error(`${options.label} responded with ${response.status}`);
   }
 
-  return parseCraigslistSfbay(await response.text());
+  return parseCraigslistRegion(await response.text(), options);
 }
 
 async function searchYahooAuctions(term) {
@@ -1756,13 +1781,16 @@ function parseMercari(cards) {
   }).filter((listing) => listing.id !== "mercari-" && listing.title && listing.url);
 }
 
-function parseCraigslistSfbay(html) {
-  const structuredListings = parseCraigslistStructuredListings(html);
+function parseCraigslistRegion(html, options) {
+  const sourceId = options.sourceId || "craigslist";
+  const label = options.label || "Craigslist";
+  const baseUrl = options.baseUrl || CRAIGSLIST_SFBAY_BASE_URL;
+  const structuredListings = parseCraigslistStructuredListings(html, baseUrl);
   const blocks = splitHtmlBlocks(html, /<li class="cl-static-search-result"(?=[\s>])/g);
   const listedAt = new Date().toISOString();
 
   return blocks.map((block, index) => {
-    const href = normalizeUrl(readAttributeFromPattern(block, /<a[^>]+href="([^"]+)"/i), CRAIGSLIST_SFBAY_BASE_URL);
+    const href = normalizeUrl(readAttributeFromPattern(block, /<a[^>]+href="([^"]+)"/i), baseUrl);
     const rawId = href.match(/\/(\d+)\.html(?:$|\?)/)?.[1] || `${Date.now()}-${index}`;
     const structured = structuredListings.get(index) || {};
     const title = cleanText(matchOne(block, /class="title">([\s\S]*?)<\/div>/i)) || structured.title || "";
@@ -1770,21 +1798,21 @@ function parseCraigslistSfbay(html) {
     const location = cleanText(matchOne(block, /class="location">([\s\S]*?)<\/div>/i)) || structured.location || "";
 
     return {
-      id: `craigslist-sfbay-${rawId}`,
-      source: "craigslist-sfbay",
+      id: `${sourceId}-${rawId}`,
+      source: sourceId,
       title,
       price,
       condition: "Listed",
-      shop: location ? `Craigslist SF Bay · ${location}` : "Craigslist SF Bay",
+      shop: location ? `${label} · ${location}` : label,
       listedAt,
       url: href,
       image: structured.image || "",
       categoryPath: ["For Sale", "Musical Instruments"],
     };
-  }).filter((listing) => listing.id !== "craigslist-sfbay-" && listing.title && listing.url);
+  }).filter((listing) => listing.id !== `${sourceId}-` && listing.title && listing.url);
 }
 
-function parseCraigslistStructuredListings(html) {
+function parseCraigslistStructuredListings(html, baseUrl = CRAIGSLIST_SFBAY_BASE_URL) {
   const json = matchOne(html, /<script[^>]+id="ld_searchpage_results"[^>]*>([\s\S]*?)<\/script>/i);
   const listingsByIndex = new Map();
   if (!json.trim()) return listingsByIndex;
@@ -1802,7 +1830,7 @@ function parseCraigslistStructuredListings(html) {
       listingsByIndex.set(Number.isFinite(position) ? position : index, {
         title: cleanText(String(item.name || "")),
         price: parseUsdPrice(offer.price),
-        image: normalizeUrl(String(image || ""), CRAIGSLIST_SFBAY_BASE_URL),
+        image: normalizeUrl(String(image || ""), baseUrl),
         location: cleanText(String(address.addressLocality || "")),
       });
     });

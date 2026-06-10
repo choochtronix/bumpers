@@ -93,7 +93,7 @@ const bayAreaRegion = {
   label: "Bay Area",
   currency: "USD",
   defaultLocale: "en-US",
-  sources: ["craigslist-sfbay", "reverb-us"],
+  sources: ["craigslist-sfbay", "craigslist-la", "reverb-us"],
   searchDefaults: {
     cleanGear: true,
     maxDistanceMiles: 75
@@ -109,7 +109,7 @@ Region selector placement decision, June 8: put region selection in Settings -> 
 
 Region regression check, June 8: validated `app.js`, `server.js`, and `regions.js` with Node syntax checks. Local search smoke tests against Japan source groups returned live listings without connector errors for Waldorf, Roland Juno 106, and Oberheim across Yahoo Auctions, Yahoo Fleamarket, Digimart, OFFMALL, Rakuma, Mercari, Five G, implant4, and Reverb.
 
-Bay Area beta source pass, June 9: Bay Area is now selectable in Settings -> General as a beta region. The first live California source set is intentionally lean: Craigslist SF Bay and Reverb US. Reverb US uses the Reverb country filter for US listings, while Craigslist SF Bay reads the public musical-instruments search page and normalizes listing title, price, city, URL, and image when available. eBay US, Craigslist LA/OC/SD, Facebook Marketplace, OfferUp, and specialty California synth shops remain follow-up source candidates.
+Bay Area beta source pass, June 9: Bay Area is now selectable in Settings -> General as a beta region. The first live California source set is intentionally lean: Craigslist SF Bay, Craigslist LA, and Reverb US. Reverb US uses the Reverb country filter for US listings, while Craigslist SF Bay and Craigslist LA read the public musical-instruments search pages and normalize listing title, price, city, URL, and image when available. eBay US, Craigslist OC/SD, Facebook Marketplace, OfferUp, and specialty California synth shops remain follow-up source candidates.
 
 ## Known Issues
 

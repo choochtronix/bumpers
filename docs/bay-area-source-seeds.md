@@ -43,8 +43,8 @@ For beta, prioritize sources that can be useful without fragile or risky automat
 
 For a first Bay Area beta, use a hybrid set:
 
-- Live cards: `reverb-us`, `ebay-us`
-- Manual/search-link sources: `craigslist-sfbay`, `facebook-marketplace`, `offerup`
+- Live cards: `reverb-us`, `craigslist-sfbay`, `craigslist-la`
+- Manual/search-link sources: `facebook-marketplace`, `offerup`
 - Optional research target: `guitar-center-used-synths`
 
 This gives testers real utility while avoiding a fragile launch dependency on Facebook, OfferUp, or Craigslist scraping.
@@ -63,6 +63,7 @@ Bay Area should start as a region config like this:
     "reverb-us",
     "ebay-us",
     "craigslist-sfbay",
+    "craigslist-la",
     "facebook-marketplace",
     "offerup"
   ],
@@ -74,5 +75,5 @@ Bay Area should start as a region config like this:
 }
 ```
 
-LA and SoCal can either become sibling regions or metro presets under a broader US/California region. That decision can wait until the first Bay Area connector path is working.
+LA is now included as a live beta source inside the Bay Area/California test set. SoCal can later become a sibling region or metro preset under a broader US/California region once the first testers clarify how they browse.
 
