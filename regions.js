@@ -31,7 +31,21 @@ window.BRRTZ_REGION_CONFIG = (() => {
       currency: "USD",
       defaultLocale: "en-US",
       status: "beta",
-      sources: ["craigslist-sfbay", "craigslist-la", "reverb-us"],
+      sources: ["craigslist-sfbay", "reverb-us"],
+      searchDefaults: {
+        cleanGear: true,
+        maxResults: 80,
+        maxPrice: 10000,
+        maxDistanceMiles: 75,
+      },
+    },
+    {
+      id: "los-angeles",
+      label: "Los Angeles",
+      currency: "USD",
+      defaultLocale: "en-US",
+      status: "beta",
+      sources: ["craigslist-la", "reverb-us"],
       searchDefaults: {
         cleanGear: true,
         maxResults: 80,

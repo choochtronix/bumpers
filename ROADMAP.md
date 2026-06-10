@@ -52,7 +52,19 @@ const bayAreaRegion = {
   label: "Bay Area",
   currency: "USD",
   defaultLocale: "en-US",
-  sources: ["craigslist-sfbay", "craigslist-la", "reverb-us", "ebay-us"],
+  sources: ["craigslist-sfbay", "reverb-us", "ebay-us"],
+  searchDefaults: {
+    cleanGear: true,
+    maxDistanceMiles: 75
+  }
+};
+
+const losAngelesRegion = {
+  id: "los-angeles",
+  label: "Los Angeles",
+  currency: "USD",
+  defaultLocale: "en-US",
+  sources: ["craigslist-la", "reverb-us", "ebay-us"],
   searchDefaults: {
     cleanGear: true,
     maxDistanceMiles: 75
@@ -62,7 +74,7 @@ const bayAreaRegion = {
 
 Open questions:
 
-- Should LA be a separate region or a sibling metro inside a broader US region model?
+- Should LA and Bay Area remain separate regions, or eventually become sibling metro presets inside a broader California region model?
 
 Region decisions:
 

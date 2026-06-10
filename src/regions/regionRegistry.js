@@ -38,13 +38,14 @@ export const REGION_REGISTRY = [
     country: "US",
     currency: "USD",
     defaultLocale: "en-US",
-    status: "planned",
+    status: "testing",
     priority: 3,
-    notes: "Future SoCal region or metro preset.",
+    notes: "Beta SoCal region centered on Craigslist Los Angeles plus Reverb US.",
     searchDefaults: {
       cleanGear: true,
       maxDistanceMiles: 75,
       maxResults: 80,
+      maxPrice: 10000,
     },
   },
   {

@@ -856,8 +856,9 @@ async function handleSearch(url, response) {
   const excludes = splitParam(url.searchParams.get("excludes"));
   const maxPrice = Number(url.searchParams.get("maxPrice") || 0);
   const sources = splitParam(url.searchParams.get("sources"));
-  const regionId = url.searchParams.get("region") === "bay-area" ? "bay-area" : "japan";
-  const regionCurrency = regionId === "bay-area" ? "USD" : "JPY";
+  const requestedRegionId = url.searchParams.get("region");
+  const regionId = ["bay-area", "los-angeles"].includes(requestedRegionId) ? requestedRegionId : "japan";
+  const regionCurrency = regionId === "japan" ? "JPY" : "USD";
   const wantsDigimart = sources.length === 0 || sources.includes("digimart");
   const wantsFiveG = sources.length === 0 || sources.includes("five-g");
   const wantsImplant4 = sources.length === 0 || sources.includes("implant4");

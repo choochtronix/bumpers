@@ -202,7 +202,7 @@ export const SOURCE_REGISTRY = [
     id: "craigslist-la",
     name: "Craigslist Los Angeles",
     slug: "craigslist-la",
-    regionId: "bay-area",
+    regionId: "los-angeles",
     url: "https://losangeles.craigslist.org/search/msa?query=synth",
     type: "classifieds",
     accessType: SOURCE_ACCESS_TYPES.SEARCH_URL,
