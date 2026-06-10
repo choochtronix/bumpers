@@ -2881,8 +2881,13 @@ function createInitialSourceStatuses(searchGroups) {
 }
 
 function updateSourceSearchStatus(group, result) {
-  const state = result.mode === "error" ? "error" : "complete";
   group.sources.forEach((sourceId) => {
+    const sourceStat = result.meta?.sourceStats?.find((item) => item.source === sourceId);
+    const state = sourceStat?.status === "parked"
+      ? "parked"
+      : result.mode === "error"
+        ? "error"
+        : "complete";
     sourceSearchStatuses.set(sourceId, state);
   });
 }
@@ -3282,6 +3287,7 @@ function renderSourceFilters(baseResults = currentResults) {
     button.dataset.status = status || "ready";
     button.classList.toggle("is-active", activeViewSources.has(source.id));
     button.classList.toggle("is-loading", status === "loading");
+    button.classList.toggle("is-parked", status === "parked");
     button.classList.toggle("is-error", status === "error");
     button.classList.toggle("is-zero", status === "complete" && count === 0);
     button.title = getSourceFilterTitle(source, count, status);
@@ -3376,12 +3382,14 @@ function shouldShowSourceFilter(source, counts) {
 
 function formatSourceFilterCount(count, status) {
   if (status === "loading") return "…";
+  if (status === "parked") return "⏸";
   if (status === "error") return "!";
   return count;
 }
 
 function getSourceFilterTitle(source, count, status) {
   if (status === "loading") return `${source.label} is still searching`;
+  if (status === "parked") return `${source.label} is parked for beta safety`;
   if (status === "error") return `${source.label} search needs attention`;
   if (count === 0) return `${source.label} returned no matches`;
   return `${source.label} results`;
@@ -3389,6 +3397,7 @@ function getSourceFilterTitle(source, count, status) {
 
 function getSourceFilterLabel(source, count, status) {
   if (status === "loading") return `${source.label} search loading`;
+  if (status === "parked") return `${source.label} search parked for beta safety`;
   if (status === "error") return `${source.label} search error`;
   return `Filter to ${source.label} results, ${count} ${count === 1 ? "match" : "matches"}`;
 }

@@ -17,6 +17,7 @@ Production values should live in the hosting provider's environment/secrets pane
 | `BUMPERS_CLOUD_PROVIDER` | Yes | No | `supabase` | Enables Supabase-backed cloud sync. |
 | `BUMPERS_REQUIRE_INVITE` | Yes | No | `true` | Must be `true` for beta friends launch. |
 | `BUMPERS_JOB_TOKEN` | Yes | Yes | `make-a-long-random-secret` | Protects beta ops/job routes such as source health checks. |
+| `BRRTZ_CRAIGSLIST_MODE` | No | No | `parked` | Defaults to `parked`. Set to `live` only for short, controlled Craigslist test windows. |
 | `SUPABASE_URL` | Yes | No | `https://your-project-ref.supabase.co` | Project URL from Supabase Project Settings. |
 | `SUPABASE_ANON_KEY` | Yes | Public-ish | `sb_publishable_...` | Used for browser auth. Safe to expose only with RLS configured. |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | Yes | `sb_secret_...` | Server-only. Never expose in browser or commit. |

@@ -44,6 +44,10 @@ const MERCARI_RESULT_LIMIT = 40;
 const MERCARI_TERM_LIMIT = 2;
 const REVERB_RESULT_LIMIT = 32;
 const REVERB_TERM_LIMIT = 3;
+const CRAIGSLIST_DETAIL_VERIFY_LIMIT = 12;
+const CRAIGSLIST_DETAIL_VERIFY_CONCURRENCY = 6;
+const CRAIGSLIST_MODE = normalizeMode(process.env.BRRTZ_CRAIGSLIST_MODE || process.env.BUMPERS_CRAIGSLIST_MODE || "parked", ["parked", "live"], "parked");
+const CRAIGSLIST_PARKED_MESSAGE = "Craigslist is parked for beta safety. Brrtz is not querying Craigslist automatically right now.";
 const RAKUMA_THUMBNAIL_BATCH_SIZE = 4;
 const RAKUMA_THUMBNAIL_LIMIT = 32;
 const RAKUMA_IMAGE_PROXY_CACHE_TTL_MS = 15 * 60 * 1000;
@@ -217,6 +221,7 @@ function handleHealthCheck(request, response) {
     cloudProvider: CLOUD_PROVIDER,
     inviteRequired: REQUIRE_INVITE,
     supabaseConfigured: Boolean(SUPABASE_URL && SUPABASE_ANON_KEY && SUPABASE_SERVICE_ROLE_KEY),
+    craigslistMode: CRAIGSLIST_MODE,
     checkedAt: new Date().toISOString(),
   });
 }
@@ -368,6 +373,8 @@ async function checkSourceHealthSource(source) {
 }
 
 function getSourceHealthSearchFn(sourceId) {
+  if (!isCraigslistLiveEnabled() && sourceId.startsWith("craigslist-")) return null;
+
   return {
     digimart: searchDigimart,
     "five-g": searchFiveG,
@@ -375,6 +382,7 @@ function getSourceHealthSearchFn(sourceId) {
     jimoty: searchJimoty,
     mercari: searchMercari,
     offmall: searchOffmall,
+    "craigslist-la": searchCraigslistLa,
     "craigslist-sfbay": searchCraigslistSfbay,
     rakuma: searchRakuma,
     reverb: searchReverb,
@@ -902,18 +910,22 @@ async function handleSearch(url, response) {
     }));
   }
 
-  if (wantsCraigslistSfbay) {
+  if (wantsCraigslistSfbay && isCraigslistLiveEnabled()) {
     sourceTasks.push(searchSourceTerms("craigslist-sfbay", terms, searchCraigslistSfbay, {
-      maxTerms: 2,
+      maxTerms: 1,
       termDelayMs: 250,
     }));
+  } else if (wantsCraigslistSfbay) {
+    sourceTasks.push(Promise.resolve(createParkedCraigslistSourceResult("craigslist-sfbay", terms, CRAIGSLIST_SFBAY_BASE_URL)));
   }
 
-  if (wantsCraigslistLa) {
+  if (wantsCraigslistLa && isCraigslistLiveEnabled()) {
     sourceTasks.push(searchSourceTerms("craigslist-la", terms, searchCraigslistLa, {
-      maxTerms: 2,
+      maxTerms: 1,
       termDelayMs: 250,
     }));
+  } else if (wantsCraigslistLa) {
+    sourceTasks.push(Promise.resolve(createParkedCraigslistSourceResult("craigslist-la", terms, CRAIGSLIST_LA_BASE_URL)));
   }
 
   if (wantsJimoty) {
@@ -1089,6 +1101,43 @@ function isUnavailableListing(listing) {
     "closed",
     "wanted",
   ].some((token) => status.includes(normalizeText(token)));
+}
+
+function normalizeMode(value, allowedModes, fallback) {
+  const normalized = String(value || "").trim().toLowerCase();
+  return allowedModes.includes(normalized) ? normalized : fallback;
+}
+
+function isCraigslistLiveEnabled() {
+  return CRAIGSLIST_MODE === "live";
+}
+
+function createParkedCraigslistSourceResult(source, terms, baseUrl) {
+  return {
+    listings: [],
+    errors: [{
+      source,
+      term: terms[0] || "",
+      code: "source_parked",
+      message: CRAIGSLIST_PARKED_MESSAGE,
+      manualUrl: createCraigslistManualSearchUrl(baseUrl, terms[0] || ""),
+    }],
+    stats: {
+      source,
+      status: "parked",
+      searchedTerms: terms.slice(0, 1),
+      rawCount: 0,
+      message: CRAIGSLIST_PARKED_MESSAGE,
+      manualUrl: createCraigslistManualSearchUrl(baseUrl, terms[0] || ""),
+    },
+  };
+}
+
+function createCraigslistManualSearchUrl(baseUrl, term) {
+  const url = new URL("/search/msa", baseUrl);
+  if (term) url.searchParams.set("query", term);
+  url.searchParams.set("sort", "date");
+  return url.toString();
 }
 
 async function searchSourceTerms(source, terms, searchFn, options = {}) {
@@ -1421,35 +1470,73 @@ async function searchCraigslistRegion(term, options) {
   url.searchParams.set("sort", "date");
 
   const response = await fetchCraigslistUrl(url, options, { allowError: true });
-  const listings = response.ok
-    ? parseCraigslistRegion(await response.text(), options)
-    : parseCraigslistMarkdown(await fetchCraigslistMarkdown(url, options), options);
-  return verifyCraigslistSearchMatches(listings, term, options);
+  const usedReaderFallback = !response.ok;
+  const listings = usedReaderFallback
+    ? parseCraigslistMarkdown(await fetchCraigslistMarkdown(url, options), options)
+    : parseCraigslistRegion(await response.text(), options);
+  return verifyCraigslistSearchMatches(listings, term, {
+    ...options,
+    skipDetailVerification: usedReaderFallback,
+  });
 }
 
 async function verifyCraigslistSearchMatches(listings, term, options) {
-  const verifiedListings = [];
+  const verifiedListingsByIndex = new Map();
+  const detailCandidates = [];
 
   for (const [index, listing] of listings.entries()) {
     if (craigslistListingMatchesTerm(listing, term)) {
-      verifiedListings.push({ ...listing, searchContextVerified: true });
+      verifiedListingsByIndex.set(index, { ...listing, searchContextVerified: true });
       continue;
     }
 
+    if (options.skipDetailVerification) continue;
     if (!listing.url) continue;
-    if (index > 0) await wait(150);
-
-    try {
-      const detail = await fetchCraigslistListingSearchText(listing.url, options);
-      if (craigslistListingMatchesTerm(listing, term, detail)) {
-        verifiedListings.push({ ...listing, searchContextVerified: true });
-      }
-    } catch {
-      // If a detail page cannot be checked, keep Craigslist search strict instead of broad.
-    }
+    detailCandidates.push({ index, listing });
   }
 
-  return verifiedListings;
+  const limitedCandidates = detailCandidates.slice(0, options.detailVerifyLimit ?? CRAIGSLIST_DETAIL_VERIFY_LIMIT);
+  const detailMatches = await mapWithConcurrency(
+    limitedCandidates,
+    options.detailVerifyConcurrency ?? CRAIGSLIST_DETAIL_VERIFY_CONCURRENCY,
+    async ({ index, listing }) => {
+      try {
+        const detail = await fetchCraigslistListingSearchText(listing.url, options);
+        if (craigslistListingMatchesTerm(listing, term, detail)) {
+          return { index, listing: { ...listing, searchContextVerified: true } };
+        }
+      } catch {
+        // If a detail page cannot be checked, keep Craigslist search strict instead of broad.
+      }
+
+      return null;
+    },
+  );
+
+  for (const result of detailMatches) {
+    if (result) verifiedListingsByIndex.set(result.index, result.listing);
+  }
+
+  return [...verifiedListingsByIndex.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([, listing]) => listing);
+}
+
+async function mapWithConcurrency(items, concurrency, mapper) {
+  const results = new Array(items.length);
+  let nextIndex = 0;
+  const workerCount = Math.max(1, Math.min(Number(concurrency) || 1, items.length));
+
+  await Promise.all(Array.from({ length: workerCount }, async () => {
+    while (nextIndex < items.length) {
+      const currentIndex = nextIndex;
+      nextIndex += 1;
+
+      results[currentIndex] = await mapper(items[currentIndex], currentIndex);
+    }
+  }));
+
+  return results;
 }
 
 async function fetchCraigslistListingSearchText(url, options) {

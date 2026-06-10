@@ -1940,6 +1940,12 @@ body[data-theme="dark"] .source-filter-button.is-active {
   border-color: color-mix(in srgb, var(--source-solid, var(--primary)) 42%, var(--line));
 }
 
+.source-filter-button.is-parked {
+  border-color: color-mix(in srgb, var(--muted) 32%, var(--line));
+  color: var(--muted);
+  background: color-mix(in srgb, var(--button-bg) 92%, var(--muted) 8%);
+}
+
 .source-filter-button.is-error {
   border-color: rgba(177, 59, 87, 0.46);
   color: var(--rose);
@@ -2849,6 +2855,13 @@ body[data-theme="dark"] .listing-card.is-featured-home-card {
   inset: -3px;
   border-color: var(--rose);
   opacity: 1;
+  animation: none;
+}
+
+.source-filter-button.is-parked .source-filter-avatar::after {
+  inset: -3px;
+  border-color: currentColor;
+  opacity: 0.48;
   animation: none;
 }
 

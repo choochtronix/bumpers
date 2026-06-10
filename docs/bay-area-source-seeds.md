@@ -43,12 +43,14 @@ For beta, prioritize sources that can be useful without fragile or risky automat
 
 For a first Bay Area beta, use a hybrid set:
 
-- Live cards: `reverb-us`, `craigslist-sfbay`
-- Los Angeles live cards: `reverb-us`, `craigslist-la`
+- Live cards: `reverb-us`
+- Parked/manual-link sources: `craigslist-sfbay`, `craigslist-la`
 - Manual/search-link sources: `facebook-marketplace`, `offerup`
 - Optional research target: `guitar-center-used-synths`
 
 This gives testers real utility while avoiding a fragile launch dependency on Facebook, OfferUp, or Craigslist scraping.
+
+June 10 update: Craigslist is intentionally parked for beta safety after local testing triggered Craigslist blocking. Keep Craigslist visible as a region source, but do not query it automatically unless `BRRTZ_CRAIGSLIST_MODE=live` is set for a controlled test window.
 
 ## Region Config Direction
 

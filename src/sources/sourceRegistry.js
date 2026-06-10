@@ -191,11 +191,11 @@ export const SOURCE_REGISTRY = [
     url: "https://sfbay.craigslist.org/search/msa?query=synth",
     type: "classifieds",
     accessType: SOURCE_ACCESS_TYPES.SEARCH_URL,
-    status: SOURCE_STATUSES.TESTING,
+    status: SOURCE_STATUSES.PAUSED,
     reliabilityScore: 60,
     noiseScore: 45,
     testQuery: "synth",
-    notes: "Manual/search-link first until safe access path is confirmed.",
+    notes: "Parked for beta safety after Craigslist blocking. Manual/search-link first until a safe access path is confirmed.",
   },
 
   {
@@ -206,11 +206,11 @@ export const SOURCE_REGISTRY = [
     url: "https://losangeles.craigslist.org/search/msa?query=synth",
     type: "classifieds",
     accessType: SOURCE_ACCESS_TYPES.SEARCH_URL,
-    status: SOURCE_STATUSES.TESTING,
+    status: SOURCE_STATUSES.PAUSED,
     reliabilityScore: 62,
     noiseScore: 45,
     testQuery: "synth",
-    notes: "Live Craigslist connector for Los Angeles beta coverage; shares the Craigslist region parser.",
+    notes: "Parked for beta safety after Craigslist blocking. Keep as manual/search-link first until a safe access path is confirmed.",
   },
   {
     id: "facebook-marketplace",
