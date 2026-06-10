@@ -1041,9 +1041,9 @@ body[data-theme="dark"] .bumpers-secondary-button:focus-visible .refine-icon {
 .saved-search {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 4px 12px;
+  gap: 3px 12px;
   width: 100%;
-  min-height: 58px;
+  min-height: 64px;
   align-items: center;
   padding: 8px 10px;
   border: 0;
@@ -1082,12 +1082,27 @@ body[data-theme="dark"] .bumpers-secondary-button:focus-visible .refine-icon {
 }
 
 .saved-search-title {
+  grid-column: 1;
   overflow: hidden;
   color: var(--ink);
   font-size: 19px;
   line-height: 1.05;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.saved-search-region {
+  grid-column: 1;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.saved-search-region.is-away {
+  color: var(--primary);
 }
 
 .saved-search-matches {
@@ -1099,7 +1114,7 @@ body[data-theme="dark"] .bumpers-secondary-button:focus-visible .refine-icon {
 
 .saved-search-new {
   grid-column: 2;
-  grid-row: 2;
+  grid-row: 3;
   color: var(--green);
   font-size: 14px;
   font-weight: 600;
@@ -1137,6 +1152,26 @@ body[data-theme="dark"] .bumpers-secondary-button:focus-visible .refine-icon {
   display: grid;
   gap: 16px;
   padding: 18px;
+}
+
+.saved-region-modal {
+  display: grid;
+  width: min(560px, 100%);
+  gap: 16px;
+  padding: 18px;
+}
+
+.saved-region-detail {
+  margin: 0;
+  color: var(--muted);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.saved-region-actions {
+  display: grid;
+  gap: 10px;
 }
 
 .settings-modal {

@@ -657,6 +657,11 @@ const saveSearchModal = document.querySelector("#saveSearchModal");
 const saveSearchForm = document.querySelector("#saveSearchForm");
 const saveSearchName = document.querySelector("#saveSearchName");
 const saveSearchAlert = document.querySelector("#saveSearchAlert");
+const savedRegionChoiceModal = document.querySelector("#savedRegionChoiceModal");
+const savedRegionChoiceDescription = document.querySelector("#savedRegionChoiceDescription");
+const runSavedHomeRegionButton = document.querySelector("#runSavedHomeRegion");
+const runSavedCurrentRegionButton = document.querySelector("#runSavedCurrentRegion");
+const duplicateSavedCurrentRegionButton = document.querySelector("#duplicateSavedCurrentRegion");
 const settingsModal = document.querySelector("#settingsModal");
 const settingsForm = document.querySelector("#settingsForm");
 const settingsTabs = [...document.querySelectorAll("[data-settings-tab]")];
@@ -683,6 +688,8 @@ const savedSearchTransferStatus = document.querySelector("#savedSearchTransferSt
 const backToTopButton = document.querySelector("#backToTop");
 let refineSearchReturnFocus = null;
 let saveSearchReturnFocus = null;
+let savedRegionChoiceReturnFocus = null;
+let pendingSavedRegionProfile = null;
 let settingsReturnFocus = null;
 let savedSearchAutoSyncTimer = 0;
 let profileAutoSyncTimer = 0;
@@ -1102,6 +1109,29 @@ function bindEvents() {
     event.preventDefault();
     saveCurrentSearchFromModal();
   });
+  document.querySelector("#closeSavedRegionChoice")?.addEventListener("click", closeSavedRegionChoiceModal);
+  savedRegionChoiceModal?.addEventListener("click", (event) => {
+    if (event.target === savedRegionChoiceModal) closeSavedRegionChoiceModal();
+  });
+  runSavedHomeRegionButton?.addEventListener("click", () => {
+    if (!pendingSavedRegionProfile) return;
+    activateSavedSearch(pendingSavedRegionProfile, {
+      regionId: getProfileHomeRegionId(pendingSavedRegionProfile),
+    });
+  });
+  runSavedCurrentRegionButton?.addEventListener("click", () => {
+    if (!pendingSavedRegionProfile) return;
+    activateSavedSearch(pendingSavedRegionProfile, {
+      regionId: appSettings.regionId,
+    });
+  });
+  duplicateSavedCurrentRegionButton?.addEventListener("click", () => {
+    if (!pendingSavedRegionProfile) return;
+    activateSavedSearch(pendingSavedRegionProfile, {
+      regionId: appSettings.regionId,
+      duplicate: true,
+    });
+  });
 
   document.querySelector("#openSettings").addEventListener("click", openSettingsModal);
   document.querySelector("#closeSettings").addEventListener("click", closeSettingsModal);
@@ -1310,6 +1340,7 @@ function readProfileFromForm() {
 
   return {
     name: getFormProfileName(terms),
+    regionId: appSettings.regionId,
     terms,
     excludes: splitLines(document.querySelector("#excludes").value),
     noiseTerms: splitLines(document.querySelector("#noiseTerms").value),
@@ -1604,6 +1635,7 @@ function saveCurrentSearchFromModal() {
   currentProfile = {
     ...readProfileFromForm(),
     name: savedName,
+    regionId: appSettings.regionId,
     alertMode: saveSearchAlert.value,
   };
   document.querySelector("#alertMode").value = currentProfile.alertMode;
@@ -4271,38 +4303,175 @@ function renderSavedSearches() {
 
   savedSearches.innerHTML = "";
   profiles.forEach((profile) => {
+    const hydratedProfile = hydrateProfile(profile);
+    const homeRegionId = getProfileHomeRegionId(hydratedProfile);
+    const isCurrentRegion = homeRegionId === appSettings.regionId;
     const item = document.createElement("div");
     item.className = "saved-search-row";
 
     const button = document.createElement("button");
     button.className = "saved-search";
     button.type = "button";
-    const newCount = profile.lastNewCount || 0;
+    const newCount = hydratedProfile.lastNewCount || 0;
     button.innerHTML = `
-      <strong class="saved-search-title">${profile.name}</strong>
-      <span class="saved-search-matches">${profile.lastMatchCount || 0} matches</span>
+      <strong class="saved-search-title"></strong>
+      <span class="saved-search-region${isCurrentRegion ? "" : " is-away"}"></span>
+      <span class="saved-search-matches">${hydratedProfile.lastMatchCount || 0} matches</span>
       <span class="saved-search-new${newCount === 0 ? " is-empty" : ""}">${newCount} new</span>
     `;
+    button.querySelector(".saved-search-title").textContent = hydratedProfile.name;
+    button.querySelector(".saved-search-region").textContent = getSavedSearchRegionLabel(hydratedProfile, isCurrentRegion);
     button.addEventListener("click", () => {
       closeSavedSearchPopover();
-      currentProfile = profile;
-      fillForm(profile);
-      setActiveTitle(profile.name);
-      runSearch();
+      handleSavedSearchClick(hydratedProfile, button);
     });
 
     const deleteButton = document.createElement("button");
     deleteButton.className = "saved-search-delete";
     deleteButton.type = "button";
-    deleteButton.title = `Delete ${profile.name}`;
-    deleteButton.setAttribute("aria-label", `Delete saved search ${profile.name}`);
+    deleteButton.title = `Delete ${hydratedProfile.name}`;
+    deleteButton.setAttribute("aria-label", `Delete saved search ${hydratedProfile.name}`);
     deleteButton.textContent = "×";
-    deleteButton.addEventListener("click", () => deleteSavedSearch(profile.name));
+    deleteButton.addEventListener("click", () => deleteSavedSearch(hydratedProfile.name));
 
     item.append(button, deleteButton);
     savedSearches.appendChild(item);
   });
   updateQuickSaveSearchButton();
+}
+
+function handleSavedSearchClick(profile, returnFocus = null) {
+  const hydratedProfile = hydrateProfile(profile);
+  const homeRegionId = getProfileHomeRegionId(hydratedProfile);
+  if (homeRegionId !== appSettings.regionId) {
+    openSavedRegionChoiceModal(hydratedProfile, returnFocus);
+    return;
+  }
+
+  activateSavedSearch(hydratedProfile, { regionId: homeRegionId });
+}
+
+function openSavedRegionChoiceModal(profile, returnFocus = null) {
+  if (!savedRegionChoiceModal) return;
+
+  pendingSavedRegionProfile = hydrateProfile(profile);
+  savedRegionChoiceReturnFocus = returnFocus || document.activeElement;
+  const homeRegionId = getProfileHomeRegionId(pendingSavedRegionProfile);
+  const homeRegion = getRegionById(homeRegionId);
+  const currentRegion = getActiveRegion();
+  savedRegionChoiceDescription.textContent = `"${pendingSavedRegionProfile.name}" was saved in ${homeRegion.label}. You can run it in ${homeRegion.label}, explore it in ${currentRegion.label}, or save a ${currentRegion.label} variant.`;
+  runSavedHomeRegionButton.textContent = `Run in ${homeRegion.label}`;
+  runSavedCurrentRegionButton.textContent = `Run in ${currentRegion.label}`;
+  duplicateSavedCurrentRegionButton.textContent = `Duplicate for ${currentRegion.label}`;
+  savedRegionChoiceModal.hidden = false;
+  document.body.classList.add("modal-open");
+  updateMobileSearchOverlayVisibility();
+  runSavedCurrentRegionButton.focus();
+}
+
+function closeSavedRegionChoiceModal(options = {}) {
+  const { restoreFocus = true } = options;
+  if (!savedRegionChoiceModal || savedRegionChoiceModal.hidden) return;
+  savedRegionChoiceModal.hidden = true;
+  document.body.classList.remove("modal-open");
+  updateMobileSearchOverlayVisibility();
+  if (restoreFocus) savedRegionChoiceReturnFocus?.focus?.();
+  savedRegionChoiceReturnFocus = null;
+  pendingSavedRegionProfile = null;
+}
+
+function activateSavedSearch(profile, options = {}) {
+  const targetRegionId = sanitizeRegionId(options.regionId || getProfileHomeRegionId(profile));
+  const duplicate = Boolean(options.duplicate);
+  const regionChanged = targetRegionId !== appSettings.regionId;
+  if (regionChanged) {
+    applyActiveRegion(targetRegionId);
+  }
+
+  currentProfile = createProfileForRegion(profile, targetRegionId, { duplicate });
+  if (duplicate) {
+    currentProfile = saveProfile(currentProfile);
+    renderSavedSearches();
+    queueSavedSearchAutoSync("duplicate-region-search");
+  }
+
+  fillForm(currentProfile);
+  setActiveTitle(currentProfile.name);
+  closeSavedRegionChoiceModal({ restoreFocus: false });
+  runSearch();
+}
+
+function applyActiveRegion(regionId) {
+  const nextRegion = getRegionById(regionId);
+  appSettings = {
+    ...appSettings,
+    regionId: nextRegion.id,
+    currency: nextRegion.currency || appSettings.currency,
+  };
+  localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(appSettings));
+  if (regionSelect) regionSelect.value = nextRegion.id;
+  qualityFilter = nextRegion.searchDefaults?.cleanGear === false ? "all" : "clean";
+  activeViewSources.clear();
+  pendingSourceIds = new Set();
+  sourceSearchStatuses = new Map();
+  renderSources();
+  renderSourceFilters();
+  renderRefineSummary();
+  renderSavedSearches();
+  pushCloudProfilePreferences({ silent: true });
+}
+
+function createProfileForRegion(profile, targetRegionId, options = {}) {
+  const hydratedProfile = hydrateProfile(profile);
+  const homeRegionId = getProfileHomeRegionId(hydratedProfile);
+  const targetSources = getRegionSourceIds(targetRegionId);
+  const regionChanged = homeRegionId !== targetRegionId;
+  const homeDefaultMaxPrice = getRegionDefaultMaxPrice(homeRegionId);
+  const targetDefaultMaxPrice = getRegionDefaultMaxPrice(targetRegionId);
+  const shouldUseTargetPrice = regionChanged || Number(hydratedProfile.maxPrice || 0) === homeDefaultMaxPrice;
+  const name = options.duplicate
+    ? createUniqueSavedSearchName(createRegionVariantName(hydratedProfile.name, targetRegionId))
+    : hydratedProfile.name;
+
+  return hydrateProfile({
+    ...hydratedProfile,
+    id: options.duplicate ? "" : hydratedProfile.id,
+    name,
+    regionId: targetRegionId,
+    sources: targetSources,
+    maxPrice: shouldUseTargetPrice ? targetDefaultMaxPrice : hydratedProfile.maxPrice,
+    lastScannedAt: options.duplicate ? "" : hydratedProfile.lastScannedAt,
+    lastMatchCount: options.duplicate ? 0 : hydratedProfile.lastMatchCount,
+    lastNewCount: options.duplicate ? 0 : hydratedProfile.lastNewCount,
+    lastSourceCount: options.duplicate ? 0 : hydratedProfile.lastSourceCount,
+    lastScanStatus: options.duplicate ? "" : hydratedProfile.lastScanStatus,
+    sync: options.duplicate ? { provider: "local", status: "local" } : hydratedProfile.sync,
+  });
+}
+
+function createRegionVariantName(name, regionId) {
+  const region = getRegionById(regionId);
+  const suffix = ` · ${region.label}`;
+  return name.endsWith(suffix) ? name : `${name}${suffix}`;
+}
+
+function createUniqueSavedSearchName(baseName) {
+  const existingNames = new Set(loadProfiles().map((profile) => normalizeText(profile.name)));
+  if (!existingNames.has(normalizeText(baseName))) return baseName;
+
+  let index = 2;
+  while (existingNames.has(normalizeText(`${baseName} ${index}`))) index += 1;
+  return `${baseName} ${index}`;
+}
+
+function getProfileHomeRegionId(profile = {}) {
+  const hydratedRegionId = profile.regionId || inferRegionIdFromSources(profile.sources);
+  return sanitizeRegionId(hydratedRegionId || defaultSettings.regionId);
+}
+
+function getSavedSearchRegionLabel(profile, isCurrentRegion) {
+  const label = getRegionById(getProfileHomeRegionId(profile)).label;
+  return isCurrentRegion ? label : `Saved in ${label}`;
 }
 
 function saveProfile(profile) {
@@ -4466,6 +4635,7 @@ function shouldMigrateStoredProfiles(profiles) {
     || !profile.id
     || !profile.schemaVersion
     || !profile.userId
+    || !profile.regionId
     || !profile.createdAt
     || !profile.updatedAt
     || !profile.sync);
@@ -4521,6 +4691,7 @@ function createFreshProfile() {
   return hydrateProfile({
     ...defaultProfile,
     name: "New Search",
+    regionId: appSettings.regionId,
     terms: [],
     maxPrice: getRegionDefaultMaxPrice(),
     sources: regionSources,
@@ -4532,24 +4703,41 @@ function hydrateProfile(profile = {}) {
   const createdAt = isIsoTimestamp(profile.createdAt) ? profile.createdAt : fallbackTimestamp;
   const updatedAt = isIsoTimestamp(profile.updatedAt) ? profile.updatedAt : createdAt;
   const scanSummary = hydrateSavedSearchScanSummary(profile);
+  const regionId = sanitizeRegionId(profile.regionId || inferRegionIdFromSources(profile.sources) || defaultSettings.regionId);
 
   return {
     id: isNonEmptyString(profile.id) ? profile.id : createSavedSearchId(profile),
     schemaVersion: Number(profile.schemaVersion) || SAVED_SEARCH_SCHEMA_VERSION,
     userId: isNonEmptyString(profile.userId) ? profile.userId : LOCAL_PROFILE_USER_ID,
     name: isNonEmptyString(profile.name) ? profile.name.trim() : defaultProfile.name,
+    regionId,
     terms: cleanStringArray(profile.terms, defaultProfile.terms),
     excludes: cleanStringArray(profile.excludes, defaultProfile.excludes),
     noiseTerms: cleanStringArray(profile.noiseTerms, ACCESSORY_TERMS),
     maxPrice: sanitizePriceCap(profile.maxPrice, defaultProfile.maxPrice),
     alertMode: ["immediate", "hourly", "daily"].includes(profile.alertMode) ? profile.alertMode : defaultProfile.alertMode,
-    sources: hydrateSourceSelection(profile.sources),
+    sources: hydrateSourceSelection(profile.sources, regionId),
     createdAt,
     updatedAt,
     deletedAt: isIsoTimestamp(profile.deletedAt) ? profile.deletedAt : null,
     sync: hydrateSavedSearchSync(profile.sync, updatedAt),
     ...scanSummary,
   };
+}
+
+function inferRegionIdFromSources(sources = []) {
+  if (!Array.isArray(sources) || sources.length === 0) return "";
+
+  const selectedSources = new Set(sources);
+  const regionScores = getSelectableRegions().map((region) => {
+    const regionSources = getRegionSourceIds(region.id);
+    const score = regionSources.filter((sourceId) => selectedSources.has(sourceId)).length;
+    return { region, score };
+  }).filter((item) => item.score > 0);
+
+  if (regionScores.length === 0) return "";
+  regionScores.sort((first, second) => second.score - first.score);
+  return regionScores[0].region.id;
 }
 
 function hydrateSavedSearchScanSummary(profile = {}) {
@@ -4612,21 +4800,22 @@ function isIsoTimestamp(value) {
   return typeof value === "string" && !Number.isNaN(Date.parse(value));
 }
 
-function hydrateSourceSelection(sources) {
-  if (!Array.isArray(sources)) return getRegionSourceIds();
+function hydrateSourceSelection(sources, regionId = appSettings?.regionId) {
+  const fallbackSources = getRegionSourceIds(regionId);
+  if (!Array.isArray(sources)) return fallbackSources;
 
   const knownSourceIds = SOURCES.map((source) => source.id);
   const selectedSources = sources.filter((source) => knownSourceIds.includes(source));
   const hadEveryLegacyDefault = LEGACY_DEFAULT_SOURCE_IDS.every((source) => selectedSources.includes(source));
 
-  if (getActiveRegion().id === "japan" && hadEveryLegacyDefault) {
+  if (getRegionById(regionId).id === "japan" && hadEveryLegacyDefault) {
     ["reverb", "jimoty"].forEach((source) => {
       if (!selectedSources.includes(source)) selectedSources.push(source);
     });
   }
 
   const dedupedSources = [...new Set(selectedSources)];
-  return dedupedSources.length > 0 ? dedupedSources : getRegionSourceIds();
+  return dedupedSources.length > 0 ? dedupedSources : fallbackSources;
 }
 
 function hydrateRegionSources(sourceIds = []) {

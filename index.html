@@ -312,6 +312,26 @@ stand
       </section>
     </div>
 
+    <div class="modal-backdrop" id="savedRegionChoiceModal" hidden>
+      <section class="modal saved-region-modal" role="dialog" aria-modal="true" aria-labelledby="savedRegionChoiceTitle">
+        <div class="modal-header">
+          <div>
+            <p class="eyebrow">Region</p>
+            <h2 id="savedRegionChoiceTitle">Run Saved Search</h2>
+          </div>
+          <button class="icon-action" id="closeSavedRegionChoice" type="button" aria-label="Close region choice">×</button>
+        </div>
+
+        <p class="saved-region-detail" id="savedRegionChoiceDescription"></p>
+
+        <div class="saved-region-actions">
+          <button class="primary-action" id="runSavedHomeRegion" type="button"></button>
+          <button class="secondary-action" id="runSavedCurrentRegion" type="button"></button>
+          <button class="secondary-action" id="duplicateSavedCurrentRegion" type="button"></button>
+        </div>
+      </section>
+    </div>
+
     <div class="modal-backdrop" id="settingsModal" hidden>
       <section class="modal settings-modal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
         <form id="settingsForm">

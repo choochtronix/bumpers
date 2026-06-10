@@ -62,6 +62,7 @@ const YAHOO_AUCTIONS_RHYTHM_TERMS = [
   "リズムボックス",
 ];
 const USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 (KHTML, like Gecko) Brrtz/0.1 local personal gear search";
+const CRAIGSLIST_USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15";
 const mercariCache = new Map();
 const rakumaThumbnailCache = new Map();
 const rakumaImageProxyCache = new Map();
@@ -1417,16 +1418,7 @@ async function searchCraigslistRegion(term, options) {
   url.searchParams.set("query", term);
   url.searchParams.set("sort", "date");
 
-  const response = await fetch(url, {
-    headers: {
-      "user-agent": USER_AGENT,
-      "accept-language": "en-US,en;q=0.9",
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`${options.label} responded with ${response.status}`);
-  }
+  const response = await fetchCraigslistUrl(url, options);
 
   const listings = parseCraigslistRegion(await response.text(), options);
   return verifyCraigslistSearchMatches(listings, term, options);
@@ -1458,13 +1450,7 @@ async function verifyCraigslistSearchMatches(listings, term, options) {
 }
 
 async function fetchCraigslistListingSearchText(url, options) {
-  const response = await fetch(url, {
-    headers: {
-      "user-agent": USER_AGENT,
-      "accept-language": "en-US,en;q=0.9",
-      "referer": options.baseUrl || CRAIGSLIST_SFBAY_BASE_URL,
-    },
-  });
+  const response = await fetchCraigslistUrl(url, options, { allowError: true });
 
   if (!response.ok) return "";
 
@@ -1481,6 +1467,29 @@ async function fetchCraigslistListingSearchText(url, options) {
     bodyLines,
     metaText,
   };
+}
+
+async function fetchCraigslistUrl(url, options, fetchOptions = {}) {
+  const requestUrl = url instanceof URL ? url : new URL(url);
+  const headers = {
+    "user-agent": CRAIGSLIST_USER_AGENT,
+    "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "accept-language": "en-US,en;q=0.9",
+    "cache-control": "no-cache",
+    "referer": options.baseUrl || CRAIGSLIST_SFBAY_BASE_URL,
+  };
+
+  let response = await fetch(requestUrl, { headers });
+  if ([403, 429, 503].includes(response.status)) {
+    await wait(650);
+    response = await fetch(requestUrl, { headers });
+  }
+
+  if (!fetchOptions.allowError && !response.ok) {
+    throw new Error(`${options.label} responded with ${response.status}`);
+  }
+
+  return response;
 }
 
 function craigslistListingMatchesTerm(listing, term, detail = null) {
