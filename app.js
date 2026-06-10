@@ -19,6 +19,7 @@ const LEGACY_DEFAULT_SOURCE_IDS = ["mercari", "yahoo-auctions", "yahoo-fleamarke
 const LIVE_SOURCE_IDS = ["mercari", "yahoo-auctions", "yahoo-fleamarket", "rakuma", "digimart", "reverb", "reverb-us", "craigslist-sfbay", "craigslist-la", "jimoty", "offmall", "five-g", "implant4", "hardoff"];
 const LIVE_SOURCE_DISPLAY_ORDER = ["craigslist-sfbay", "craigslist-la", "reverb-us", "yahoo-auctions", "yahoo-fleamarket", "digimart", "reverb", "jimoty", "offmall", "five-g", "implant4", "hardoff", "mercari", "rakuma"];
 const SOURCE_SEARCH_CONTEXT_TRUST_IDS = new Set(["craigslist-sfbay", "craigslist-la"]);
+const CATEGORY_SEARCH_CONTEXT_IDS = new Set(["reverb", "reverb-us"]);
 const REGION_CONFIG = typeof window !== "undefined" ? window.BRRTZ_REGION_CONFIG : null;
 const ACTIVE_REGION = REGION_CONFIG?.activeRegion || {
   id: "japan",
@@ -188,6 +189,9 @@ const GEAR_SIGNAL_TERMS = [
   "desktop",
   "digital",
   "drum machine",
+  "drum machines",
+  "drum module",
+  "drum modules",
   "dr rhythm",
   "dr. rhythm",
   "eurorack",
@@ -196,8 +200,12 @@ const GEAR_SIGNAL_TERMS = [
   "keyboard",
   "midi",
   "module",
+  "mpc",
   "rack",
+  "rhythm composer",
+  "rhythm machine",
   "sampler",
+  "samplers",
   "sequencer",
   "synth",
   "synthesizer",
@@ -4012,6 +4020,7 @@ function isUnavailableListing(listing) {
     "成約済",
     "ended",
     "終了",
+    "wanted",
   ].some((token) => status.includes(normalizeText(token)));
 }
 
@@ -4904,12 +4913,22 @@ function listingMatchesSearchContext(listing, searchContext) {
   if (searchContext.primaryTerms.length === 0) return false;
   if (SOURCE_SEARCH_CONTEXT_TRUST_IDS.has(listing.source) && listing.searchContextVerified) return true;
 
-  const title = normalizeText(listing.title);
-  const matchesPrimary = searchContext.primaryTerms.some((term) => termMatches(title, term));
+  const searchable = getListingSearchContextText(listing);
+  const matchesPrimary = searchContext.primaryTerms.some((term) => termMatches(searchable, term));
   const matchesRefinement = searchContext.refinementTerms.length === 0
-    || searchContext.refinementTerms.some((term) => termMatches(title, term));
+    || searchContext.refinementTerms.some((term) => termMatches(searchable, term));
 
   return matchesPrimary && matchesRefinement;
+}
+
+function getListingSearchContextText(listing) {
+  if (!CATEGORY_SEARCH_CONTEXT_IDS.has(listing.source)) return normalizeText(listing.title);
+
+  return normalizeText([
+    listing.title,
+    listing.condition,
+    ...(Array.isArray(listing.categoryPath) ? listing.categoryPath : []),
+  ].filter(Boolean).join(" "));
 }
 
 function createSourceSearchTerms(terms) {

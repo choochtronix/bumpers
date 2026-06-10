@@ -35,6 +35,7 @@ const REVERB_API_BASE_URL = "https://api.reverb.com";
 const REVERB_BASE_URL = "https://reverb.com";
 const CRAIGSLIST_SFBAY_BASE_URL = "https://sfbay.craigslist.org";
 const CRAIGSLIST_LA_BASE_URL = "https://losangeles.craigslist.org";
+const JINA_READER_BASE_URL = "https://r.jina.ai/http://";
 const YAHOO_AUCTIONS_BASE_URL = "https://auctions.yahoo.co.jp";
 const YAHOO_FLEAMARKET_BASE_URL = "https://paypayfleamarket.yahoo.co.jp";
 const MERCARI_CACHE_TTL_MS = 5 * 60 * 1000;
@@ -1086,6 +1087,7 @@ function isUnavailableListing(listing) {
     "終了",
     "受付終了",
     "closed",
+    "wanted",
   ].some((token) => status.includes(normalizeText(token)));
 }
 
@@ -1418,9 +1420,10 @@ async function searchCraigslistRegion(term, options) {
   url.searchParams.set("query", term);
   url.searchParams.set("sort", "date");
 
-  const response = await fetchCraigslistUrl(url, options);
-
-  const listings = parseCraigslistRegion(await response.text(), options);
+  const response = await fetchCraigslistUrl(url, options, { allowError: true });
+  const listings = response.ok
+    ? parseCraigslistRegion(await response.text(), options)
+    : parseCraigslistMarkdown(await fetchCraigslistMarkdown(url, options), options);
   return verifyCraigslistSearchMatches(listings, term, options);
 }
 
@@ -1452,7 +1455,18 @@ async function verifyCraigslistSearchMatches(listings, term, options) {
 async function fetchCraigslistListingSearchText(url, options) {
   const response = await fetchCraigslistUrl(url, options, { allowError: true });
 
-  if (!response.ok) return "";
+  if (!response.ok) {
+    try {
+      const markdown = await fetchCraigslistMarkdown(url, options);
+      return {
+        bodyText: cleanText(markdown),
+        bodyLines: markdown.split(/\n+/).map((line) => cleanMarkdownText(line)).filter(Boolean),
+        metaText: "",
+      };
+    } catch {
+      return "";
+    }
+  }
 
   const html = await response.text();
   const bodyHtml = matchOne(html, /<section[^>]+id="postingbody"[^>]*>([\s\S]*?)<\/section>/i);
@@ -1490,6 +1504,24 @@ async function fetchCraigslistUrl(url, options, fetchOptions = {}) {
   }
 
   return response;
+}
+
+async function fetchCraigslistMarkdown(url, options) {
+  const requestUrl = url instanceof URL ? url : new URL(url);
+  const readerUrl = `${JINA_READER_BASE_URL}${requestUrl.toString()}`;
+  const response = await fetch(readerUrl, {
+    headers: {
+      "user-agent": USER_AGENT,
+      "accept": "text/plain, text/markdown, */*;q=0.8",
+      "accept-language": "en-US,en;q=0.9",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`${options.label} reader responded with ${response.status}`);
+  }
+
+  return response.text();
 }
 
 function craigslistListingMatchesTerm(listing, term, detail = null) {
@@ -1939,7 +1971,7 @@ function parseCraigslistRegion(html, options) {
       source: sourceId,
       title,
       price,
-      condition: "Listed",
+      condition: isWantedListingTitle(title) ? "Wanted" : "Listed",
       shop: location ? `${label} · ${location}` : label,
       listedAt,
       url: href,
@@ -1947,6 +1979,63 @@ function parseCraigslistRegion(html, options) {
       categoryPath: ["For Sale", "Musical Instruments"],
     };
   }).filter((listing) => listing.id !== `${sourceId}-` && listing.title && listing.url);
+}
+
+function parseCraigslistMarkdown(markdown, options) {
+  const sourceId = options.sourceId || "craigslist";
+  const label = options.label || "Craigslist";
+  const baseUrl = options.baseUrl || CRAIGSLIST_SFBAY_BASE_URL;
+  const listedAt = new Date().toISOString();
+  const imageByListingUrl = new Map();
+  const imagePattern = /\[!\[[^\]]*]\((https:\/\/images\.craigslist\.org\/[^)\s]+)\)]\((https:\/\/[^)\s]+\/(\d+)\.html)\)/g;
+  const titlePattern = /\[([^\]\n]+)]\((https:\/\/[^)\s]+\/(\d+)\.html)\)/g;
+  const titleMatches = [];
+  let imageMatch;
+
+  while ((imageMatch = imagePattern.exec(markdown)) !== null) {
+    imageByListingUrl.set(imageMatch[2], imageMatch[1]);
+  }
+
+  let titleMatch;
+  while ((titleMatch = titlePattern.exec(markdown)) !== null) {
+    const title = cleanMarkdownText(titleMatch[1]);
+    if (!title || title.includes("![") || /^no image/i.test(title)) continue;
+    titleMatches.push({
+      index: titleMatch.index,
+      endIndex: titleMatch.index + titleMatch[0].length,
+      title,
+      url: normalizeUrl(titleMatch[2], baseUrl),
+      rawId: titleMatch[3],
+    });
+  }
+
+  return titleMatches.map((match, index) => {
+    const nextIndex = titleMatches[index + 1]?.index ?? markdown.length;
+    const detail = markdown.slice(match.endIndex, nextIndex);
+    const lines = detail.split(/\n+/).map((line) => cleanMarkdownText(line)).filter(Boolean);
+    const priceLine = lines.find((line) => /^\$[\d,.]+/.test(line));
+    const locationLine = lines.find((line) => /\b(?:min|mins|h|hr|hrs|d|day|days)\s+ago\b/i.test(line));
+    const location = locationLine
+      ? cleanMarkdownText(locationLine.replace(/^.*?\bago\b/i, ""))
+      : "";
+
+    return {
+      id: `${sourceId}-${match.rawId}`,
+      source: sourceId,
+      title: match.title,
+      price: parseUsdPrice(priceLine),
+      condition: isWantedListingTitle(match.title) ? "Wanted" : "Listed",
+      shop: location ? `${label} · ${location}` : label,
+      listedAt,
+      url: match.url,
+      image: imageByListingUrl.get(match.url) || "",
+      categoryPath: ["For Sale", "Musical Instruments"],
+    };
+  }).filter((listing) => listing.id !== `${sourceId}-` && listing.title && listing.url);
+}
+
+function isWantedListingTitle(title) {
+  return /^(?:looking\s+for|wanted|i\s+buy)\b/i.test(cleanMarkdownText(title));
 }
 
 function parseCraigslistStructuredListings(html, baseUrl = CRAIGSLIST_SFBAY_BASE_URL) {
@@ -2350,6 +2439,15 @@ function readAttributeFromPattern(value, pattern) {
 
 function cleanText(value) {
   return decodeHtml(value.replace(/<[^>]+>/g, " "))
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function cleanMarkdownText(value) {
+  return decodeHtml(String(value || ""))
+    .replace(/!\[[^\]]*]\([^)]+\)/g, "")
+    .replace(/\[([^\]]+)]\([^)]+\)/g, "$1")
+    .replace(/[*_`]+/g, "")
     .replace(/\s+/g, " ")
     .trim();
 }
