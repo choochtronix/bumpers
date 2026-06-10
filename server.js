@@ -1428,7 +1428,134 @@ async function searchCraigslistRegion(term, options) {
     throw new Error(`${options.label} responded with ${response.status}`);
   }
 
-  return parseCraigslistRegion(await response.text(), options);
+  const listings = parseCraigslistRegion(await response.text(), options);
+  return verifyCraigslistSearchMatches(listings, term, options);
+}
+
+async function verifyCraigslistSearchMatches(listings, term, options) {
+  const verifiedListings = [];
+
+  for (const [index, listing] of listings.entries()) {
+    if (craigslistListingMatchesTerm(listing, term)) {
+      verifiedListings.push({ ...listing, searchContextVerified: true });
+      continue;
+    }
+
+    if (!listing.url) continue;
+    if (index > 0) await wait(150);
+
+    try {
+      const detail = await fetchCraigslistListingSearchText(listing.url, options);
+      if (craigslistListingMatchesTerm(listing, term, detail)) {
+        verifiedListings.push({ ...listing, searchContextVerified: true });
+      }
+    } catch {
+      // If a detail page cannot be checked, keep Craigslist search strict instead of broad.
+    }
+  }
+
+  return verifiedListings;
+}
+
+async function fetchCraigslistListingSearchText(url, options) {
+  const response = await fetch(url, {
+    headers: {
+      "user-agent": USER_AGENT,
+      "accept-language": "en-US,en;q=0.9",
+      "referer": options.baseUrl || CRAIGSLIST_SFBAY_BASE_URL,
+    },
+  });
+
+  if (!response.ok) return "";
+
+  const html = await response.text();
+  const bodyHtml = matchOne(html, /<section[^>]+id="postingbody"[^>]*>([\s\S]*?)<\/section>/i);
+  const bodyLines = craigslistBodyLines(bodyHtml);
+  const metaText = [
+    matchOne(html, /<meta[^>]+name="description"[^>]+content="([^"]+)"/i),
+    matchOne(html, /<meta[^>]+property="og:description"[^>]+content="([^"]+)"/i),
+  ].map(cleanText).filter(Boolean).join(" ");
+
+  return {
+    bodyText: cleanText(bodyHtml),
+    bodyLines,
+    metaText,
+  };
+}
+
+function craigslistListingMatchesTerm(listing, term, detail = null) {
+  const termVariants = createSourceSearchTermVariants(term);
+  const titleSearchable = normalizeText([
+    listing.title,
+    listing.shop,
+  ].filter(Boolean).join(" "));
+
+  if (termVariants.some((variant) => termMatches(titleSearchable, variant))) {
+    return true;
+  }
+
+  if (!detail) return false;
+
+  return termVariants.some((variant) => craigslistDetailHasProductMatch(detail, variant));
+}
+
+function craigslistBodyLines(bodyHtml) {
+  return String(bodyHtml || "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(?:p|div|li|section|h[1-6])>/gi, "\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .split(/\n+/)
+    .map((line) => line.replace(/\s+/g, " ").trim())
+    .filter((line) => line && !/^qr code link to this post$/i.test(line));
+}
+
+function craigslistDetailHasProductMatch(detail, term) {
+  const lines = Array.isArray(detail.bodyLines) ? detail.bodyLines : [];
+  return lines.some((line) => craigslistBodyLineHasProductMatch(line, term));
+}
+
+function craigslistBodyLineHasProductMatch(line, term) {
+  const searchableLine = normalizeText(line);
+  if (!termMatches(searchableLine, term)) return false;
+
+  const spamContext = [
+    "used these with",
+    "used with",
+    "suitable for",
+    "keyword",
+    "keywords",
+    "tags:",
+  ].some((token) => searchableLine.includes(token));
+  if (spamContext) return false;
+
+  if (isUnavailableLine(searchableLine)) return false;
+
+  const commaCount = (line.match(/,/g) || []).length;
+  if (commaCount >= 4) return false;
+  if (commaCount > 0 && (searchableLine.includes(" like ") || searchableLine.includes("-like"))) return false;
+
+  const looksLikeLineItem = /^[*\-•・]/.test(line)
+    || /(?:^|\s)(?:\$|¥|￥)\s?[\d,]+/.test(line)
+    || line.length <= 140;
+
+  return looksLikeLineItem;
+}
+
+function isUnavailableLine(searchableLine) {
+  return [
+    "sold",
+    "$old",
+    "soldout",
+    "sold out",
+    "売り切れ",
+    "売切れ",
+    "売約済",
+    "売却済",
+    "販売済",
+    "成約済",
+  ].some((token) => searchableLine.includes(normalizeText(token)));
 }
 
 async function searchYahooAuctions(term) {

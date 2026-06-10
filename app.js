@@ -4713,7 +4713,7 @@ function isEquivalentSearchTerm(term, primaryTerms) {
 
 function listingMatchesSearchContext(listing, searchContext) {
   if (searchContext.primaryTerms.length === 0) return false;
-  if (SOURCE_SEARCH_CONTEXT_TRUST_IDS.has(listing.source)) return true;
+  if (SOURCE_SEARCH_CONTEXT_TRUST_IDS.has(listing.source) && listing.searchContextVerified) return true;
 
   const title = normalizeText(listing.title);
   const matchesPrimary = searchContext.primaryTerms.some((term) => termMatches(title, term));
