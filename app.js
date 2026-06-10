@@ -18,6 +18,7 @@ const SOURCES = [
 const LEGACY_DEFAULT_SOURCE_IDS = ["mercari", "yahoo-auctions", "yahoo-fleamarket", "rakuma", "digimart", "offmall", "five-g", "implant4", "hardoff"];
 const LIVE_SOURCE_IDS = ["mercari", "yahoo-auctions", "yahoo-fleamarket", "rakuma", "digimart", "reverb", "reverb-us", "craigslist-sfbay", "craigslist-la", "jimoty", "offmall", "five-g", "implant4", "hardoff"];
 const LIVE_SOURCE_DISPLAY_ORDER = ["craigslist-sfbay", "craigslist-la", "reverb-us", "yahoo-auctions", "yahoo-fleamarket", "digimart", "reverb", "jimoty", "offmall", "five-g", "implant4", "hardoff", "mercari", "rakuma"];
+const SOURCE_SEARCH_CONTEXT_TRUST_IDS = new Set(["craigslist-sfbay", "craigslist-la"]);
 const REGION_CONFIG = typeof window !== "undefined" ? window.BRRTZ_REGION_CONFIG : null;
 const ACTIVE_REGION = REGION_CONFIG?.activeRegion || {
   id: "japan",
@@ -4712,6 +4713,7 @@ function isEquivalentSearchTerm(term, primaryTerms) {
 
 function listingMatchesSearchContext(listing, searchContext) {
   if (searchContext.primaryTerms.length === 0) return false;
+  if (SOURCE_SEARCH_CONTEXT_TRUST_IDS.has(listing.source)) return true;
 
   const title = normalizeText(listing.title);
   const matchesPrimary = searchContext.primaryTerms.some((term) => termMatches(title, term));
