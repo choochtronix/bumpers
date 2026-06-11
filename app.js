@@ -3026,8 +3026,13 @@ function getCurrentAlertListings() {
 
 function renderResults() {
   const watching = loadSet(STORAGE_KEYS.watching);
-  if (searchState.mode === "idle") ensureStarterFreshFindListings(watching);
-  const featuredHomeResults = searchState.mode === "idle" ? getFeaturedHomeListings(watching) : [];
+  if (searchState.mode === "idle") {
+    ensureStarterFreshFindListings();
+    renderHomeView(watching);
+    return;
+  }
+
+  const featuredHomeResults = [];
   const isShowingFeaturedHome = featuredHomeResults.length > 0;
   const resultSource = isShowingFeaturedHome ? featuredHomeResults : currentResults;
   const visibleResults = getVisibleResults(watching, resultSource);
@@ -3063,6 +3068,36 @@ function renderResults() {
   }
 
   renderPagination(visibleResults.length, totalPages);
+  renderQualityModeControls();
+  renderResultViewControls(isShowingFeaturedHome);
+  renderTopWatchingControl();
+}
+
+function renderHomeView(watching) {
+  const freshFindResults = getFreshFindHomeListings();
+  const watchedHomeResults = getWatchedHomeListings(watching);
+  const homeResults = [...freshFindResults, ...watchedHomeResults];
+  const isShowingFeaturedHome = homeResults.length > 0;
+
+  resultGrid.innerHTML = "";
+  resultGrid.classList.toggle("is-featured-home", isShowingFeaturedHome);
+  resultGrid.classList.toggle("is-list-view", false);
+  renderSourceFilters(homeResults);
+  renderAlertPanel([]);
+
+  if (freshFindResults.length > 0) {
+    resultGrid.appendChild(createFeaturedHomeSection(freshFindResults, { variant: "fresh" }));
+  }
+
+  if (watchedHomeResults.length > 0) {
+    resultGrid.appendChild(createFeaturedHomeSection(watchedHomeResults, { variant: "watched" }));
+  }
+
+  if (homeResults.length === 0) {
+    resultGrid.innerHTML = `<div class="empty-state"><strong>Start a fresh search.</strong><span>${searchState.detail}</span></div>`;
+  }
+
+  renderPagination(0, 1);
   renderQualityModeControls();
   renderResultViewControls(isShowingFeaturedHome);
   renderTopWatchingControl();
@@ -3831,34 +3866,39 @@ function createFeaturedHomeHeader(count, options = {}) {
   const isStarter = Boolean(options.isStarter);
   const isStarterLive = Boolean(options.isStarterLive);
   const isStarterLoading = Boolean(options.isStarterLoading);
+  const isWatched = options.variant === "watched";
   const seedLabel = starterFreshFindTerms.length > 0 ? starterFreshFindTerms.join(" + ") : "vintage synths";
   header.innerHTML = `
-    <h3>Fresh Finds</h3>
-    <span>${isStarterLive
+    <h3>${isWatched ? "Watched Gear" : "Fresh Finds"}</h3>
+    <span>${isWatched
+      ? `${count} watched ${count === 1 ? "listing" : "listings"} saved to your profile`
+      : isStarterLive
       ? `${count} live ${count === 1 ? "listing" : "listings"} from ${seedLabel}`
       : isStarterLoading
         ? `Scanning latest vintage synth listings for ${seedLabel}`
         : isStarter
           ? "Vintage synth portals to get you digging right away"
-          : `${count} ${count === 1 ? "watched listing" : "watched listings"} from your saved searches and watched gear`
+          : `${count} curated ${count === 1 ? "listing" : "listings"} from the latest scans`
     }</span>
   `;
   return header;
 }
 
-function createFeaturedHomeSection(listings) {
+function createFeaturedHomeSection(listings, options = {}) {
   const isStarter = listings.some((listing) => listing.isStarterFreshFind);
   const isStarterLive = listings.some((listing) => listing.isStarterLiveFreshFind);
   const isStarterLoading = isStarter && starterFreshFindStatus === "loading";
+  const variant = options.variant || "fresh";
   const section = document.createElement("section");
   section.className = [
     "featured-home-section",
+    variant === "watched" ? "is-watched-gear" : "",
     isStarter ? "is-starter-fresh-finds" : "",
     isStarterLive ? "is-live-starter-fresh-finds" : "",
     isStarterLoading ? "is-loading-starter-fresh-finds" : "",
   ].filter(Boolean).join(" ");
-  section.setAttribute("aria-label", "Fresh Finds from saved searches");
-  section.appendChild(createFeaturedHomeHeader(listings.length, { isStarter, isStarterLive, isStarterLoading }));
+  section.setAttribute("aria-label", variant === "watched" ? "Watched Gear" : "Fresh Finds");
+  section.appendChild(createFeaturedHomeHeader(listings.length, { isStarter, isStarterLive, isStarterLoading, variant }));
 
   const carousel = document.createElement("div");
   carousel.className = "featured-home-carousel";
@@ -3866,7 +3906,7 @@ function createFeaturedHomeSection(listings) {
   const previousButton = document.createElement("button");
   previousButton.className = "featured-carousel-control featured-carousel-control-prev";
   previousButton.type = "button";
-  previousButton.setAttribute("aria-label", "Show previous Fresh Finds");
+  previousButton.setAttribute("aria-label", variant === "watched" ? "Show previous Watched Gear" : "Show previous Fresh Finds");
   previousButton.textContent = "‹";
 
   const rail = document.createElement("div");
@@ -3883,7 +3923,7 @@ function createFeaturedHomeSection(listings) {
   const nextButton = document.createElement("button");
   nextButton.className = "featured-carousel-control featured-carousel-control-next";
   nextButton.type = "button";
-  nextButton.setAttribute("aria-label", "Show more Fresh Finds");
+  nextButton.setAttribute("aria-label", variant === "watched" ? "Show more Watched Gear" : "Show more Fresh Finds");
   nextButton.textContent = "›";
 
   carousel.append(previousButton, rail, nextButton);
@@ -3939,9 +3979,15 @@ function setupFeaturedHomeCarousel(rail, previousButton, nextButton) {
   requestAnimationFrame(updateControls);
 }
 
-function getFeaturedHomeListings(watchingIds = loadSet(STORAGE_KEYS.watching)) {
+function getFreshFindHomeListings() {
+  if (starterFreshFindStatus === "loading") return createFreshFindLoadingPlaceholders();
+  if (starterFreshFindListings.length > 0) return curateFreshFindListings(starterFreshFindListings);
+  return STARTER_FRESH_FIND_LISTINGS;
+}
+
+function getWatchedHomeListings(watchingIds = loadSet(STORAGE_KEYS.watching)) {
   const ledger = loadLedger();
-  const watchedListings = watchingIds
+  return watchingIds
     .map((id) => ledger[id])
     .filter(Boolean)
     .map(createListingFromLedgerEntry)
@@ -3952,11 +3998,6 @@ function getFeaturedHomeListings(watchingIds = loadSet(STORAGE_KEYS.watching)) {
     .sort((a, b) => scoreFreshFindListing(b, ledger) - scoreFreshFindListing(a, ledger))
     .slice(0, FEATURED_HOME_LIMIT)
     .map((listing) => decorateFreshFindListing(listing, ledger));
-
-  if (watchedListings.length > 0) return watchedListings;
-  if (starterFreshFindStatus === "loading") return createFreshFindLoadingPlaceholders();
-  if (starterFreshFindListings.length > 0) return curateFreshFindListings(starterFreshFindListings);
-  return STARTER_FRESH_FIND_LISTINGS;
 }
 
 function createFreshFindLoadingPlaceholders() {
@@ -3969,13 +4010,7 @@ function createFreshFindLoadingPlaceholders() {
   }));
 }
 
-function hasWatchedListingSnapshots(watchingIds = loadSet(STORAGE_KEYS.watching)) {
-  const ledger = loadLedger();
-  return watchingIds.some((id) => ledger[id]);
-}
-
-function ensureStarterFreshFindListings(watchingIds = loadSet(STORAGE_KEYS.watching)) {
-  if (hasWatchedListingSnapshots(watchingIds)) return;
+function ensureStarterFreshFindListings() {
   if (starterFreshFindStatus !== "idle") return;
   if (location.protocol === "file:") return;
 
@@ -3986,12 +4021,12 @@ function ensureStarterFreshFindListings(watchingIds = loadSet(STORAGE_KEYS.watch
     .then((listings) => {
       starterFreshFindListings = listings;
       starterFreshFindStatus = listings.length > 0 ? "live" : "fallback";
-      if (searchState.mode === "idle" && !hasWatchedListingSnapshots()) renderResults();
+      if (searchState.mode === "idle") renderResults();
     })
     .catch((error) => {
       console.warn("Starter Fresh Finds unavailable; keeping portal cards.", error);
       starterFreshFindStatus = "fallback";
-      if (searchState.mode === "idle" && !hasWatchedListingSnapshots()) renderResults();
+      if (searchState.mode === "idle") renderResults();
     });
 }
 

@@ -2532,6 +2532,10 @@ body[data-theme="dark"] .back-to-top:hover {
   gap: 22px;
 }
 
+.featured-home-section + .featured-home-section {
+  margin-top: 34px;
+}
+
 .featured-home-carousel {
   position: relative;
   min-width: 0;
