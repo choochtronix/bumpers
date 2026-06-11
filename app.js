@@ -3313,7 +3313,8 @@ function createAllSourceFilterButton(summary) {
   button.setAttribute("aria-pressed", String(activeViewSources.size === 0));
   button.setAttribute("aria-expanded", String(isSourceRowExpanded));
   button.setAttribute("aria-label", getSourceFilterSummaryLabel(summary));
-  button.title = activeViewSources.size > 0 ? "Back to all sources" : isSourceRowExpanded ? "Hide sources" : "See sources";
+  button.dataset.tooltip = getSourceFilterSummaryTooltip();
+  button.title = "";
   button.innerHTML = `
     <span class="source-filter-all-label">${summary.label}</span>
     <span class="source-filter-disclosure" aria-hidden="true"></span>
@@ -3366,6 +3367,11 @@ function getSourceFilterSummaryLabel(summary) {
   }
 
   return `${isSourceRowExpanded ? "Hide sources" : "See sources"}. ${summary.label}.`;
+}
+
+function getSourceFilterSummaryTooltip() {
+  if (activeViewSources.size > 0) return "Show all sources";
+  return isSourceRowExpanded ? "Hide sources" : "Show sources";
 }
 
 function getSourceCountsForCurrentView(baseResults = currentResults) {
