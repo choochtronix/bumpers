@@ -47,6 +47,7 @@
                 <button id="saveProfile" type="button" title="Save current search" aria-label="Save current search">＋</button>
               </div>
               <div class="saved-searches" id="savedSearches"></div>
+              <button class="secondary-action saved-watch-action" id="savedWatchingFilter" type="button" aria-pressed="false">Show watched gear</button>
               <button class="secondary-action save-current-action" id="openSaveSearch" type="button">Save current search</button>
             </div>
           </div>
@@ -351,6 +352,19 @@ stand
 
           <div class="settings-scroll">
             <section class="settings-panel is-active" id="settingsPanelGeneral" role="tabpanel" aria-labelledby="settingsTabGeneral" data-settings-panel="general">
+              <div class="settings-section" aria-labelledby="appearanceSettingsTitle">
+                <div>
+                  <h3 id="appearanceSettingsTitle">Appearance</h3>
+                  <p>Adjust the display style for this browser.</p>
+                </div>
+
+                <label class="setting-toggle">
+                  <span>Dark mode</span>
+                  <input id="themeSettingsToggle" type="checkbox" />
+                  <span class="toggle-track" aria-hidden="true"></span>
+                </label>
+              </div>
+
               <div class="settings-section" aria-labelledby="regionSettingsTitle">
                 <div>
                   <h3 id="regionSettingsTitle">Region</h3>

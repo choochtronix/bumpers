@@ -657,6 +657,7 @@ const sortModeSelect = document.querySelector("#sortMode");
 const resultViewButtons = document.querySelectorAll("[data-result-view]");
 const openSavedSearchesButton = document.querySelector("#openSavedSearches");
 const savedSearchPopover = document.querySelector("#savedSearchPopover");
+const savedWatchingFilter = document.querySelector("#savedWatchingFilter");
 const quickSaveSearchButton = document.querySelector("#quickSaveSearch");
 const topWatchingFilter = document.querySelector("#topWatchingFilter");
 const refineSearchModal = document.querySelector("#refineSearchModal");
@@ -675,6 +676,7 @@ const settingsForm = document.querySelector("#settingsForm");
 const settingsTabs = [...document.querySelectorAll("[data-settings-tab]")];
 const settingsPanels = [...document.querySelectorAll("[data-settings-panel]")];
 const currencyToggle = document.querySelector("#currencyToggle");
+const themeSettingsToggle = document.querySelector("#themeSettingsToggle");
 const jpyPerUsdInput = document.querySelector("#jpyPerUsd");
 const regionSelect = document.querySelector("#regionSelect");
 const signedOutAccountPanel = document.querySelector("#signedOutAccountPanel");
@@ -1157,6 +1159,7 @@ function bindEvents() {
   });
   pullCloudSavedSearchesButton.addEventListener("click", pullCloudSavedSearches);
   pushCloudSavedSearchesButton.addEventListener("click", pushCloudSavedSearches);
+  themeSettingsToggle?.addEventListener("change", handleSettingsThemeToggle);
   sendSignInLinkButton?.addEventListener("click", handleAccountSignInShell);
   syncAccountSavedSearchesButton?.addEventListener("click", syncAccountCloudData);
   signOutAccountButton?.addEventListener("click", handleAccountSignOutShell);
@@ -1165,6 +1168,10 @@ function bindEvents() {
   savedSearchImportFile.addEventListener("change", importSavedSearchesFromFile);
 
   topWatchingFilter.addEventListener("click", toggleWatchingFilter);
+  savedWatchingFilter?.addEventListener("click", () => {
+    toggleWatchingFilter();
+    closeSavedSearchPopover();
+  });
 
   document.querySelector("#markAllSeen").addEventListener("click", () => {
     const seen = new Set(loadSet(STORAGE_KEYS.seen));
@@ -1271,6 +1278,11 @@ function toggleTheme(event) {
   event?.stopPropagation?.();
   const nextTheme = document.body.dataset.theme === "dark" ? "light" : "dark";
   setTheme(nextTheme);
+  pushCloudProfilePreferences({ silent: true });
+}
+
+function handleSettingsThemeToggle(event) {
+  setTheme(event.target.checked ? "dark" : "light");
   pushCloudProfilePreferences({ silent: true });
 }
 
@@ -1679,6 +1691,7 @@ function fillSettingsForm() {
   renderRegionOptions();
   if (regionSelect) regionSelect.value = sanitizeRegionId(appSettings.regionId);
   currencyToggle.checked = appSettings.currency === "USD";
+  if (themeSettingsToggle) themeSettingsToggle.checked = document.body.dataset.theme === "dark";
   jpyPerUsdInput.value = appSettings.jpyPerUsd;
   if (cloudProfileEmail) cloudProfileEmail.textContent = getCloudSyncUser().email;
   renderAccountShell(authState.user);
@@ -3091,6 +3104,11 @@ function renderTopWatchingControl() {
   const isWatching = filterMode === "watching";
   topWatchingFilter.classList.toggle("is-active", isWatching);
   topWatchingFilter.setAttribute("aria-pressed", String(isWatching));
+  if (savedWatchingFilter) {
+    savedWatchingFilter.classList.toggle("is-active", isWatching);
+    savedWatchingFilter.setAttribute("aria-pressed", String(isWatching));
+    savedWatchingFilter.textContent = isWatching ? "Show all gear" : "Show watched gear";
+  }
 }
 
 function setQualityMode(mode) {
@@ -5095,6 +5113,7 @@ function setTheme(theme) {
   themeToggle.querySelector(".theme-icon").textContent = isDark ? "☀" : "◐";
   themeToggle.setAttribute("aria-label", isDark ? "Switch to light mode" : "Switch to dark mode");
   themeToggle.setAttribute("title", isDark ? "Switch to light mode" : "Switch to dark mode");
+  if (themeSettingsToggle) themeSettingsToggle.checked = isDark;
 }
 
 function isSeen(listingId) {
