@@ -3639,9 +3639,15 @@ body[data-theme="dark"] .listing-card.is-featured-home-card {
 }
 
 .watching-trigger.is-active {
-  border-color: var(--primary);
-  background: var(--primary);
-  color: var(--primary-ink);
+  border-color: color-mix(in srgb, #ff00ff 44%, var(--line));
+  background: var(--button-bg);
+  color: var(--ink);
+}
+
+.watching-trigger.is-active .site-icon-watched {
+  color: #ff00ff;
+  -webkit-mask-image: url("assets/ICONS-site/icon-watched-filled.svg");
+  mask-image: url("assets/ICONS-site/icon-watched-filled.svg");
 }
 
 .saved-menu {

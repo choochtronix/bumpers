@@ -4032,7 +4032,12 @@ function saveFreshFindCache(listings) {
   } catch (error) {
     if (!isStorageQuotaError(error)) throw error;
     cache[regionId].listings = cache[regionId].listings.slice(0, Math.ceil(FEATURED_HOME_LIMIT / 2));
-    localStorage.setItem(STORAGE_KEYS.freshFindCache, JSON.stringify(cache));
+    try {
+      localStorage.setItem(STORAGE_KEYS.freshFindCache, JSON.stringify(cache));
+    } catch (retryError) {
+      if (!isStorageQuotaError(retryError)) throw retryError;
+      console.warn("Fresh Finds cache skipped because browser storage is full.", retryError);
+    }
   }
 }
 
@@ -4120,7 +4125,7 @@ async function fetchStarterFreshFindListings() {
 
   const payload = await response.json();
   const listings = Array.isArray(payload.listings) ? payload.listings : [];
-  return listings
+  const freshListings = listings
     .filter((listing) => STARTER_FRESH_FIND_SOURCE_IDS.includes(listing.source))
     .filter((listing) => !isUnavailableListing(listing))
     .filter((listing) => isCleanGearListing(listing))
@@ -4130,9 +4135,11 @@ async function fetchStarterFreshFindListings() {
       ...listing,
       isStarterLiveFreshFind: true,
     }));
-  const curatedListings = curateFreshFindListings(listings);
+
+  const curatedListings = curateFreshFindListings(freshListings);
   if (curatedListings.length > 0) {
     recordListingDiscoveries({ name: "Fresh Finds" }, curatedListings);
+    saveFreshFindCache(curatedListings);
   }
   return curatedListings;
 }
