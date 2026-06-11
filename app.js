@@ -1443,7 +1443,7 @@ function arraysMatch(first, second) {
 
 function handleQuickSearchKeydown(event) {
   if (event.isComposing || event.keyCode === 229) return;
-  if (event.key !== "Enter" || event.shiftKey) return;
+  if (event.key !== "Enter") return;
   event.preventDefault();
   searchForm.requestSubmit();
 }

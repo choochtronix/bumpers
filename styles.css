@@ -298,6 +298,12 @@ body[data-theme="dark"] .quick-search-input {
   cursor: text;
 }
 
+.quick-search-input::-webkit-search-decoration,
+.quick-search-input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
 .quick-search-placeholder {
   position: absolute;
   top: 50%;
