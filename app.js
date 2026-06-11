@@ -647,7 +647,7 @@ let mobileSearchOverlayFrame = 0;
 let starterFreshFindStatus = "idle";
 let starterFreshFindListings = [];
 let starterFreshFindTerms = [];
-let isSourceRowExpanded = false;
+let isSourceRowExpanded = true;
 const rakumaClientThumbnailCache = new Map();
 let searchState = {
   mode: "idle",
@@ -3965,7 +3965,9 @@ function createFeaturedHomeSection(listings, options = {}) {
       return;
     }
 
-    rail.appendChild(renderListing(listing, { isFeaturedHome: true }));
+    const card = renderListing(listing, { isFeaturedHome: true });
+    if (variant === "watched") card.classList.add("is-watched-home-card");
+    rail.appendChild(card);
   });
 
   const nextButton = document.createElement("button");
