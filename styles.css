@@ -279,6 +279,11 @@ legend,
   outline: none;
 }
 
+body[data-theme="dark"] .search-summary-pill,
+body[data-theme="dark"] .quick-search-input {
+  color: #b8b8b8;
+}
+
 .quick-search-input {
   display: block;
   min-height: 48px;
