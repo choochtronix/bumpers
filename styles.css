@@ -2669,6 +2669,44 @@ body[data-theme="dark"] .listing-card.is-featured-home-card {
   outline-offset: 4px;
 }
 
+.featured-home-loading-card {
+  pointer-events: none;
+}
+
+.featured-home-loading-card::after {
+  background:
+    linear-gradient(to top, rgba(0, 0, 0, 0.28), rgba(0, 0, 0, 0.03) 54%),
+    linear-gradient(120deg, rgba(0, 114, 255, 0.08), rgba(255, 0, 255, 0.09));
+}
+
+.featured-home-loading-image {
+  background:
+    radial-gradient(circle at 22% 22%, rgba(255, 255, 255, 0.4), transparent 30%),
+    linear-gradient(135deg, color-mix(in srgb, var(--panel) 88%, #0072ff), color-mix(in srgb, var(--panel) 86%, #ff00ff));
+}
+
+.featured-home-loading-sweep {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 18%, rgba(255, 255, 255, 0.44) 48%, transparent 76%);
+  animation: loadingPulse 1.35s ease-in-out infinite;
+}
+
+.featured-home-loading-card .new-pill {
+  opacity: 0.8;
+}
+
+.featured-home-loading-card .listing-body {
+  right: 24px;
+}
+
+.featured-home-loading-card .loading-line {
+  background:
+    linear-gradient(100deg, transparent 20%, rgba(255, 255, 255, 0.46) 48%, transparent 76%),
+    rgba(255, 255, 255, 0.42);
+  background-size: 220% 100%;
+}
+
 .loading-card {
   pointer-events: none;
 }

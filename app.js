@@ -36,6 +36,7 @@ const ACTIVE_REGION = REGION_CONFIG?.activeRegion || {
 const RESULTS_PER_PAGE = 48;
 const FEATURED_HOME_LIMIT = 12;
 const FEATURED_HOME_ALERT_LIMIT = 6;
+const FRESH_FIND_LOADING_CARD_COUNT = 6;
 const FRESH_FIND_STALE_HOURS = 72;
 const FRESH_FIND_STALE_MS = FRESH_FIND_STALE_HOURS * 60 * 60 * 1000;
 const FRESH_FIND_CURATOR_TERMS = [
@@ -3871,6 +3872,11 @@ function createFeaturedHomeSection(listings) {
   const rail = document.createElement("div");
   rail.className = "featured-home-rail";
   listings.forEach((listing) => {
+    if (listing.isFreshFindLoading) {
+      rail.appendChild(createFeaturedHomeLoadingCard(listing));
+      return;
+    }
+
     rail.appendChild(renderListing(listing, { isFeaturedHome: true }));
   });
 
@@ -3885,6 +3891,27 @@ function createFeaturedHomeSection(listings) {
   setupFeaturedHomeCarousel(rail, previousButton, nextButton);
 
   return section;
+}
+
+function createFeaturedHomeLoadingCard(listing) {
+  const card = document.createElement("article");
+  card.className = "listing-card loading-card featured-home-loading-card is-featured-home-card";
+  card.style.setProperty("--loading-accent", "#0072ff");
+  card.setAttribute("aria-label", listing.title || "Fresh Finds loading");
+  card.innerHTML = `
+    <div class="image-stage" aria-hidden="true">
+      <div class="image-link loading-image featured-home-loading-image">
+        <span class="featured-home-loading-sweep"></span>
+      </div>
+    </div>
+    <span class="new-pill">New</span>
+    <div class="listing-body loading-body" aria-hidden="true">
+      <span class="loading-line loading-line-title"></span>
+      <span class="loading-line loading-line-title loading-line-title-alt"></span>
+      <span class="loading-line loading-line-price"></span>
+    </div>
+  `;
+  return card;
 }
 
 function setupFeaturedHomeCarousel(rail, previousButton, nextButton) {
@@ -3927,8 +3954,19 @@ function getFeaturedHomeListings(watchingIds = loadSet(STORAGE_KEYS.watching)) {
     .map((listing) => decorateFreshFindListing(listing, ledger));
 
   if (watchedListings.length > 0) return watchedListings;
+  if (starterFreshFindStatus === "loading") return createFreshFindLoadingPlaceholders();
   if (starterFreshFindListings.length > 0) return curateFreshFindListings(starterFreshFindListings);
   return STARTER_FRESH_FIND_LISTINGS;
+}
+
+function createFreshFindLoadingPlaceholders() {
+  return Array.from({ length: FRESH_FIND_LOADING_CARD_COUNT }, (_, index) => ({
+    id: `fresh-find-loading-${index}`,
+    source: STARTER_FRESH_FIND_SOURCE_IDS[index % STARTER_FRESH_FIND_SOURCE_IDS.length],
+    title: "Scanning Fresh Finds",
+    isStarterFreshFind: true,
+    isFreshFindLoading: true,
+  }));
 }
 
 function hasWatchedListingSnapshots(watchingIds = loadSet(STORAGE_KEYS.watching)) {
