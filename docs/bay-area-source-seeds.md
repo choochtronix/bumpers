@@ -52,6 +52,8 @@ This gives testers real utility while avoiding a fragile launch dependency on Fa
 
 June 10 update: Craigslist is intentionally parked for beta safety after local testing triggered Craigslist blocking. Keep Craigslist visible as a region source, but do not query it automatically unless `BRRTZ_CRAIGSLIST_MODE=live` is set for a controlled test window.
 
+June 11 update: Craigslist now behaves as a manual assist source in parked mode. Brrtz generates a precise Craigslist musical-instruments search URL for the active region and query, including mapped max-price filtering where available, then opens that URL from the Craigslist source pill. Brrtz does not fetch Craigslist pages in this mode.
+
 ## Region Config Direction
 
 Bay Area should start as a region config like this:

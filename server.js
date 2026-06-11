@@ -47,7 +47,7 @@ const REVERB_TERM_LIMIT = 3;
 const CRAIGSLIST_DETAIL_VERIFY_LIMIT = 12;
 const CRAIGSLIST_DETAIL_VERIFY_CONCURRENCY = 6;
 const CRAIGSLIST_MODE = normalizeMode(process.env.BRRTZ_CRAIGSLIST_MODE || process.env.BUMPERS_CRAIGSLIST_MODE || "parked", ["parked", "live"], "parked");
-const CRAIGSLIST_PARKED_MESSAGE = "Craigslist is parked for beta safety. Brrtz is not querying Craigslist automatically right now.";
+const CRAIGSLIST_PARKED_MESSAGE = "Craigslist Assist is active. Brrtz is not querying Craigslist automatically; open the prepared Craigslist search instead.";
 const RAKUMA_THUMBNAIL_BATCH_SIZE = 4;
 const RAKUMA_THUMBNAIL_LIMIT = 32;
 const RAKUMA_IMAGE_PROXY_CACHE_TTL_MS = 15 * 60 * 1000;
@@ -916,7 +916,7 @@ async function handleSearch(url, response) {
       termDelayMs: 250,
     }));
   } else if (wantsCraigslistSfbay) {
-    sourceTasks.push(Promise.resolve(createParkedCraigslistSourceResult("craigslist-sfbay", terms, CRAIGSLIST_SFBAY_BASE_URL)));
+    sourceTasks.push(Promise.resolve(createParkedCraigslistSourceResult("craigslist-sfbay", terms, CRAIGSLIST_SFBAY_BASE_URL, { maxPrice })));
   }
 
   if (wantsCraigslistLa && isCraigslistLiveEnabled()) {
@@ -925,7 +925,7 @@ async function handleSearch(url, response) {
       termDelayMs: 250,
     }));
   } else if (wantsCraigslistLa) {
-    sourceTasks.push(Promise.resolve(createParkedCraigslistSourceResult("craigslist-la", terms, CRAIGSLIST_LA_BASE_URL)));
+    sourceTasks.push(Promise.resolve(createParkedCraigslistSourceResult("craigslist-la", terms, CRAIGSLIST_LA_BASE_URL, { maxPrice })));
   }
 
   if (wantsJimoty) {
@@ -1112,31 +1112,29 @@ function isCraigslistLiveEnabled() {
   return CRAIGSLIST_MODE === "live";
 }
 
-function createParkedCraigslistSourceResult(source, terms, baseUrl) {
+function createParkedCraigslistSourceResult(source, terms, baseUrl, options = {}) {
+  const manualUrl = createCraigslistManualSearchUrl(baseUrl, terms[0] || "", options);
   return {
     listings: [],
-    errors: [{
-      source,
-      term: terms[0] || "",
-      code: "source_parked",
-      message: CRAIGSLIST_PARKED_MESSAGE,
-      manualUrl: createCraigslistManualSearchUrl(baseUrl, terms[0] || ""),
-    }],
+    errors: [],
     stats: {
       source,
-      status: "parked",
+      status: "manual",
       searchedTerms: terms.slice(0, 1),
       rawCount: 0,
       message: CRAIGSLIST_PARKED_MESSAGE,
-      manualUrl: createCraigslistManualSearchUrl(baseUrl, terms[0] || ""),
+      manualUrl,
     },
   };
 }
 
-function createCraigslistManualSearchUrl(baseUrl, term) {
+function createCraigslistManualSearchUrl(baseUrl, term, options = {}) {
   const url = new URL("/search/msa", baseUrl);
   if (term) url.searchParams.set("query", term);
   url.searchParams.set("sort", "date");
+  if (Number(options.maxPrice) > 0) {
+    url.searchParams.set("max_price", String(Math.round(Number(options.maxPrice))));
+  }
   return url.toString();
 }
 

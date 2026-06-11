@@ -1953,6 +1953,19 @@ body[data-theme="dark"] .source-filter-button.is-active {
   background: color-mix(in srgb, var(--button-bg) 92%, var(--muted) 8%);
 }
 
+.source-filter-button.is-manual {
+  border-color: color-mix(in srgb, var(--source-solid, var(--primary)) 48%, var(--line));
+  color: var(--source-solid-mark, var(--ink));
+  background: color-mix(in srgb, var(--button-bg) 88%, var(--source-solid, var(--primary)) 12%);
+}
+
+.source-filter-button.is-manual:hover,
+.source-filter-button.is-manual:focus-visible {
+  border-color: var(--source-solid, var(--primary));
+  color: var(--source-solid-mark, var(--ink));
+  box-shadow: 0 8px 18px rgba(20, 24, 28, 0.12);
+}
+
 .source-filter-button.is-error {
   border-color: rgba(177, 59, 87, 0.46);
   color: var(--rose);
@@ -2943,6 +2956,13 @@ body[data-theme="dark"] .listing-card.is-featured-home-card {
   inset: -3px;
   border-color: currentColor;
   opacity: 0.48;
+  animation: none;
+}
+
+.source-filter-button.is-manual .source-filter-avatar::after {
+  inset: -3px;
+  border-color: var(--source-solid, var(--primary));
+  opacity: 0.42;
   animation: none;
 }
 

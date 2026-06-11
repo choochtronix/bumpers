@@ -639,6 +639,7 @@ let currentPage = 1;
 let isSearching = false;
 let pendingSourceIds = new Set();
 let sourceSearchStatuses = new Map();
+let sourceSearchMeta = new Map();
 let searchRunId = 0;
 let loadingCardId = 0;
 let backToTopFrame = 0;
@@ -1258,7 +1259,12 @@ function bindEvents() {
       renderResults();
       return;
     }
-    toggleViewSource(button.dataset.source || "");
+    const sourceId = button.dataset.source || "";
+    if (isManualSourceStatus(sourceId)) {
+      openManualSourceSearch(sourceId);
+      return;
+    }
+    toggleViewSource(sourceId);
     resetPagination();
     renderResults();
   });
@@ -2146,6 +2152,7 @@ async function saveSettingsFromModal() {
     activeViewSources.clear();
     pendingSourceIds = new Set();
     sourceSearchStatuses = new Map();
+    sourceSearchMeta = new Map();
     currentProfile = createFreshProfile();
     renderSources();
     fillForm(currentProfile);
@@ -2286,6 +2293,7 @@ function applyCloudPreferences(preferences = {}) {
     activeViewSources.clear();
     pendingSourceIds = new Set();
     sourceSearchStatuses = new Map();
+    sourceSearchMeta = new Map();
     currentProfile = createFreshProfile();
     renderSources();
     fillForm(currentProfile);
@@ -2719,6 +2727,7 @@ async function runSearch() {
   isSearching = true;
   pendingSourceIds = new Set(searchGroups.filter((group) => group.id !== "mock").map((group) => group.id));
   sourceSearchStatuses = createInitialSourceStatuses(searchGroups);
+  sourceSearchMeta = new Map();
   currentResults = [];
   currentDiscoveryIds = new Set();
   setActiveTitle(profileSnapshot.name);
@@ -2800,6 +2809,7 @@ function resetToIdleSearch() {
   isSearching = false;
   pendingSourceIds = new Set();
   sourceSearchStatuses = new Map();
+  sourceSearchMeta = new Map();
   currentResults = [];
   currentDiscoveryIds = new Set();
   resetPagination();
@@ -2911,7 +2921,7 @@ function combineLiveResults(results) {
   return {
     listings,
     mode,
-    message: errors.length > 0 ? "Partial live" : `Live ${meta.liveSources.map(labelForSource).join(", ") || "live sources"}`,
+    message: errors.length > 0 ? "Partial live" : `Live ${createLiveSourceLabel(meta)}`,
     detail: createLiveDetail(listings, meta, errors),
     errors,
     meta,
@@ -2946,8 +2956,11 @@ function createInitialSourceStatuses(searchGroups) {
 function updateSourceSearchStatus(group, result) {
   group.sources.forEach((sourceId) => {
     const sourceStat = result.meta?.sourceStats?.find((item) => item.source === sourceId);
-    const state = sourceStat?.status === "parked"
-      ? "parked"
+    if (sourceStat) sourceSearchMeta.set(sourceId, sourceStat);
+    const state = sourceStat?.status === "manual"
+      ? "manual"
+      : sourceStat?.status === "parked"
+        ? "parked"
       : result.mode === "error"
         ? "error"
         : "complete";
@@ -3390,6 +3403,7 @@ function renderSourceFilters(baseResults = currentResults) {
     button.dataset.status = status || "ready";
     button.classList.toggle("is-active", activeViewSources.has(source.id));
     button.classList.toggle("is-loading", status === "loading");
+    button.classList.toggle("is-manual", status === "manual");
     button.classList.toggle("is-parked", status === "parked");
     button.classList.toggle("is-error", status === "error");
     button.classList.toggle("is-zero", status === "complete" && count === 0);
@@ -3491,6 +3505,7 @@ function shouldShowSourceFilter(source, counts) {
 
 function formatSourceFilterCount(count, status) {
   if (status === "loading") return "…";
+  if (status === "manual") return "↗";
   if (status === "parked") return "⏸";
   if (status === "error") return "!";
   return count;
@@ -3498,6 +3513,7 @@ function formatSourceFilterCount(count, status) {
 
 function getSourceFilterTitle(source, count, status) {
   if (status === "loading") return `${source.label} is still searching`;
+  if (status === "manual") return `Open ${source.label} search on Craigslist`;
   if (status === "parked") return `${source.label} is parked for beta safety`;
   if (status === "error") return `${source.label} search needs attention`;
   if (count === 0) return `${source.label} returned no matches`;
@@ -3506,9 +3522,34 @@ function getSourceFilterTitle(source, count, status) {
 
 function getSourceFilterLabel(source, count, status) {
   if (status === "loading") return `${source.label} search loading`;
+  if (status === "manual") return `Open prepared ${source.label} search in a new tab`;
   if (status === "parked") return `${source.label} search parked for beta safety`;
   if (status === "error") return `${source.label} search error`;
   return `Filter to ${source.label} results, ${count} ${count === 1 ? "match" : "matches"}`;
+}
+
+function isManualSourceStatus(sourceId) {
+  return sourceSearchStatuses.get(sourceId) === "manual";
+}
+
+function openManualSourceSearch(sourceId) {
+  const url = getManualSourceUrl(sourceId);
+  if (!url) return;
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
+function getManualSourceUrl(sourceId) {
+  const value = sourceSearchMeta.get(sourceId)?.manualUrl || "";
+  return isSafeManualSourceUrl(value) ? value : "";
+}
+
+function isSafeManualSourceUrl(value) {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && url.hostname.endsWith(".craigslist.org") && url.pathname.startsWith("/search/");
+  } catch {
+    return false;
+  }
 }
 
 function getSourceFilteredBaseResults(baseResults = currentResults) {
@@ -3583,7 +3624,7 @@ async function fetchLiveListings(profile, sourceOverride = profile.sources) {
     return {
       listings,
       mode: "live",
-      message: errors.length > 0 ? "Partial live" : `Live ${sourceLabel}`,
+      message: errors.length > 0 ? "Partial live" : `Live ${createLiveSourceLabel(meta, sourceLabel)}`,
       detail: createLiveDetail(listings, meta, errors),
       errors,
       meta,
@@ -4622,8 +4663,22 @@ function compareListings(a, b) {
 function createSourceBreakdown(sourceStats) {
   if (sourceStats.length === 0) return "";
 
-  const parts = sourceStats.map((item) => `${labelForSource(item.source)} ${item.rawCount}`);
+  const parts = sourceStats.map((item) => {
+    if (item.status === "manual") return `${labelForSource(item.source)} Assist`;
+    return `${labelForSource(item.source)} ${item.rawCount}`;
+  });
   return ` from ${parts.join(", ")}`;
+}
+
+function createLiveSourceLabel(meta = {}, fallback = "") {
+  const sourceStats = Array.isArray(meta.sourceStats) ? meta.sourceStats : [];
+  if (sourceStats.length > 0) {
+    const labels = sourceStats.map((item) => item.status === "manual" ? `${labelForSource(item.source)} Assist` : labelForSource(item.source));
+    return [...new Set(labels)].join(", ");
+  }
+
+  const liveSources = Array.isArray(meta.liveSources) ? meta.liveSources : [];
+  return liveSources.map(labelForSource).join(", ") || fallback || "live sources";
 }
 
 function renderSavedSearches() {
@@ -4747,6 +4802,7 @@ function applyActiveRegion(regionId) {
   activeViewSources.clear();
   pendingSourceIds = new Set();
   sourceSearchStatuses = new Map();
+  sourceSearchMeta = new Map();
   renderSources();
   renderSourceFilters();
   renderRefineSummary();
