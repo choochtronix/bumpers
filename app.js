@@ -586,6 +586,7 @@ const STORAGE_KEYS = {
   authSession: "bumpers.authSession",
   cloudSyncMeta: "bumpers.cloudSyncMeta",
   listingLedger: "bumpers.listingLedger",
+  freshFindCache: "bumpers.freshFindCache",
   feedbackRules: "bumpers.feedbackRules",
 };
 
@@ -3867,11 +3868,16 @@ function createFeaturedHomeHeader(count, options = {}) {
   const isStarterLive = Boolean(options.isStarterLive);
   const isStarterLoading = Boolean(options.isStarterLoading);
   const isWatched = options.variant === "watched";
+  const isCached = Boolean(options.isCached);
   const seedLabel = starterFreshFindTerms.length > 0 ? starterFreshFindTerms.join(" + ") : "vintage synths";
   header.innerHTML = `
     <h3>${isWatched ? "Watched Gear" : "Fresh Finds"}</h3>
     <span>${isWatched
       ? `${count} watched ${count === 1 ? "listing" : "listings"} saved to your profile`
+      : isCached && starterFreshFindStatus === "loading"
+        ? `${count} cached ${count === 1 ? "find" : "finds"} showing while Brrtz refreshes`
+      : isCached
+        ? `${count} cached ${count === 1 ? "find" : "finds"} from the last successful scan`
       : isStarterLive
       ? `${count} live ${count === 1 ? "listing" : "listings"} from ${seedLabel}`
       : isStarterLoading
@@ -3888,6 +3894,7 @@ function createFeaturedHomeSection(listings, options = {}) {
   const isStarter = listings.some((listing) => listing.isStarterFreshFind);
   const isStarterLive = listings.some((listing) => listing.isStarterLiveFreshFind);
   const isStarterLoading = isStarter && starterFreshFindStatus === "loading";
+  const isCached = listings.some((listing) => listing.isFreshFindCached);
   const variant = options.variant || "fresh";
   const section = document.createElement("section");
   section.className = [
@@ -3898,7 +3905,7 @@ function createFeaturedHomeSection(listings, options = {}) {
     isStarterLoading ? "is-loading-starter-fresh-finds" : "",
   ].filter(Boolean).join(" ");
   section.setAttribute("aria-label", variant === "watched" ? "Watched Gear" : "Fresh Finds");
-  section.appendChild(createFeaturedHomeHeader(listings.length, { isStarter, isStarterLive, isStarterLoading, variant }));
+  section.appendChild(createFeaturedHomeHeader(listings.length, { isStarter, isStarterLive, isStarterLoading, isCached, variant }));
 
   const carousel = document.createElement("div");
   carousel.className = "featured-home-carousel";
@@ -3980,9 +3987,75 @@ function setupFeaturedHomeCarousel(rail, previousButton, nextButton) {
 }
 
 function getFreshFindHomeListings() {
-  if (starterFreshFindStatus === "loading") return createFreshFindLoadingPlaceholders();
   if (starterFreshFindListings.length > 0) return curateFreshFindListings(starterFreshFindListings);
+  const cachedListings = getCachedFreshFindListings();
+  if (cachedListings.length > 0) return cachedListings;
+  if (starterFreshFindStatus === "loading") return createFreshFindLoadingPlaceholders();
   return STARTER_FRESH_FIND_LISTINGS;
+}
+
+function getCachedFreshFindListings() {
+  const cache = loadFreshFindCache();
+  const regionCache = cache[getActiveRegion().id];
+  const listings = Array.isArray(regionCache?.listings) ? regionCache.listings : [];
+
+  return curateFreshFindListings(listings)
+    .map((listing) => ({
+      ...listing,
+      isFreshFindCached: true,
+      freshFindCachedAt: regionCache?.generatedAt || "",
+    }));
+}
+
+function loadFreshFindCache() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEYS.freshFindCache) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function saveFreshFindCache(listings) {
+  if (!Array.isArray(listings) || listings.length === 0) return;
+
+  const cache = loadFreshFindCache();
+  const regionId = getActiveRegion().id;
+  cache[regionId] = {
+    regionId,
+    generatedAt: new Date().toISOString(),
+    terms: [...starterFreshFindTerms],
+    listings: listings.slice(0, FEATURED_HOME_LIMIT).map(serializeFreshFindCacheListing),
+  };
+
+  try {
+    localStorage.setItem(STORAGE_KEYS.freshFindCache, JSON.stringify(cache));
+  } catch (error) {
+    if (!isStorageQuotaError(error)) throw error;
+    cache[regionId].listings = cache[regionId].listings.slice(0, Math.ceil(FEATURED_HOME_LIMIT / 2));
+    localStorage.setItem(STORAGE_KEYS.freshFindCache, JSON.stringify(cache));
+  }
+}
+
+function serializeFreshFindCacheListing(listing) {
+  return {
+    id: listing.id,
+    source: listing.source,
+    title: listing.title,
+    price: listing.price,
+    priceLabel: listing.priceLabel || "",
+    url: listing.url,
+    image: listing.image,
+    shop: listing.shop || "",
+    condition: listing.condition || "",
+    availability: listing.availability || "",
+    itemStatus: listing.itemStatus || "",
+    categoryId: listing.categoryId || "",
+    categoryPath: Array.isArray(listing.categoryPath) ? listing.categoryPath : [],
+    listedAt: listing.listedAt || "",
+    firstSeenAt: listing.firstSeenAt || "",
+    lastVerifiedAt: listing.lastVerifiedAt || "",
+    isStarterLiveFreshFind: true,
+  };
 }
 
 function getWatchedHomeListings(watchingIds = loadSet(STORAGE_KEYS.watching)) {
