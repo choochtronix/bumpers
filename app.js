@@ -722,6 +722,7 @@ function initialize() {
 }
 
 function initializeBrandWave() {
+  const waveSurface = document.querySelector(".app-header");
   const svg = document.querySelector(".brand-wave-svg");
   const sinePath = document.querySelector("#sinePath");
   if (!svg || !sinePath) return;
@@ -793,9 +794,16 @@ function initializeBrandWave() {
       + Math.sin(x * 0.83 + now * 0.014) * 0.25;
   }
 
+  function getPointerClientX(event) {
+    if (typeof event?.clientX === "number") return event.clientX;
+    const touch = event?.touches?.[0] || event?.changedTouches?.[0];
+    return typeof touch?.clientX === "number" ? touch.clientX : null;
+  }
+
   function svgX(event) {
     const rect = svg.getBoundingClientRect();
-    return (event.clientX - rect.left) * (W / rect.width);
+    const clientX = getPointerClientX(event) ?? rect.left + rect.width / 2;
+    return (clientX - rect.left) * (W / rect.width);
   }
 
   function buildBezier(points) {
@@ -1030,10 +1038,21 @@ function initializeBrandWave() {
     requestAnimationFrame(render);
   }
 
-  async function wake(event) {
-    const freshEntry = event?.clientX !== undefined && hoverStart === null;
+  function isInteractiveActivation(event) {
+    const target = event?.target;
+    if (!(target instanceof Element)) return false;
+    const interactive = target.closest("button, input, textarea, select, summary, a[href], [role='button'], .saved-popover");
+    return Boolean(interactive && !target.closest("#brandHomeLink"));
+  }
 
-    if (event?.clientX !== undefined) {
+  async function wake(event) {
+    if (event?.target instanceof Element && event.target.closest(".saved-popover")) return;
+    if ((event?.type === "pointerdown" || event?.type === "touchstart") && isInteractiveActivation(event)) return;
+
+    const clientX = getPointerClientX(event);
+    const freshEntry = clientX !== null && hoverStart === null;
+
+    if (clientX !== null) {
       pointerActive = true;
       pointerX = svgX(event);
       if (hoverStart === null) hoverStart = performance.now();
@@ -1045,11 +1064,7 @@ function initializeBrandWave() {
     engageAudio();
   }
 
-  svg.addEventListener("pointerenter", wake);
-  svg.addEventListener("pointermove", wake);
-  svg.addEventListener("pointerdown", wake);
-  svg.addEventListener("touchstart", wake, { passive: true });
-  svg.addEventListener("pointerleave", () => {
+  function sleep() {
     pointerActive = false;
     hoverStart = null;
     arpMode = false;
@@ -1057,7 +1072,14 @@ function initializeBrandWave() {
     osc2ArpSeq = [];
     arpIdx = 0;
     releaseAudio();
-  });
+  }
+
+  const interactionSurface = waveSurface || svg;
+  interactionSurface.addEventListener("pointerenter", wake);
+  interactionSurface.addEventListener("pointermove", wake);
+  interactionSurface.addEventListener("pointerdown", wake);
+  interactionSurface.addEventListener("touchstart", wake, { passive: true });
+  interactionSurface.addEventListener("pointerleave", sleep);
 
   document.addEventListener("visibilitychange", async () => {
     if (!audioCtx) return;
