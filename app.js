@@ -734,20 +734,31 @@ let savedSearchAutoSyncTimer = 0;
 let profileAutoSyncTimer = 0;
 let isSavedSearchAutoSyncing = false;
 let isProfileAutoSyncing = false;
+let eventsBound = false;
 
 function initialize() {
-  applyStoredTheme();
-  initializeBrandWave();
-  renderSources();
-  fillForm(currentProfile);
-  setActiveTitle(currentProfile.name);
-  renderSavedSearches();
-  updateSearchStatus();
-  renderResults();
   bindEvents();
-  updateBackToTopVisibility();
-  updateMobileSearchOverlayVisibility();
-  initializeAuth();
+  runStartupStep("stored theme", applyStoredTheme);
+  runStartupStep("brand wave", initializeBrandWave);
+  runStartupStep("sources", renderSources);
+  runStartupStep("active profile", () => {
+    fillForm(currentProfile);
+    setActiveTitle(currentProfile.name);
+  });
+  runStartupStep("saved searches", renderSavedSearches);
+  runStartupStep("search status", updateSearchStatus);
+  runStartupStep("results", renderResults);
+  runStartupStep("back to top", updateBackToTopVisibility);
+  runStartupStep("mobile search overlay", updateMobileSearchOverlayVisibility);
+  runStartupStep("auth", initializeAuth);
+}
+
+function runStartupStep(label, action) {
+  try {
+    action();
+  } catch (error) {
+    console.error(`Brrtz startup step failed: ${label}`, error);
+  }
 }
 
 function initializeBrandWave() {
@@ -1124,6 +1135,8 @@ function initializeBrandWave() {
 }
 
 function bindEvents() {
+  if (eventsBound) return;
+
   brandHomeLink.addEventListener("click", resetHomeView);
   searchForm.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -1309,6 +1322,9 @@ function bindEvents() {
     if (!saveSearchModal.hidden) closeSaveSearchModal();
     if (!settingsModal.hidden) closeSettingsModal();
   });
+
+  eventsBound = true;
+  window.__brrtzAppReady = true;
 }
 
 function resetHomeView(event) {
@@ -3916,9 +3932,9 @@ function createFeaturedHomeHeader(count, options = {}) {
     <span>${isWatched
       ? `${count} watched ${count === 1 ? "listing" : "listings"} saved to your profile`
       : isCached && starterFreshFindStatus === "loading"
-        ? `${count} cached ${count === 1 ? "find" : "finds"} showing while Brrtz refreshes`
+        ? "Fresh picks are updating now"
       : isCached
-        ? `${count} cached ${count === 1 ? "find" : "finds"} from the last successful scan`
+        ? "Recently spotted synth finds"
       : isStarterLive
       ? `${count} live ${count === 1 ? "listing" : "listings"} from ${seedLabel}`
       : isStarterLoading

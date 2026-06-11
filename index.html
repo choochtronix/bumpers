@@ -521,6 +521,13 @@ stand
       </article>
     </template>
 
+    <script>
+      window.__brrtzAppReady = false;
+      document.addEventListener("submit", (event) => {
+        if (window.__brrtzAppReady || event.target?.id !== "searchForm") return;
+        event.preventDefault();
+      }, true);
+    </script>
     <script src="regions.js"></script>
     <script src="app.js"></script>
   </body>
