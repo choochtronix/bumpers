@@ -36,6 +36,32 @@ const ACTIVE_REGION = REGION_CONFIG?.activeRegion || {
 const RESULTS_PER_PAGE = 48;
 const FEATURED_HOME_LIMIT = 12;
 const FEATURED_HOME_ALERT_LIMIT = 6;
+const FRESH_FIND_STALE_HOURS = 72;
+const FRESH_FIND_STALE_MS = FRESH_FIND_STALE_HOURS * 60 * 60 * 1000;
+const FRESH_FIND_CURATOR_TERMS = [
+  "arp",
+  "cs-",
+  "drum machine",
+  "dx7",
+  "eurorack",
+  "juno",
+  "jupiter",
+  "korg",
+  "moog",
+  "oberheim",
+  "prophet",
+  "roland",
+  "sampler",
+  "sequential",
+  "sequential circuits",
+  "sh-",
+  "synth",
+  "synthesizer",
+  "tb-",
+  "tr-",
+  "vintage",
+  "waldorf",
+];
 const SOURCE_ACCENT_TOKENS = {
   mercari: "--source-mercari",
   "yahoo-auctions": "--source-yahoo-auctions",
@@ -3895,11 +3921,13 @@ function getFeaturedHomeListings(watchingIds = loadSet(STORAGE_KEYS.watching)) {
     .filter((listing) => listing.title && listing.url)
     .filter((listing) => !isUnavailableListing(listing))
     .filter((listing) => qualityFilter === "all" || isCleanGearListing(listing))
-    .sort((a, b) => new Date(b.lastFoundAt || b.listedAt) - new Date(a.lastFoundAt || a.listedAt))
-    .slice(0, FEATURED_HOME_LIMIT);
+    .filter((listing) => !isStaleFreshFind(listing, ledger))
+    .sort((a, b) => scoreFreshFindListing(b, ledger) - scoreFreshFindListing(a, ledger))
+    .slice(0, FEATURED_HOME_LIMIT)
+    .map((listing) => decorateFreshFindListing(listing, ledger));
 
   if (watchedListings.length > 0) return watchedListings;
-  if (starterFreshFindListings.length > 0) return starterFreshFindListings;
+  if (starterFreshFindListings.length > 0) return curateFreshFindListings(starterFreshFindListings);
   return STARTER_FRESH_FIND_LISTINGS;
 }
 
@@ -3952,12 +3980,100 @@ async function fetchStarterFreshFindListings() {
     .filter((listing) => isCleanGearListing(listing))
     .filter((listing) => !hasStarterFreshFindNoise(listing))
     .filter((listing) => matchesStarterFreshFindTerm(listing) || hasStarterGearSignal(listing))
-    .sort((a, b) => new Date(b.listedAt) - new Date(a.listedAt))
-    .slice(0, FEATURED_HOME_LIMIT)
     .map((listing) => ({
       ...listing,
       isStarterLiveFreshFind: true,
     }));
+  const curatedListings = curateFreshFindListings(listings);
+  if (curatedListings.length > 0) {
+    recordListingDiscoveries({ name: "Fresh Finds" }, curatedListings);
+  }
+  return curatedListings;
+}
+
+function curateFreshFindListings(listings, options = {}) {
+  const limit = options.limit || FEATURED_HOME_LIMIT;
+  const ledger = loadLedger();
+  const seenIds = new Set();
+
+  return listings
+    .filter((listing) => {
+      if (!listing?.id || seenIds.has(listing.id)) return false;
+      seenIds.add(listing.id);
+      return true;
+    })
+    .filter((listing) => !isUnavailableListing(listing))
+    .filter((listing) => !isStaleFreshFind(listing, ledger))
+    .filter((listing) => qualityFilter === "all" || isCleanGearListing(listing))
+    .sort((a, b) => {
+      const scoreDelta = scoreFreshFindListing(b, ledger) - scoreFreshFindListing(a, ledger);
+      if (scoreDelta !== 0) return scoreDelta;
+      return getFreshFindTime(b, ledger) - getFreshFindTime(a, ledger);
+    })
+    .slice(0, limit)
+    .map((listing) => decorateFreshFindListing(listing, ledger));
+}
+
+function scoreFreshFindListing(listing, ledger = loadLedger()) {
+  if (listing.isStarterFreshFind) return 0;
+
+  const searchable = normalizeText(`${listing.title || ""} ${listing.condition || ""} ${listing.shop || ""}`);
+  const confidence = scoreGearConfidence(listing);
+  const entry = ledger[listing.id] || {};
+  let score = 0;
+
+  if (listing.image) score += 8;
+  if (confidence.level === "likely-gear") score += 28;
+  if (confidence.level === "maybe-gear") score += 10;
+  if (confidence.level === "likely-noise") score -= 40;
+  score += Math.min(countMatchingTerms(searchable, FRESH_FIND_CURATOR_TERMS) * 5, 30);
+  score += Math.min(countBrandModelSignals(searchable) * 6, 24);
+  score -= countMatchingTerms(searchable, STARTER_FRESH_FIND_EXCLUDES) * 8;
+  if (listing.price > 0) score += 3;
+
+  const ageHours = getFreshFindAgeHours(listing, entry);
+  if (Number.isFinite(ageHours)) {
+    score += Math.max(0, 18 - ageHours / 2);
+  }
+
+  return score;
+}
+
+function decorateFreshFindListing(listing, ledger = loadLedger()) {
+  const entry = ledger[listing.id] || {};
+  return {
+    ...listing,
+    firstSeenAt: entry.firstSeenAt || entry.firstDiscoveredAt || listing.firstSeenAt || listing.listedAt || "",
+    lastVerifiedAt: entry.lastVerifiedAt || entry.lastSeenAt || entry.lastFoundAt || listing.lastVerifiedAt || "",
+    freshnessStatus: entry.freshnessStatus || "active",
+    curationScore: scoreFreshFindListing(listing, ledger),
+  };
+}
+
+function isStaleFreshFind(listing, ledger = loadLedger()) {
+  const entry = ledger[listing.id] || {};
+  if (["stale", "unavailable"].includes(entry.freshnessStatus)) return true;
+  if (isUnavailableListing(listing)) return true;
+
+  const lastSeenAt = entry.lastVerifiedAt || entry.lastSeenAt || entry.lastFoundAt || listing.lastVerifiedAt || "";
+  const lastSeenTime = Date.parse(lastSeenAt);
+  if (!Number.isFinite(lastSeenTime)) return false;
+
+  return Date.now() - lastSeenTime > FRESH_FIND_STALE_MS;
+}
+
+function getFreshFindAgeHours(listing, entry = {}) {
+  const firstSeenAt = entry.firstSeenAt || entry.firstDiscoveredAt || listing.firstSeenAt || listing.listedAt || "";
+  const firstSeenTime = Date.parse(firstSeenAt);
+  if (!Number.isFinite(firstSeenTime)) return Infinity;
+  return (Date.now() - firstSeenTime) / (60 * 60 * 1000);
+}
+
+function getFreshFindTime(listing, ledger = loadLedger()) {
+  const entry = ledger[listing.id] || {};
+  const value = entry.firstSeenAt || entry.firstDiscoveredAt || listing.firstSeenAt || listing.listedAt || "";
+  const time = Date.parse(value);
+  return Number.isFinite(time) ? time : 0;
 }
 
 function matchesStarterFreshFindTerm(listing) {
@@ -5086,6 +5202,8 @@ function createLedgerEntry(listing, previous = {}, options = {}) {
   const now = new Date().toISOString();
   const profileNames = new Set(previous.profileNames || []);
   if (options.profileName) profileNames.add(options.profileName);
+  const lastSeenAt = options.lastFoundAt || now;
+  const unavailable = isUnavailableListing(listing);
 
   return {
     ...previous,
@@ -5103,7 +5221,11 @@ function createLedgerEntry(listing, previous = {}, options = {}) {
     categoryPath: Array.isArray(listing.categoryPath) ? listing.categoryPath : previous.categoryPath || [],
     listedAt: listing.listedAt || previous.listedAt || "",
     firstDiscoveredAt: previous.firstDiscoveredAt || now,
+    firstSeenAt: previous.firstSeenAt || previous.firstDiscoveredAt || now,
     lastFoundAt: options.lastFoundAt || previous.lastFoundAt || now,
+    lastSeenAt,
+    lastVerifiedAt: lastSeenAt,
+    freshnessStatus: unavailable ? "unavailable" : "active",
     profileNames: [...profileNames],
   };
 }
