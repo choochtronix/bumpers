@@ -3113,7 +3113,7 @@ function renderResults() {
 }
 
 function renderHomeView(watching) {
-  const freshFindResults = getFreshFindHomeListings();
+  const freshFindResults = filterMode === "watching" ? [] : getFreshFindHomeListings();
   const watchedHomeResults = getWatchedHomeListings(watching);
   const homeResults = [...freshFindResults, ...watchedHomeResults];
   const isShowingFeaturedHome = homeResults.length > 0;
@@ -3133,10 +3133,12 @@ function renderHomeView(watching) {
   }
 
   if (homeResults.length === 0) {
-    resultGrid.innerHTML = `<div class="empty-state"><strong>Start a fresh search.</strong><span>${searchState.detail}</span></div>`;
+    resultGrid.innerHTML = filterMode === "watching"
+      ? `<div class="empty-state"><strong>No watched gear yet.</strong><span>Tap a heart on any listing to save it here.</span></div>`
+      : `<div class="empty-state"><strong>Start a fresh search.</strong><span>${searchState.detail}</span></div>`;
   }
 
-  renderPagination(0, 1);
+  renderPagination(homeResults.length, 1);
   renderQualityModeControls();
   renderResultViewControls(isShowingFeaturedHome);
   renderTopWatchingControl();
@@ -3745,7 +3747,9 @@ function renderListing(listing, options = {}) {
     }, 1200);
   });
 
-  watchButton.addEventListener("click", () => {
+  watchButton.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
     const next = new Set(loadSet(STORAGE_KEYS.watching));
     if (next.has(listing.id)) {
       next.delete(listing.id);
@@ -3758,17 +3762,23 @@ function renderListing(listing, options = {}) {
     renderResults();
   });
 
-  hideSimilarButton.addEventListener("click", () => {
+  hideSimilarButton.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
     saveListingFeedback(listing, "hide-similar");
     renderResults();
   });
 
-  gearButton.addEventListener("click", () => {
+  gearButton.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
     saveListingFeedback(listing, "gear");
     renderResults();
   });
 
-  noiseButton.addEventListener("click", () => {
+  noiseButton.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
     saveListingFeedback(listing, "noise");
     renderResults();
   });
