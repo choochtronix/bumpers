@@ -2235,7 +2235,7 @@ async function pullCloudProfilePreferences(options = {}) {
     const message = error instanceof Error ? error.message : "Could not pull profile preferences.";
     if (isCloudAuthSessionError(message)) clearInvalidCloudSession(message);
     if (!options.silent) setAccountStatus(message);
-    if (options.surfaceErrors) throw new Error(message);
+    if (options.surfaceErrors) throw error instanceof Error ? error : new Error(message);
     if (options.silent) return null;
     throw error;
   }
@@ -2286,51 +2286,64 @@ async function putCloudProfile(payload) {
 }
 
 function applyCloudPreferences(preferences = {}) {
-  const previousRegionId = sanitizeRegionId(appSettings.regionId);
-  const nextSettings = hydrateSettings({
-    ...appSettings,
-    regionId: preferences.regionId || appSettings.regionId,
-    currency: preferences.currency || appSettings.currency,
-    jpyPerUsd: preferences.jpyPerUsd || appSettings.jpyPerUsd,
-    resultView: preferences.resultView || appSettings.resultView,
-  });
-  appSettings = nextSettings;
-  localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(appSettings));
-  const regionChanged = previousRegionId !== sanitizeRegionId(appSettings.regionId);
+  let applyStep = "normalizing cloud settings";
 
-  if (preferences.theme === "light" || preferences.theme === "dark") {
-    setTheme(preferences.theme);
-  }
-
-  if (Array.isArray(preferences.watchedListingIds)) {
-    saveSet(STORAGE_KEYS.watching, preferences.watchedListingIds);
-  }
-
-  if (preferences.watchedListingLedger && typeof preferences.watchedListingLedger === "object") {
-    saveLedger({
-      ...loadLedger(),
-      ...preferences.watchedListingLedger,
+  try {
+    const previousRegionId = sanitizeRegionId(appSettings.regionId);
+    const nextSettings = hydrateSettings({
+      ...appSettings,
+      regionId: preferences.regionId || appSettings.regionId,
+      currency: preferences.currency || appSettings.currency,
+      jpyPerUsd: preferences.jpyPerUsd || appSettings.jpyPerUsd,
+      resultView: preferences.resultView || appSettings.resultView,
     });
-  }
+    appSettings = nextSettings;
+    localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(appSettings));
+    const regionChanged = previousRegionId !== sanitizeRegionId(appSettings.regionId);
 
-  if (preferences.feedbackRules && typeof preferences.feedbackRules === "object") {
-    saveFeedbackRules(preferences.feedbackRules, { skipSync: true });
-  }
+    applyStep = "applying theme";
+    if (preferences.theme === "light" || preferences.theme === "dark") {
+      setTheme(preferences.theme);
+    }
 
-  fillSettingsForm();
-  if (regionChanged) {
-    qualityFilter = getActiveRegion().searchDefaults?.cleanGear === false ? "all" : "clean";
-    activeViewSources.clear();
-    pendingSourceIds = new Set();
-    sourceSearchStatuses = new Map();
-    sourceSearchMeta = new Map();
-    currentProfile = createFreshProfile();
-    renderSources();
-    fillForm(currentProfile);
-    resetToIdleSearch();
-  } else {
-    renderRefineSummary();
-    renderResults();
+    applyStep = "applying watched listing IDs";
+    if (Array.isArray(preferences.watchedListingIds)) {
+      saveSet(STORAGE_KEYS.watching, preferences.watchedListingIds);
+    }
+
+    applyStep = "applying watched listing ledger";
+    if (preferences.watchedListingLedger && typeof preferences.watchedListingLedger === "object") {
+      saveLedger({
+        ...loadLedger(),
+        ...sanitizeListingLedger(preferences.watchedListingLedger),
+      });
+    }
+
+    applyStep = "applying feedback rules";
+    if (preferences.feedbackRules && typeof preferences.feedbackRules === "object") {
+      saveFeedbackRules(sanitizeFeedbackRules(preferences.feedbackRules), { skipSync: true });
+    }
+
+    applyStep = "refreshing settings form";
+    fillSettingsForm();
+    if (regionChanged) {
+      applyStep = "refreshing region view";
+      qualityFilter = getActiveRegion().searchDefaults?.cleanGear === false ? "all" : "clean";
+      activeViewSources.clear();
+      pendingSourceIds = new Set();
+      sourceSearchStatuses = new Map();
+      sourceSearchMeta = new Map();
+      currentProfile = createFreshProfile();
+      renderSources();
+      fillForm(currentProfile);
+      resetToIdleSearch();
+    } else {
+      applyStep = "refreshing current results";
+      renderRefineSummary();
+      renderResults();
+    }
+  } catch (error) {
+    throw new Error(`Could not apply cloud profile preferences while ${applyStep}. ${getErrorMessage(error)}`);
   }
 }
 
@@ -4599,12 +4612,23 @@ function saveFeedbackRules(value, options = {}) {
   if (!options.skipSync) queueProfileAutoSync("feedback-rules");
 }
 
+function sanitizeFeedbackRules(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([profileKey]) => typeof profileKey === "string" && profileKey.trim())
+      .map(([profileKey, feedback]) => [profileKey, hydrateFeedback(feedback)])
+  );
+}
+
 function hydrateFeedback(feedback = {}) {
+  const value = feedback && typeof feedback === "object" && !Array.isArray(feedback) ? feedback : {};
   return {
-    gearListingIds: Array.isArray(feedback.gearListingIds) ? feedback.gearListingIds : [],
-    noiseListingIds: Array.isArray(feedback.noiseListingIds) ? feedback.noiseListingIds : [],
-    hiddenCategories: Array.isArray(feedback.hiddenCategories) ? feedback.hiddenCategories : [],
-    hiddenTerms: Array.isArray(feedback.hiddenTerms) ? feedback.hiddenTerms : [],
+    gearListingIds: normalizeStoredList(value.gearListingIds),
+    noiseListingIds: normalizeStoredList(value.noiseListingIds),
+    hiddenCategories: normalizeStoredList(value.hiddenCategories),
+    hiddenTerms: normalizeStoredList(value.hiddenTerms),
   };
 }
 
@@ -5238,6 +5262,10 @@ function isNonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;
 }
 
+function getErrorMessage(error) {
+  return error instanceof Error ? error.message : String(error || "Unknown error");
+}
+
 function isIsoTimestamp(value) {
   return typeof value === "string" && !Number.isNaN(Date.parse(value));
 }
@@ -5433,21 +5461,49 @@ function normalizeStoredList(values) {
 
 function loadLedger() {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEYS.listingLedger) || "{}");
+    return sanitizeListingLedger(JSON.parse(localStorage.getItem(STORAGE_KEYS.listingLedger) || "{}"));
   } catch {
     return {};
   }
 }
 
+function sanitizeListingLedger(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([id, entry]) => typeof id === "string" && id.trim() && entry && typeof entry === "object" && !Array.isArray(entry))
+      .map(([id, entry]) => [id, sanitizeListingLedgerEntry(id, entry)])
+  );
+}
+
+function sanitizeListingLedgerEntry(id, entry) {
+  return {
+    ...entry,
+    id: typeof entry.id === "string" && entry.id.trim() ? entry.id : id,
+    source: typeof entry.source === "string" ? entry.source : "",
+    title: typeof entry.title === "string" ? entry.title : "",
+    url: typeof entry.url === "string" ? entry.url : "",
+    image: typeof entry.image === "string" ? entry.image : "",
+    shop: typeof entry.shop === "string" ? entry.shop : "",
+    condition: typeof entry.condition === "string" ? entry.condition : "",
+    availability: typeof entry.availability === "string" ? entry.availability : "",
+    itemStatus: typeof entry.itemStatus === "string" ? entry.itemStatus : "",
+    categoryId: typeof entry.categoryId === "string" ? entry.categoryId : "",
+    categoryPath: cleanStringArray(entry.categoryPath),
+    profileNames: normalizeStoredList(entry.profileNames),
+  };
+}
+
 function saveLedger(ledger) {
   try {
-    localStorage.setItem(STORAGE_KEYS.listingLedger, JSON.stringify(ledger));
+    localStorage.setItem(STORAGE_KEYS.listingLedger, JSON.stringify(sanitizeListingLedger(ledger)));
   } catch (error) {
     if (!isStorageQuotaError(error)) throw error;
     const entries = Object.entries(ledger)
       .sort(([, first], [, second]) => new Date(second.lastFoundAt || second.listedAt || 0) - new Date(first.lastFoundAt || first.listedAt || 0))
       .slice(0, 250);
-    localStorage.setItem(STORAGE_KEYS.listingLedger, JSON.stringify(Object.fromEntries(entries)));
+    localStorage.setItem(STORAGE_KEYS.listingLedger, JSON.stringify(sanitizeListingLedger(Object.fromEntries(entries))));
   }
 }
 
@@ -5535,9 +5591,10 @@ function setTheme(theme) {
   localStorage.setItem(STORAGE_KEYS.theme, theme);
 
   const isDark = theme === "dark";
-  themeToggle.querySelector(".theme-icon").textContent = isDark ? "☀" : "◐";
-  themeToggle.setAttribute("aria-label", isDark ? "Switch to light mode" : "Switch to dark mode");
-  themeToggle.setAttribute("title", isDark ? "Switch to light mode" : "Switch to dark mode");
+  const themeIcon = themeToggle?.querySelector(".theme-icon");
+  if (themeIcon) themeIcon.textContent = isDark ? "☀" : "◐";
+  themeToggle?.setAttribute("aria-label", isDark ? "Switch to light mode" : "Switch to dark mode");
+  themeToggle?.setAttribute("title", isDark ? "Switch to light mode" : "Switch to dark mode");
   if (themeSettingsToggle) themeSettingsToggle.checked = isDark;
 }
 
