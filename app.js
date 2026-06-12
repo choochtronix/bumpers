@@ -2190,23 +2190,32 @@ async function saveSettingsFromModal() {
 async function syncAccountCloudData() {
   setAccountStatus("Syncing account profile and saved searches...");
   setCloudSyncButtonsDisabled(true);
+  let syncStep = "starting account sync";
 
   try {
+    syncStep = "pushing profile preferences";
     await pushCloudProfilePreferences({ silent: true, surfaceErrors: true });
+    syncStep = "pulling profile preferences";
     await pullCloudProfilePreferences({ silent: true, surfaceErrors: true });
+    syncStep = "pushing saved searches";
     await pushCloudSavedSearches({
       allowEmpty: true,
       checkConflicts: true,
       rethrow: true,
     });
+    syncStep = "pulling saved searches";
     await pullCloudSavedSearches({ rethrow: true });
     authState.accountNotice = "";
     markCloudSynced();
     setAccountStatus("Account profile and saved searches are synced.");
   } catch (error) {
-    authState.accountNotice = error instanceof Error ? error.message : "Could not sync account data.";
+    console.error(`Account sync failed while ${syncStep}.`, error);
+    const errorMessage = error instanceof Error ? error.message : "Could not sync account data.";
+    authState.accountNotice = /^Cannot read properties/i.test(errorMessage)
+      ? `Account sync failed while ${syncStep}. ${errorMessage}`
+      : errorMessage;
     if (isCloudAuthSessionError(authState.accountNotice)) clearInvalidCloudSession(authState.accountNotice);
-    setAccountStatus(error instanceof Error ? error.message : "Could not sync account data.");
+    setAccountStatus(authState.accountNotice);
   } finally {
     setCloudSyncButtonsDisabled(false);
   }
@@ -2294,7 +2303,7 @@ function applyCloudPreferences(preferences = {}) {
   }
 
   if (Array.isArray(preferences.watchedListingIds)) {
-    saveSet(STORAGE_KEYS.watching, new Set(preferences.watchedListingIds));
+    saveSet(STORAGE_KEYS.watching, preferences.watchedListingIds);
   }
 
   if (preferences.watchedListingLedger && typeof preferences.watchedListingLedger === "object") {
@@ -2341,7 +2350,7 @@ function getLocalPreferencePayload() {
 
 function getWatchedListingLedger(watchedListingIds = loadSet(STORAGE_KEYS.watching)) {
   const ledger = loadLedger();
-  return watchedListingIds.reduce((selected, id) => {
+  return normalizeStoredList(watchedListingIds).reduce((selected, id) => {
     if (ledger[id]) selected[id] = ledger[id];
     return selected;
   }, {});
@@ -2593,6 +2602,7 @@ function getCloudSyncUser() {
 function setCloudSyncButtonsDisabled(disabled) {
   pullCloudSavedSearchesButton.disabled = disabled;
   pushCloudSavedSearchesButton.disabled = disabled;
+  if (syncAccountSavedSearchesButton) syncAccountSavedSearchesButton.disabled = disabled;
 }
 
 function prepareLocalProfileForCloud(profile, syncedAt = new Date().toISOString()) {
@@ -4149,7 +4159,7 @@ function serializeFreshFindCacheListing(listing) {
 
 function getWatchedHomeListings(watchingIds = loadSet(STORAGE_KEYS.watching)) {
   const ledger = loadLedger();
-  return watchingIds
+  return normalizeStoredList(watchingIds)
     .map((id) => ledger[id])
     .filter(Boolean)
     .map(createListingFromLedgerEntry)
@@ -5392,14 +5402,33 @@ function uniqueTerms(terms) {
 
 function loadSet(key) {
   try {
-    return JSON.parse(localStorage.getItem(key) || "[]");
+    return normalizeStoredList(JSON.parse(localStorage.getItem(key) || "[]"));
   } catch {
     return [];
   }
 }
 
 function saveSet(key, values) {
-  localStorage.setItem(key, JSON.stringify([...values]));
+  localStorage.setItem(key, JSON.stringify(normalizeStoredList(values)));
+}
+
+function normalizeStoredList(values) {
+  const sourceValues = values instanceof Set
+    ? [...values]
+    : Array.isArray(values)
+      ? values
+      : values && typeof values !== "string" && typeof values[Symbol.iterator] === "function"
+        ? [...values]
+        : [];
+  const seen = new Set();
+
+  return sourceValues
+    .map((value) => String(value || "").trim())
+    .filter((value) => {
+      if (!value || seen.has(value)) return false;
+      seen.add(value);
+      return true;
+    });
 }
 
 function loadLedger() {
@@ -5452,7 +5481,7 @@ function recordListingSnapshot(listing) {
 
 function createLedgerEntry(listing, previous = {}, options = {}) {
   const now = new Date().toISOString();
-  const profileNames = new Set(previous.profileNames || []);
+  const profileNames = new Set(normalizeStoredList(previous.profileNames));
   if (options.profileName) profileNames.add(options.profileName);
   const lastSeenAt = options.lastFoundAt || now;
   const unavailable = isUnavailableListing(listing);
