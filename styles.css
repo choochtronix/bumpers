@@ -1916,6 +1916,12 @@ body[data-theme="dark"] .bumpers-secondary-button:focus-visible .refine-icon {
     color 140ms ease;
 }
 
+.source-filter-source.has-single-digit-count {
+  min-width: 50px;
+  gap: 2px;
+  padding-right: 7px;
+}
+
 .source-filter-list.is-collapsed .source-filter-source {
   flex: 0 0 0;
   width: 0;
@@ -1995,6 +2001,10 @@ body[data-theme="dark"] .source-filter-button.is-active {
 .source-filter-source .source-count {
   min-width: 1ch;
   margin-left: 0;
+}
+
+.source-filter-source.has-single-digit-count .source-count {
+  min-width: 0.72ch;
 }
 
 .source-filter-all {
@@ -3967,6 +3977,12 @@ body[data-theme="dark"] .listing-card.is-watched-home-card {
   padding: 5px 9px 5px 5px;
 }
 
+.source-filter-source.has-single-digit-count {
+  min-width: 54px;
+  gap: 2px;
+  padding-right: 8px;
+}
+
 .source-filter-button .source-filter-avatar {
   width: 30px;
   height: 30px;
@@ -4522,6 +4538,12 @@ body[data-theme="dark"] .refine-backdrop {
     gap: 3px;
     padding-right: 8px;
     padding-left: 4px;
+  }
+
+  .source-filter-source.has-single-digit-count {
+    min-width: 52px;
+    gap: 1px;
+    padding-right: 7px;
   }
 
   .source-filter-button .source-filter-avatar {

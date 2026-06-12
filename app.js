@@ -3432,6 +3432,7 @@ function renderSourceFilters(baseResults = currentResults) {
     button.classList.toggle("is-parked", status === "parked");
     button.classList.toggle("is-error", status === "error");
     button.classList.toggle("is-zero", status === "complete" && count === 0);
+    button.classList.toggle("has-single-digit-count", isSingleDigitSourceCount(count, status));
     button.title = getSourceFilterTitle(source, count, status);
     button.setAttribute("aria-label", getSourceFilterLabel(source, count, status));
     button.setAttribute("aria-pressed", String(activeViewSources.has(source.id)));
@@ -3534,6 +3535,11 @@ function formatSourceFilterCount(count, status) {
   if (status === "parked") return "⏸";
   if (status === "error") return "!";
   return count;
+}
+
+function isSingleDigitSourceCount(count, status) {
+  if (["loading", "manual", "parked", "error"].includes(status)) return false;
+  return Number.isFinite(count) && count >= 0 && count < 10;
 }
 
 function getSourceFilterTitle(source, count, status) {
