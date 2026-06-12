@@ -204,6 +204,7 @@ a {
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 1.75;
+  pointer-events: none;
   vector-effect: non-scaling-stroke;
 }
 
@@ -2100,6 +2101,12 @@ body[data-theme="dark"] .source-filter-all::after {
   --source-solid-mark: var(--source-reverb);
 }
 
+.source-filter-button[data-source="ebay-us"] {
+  --source-solid: var(--source-ebay);
+  --source-solid-ink: var(--source-ink-on-color);
+  --source-solid-mark: var(--source-ebay);
+}
+
 .source-filter-button[data-source="craigslist-sfbay"],
 .source-filter-button[data-source="craigslist-la"] {
   --source-solid: var(--source-craigslist);
@@ -2900,6 +2907,10 @@ body[data-theme="dark"] .listing-card.is-featured-home-card {
 
 .source-avatar[data-source="reverb-us"] {
   background: var(--source-reverb);
+}
+
+.source-avatar[data-source="ebay-us"] {
+  background: var(--source-ebay);
 }
 
 .source-avatar[data-source="craigslist-sfbay"],

@@ -22,6 +22,16 @@ Production values should live in the hosting provider's environment/secrets pane
 | `SUPABASE_ANON_KEY` | Yes | Public-ish | `sb_publishable_...` | Used for browser auth. Safe to expose only with RLS configured. |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | Yes | `sb_secret_...` | Server-only. Never expose in browser or commit. |
 
+## Optional Source Connectors
+
+These enable additional marketplace sources. Leave them blank unless that source is intentionally active in beta.
+
+| Variable | Required | Secret? | Example | Notes |
+|---|---:|---:|---|---|
+| `EBAY_CLIENT_ID` | For eBay only | No | `<eBay app client id>` | eBay developer application Client ID. |
+| `EBAY_CLIENT_SECRET` | For eBay only | Yes | `<eBay app client secret>` | Server-only. Required for client-credentials OAuth. |
+| `EBAY_MARKETPLACE_ID` | No | No | `EBAY_US` | Defaults to `EBAY_US` for US regions. |
+
 ## Hosting Runtime
 
 | Variable | Required | Secret? | Example | Notes |

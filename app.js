@@ -6,6 +6,7 @@ const SOURCES = [
   { id: "digimart", label: "Digimart", icon: "D", color: "blue" },
   { id: "reverb", label: "Reverb", icon: "Rv", color: "orange" },
   { id: "reverb-us", label: "Reverb US", icon: "Rv", color: "orange" },
+  { id: "ebay-us", label: "eBay US", icon: "eB", color: "blue" },
   { id: "craigslist-sfbay", label: "Craigslist SF", icon: "SF", color: "purple" },
   { id: "craigslist-la", label: "Craigslist LA", icon: "LA", color: "purple" },
   { id: "jimoty", label: "Jimoty", icon: "Jm", color: "orange" },
@@ -16,8 +17,8 @@ const SOURCES = [
 ];
 
 const LEGACY_DEFAULT_SOURCE_IDS = ["mercari", "yahoo-auctions", "yahoo-fleamarket", "rakuma", "digimart", "offmall", "five-g", "implant4", "hardoff"];
-const LIVE_SOURCE_IDS = ["mercari", "yahoo-auctions", "yahoo-fleamarket", "rakuma", "digimart", "reverb", "reverb-us", "craigslist-sfbay", "craigslist-la", "jimoty", "offmall", "five-g", "implant4", "hardoff"];
-const LIVE_SOURCE_DISPLAY_ORDER = ["craigslist-sfbay", "craigslist-la", "reverb-us", "yahoo-auctions", "yahoo-fleamarket", "digimart", "reverb", "jimoty", "offmall", "five-g", "implant4", "hardoff", "mercari", "rakuma"];
+const LIVE_SOURCE_IDS = ["mercari", "yahoo-auctions", "yahoo-fleamarket", "rakuma", "digimart", "reverb", "reverb-us", "ebay-us", "craigslist-sfbay", "craigslist-la", "jimoty", "offmall", "five-g", "implant4", "hardoff"];
+const LIVE_SOURCE_DISPLAY_ORDER = ["craigslist-sfbay", "craigslist-la", "reverb-us", "ebay-us", "yahoo-auctions", "yahoo-fleamarket", "digimart", "reverb", "jimoty", "offmall", "five-g", "implant4", "hardoff", "mercari", "rakuma"];
 const SOURCE_SEARCH_CONTEXT_TRUST_IDS = new Set(["craigslist-sfbay", "craigslist-la"]);
 const CATEGORY_SEARCH_CONTEXT_IDS = new Set(["reverb", "reverb-us"]);
 const REGION_CONFIG = typeof window !== "undefined" ? window.BRRTZ_REGION_CONFIG : null;
@@ -71,6 +72,7 @@ const SOURCE_ACCENT_TOKENS = {
   digimart: "--source-digimart",
   reverb: "--source-reverb",
   "reverb-us": "--source-reverb",
+  "ebay-us": "--source-ebay",
   "craigslist-sfbay": "--source-craigslist",
   "craigslist-la": "--source-craigslist",
   jimoty: "--source-jimoty",
@@ -88,6 +90,7 @@ const SOURCE_METADATA_ALIASES = {
   digimart: ["Digimart", "デジマート"],
   reverb: ["Reverb", "Reverb.com"],
   "reverb-us": ["Reverb US", "Reverb", "Reverb.com"],
+  "ebay-us": ["eBay US", "eBay", "ebay.com"],
   "craigslist-sfbay": ["Craigslist SF", "Craigslist", "SF Bay Craigslist"],
   "craigslist-la": ["Craigslist LA", "Craigslist Los Angeles", "LA Craigslist"],
   jimoty: ["Jimoty", "ジモティー", "ジモティ"],
@@ -1078,7 +1081,7 @@ function initializeBrandWave() {
     requestAnimationFrame(render);
   }
 
-  function isInteractiveActivation(event) {
+  function isWaveControlEvent(event) {
     const target = event?.target;
     if (!(target instanceof Element)) return false;
     const interactive = target.closest("button, input, textarea, select, summary, a[href], [role='button'], .saved-popover");
@@ -1086,8 +1089,10 @@ function initializeBrandWave() {
   }
 
   async function wake(event) {
-    if (event?.target instanceof Element && event.target.closest(".saved-popover")) return;
-    if ((event?.type === "pointerdown" || event?.type === "touchstart") && isInteractiveActivation(event)) return;
+    if (isWaveControlEvent(event)) {
+      sleep();
+      return;
+    }
 
     const clientX = getPointerClientX(event);
     const freshEntry = clientX !== null && hoverStart === null;
@@ -1115,9 +1120,9 @@ function initializeBrandWave() {
   }
 
   const interactionSurface = waveSurface || svg;
-  interactionSurface.addEventListener("pointerenter", wake);
-  interactionSurface.addEventListener("pointermove", wake);
-  interactionSurface.addEventListener("pointerdown", wake);
+  interactionSurface.addEventListener("pointerenter", wake, { passive: true });
+  interactionSurface.addEventListener("pointermove", wake, { passive: true });
+  interactionSurface.addEventListener("pointerdown", wake, { passive: true });
   interactionSurface.addEventListener("touchstart", wake, { passive: true });
   interactionSurface.addEventListener("pointerleave", sleep);
 
@@ -2874,6 +2879,10 @@ function createLiveSearchGroups(profile) {
 
   if (selectedSources.has("reverb-us")) {
     groups.push({ id: "reverb-us", sources: ["reverb-us"] });
+  }
+
+  if (selectedSources.has("ebay-us")) {
+    groups.push({ id: "ebay-us", sources: ["ebay-us"] });
   }
 
   if (selectedSources.has("craigslist-sfbay")) {

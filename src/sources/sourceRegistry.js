@@ -181,7 +181,7 @@ export const SOURCE_REGISTRY = [
     reliabilityScore: 78,
     noiseScore: 60,
     testQuery: "synthesizer",
-    notes: "Good future API connector, but likely noisy.",
+    notes: "Official Browse API connector in beta. Requires EBAY_CLIENT_ID and EBAY_CLIENT_SECRET; likely noisy without Gear Mode.",
   },
   {
     id: "craigslist-sfbay",

@@ -33,6 +33,10 @@ const OFFMALL_BASE_URL = "https://netmall.hardoff.co.jp";
 const RAKUMA_BASE_URL = "https://fril.jp";
 const REVERB_API_BASE_URL = "https://api.reverb.com";
 const REVERB_BASE_URL = "https://reverb.com";
+const EBAY_API_BASE_URL = "https://api.ebay.com";
+const EBAY_CLIENT_ID = process.env.EBAY_CLIENT_ID || "";
+const EBAY_CLIENT_SECRET = process.env.EBAY_CLIENT_SECRET || "";
+const EBAY_MARKETPLACE_ID = process.env.EBAY_MARKETPLACE_ID || "EBAY_US";
 const CRAIGSLIST_SFBAY_BASE_URL = "https://sfbay.craigslist.org";
 const CRAIGSLIST_LA_BASE_URL = "https://losangeles.craigslist.org";
 const JINA_READER_BASE_URL = "https://r.jina.ai/http://";
@@ -44,6 +48,8 @@ const MERCARI_RESULT_LIMIT = 40;
 const MERCARI_TERM_LIMIT = 2;
 const REVERB_RESULT_LIMIT = 32;
 const REVERB_TERM_LIMIT = 3;
+const EBAY_RESULT_LIMIT = 40;
+const EBAY_TERM_LIMIT = 3;
 const CRAIGSLIST_DETAIL_VERIFY_LIMIT = 12;
 const CRAIGSLIST_DETAIL_VERIFY_CONCURRENCY = 6;
 const CRAIGSLIST_MODE = normalizeMode(process.env.BRRTZ_CRAIGSLIST_MODE || process.env.BUMPERS_CRAIGSLIST_MODE || "parked", ["parked", "live"], "parked");
@@ -71,6 +77,7 @@ const CRAIGSLIST_USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) Appl
 const mercariCache = new Map();
 const rakumaThumbnailCache = new Map();
 const rakumaImageProxyCache = new Map();
+let ebayTokenCache = null;
 let mercariBrowserPromise;
 
 const mimeTypes = {
@@ -377,6 +384,7 @@ function getSourceHealthSearchFn(sourceId) {
 
   return {
     digimart: searchDigimart,
+    "ebay-us": searchEbayUs,
     "five-g": searchFiveG,
     implant4: searchImplant4,
     jimoty: searchJimoty,
@@ -874,6 +882,7 @@ async function handleSearch(url, response) {
   const wantsImplant4 = sources.length === 0 || sources.includes("implant4");
   const wantsCraigslistSfbay = sources.length === 0 || sources.includes("craigslist-sfbay");
   const wantsCraigslistLa = sources.length === 0 || sources.includes("craigslist-la");
+  const wantsEbayUs = sources.length === 0 || sources.includes("ebay-us");
   const wantsJimoty = sources.length === 0 || sources.includes("jimoty");
   const wantsMercari = sources.length === 0 || sources.includes("mercari");
   const wantsOffmall = sources.length === 0 || sources.includes("offmall") || sources.includes("hardoff");
@@ -884,7 +893,7 @@ async function handleSearch(url, response) {
   const wantsYahooFleamarket = sources.length === 0 || sources.includes("yahoo-fleamarket");
   const startedAt = new Date();
 
-  if ((!wantsDigimart && !wantsFiveG && !wantsImplant4 && !wantsCraigslistSfbay && !wantsCraigslistLa && !wantsJimoty && !wantsMercari && !wantsOffmall && !wantsRakuma && !wantsReverb && !wantsReverbUs && !wantsYahooAuctions && !wantsYahooFleamarket) || terms.length === 0) {
+  if ((!wantsDigimart && !wantsFiveG && !wantsImplant4 && !wantsCraigslistSfbay && !wantsCraigslistLa && !wantsEbayUs && !wantsJimoty && !wantsMercari && !wantsOffmall && !wantsRakuma && !wantsReverb && !wantsReverbUs && !wantsYahooAuctions && !wantsYahooFleamarket) || terms.length === 0) {
     sendJson(response, 200, { listings: [], meta: createSearchMeta(startedAt, [], [], terms) });
     return;
   }
@@ -926,6 +935,13 @@ async function handleSearch(url, response) {
     }));
   } else if (wantsCraigslistLa) {
     sourceTasks.push(Promise.resolve(createParkedCraigslistSourceResult("craigslist-la", terms, CRAIGSLIST_LA_BASE_URL, { maxPrice })));
+  }
+
+  if (wantsEbayUs) {
+    sourceTasks.push(searchSourceTerms("ebay-us", terms, searchEbayUs, {
+      maxTerms: EBAY_TERM_LIMIT,
+      termDelayMs: 0,
+    }));
   }
 
   if (wantsJimoty) {
@@ -1421,6 +1437,77 @@ async function searchReverbUs(term) {
     displayCurrency: "USD",
     acceptLanguage: "en-US,en;q=0.9",
   });
+}
+
+async function searchEbayUs(term) {
+  if (!EBAY_CLIENT_ID || !EBAY_CLIENT_SECRET) {
+    throw new Error("eBay API credentials are not configured. Add EBAY_CLIENT_ID and EBAY_CLIENT_SECRET.");
+  }
+
+  const token = await getEbayAccessToken();
+  const url = new URL("/buy/browse/v1/item_summary/search", EBAY_API_BASE_URL);
+  url.searchParams.set("q", term);
+  url.searchParams.set("limit", String(EBAY_RESULT_LIMIT));
+  url.searchParams.set("sort", "newlyListed");
+  url.searchParams.set("filter", [
+    "buyingOptions:{FIXED_PRICE|AUCTION}",
+    "itemLocationCountry:US",
+  ].join(","));
+
+  const response = await fetch(url, {
+    headers: {
+      "user-agent": USER_AGENT,
+      "authorization": `Bearer ${token}`,
+      "accept": "application/json",
+      "accept-language": "en-US,en;q=0.9",
+      "x-ebay-c-marketplace-id": EBAY_MARKETPLACE_ID,
+    },
+  });
+
+  if (!response.ok) {
+    const message = await response.text().catch(() => "");
+    throw new Error(`eBay responded with ${response.status}${message ? `: ${message.slice(0, 180)}` : ""}`);
+  }
+
+  return parseEbayBrowse(await response.json());
+}
+
+async function getEbayAccessToken() {
+  const now = Date.now();
+  if (ebayTokenCache?.token && ebayTokenCache.expiresAt > now + 60_000) {
+    return ebayTokenCache.token;
+  }
+
+  const credentials = Buffer.from(`${EBAY_CLIENT_ID}:${EBAY_CLIENT_SECRET}`).toString("base64");
+  const response = await fetch(`${EBAY_API_BASE_URL}/identity/v1/oauth2/token`, {
+    method: "POST",
+    headers: {
+      "user-agent": USER_AGENT,
+      "authorization": `Basic ${credentials}`,
+      "content-type": "application/x-www-form-urlencoded",
+      "accept": "application/json",
+    },
+    body: new URLSearchParams({
+      grant_type: "client_credentials",
+      scope: "https://api.ebay.com/oauth/api_scope",
+    }),
+  });
+
+  if (!response.ok) {
+    const message = await response.text().catch(() => "");
+    throw new Error(`eBay auth responded with ${response.status}${message ? `: ${message.slice(0, 180)}` : ""}`);
+  }
+
+  const payload = await response.json();
+  const token = String(payload.access_token || "");
+  if (!token) throw new Error("eBay auth did not return an access token.");
+
+  ebayTokenCache = {
+    token,
+    expiresAt: now + Math.max(60, Number(payload.expires_in || 0) - 120) * 1000,
+  };
+
+  return token;
 }
 
 async function searchReverbListings(term, options = {}) {
@@ -2192,10 +2279,53 @@ function parseReverb(data, options = {}) {
   }).filter((listing) => listing.id !== `${sourceId}-` && listing.title && listing.url && listing.price > 0);
 }
 
+function parseEbayBrowse(data) {
+  return (data?.itemSummaries || []).map((item) => {
+    const rawId = String(item.itemId || item.legacyItemId || "");
+    const categories = Array.isArray(item.categories)
+      ? item.categories.map((category) => cleanText(String(category.categoryName || ""))).filter(Boolean)
+      : [];
+    const location = [
+      cleanText(String(item.itemLocation?.city || "")),
+      cleanText(String(item.itemLocation?.stateOrProvince || "")),
+    ].filter(Boolean).join(", ");
+    const condition = [
+      cleanText(String(item.condition || "")),
+      item.buyingOptions?.includes("AUCTION") ? "Auction" : "",
+      location,
+    ].filter(Boolean).join(" · ") || "Listed";
+
+    return {
+      id: `ebay-us-${rawId}`,
+      source: "ebay-us",
+      title: cleanText(String(item.title || "")),
+      price: parseEbayPrice(item.price),
+      condition,
+      shop: cleanText(String(item.seller?.username || "")),
+      listedAt: item.itemCreationDate || item.itemOriginDate || new Date().toISOString(),
+      url: normalizeUrl(item.itemWebUrl || "", "https://www.ebay.com"),
+      image: normalizeUrl(
+        item.image?.imageUrl
+          || item.thumbnailImages?.[0]?.imageUrl
+          || item.additionalImages?.[0]?.imageUrl
+          || "",
+        "https://www.ebay.com",
+      ),
+      categoryPath: categories.length ? categories : [cleanText(String(item.categoryPath || ""))].filter(Boolean),
+      availability: item.itemEndDate ? `Ends ${item.itemEndDate}` : "",
+    };
+  }).filter((listing) => listing.id !== "ebay-us-" && listing.title && listing.url && listing.price > 0);
+}
+
 function parseReverbPrice(price) {
   if (!price) return 0;
   if (price.currency === "JPY") return Number(String(price.amount || "").replace(/[^\d]/g, ""));
   return Number(String(price.amount_cents || "0").replace(/[^\d]/g, "")) / 100;
+}
+
+function parseEbayPrice(price) {
+  if (!price) return 0;
+  return Number(String(price.value || price.convertedFromValue || "0").replace(/[^\d.]/g, ""));
 }
 
 function parseMercariPrice(value) {

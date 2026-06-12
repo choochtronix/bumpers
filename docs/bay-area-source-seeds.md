@@ -25,7 +25,7 @@ For beta, prioritize sources that can be useful without fragile or risky automat
 | P0 | `offerup` | OfferUp | Local/social | Marketplace | Manual-link / user-assisted | https://offerup.com/search?q=synth | High local signal; app-first and crawl-friction likely. |
 | P1 | `guitar-center-used-synths` | Guitar Center Used Synths | US/store network | Retailer-used | Research connector | https://www.guitarcenter.com/Used/Synthesizers-Sound-Modules.gc | High inventory; useful filters. |
 | P1 | `sweetwater-gear-exchange` | Sweetwater Gear Exchange | US | Marketplace-used | Research connector | https://www.sweetwater.com/used/listings | Used peer-to-peer music gear. |
-| P1 | `ebay-us` | eBay Synthesizers | US/global | Marketplace | API/live cards | https://www.ebay.com/sch/i.html?_nkw=synthesizer | Useful for rare/vintage; noisy, so Gear Mode will matter. |
+| P0 | `ebay-us` | eBay Synthesizers | US/global | Marketplace | API/live cards | https://www.ebay.com/sch/i.html?_nkw=synthesizer | Official API connector now in beta. Useful for rare/vintage; noisy, so Gear Mode will matter. |
 | P1 | `shopgoodwill` | ShopGoodwill Musical Instruments | US/auction | Auction | Research connector | https://shopgoodwill.com/categories/listing?st=synth&sg=&c=&s=&lp=0&hp=999999&sbn=false | Hidden gems; noisy/untested gear. |
 | P1 | `robotspeak` | Robot Speak | San Francisco | Shop-used-new | Research connector | https://robotspeak.com/collections/used-gear | Key SF synth shop; used gear page. |
 | P1 | `mission-synths` | Mission Synths | San Francisco | Shop-consignment-new | Research connector | https://www.missionsynths.com/ | SF electronic hardware and modular shop; consignment angle. |

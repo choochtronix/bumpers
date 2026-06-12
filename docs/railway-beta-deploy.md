@@ -25,6 +25,14 @@ SUPABASE_ANON_KEY=<Supabase anon/publishable key>
 SUPABASE_SERVICE_ROLE_KEY=<Supabase service role key>
 ```
 
+Optional for eBay US live cards:
+
+```text
+EBAY_CLIENT_ID=<eBay app client id>
+EBAY_CLIENT_SECRET=<eBay app client secret>
+EBAY_MARKETPLACE_ID=EBAY_US
+```
+
 Railway provides `PORT`; do not set it manually unless Railway support tells you to.
 
 ## Deploy Steps

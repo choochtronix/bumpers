@@ -31,7 +31,7 @@ window.BRRTZ_REGION_CONFIG = (() => {
       currency: "USD",
       defaultLocale: "en-US",
       status: "beta",
-      sources: ["craigslist-sfbay", "reverb-us"],
+      sources: ["craigslist-sfbay", "reverb-us", "ebay-us"],
       searchDefaults: {
         cleanGear: true,
         maxResults: 80,
@@ -45,7 +45,7 @@ window.BRRTZ_REGION_CONFIG = (() => {
       currency: "USD",
       defaultLocale: "en-US",
       status: "beta",
-      sources: ["craigslist-la", "reverb-us"],
+      sources: ["craigslist-la", "reverb-us", "ebay-us"],
       searchDefaults: {
         cleanGear: true,
         maxResults: 80,
