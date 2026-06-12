@@ -3831,8 +3831,8 @@ body[data-theme="dark"] .listing-card.is-watched-home-card {
 }
 
 .quick-search-input {
-  padding: calc((var(--quick-search-height) - var(--quick-search-font-size)) / 2 - var(--quick-search-text-nudge)) var(--quick-search-right-padding) 0 var(--quick-search-left-padding);
-  line-height: 1;
+  padding: 0 var(--quick-search-right-padding) 0 var(--quick-search-left-padding);
+  line-height: normal;
 }
 
 .quick-search-submit {
@@ -4169,8 +4169,8 @@ body[data-theme="dark"] .refine-backdrop {
   }
 
   .quick-search-input {
-    padding: calc((var(--quick-search-height) - var(--quick-search-font-size)) / 2 - var(--quick-search-text-nudge)) var(--quick-search-right-padding) 0 var(--quick-search-left-padding);
-    line-height: 1;
+    padding: 0 var(--quick-search-right-padding) 0 var(--quick-search-left-padding);
+    line-height: normal;
   }
 
   .quick-search-save {
@@ -4352,12 +4352,9 @@ body[data-theme="dark"] .refine-backdrop {
   .quick-search-input {
     height: var(--quick-search-height);
     min-height: var(--quick-search-height);
-    padding:
-      calc((var(--quick-search-height) - var(--quick-search-font-size)) / 2 - var(--quick-search-text-nudge))
-      var(--quick-search-right-padding)
-      0
-      var(--quick-search-left-padding);
+    padding: 0 var(--quick-search-right-padding) 0 var(--quick-search-left-padding);
     font-size: var(--quick-search-font-size);
+    line-height: normal;
   }
 
   .quick-search-submit {
