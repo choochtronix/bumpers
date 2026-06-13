@@ -67,7 +67,13 @@ const DEFAULT_CATEGORY_INTENT = "synthesizers";
 const CATEGORY_INTENT_CONFIG = {
   synthesizers: {
     label: "Synthesizers",
+    yahooAuctionsBrowseCategoryId: "2084019003",
     yahooAuctionsCategorySweeps: YAHOO_AUCTIONS_DEFAULT_CATEGORY_SWEEPS,
+  },
+  "drum-machines": {
+    label: "Drum Machines",
+    yahooAuctionsBrowseCategoryId: "2084019005",
+    yahooAuctionsCategorySweeps: ["", "22436", "2084019005"],
   },
 };
 const YAHOO_AUCTIONS_RHYTHM_CATEGORY = "2084019005";
@@ -107,6 +113,11 @@ createServer(async (request, response) => {
 
     if (url.pathname === "/api/search") {
       await handleSearch(url, response);
+      return;
+    }
+
+    if (url.pathname === "/api/browse") {
+      await handleBrowse(url, response);
       return;
     }
 
@@ -883,8 +894,8 @@ async function handleSearch(url, response) {
   const maxPrice = Number(url.searchParams.get("maxPrice") || 0);
   const sources = splitParam(url.searchParams.get("sources"));
   const requestedRegionId = url.searchParams.get("region");
-  const regionId = ["bay-area", "los-angeles"].includes(requestedRegionId) ? requestedRegionId : "japan";
-  const regionCurrency = regionId === "japan" ? "JPY" : "USD";
+  const regionId = sanitizeRegionId(requestedRegionId);
+  const regionCurrency = getRegionCurrency(regionId);
   const wantsDigimart = sources.length === 0 || sources.includes("digimart");
   const wantsFiveG = sources.length === 0 || sources.includes("five-g");
   const wantsImplant4 = sources.length === 0 || sources.includes("implant4");
@@ -1015,6 +1026,71 @@ async function handleSearch(url, response) {
   });
 }
 
+async function handleBrowse(url, response) {
+  const startedAt = new Date();
+  const categoryIntent = sanitizeCategoryIntent(url.searchParams.get("categoryIntent"));
+  const excludes = splitParam(url.searchParams.get("excludes"));
+  const maxPrice = Number(url.searchParams.get("maxPrice") || 0);
+  const regionId = sanitizeRegionId(url.searchParams.get("region"));
+  const regionCurrency = getRegionCurrency(regionId);
+  const sourceStats = [];
+  const errors = [];
+  const listingsById = new Map();
+
+  if (regionId === "japan") {
+    const categoryId = getYahooAuctionsBrowseCategoryId(categoryIntent);
+
+    try {
+      const listings = await browseYahooAuctionsCategory(categoryIntent);
+      sourceStats.push({
+        source: "yahoo-auctions",
+        status: "ok",
+        searchedTerms: [],
+        categoryIntent,
+        categoryId,
+        rawCount: listings.length,
+      });
+      collectFilteredListings(listings, listingsById, excludes, maxPrice);
+    } catch (error) {
+      errors.push({
+        source: "yahoo-auctions",
+        term: "",
+        message: error instanceof Error ? error.message : "Unknown browse connector error",
+      });
+      sourceStats.push({
+        source: "yahoo-auctions",
+        status: "error",
+        searchedTerms: [],
+        categoryIntent,
+        categoryId,
+        rawCount: 0,
+      });
+    }
+  } else {
+    errors.push({
+      source: "browse",
+      term: "",
+      message: `Category browse is not wired for ${regionId} yet.`,
+    });
+  }
+
+  const listings = [...listingsById.values()].sort((a, b) => new Date(b.listedAt) - new Date(a.listedAt));
+  const normalizedListings = attachNormalizedListings(listings, {
+    regionId,
+    currency: regionCurrency,
+  });
+  const meta = createSearchMeta(startedAt, sourceStats, errors, [], { categoryIntent });
+
+  sendJson(response, 200, {
+    listings: normalizedListings,
+    meta: {
+      ...meta,
+      mode: "browse",
+      region: regionId,
+    },
+  });
+}
+
 function collectFilteredListings(listings, listingsById, excludes, maxPrice) {
   for (const listing of listings) {
     const title = normalizeText(listing.title);
@@ -1134,6 +1210,14 @@ function normalizeMode(value, allowedModes, fallback) {
   return allowedModes.includes(normalized) ? normalized : fallback;
 }
 
+function sanitizeRegionId(regionId) {
+  return ["bay-area", "los-angeles"].includes(regionId) ? regionId : "japan";
+}
+
+function getRegionCurrency(regionId) {
+  return regionId === "japan" ? "JPY" : "USD";
+}
+
 function sanitizeCategoryIntent(value) {
   const normalized = String(value || "").trim();
   return CATEGORY_INTENT_CONFIG[normalized] ? normalized : DEFAULT_CATEGORY_INTENT;
@@ -1141,6 +1225,10 @@ function sanitizeCategoryIntent(value) {
 
 function getCategoryIntentLabel(categoryIntent) {
   return CATEGORY_INTENT_CONFIG[categoryIntent]?.label || CATEGORY_INTENT_CONFIG[DEFAULT_CATEGORY_INTENT].label;
+}
+
+function getYahooAuctionsBrowseCategoryId(categoryIntent) {
+  return CATEGORY_INTENT_CONFIG[sanitizeCategoryIntent(categoryIntent)]?.yahooAuctionsBrowseCategoryId || "";
 }
 
 function isCraigslistLiveEnabled() {
@@ -1809,6 +1897,17 @@ async function searchYahooAuctions(term, options = {}) {
   return [...listingsById.values()];
 }
 
+async function browseYahooAuctionsCategory(categoryIntent = DEFAULT_CATEGORY_INTENT) {
+  const categoryId = getYahooAuctionsBrowseCategoryId(categoryIntent);
+  if (!categoryId) return [];
+
+  const html = await fetchYahooAuctionsSearch("", categoryId);
+  return parseYahooAuctions(html).map((listing) => ({
+    ...listing,
+    categoryIntent: sanitizeCategoryIntent(categoryIntent),
+  }));
+}
+
 async function searchYahooFleamarket(term) {
   const url = new URL(`/search/${encodeURIComponent(term)}`, YAHOO_FLEAMARKET_BASE_URL);
 
@@ -1844,8 +1943,10 @@ function getYahooAuctionsCategorySweeps(term, categoryIntent = DEFAULT_CATEGORY_
 
 async function fetchYahooAuctionsSearch(term, categoryId = "") {
   const url = new URL("/search/search", YAHOO_AUCTIONS_BASE_URL);
-  url.searchParams.set("p", term);
-  url.searchParams.set("va", term);
+  if (term) {
+    url.searchParams.set("p", term);
+    url.searchParams.set("va", term);
+  }
   url.searchParams.set("exflg", "1");
   if (categoryId) url.searchParams.set("auccat", categoryId);
   url.searchParams.set("b", "1");

@@ -624,6 +624,7 @@ const defaultSettings = {
 
 const CATEGORY_INTENTS = [
   { id: "synthesizers", label: "Synthesizers" },
+  { id: "drum-machines", label: "Drum Machines" },
 ];
 const DEFAULT_CATEGORY_INTENT = "synthesizers";
 const CATEGORY_INTENT_IDS = new Set(CATEGORY_INTENTS.map((intent) => intent.id));
@@ -659,6 +660,10 @@ let mobileSearchOverlayFrame = 0;
 let starterFreshFindStatus = "idle";
 let starterFreshFindListings = [];
 let starterFreshFindTerms = [];
+let browseCategoryIntent = DEFAULT_CATEGORY_INTENT;
+let browseCategoryStatus = "idle";
+let browseCategoryListings = [];
+let browseCategoryError = "";
 let isSourceRowExpanded = true;
 const rakumaClientThumbnailCache = new Map();
 let searchState = {
@@ -1178,6 +1183,7 @@ function bindEvents() {
   quickSearchExtraTermsButton?.addEventListener("click", openRefineSearchModal);
   termDropdown.addEventListener("click", handleTermDropdownClick);
   resultGrid.addEventListener("click", handleResultGridAction);
+  resultGrid.addEventListener("change", handleResultGridAction);
   document.addEventListener("click", closeListingActionMenus);
 
   document.querySelector("#openRefineSearch").addEventListener("click", openRefineSearchModal);
@@ -3227,8 +3233,9 @@ function renderResults() {
 
 function renderHomeView(watching) {
   const freshFindResults = filterMode === "watching" ? [] : getFreshFindHomeListings();
+  const browseResults = filterMode === "watching" ? [] : getBrowseCategoryHomeListings();
   const watchedHomeResults = getWatchedHomeListings(watching);
-  const homeResults = [...freshFindResults, ...watchedHomeResults];
+  const homeResults = [...freshFindResults, ...browseResults, ...watchedHomeResults];
   const isShowingFeaturedHome = homeResults.length > 0;
 
   resultGrid.innerHTML = "";
@@ -3239,6 +3246,10 @@ function renderHomeView(watching) {
 
   if (freshFindResults.length > 0) {
     resultGrid.appendChild(createFeaturedHomeSection(freshFindResults, { variant: "fresh" }));
+  }
+
+  if (browseResults.length > 0 || browseCategoryStatus === "loading" || browseCategoryStatus === "error") {
+    resultGrid.appendChild(createFeaturedHomeSection(browseResults, { variant: "browse" }));
   }
 
   if (watchedHomeResults.length > 0) {
@@ -3258,6 +3269,12 @@ function renderHomeView(watching) {
 }
 
 function handleResultGridAction(event) {
+  const browseSelect = event.target.closest("#homeBrowseCategory");
+  if (browseSelect) {
+    setHomeBrowseCategory(browseSelect.value);
+    return;
+  }
+
   const button = event.target.closest("[data-result-action]");
   if (!button) return;
 
@@ -4063,9 +4080,34 @@ function createFeaturedHomeHeader(count, options = {}) {
   const isStarter = Boolean(options.isStarter);
   const isStarterLive = Boolean(options.isStarterLive);
   const isStarterLoading = Boolean(options.isStarterLoading);
-  const isWatched = options.variant === "watched";
+  const variant = options.variant || "fresh";
+  const isWatched = variant === "watched";
+  const isBrowse = variant === "browse";
   const isCached = Boolean(options.isCached);
   const seedLabel = starterFreshFindTerms.length > 0 ? starterFreshFindTerms.join(" + ") : "vintage synths";
+  if (isBrowse) {
+    header.classList.add("is-browse-header");
+    const optionsMarkup = CATEGORY_INTENTS.map((intent) => `
+      <option value="${escapeHtml(intent.id)}" ${intent.id === browseCategoryIntent ? "selected" : ""}>${escapeHtml(intent.label)}</option>
+    `).join("");
+    header.innerHTML = `
+      <div>
+        <h3>Synth Browser</h3>
+        <span>${browseCategoryStatus === "loading"
+          ? `Browsing latest ${getCategoryIntentLabel(browseCategoryIntent).toLowerCase()} listings`
+          : browseCategoryStatus === "error"
+            ? browseCategoryError || "Browse mode is warming up"
+            : `${count} latest ${count === 1 ? "listing" : "listings"} in ${getCategoryIntentLabel(browseCategoryIntent).toLowerCase()}`
+        }</span>
+      </div>
+      <label class="browse-category-control">
+        <span>Browse</span>
+        <select id="homeBrowseCategory" aria-label="Browse category">${optionsMarkup}</select>
+      </label>
+    `;
+    return header;
+  }
+
   header.innerHTML = `
     <h3>${isWatched ? "Watched Gear" : "Fresh Finds"}</h3>
     <span>${isWatched
@@ -4100,7 +4142,7 @@ function createFeaturedHomeSection(listings, options = {}) {
     isStarterLive ? "is-live-starter-fresh-finds" : "",
     isStarterLoading ? "is-loading-starter-fresh-finds" : "",
   ].filter(Boolean).join(" ");
-  section.setAttribute("aria-label", variant === "watched" ? "Watched Gear" : "Fresh Finds");
+  section.setAttribute("aria-label", variant === "watched" ? "Watched Gear" : variant === "browse" ? "Synth Browser" : "Fresh Finds");
   section.appendChild(createFeaturedHomeHeader(listings.length, { isStarter, isStarterLive, isStarterLoading, isCached, variant }));
 
   const carousel = document.createElement("div");
@@ -4109,7 +4151,7 @@ function createFeaturedHomeSection(listings, options = {}) {
   const previousButton = document.createElement("button");
   previousButton.className = "featured-carousel-control featured-carousel-control-prev";
   previousButton.type = "button";
-  previousButton.setAttribute("aria-label", variant === "watched" ? "Show previous Watched Gear" : "Show previous Fresh Finds");
+  previousButton.setAttribute("aria-label", variant === "watched" ? "Show previous Watched Gear" : variant === "browse" ? "Show previous Synth Browser listings" : "Show previous Fresh Finds");
   previousButton.textContent = "‹";
 
   const rail = document.createElement("div");
@@ -4122,13 +4164,14 @@ function createFeaturedHomeSection(listings, options = {}) {
 
     const card = renderListing(listing, { isFeaturedHome: true });
     if (variant === "watched") card.classList.add("is-watched-home-card");
+    if (variant === "browse") card.classList.add("is-browse-home-card");
     rail.appendChild(card);
   });
 
   const nextButton = document.createElement("button");
   nextButton.className = "featured-carousel-control featured-carousel-control-next";
   nextButton.type = "button";
-  nextButton.setAttribute("aria-label", variant === "watched" ? "Show more Watched Gear" : "Show more Fresh Finds");
+  nextButton.setAttribute("aria-label", variant === "watched" ? "Show more Watched Gear" : variant === "browse" ? "Show more Synth Browser listings" : "Show more Fresh Finds");
   nextButton.textContent = "›";
 
   carousel.append(previousButton, rail, nextButton);
@@ -4190,6 +4233,77 @@ function getFreshFindHomeListings() {
   if (cachedListings.length > 0) return cachedListings;
   if (starterFreshFindStatus === "loading") return createFreshFindLoadingPlaceholders();
   return STARTER_FRESH_FIND_LISTINGS;
+}
+
+function getBrowseCategoryHomeListings() {
+  ensureBrowseCategoryListings();
+  if (browseCategoryListings.length > 0) {
+    return curateFreshFindListings(browseCategoryListings, { limit: FEATURED_HOME_LIMIT });
+  }
+  if (browseCategoryStatus === "loading") return createBrowseCategoryLoadingPlaceholders();
+  return [];
+}
+
+function ensureBrowseCategoryListings() {
+  if (browseCategoryStatus !== "idle") return;
+  if (location.protocol === "file:") return;
+
+  browseCategoryStatus = "loading";
+  browseCategoryError = "";
+
+  fetchBrowseCategoryListings(browseCategoryIntent)
+    .then((listings) => {
+      browseCategoryListings = listings;
+      browseCategoryStatus = listings.length > 0 ? "live" : "empty";
+      if (searchState.mode === "idle") renderResults();
+    })
+    .catch((error) => {
+      console.warn("Synth Browser unavailable.", error);
+      browseCategoryError = error instanceof Error ? error.message : "Browse category unavailable";
+      browseCategoryStatus = "error";
+      if (searchState.mode === "idle") renderResults();
+    });
+}
+
+async function fetchBrowseCategoryListings(categoryIntent) {
+  const params = new URLSearchParams({
+    categoryIntent: sanitizeCategoryIntent(categoryIntent, appSettings.regionId),
+    region: getActiveRegion().id,
+    excludes: STARTER_FRESH_FIND_EXCLUDES.join("|"),
+    maxPrice: "0",
+  });
+  const response = await fetch(`/api/browse?${params.toString()}`, { cache: "no-store" });
+  if (!response.ok) throw new Error(`Browse failed with ${response.status}`);
+
+  const payload = await response.json();
+  const listings = Array.isArray(payload.listings) ? payload.listings : [];
+  return listings
+    .filter((listing) => !isUnavailableListing(listing))
+    .filter((listing) => qualityFilter === "all" || isCleanGearListing(listing))
+    .filter((listing) => !hasStarterFreshFindNoise(listing))
+    .map((listing) => ({
+      ...listing,
+      isBrowseCategoryListing: true,
+    }));
+}
+
+function createBrowseCategoryLoadingPlaceholders() {
+  return Array.from({ length: FRESH_FIND_LOADING_CARD_COUNT }, (_, index) => ({
+    id: `browse-category-loading-${index}`,
+    source: "yahoo-auctions",
+    title: `Browsing ${getCategoryIntentLabel(browseCategoryIntent)}`,
+    isFreshFindLoading: true,
+  }));
+}
+
+function setHomeBrowseCategory(categoryIntent) {
+  const nextCategoryIntent = sanitizeCategoryIntent(categoryIntent, appSettings.regionId);
+  if (nextCategoryIntent === browseCategoryIntent && browseCategoryStatus !== "error") return;
+  browseCategoryIntent = nextCategoryIntent;
+  browseCategoryListings = [];
+  browseCategoryStatus = "idle";
+  browseCategoryError = "";
+  if (searchState.mode === "idle") renderResults();
 }
 
 function getCachedFreshFindListings() {

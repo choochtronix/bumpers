@@ -3659,6 +3659,56 @@ body[data-theme="dark"] .listing-card.is-watched-home-card {
   font-weight: 850;
 }
 
+.featured-home-header.is-browse-header {
+  align-items: end;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.browse-category-control {
+  display: inline-grid;
+  gap: 5px;
+  min-width: min(220px, 42vw);
+}
+
+.browse-category-control span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 850;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.browse-category-control select {
+  min-height: 46px;
+  padding: 0 44px 0 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background-color: var(--panel);
+  color: var(--text);
+  font: inherit;
+  font-weight: 850;
+}
+
+.listing-card.is-browse-home-card {
+  flex-basis: clamp(210px, 18vw, 280px);
+}
+
+@media (max-width: 720px) {
+  .featured-home-header.is-browse-header {
+    align-items: stretch;
+    grid-template-columns: 1fr;
+  }
+
+  .browse-category-control {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .listing-card.is-browse-home-card {
+    flex-basis: clamp(190px, 62vw, 250px);
+  }
+}
+
 @media (max-width: 980px) {
   .app-shell {
     grid-template-columns: 1fr;
