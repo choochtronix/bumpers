@@ -622,11 +622,18 @@ const defaultSettings = {
   resultView: "grid",
 };
 
+const CATEGORY_INTENTS = [
+  { id: "synthesizers", label: "Synthesizers" },
+];
+const DEFAULT_CATEGORY_INTENT = "synthesizers";
+const CATEGORY_INTENT_IDS = new Set(CATEGORY_INTENTS.map((intent) => intent.id));
+
 const defaultProfile = {
   name: "Waldorf",
   terms: ["Waldorf", "ワルドルフ", "WALDORF"],
   excludes: ["manual", "magnet", "power cord", "doll", "Fashionist", "shirt", "CD", "Moments to Remember", "record", "shoes"],
   noiseTerms: [...ACCESSORY_TERMS],
+  categoryIntent: ACTIVE_REGION.searchDefaults?.categoryIntent || DEFAULT_CATEGORY_INTENT,
   maxPrice: ACTIVE_REGION.searchDefaults?.maxPrice || 2000000,
   alertMode: "immediate",
   sources: hydrateRegionSources(ACTIVE_REGION.sources),
@@ -671,6 +678,7 @@ const mobileSearchOverlay = document.querySelector("#mobileSearchOverlay");
 const mobileSearchForm = document.querySelector("#mobileSearchForm");
 const mobileSearchInput = document.querySelector("#mobileSearchInput");
 const refineTermsInput = document.querySelector("#refineTerms");
+const categoryIntentSelect = document.querySelector("#categoryIntent");
 const termDropdown = document.querySelector("#termDropdown");
 const quickSearchExtraTermsButton = document.querySelector("#quickSearchExtraTerms");
 const resultGrid = document.querySelector("#resultGrid");
@@ -1436,10 +1444,30 @@ function renderSources() {
   `).join("");
 }
 
+function getRegionDefaultCategoryIntent(regionId = appSettings?.regionId || ACTIVE_REGION.id) {
+  const regionDefault = getRegionById(regionId)?.searchDefaults?.categoryIntent
+    || ACTIVE_REGION.searchDefaults?.categoryIntent
+    || DEFAULT_CATEGORY_INTENT;
+
+  return CATEGORY_INTENT_IDS.has(regionDefault) ? regionDefault : DEFAULT_CATEGORY_INTENT;
+}
+
+function sanitizeCategoryIntent(categoryIntent, regionId = appSettings?.regionId || ACTIVE_REGION.id) {
+  const normalizedCategoryIntent = String(categoryIntent || "").trim();
+  return CATEGORY_INTENT_IDS.has(normalizedCategoryIntent)
+    ? normalizedCategoryIntent
+    : getRegionDefaultCategoryIntent(regionId);
+}
+
+function getCategoryIntentLabel(categoryIntent) {
+  return CATEGORY_INTENTS.find((intent) => intent.id === categoryIntent)?.label || "Synthesizers";
+}
+
 function fillForm(profile) {
   const hydratedProfile = hydrateProfile(profile);
   refineTermsInput.value = hydratedProfile.terms.join("\n");
   renderPrimarySearchTerm();
+  if (categoryIntentSelect) categoryIntentSelect.value = hydratedProfile.categoryIntent;
   document.querySelector("#excludes").value = hydratedProfile.excludes.join("\n");
   document.querySelector("#noiseTerms").value = hydratedProfile.noiseTerms.join("\n");
   document.querySelector("#maxPrice").value = hydratedProfile.maxPrice;
@@ -1460,6 +1488,7 @@ function readProfileFromForm() {
     terms,
     excludes: splitLines(document.querySelector("#excludes").value),
     noiseTerms: splitLines(document.querySelector("#noiseTerms").value),
+    categoryIntent: sanitizeCategoryIntent(categoryIntentSelect?.value, appSettings.regionId),
     maxPrice: Number(document.querySelector("#maxPrice").value || 0),
     alertMode: document.querySelector("#alertMode").value,
     sources: [...document.querySelectorAll("input[name='sources']:checked")].map((input) => input.value),
@@ -1597,9 +1626,10 @@ function renderRefineSummary() {
   const profile = readProfileFromForm();
   const sourceCount = profile.sources.length;
   const sourceText = `${sourceCount} ${sourceCount === 1 ? "source" : "sources"}`;
+  const categoryText = getCategoryIntentLabel(profile.categoryIntent);
   const priceText = profile.maxPrice > 0 ? `${formatPrice(profile.maxPrice)} max` : "No price cap";
   const excludeText = `${profile.excludes.length} excluded`;
-  refineSummary.textContent = `${sourceText} · ${priceText} · ${profile.alertMode} · ${excludeText}`;
+  refineSummary.textContent = `${categoryText} · ${sourceText} · ${priceText} · ${profile.alertMode} · ${excludeText}`;
 }
 
 function renderSearchTermsSummary() {
@@ -1717,6 +1747,7 @@ function profilesMatchSearch(firstProfile, secondProfile) {
     && arraysMatch(first.noiseTerms, second.noiseTerms)
     && arraysMatch([...first.sources].sort(), [...second.sources].sort())
     && Number(first.maxPrice || 0) === Number(second.maxPrice || 0)
+    && first.categoryIntent === second.categoryIntent
     && first.alertMode === second.alertMode;
 }
 
@@ -3719,6 +3750,7 @@ async function fetchLiveListings(profile, sourceOverride = profile.sources) {
     const params = new URLSearchParams({
       terms: createSourceSearchTerms(liveSearchTerms).join("|"),
       excludes: profile.excludes.join("|"),
+      categoryIntent: profile.categoryIntent || getRegionDefaultCategoryIntent(profile.regionId),
       maxPrice: String(profile.maxPrice || 0),
       sources: sources.join("|"),
       region: getActiveRegion().id,
@@ -4283,6 +4315,7 @@ async function fetchStarterFreshFindListings() {
   const params = new URLSearchParams({
     terms: starterFreshFindTerms.join("|"),
     excludes: STARTER_FRESH_FIND_EXCLUDES.join("|"),
+    categoryIntent: DEFAULT_CATEGORY_INTENT,
     maxPrice: "0",
     sources: STARTER_FRESH_FIND_SOURCE_IDS.join("|"),
   });
@@ -5219,6 +5252,7 @@ function createFreshProfile() {
     name: "New Search",
     regionId: appSettings.regionId,
     terms: [],
+    categoryIntent: getRegionDefaultCategoryIntent(appSettings.regionId),
     maxPrice: getRegionDefaultMaxPrice(),
     sources: regionSources,
   });
@@ -5240,6 +5274,7 @@ function hydrateProfile(profile = {}) {
     terms: cleanStringArray(profile.terms, defaultProfile.terms),
     excludes: cleanStringArray(profile.excludes, defaultProfile.excludes),
     noiseTerms: cleanStringArray(profile.noiseTerms, ACCESSORY_TERMS),
+    categoryIntent: sanitizeCategoryIntent(profile.categoryIntent, regionId),
     maxPrice: sanitizePriceCap(profile.maxPrice, defaultProfile.maxPrice),
     alertMode: ["immediate", "hourly", "daily"].includes(profile.alertMode) ? profile.alertMode : defaultProfile.alertMode,
     sources: hydrateSourceSelection(profile.sources, regionId),

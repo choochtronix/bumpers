@@ -21,6 +21,7 @@ window.BRRTZ_REGION_CONFIG = (() => {
       ],
       searchDefaults: {
         cleanGear: true,
+        categoryIntent: "synthesizers",
         maxResults: 80,
         maxPrice: 2000000,
       },
@@ -34,6 +35,7 @@ window.BRRTZ_REGION_CONFIG = (() => {
       sources: ["craigslist-sfbay", "reverb-us", "ebay-us"],
       searchDefaults: {
         cleanGear: true,
+        categoryIntent: "synthesizers",
         maxResults: 80,
         maxPrice: 10000,
         maxDistanceMiles: 75,
@@ -48,6 +50,7 @@ window.BRRTZ_REGION_CONFIG = (() => {
       sources: ["craigslist-la", "reverb-us", "ebay-us"],
       searchDefaults: {
         cleanGear: true,
+        categoryIntent: "synthesizers",
         maxResults: 80,
         maxPrice: 10000,
         maxDistanceMiles: 75,

@@ -63,6 +63,13 @@ const YAHOO_AUCTIONS_DEFAULT_CATEGORY_SWEEPS = [
   "22436", // Musical instruments
   "2084019003", // Keyboards and synthesizers
 ];
+const DEFAULT_CATEGORY_INTENT = "synthesizers";
+const CATEGORY_INTENT_CONFIG = {
+  synthesizers: {
+    label: "Synthesizers",
+    yahooAuctionsCategorySweeps: YAHOO_AUCTIONS_DEFAULT_CATEGORY_SWEEPS,
+  },
+};
 const YAHOO_AUCTIONS_RHYTHM_CATEGORY = "2084019005";
 const YAHOO_AUCTIONS_RHYTHM_TERMS = [
   "drum machine",
@@ -872,6 +879,7 @@ function createServerSearchId(name = "search") {
 async function handleSearch(url, response) {
   const terms = createSourceSearchTerms(splitParam(url.searchParams.get("terms")));
   const excludes = splitParam(url.searchParams.get("excludes"));
+  const categoryIntent = sanitizeCategoryIntent(url.searchParams.get("categoryIntent"));
   const maxPrice = Number(url.searchParams.get("maxPrice") || 0);
   const sources = splitParam(url.searchParams.get("sources"));
   const requestedRegionId = url.searchParams.get("region");
@@ -894,7 +902,7 @@ async function handleSearch(url, response) {
   const startedAt = new Date();
 
   if ((!wantsDigimart && !wantsFiveG && !wantsImplant4 && !wantsCraigslistSfbay && !wantsCraigslistLa && !wantsEbayUs && !wantsJimoty && !wantsMercari && !wantsOffmall && !wantsRakuma && !wantsReverb && !wantsReverbUs && !wantsYahooAuctions && !wantsYahooFleamarket) || terms.length === 0) {
-    sendJson(response, 200, { listings: [], meta: createSearchMeta(startedAt, [], [], terms) });
+    sendJson(response, 200, { listings: [], meta: createSearchMeta(startedAt, [], [], terms, { categoryIntent }) });
     return;
   }
 
@@ -971,7 +979,9 @@ async function handleSearch(url, response) {
   }
 
   if (wantsYahooAuctions) {
-    sourceTasks.push(searchSourceTerms("yahoo-auctions", terms, searchYahooAuctions));
+    sourceTasks.push(searchSourceTerms("yahoo-auctions", terms, searchYahooAuctions, {
+      context: { categoryIntent },
+    }));
   }
 
   if (wantsYahooFleamarket) {
@@ -1001,7 +1011,7 @@ async function handleSearch(url, response) {
 
   sendJson(response, 200, {
     listings: normalizedListings,
-    meta: createSearchMeta(startedAt, sourceStats, errors, terms),
+    meta: createSearchMeta(startedAt, sourceStats, errors, terms, { categoryIntent }),
   });
 }
 
@@ -1124,6 +1134,15 @@ function normalizeMode(value, allowedModes, fallback) {
   return allowedModes.includes(normalized) ? normalized : fallback;
 }
 
+function sanitizeCategoryIntent(value) {
+  const normalized = String(value || "").trim();
+  return CATEGORY_INTENT_CONFIG[normalized] ? normalized : DEFAULT_CATEGORY_INTENT;
+}
+
+function getCategoryIntentLabel(categoryIntent) {
+  return CATEGORY_INTENT_CONFIG[categoryIntent]?.label || CATEGORY_INTENT_CONFIG[DEFAULT_CATEGORY_INTENT].label;
+}
+
 function isCraigslistLiveEnabled() {
   return CRAIGSLIST_MODE === "live";
 }
@@ -1162,7 +1181,7 @@ async function searchSourceTerms(source, terms, searchFn, options = {}) {
 
   for (const [index, term] of searchedTerms.entries()) {
     try {
-      const listings = await searchFn(term);
+      const listings = await searchFn(term, options.context || {});
       listings.forEach((listing) => {
         const existing = listingsById.get(listing.id);
         const image = existing && isPlaceholderImage(listing.image) && !isPlaceholderImage(existing.image)
@@ -1196,7 +1215,8 @@ async function searchSourceTerms(source, terms, searchFn, options = {}) {
   };
 }
 
-function createSearchMeta(startedAt, sourceStats, errors, terms) {
+function createSearchMeta(startedAt, sourceStats, errors, terms, options = {}) {
+  const categoryIntent = sanitizeCategoryIntent(options.categoryIntent);
   return {
     searchedAt: new Date().toISOString(),
     durationMs: Date.now() - startedAt.getTime(),
@@ -1204,6 +1224,8 @@ function createSearchMeta(startedAt, sourceStats, errors, terms) {
     sourceStats,
     errors,
     searchedTerms: terms.slice(0, 5),
+    categoryIntent,
+    categoryLabel: getCategoryIntentLabel(categoryIntent),
   };
 }
 
@@ -1771,9 +1793,9 @@ function isUnavailableLine(searchableLine) {
   ].some((token) => searchableLine.includes(normalizeText(token)));
 }
 
-async function searchYahooAuctions(term) {
+async function searchYahooAuctions(term, options = {}) {
   const listingsById = new Map();
-  const categorySweeps = getYahooAuctionsCategorySweeps(term);
+  const categorySweeps = getYahooAuctionsCategorySweeps(term, options.categoryIntent);
 
   for (const categoryId of categorySweeps) {
     const html = await fetchYahooAuctionsSearch(term, categoryId);
@@ -1808,12 +1830,14 @@ async function searchYahooFleamarket(term) {
   return parseYahooFleamarket(await response.text());
 }
 
-function getYahooAuctionsCategorySweeps(term) {
+function getYahooAuctionsCategorySweeps(term, categoryIntent = DEFAULT_CATEGORY_INTENT) {
   const normalized = normalizeText(term);
+  const intentConfig = CATEGORY_INTENT_CONFIG[sanitizeCategoryIntent(categoryIntent)];
+  const defaultCategorySweeps = intentConfig?.yahooAuctionsCategorySweeps || YAHOO_AUCTIONS_DEFAULT_CATEGORY_SWEEPS;
   const shouldSearchRhythmCategory = YAHOO_AUCTIONS_RHYTHM_TERMS.some((item) => normalized.includes(normalizeText(item)));
   const categorySweeps = shouldSearchRhythmCategory
-    ? [...YAHOO_AUCTIONS_DEFAULT_CATEGORY_SWEEPS, YAHOO_AUCTIONS_RHYTHM_CATEGORY]
-    : YAHOO_AUCTIONS_DEFAULT_CATEGORY_SWEEPS;
+    ? [...defaultCategorySweeps, YAHOO_AUCTIONS_RHYTHM_CATEGORY]
+    : defaultCategorySweeps;
 
   return [...new Set(categorySweeps)];
 }
