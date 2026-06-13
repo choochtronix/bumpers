@@ -40,6 +40,8 @@ const FEATURED_HOME_ALERT_LIMIT = 6;
 const FRESH_FIND_LOADING_CARD_COUNT = 6;
 const FRESH_FIND_STALE_HOURS = 72;
 const FRESH_FIND_STALE_MS = FRESH_FIND_STALE_HOURS * 60 * 60 * 1000;
+const SAVE_CONFIRMATION_DURATION_MS = 3500;
+const SAVE_CONFIRMATION_TRANSITION_MS = 220;
 const FRESH_FIND_CURATOR_TERMS = [
   "arp",
   "cs-",
@@ -698,6 +700,9 @@ const saveSearchModal = document.querySelector("#saveSearchModal");
 const saveSearchForm = document.querySelector("#saveSearchForm");
 const saveSearchName = document.querySelector("#saveSearchName");
 const saveSearchAlert = document.querySelector("#saveSearchAlert");
+const saveConfirmationToast = document.querySelector("#saveConfirmationToast");
+const closeSaveConfirmationToastButton = document.querySelector("#closeSaveConfirmationToast");
+const viewSavedSearchToastButton = document.querySelector("#viewSavedSearchToast");
 const savedRegionChoiceModal = document.querySelector("#savedRegionChoiceModal");
 const savedRegionChoiceDescription = document.querySelector("#savedRegionChoiceDescription");
 const runSavedHomeRegionButton = document.querySelector("#runSavedHomeRegion");
@@ -735,6 +740,7 @@ let pendingSavedRegionProfile = null;
 let settingsReturnFocus = null;
 let savedSearchAutoSyncTimer = 0;
 let profileAutoSyncTimer = 0;
+let saveConfirmationTimer = 0;
 let isSavedSearchAutoSyncing = false;
 let isProfileAutoSyncing = false;
 let eventsBound = false;
@@ -1179,6 +1185,8 @@ function bindEvents() {
   quickSaveSearchButton.addEventListener("click", openSaveSearchModal);
   document.querySelector("#openSaveSearch").addEventListener("click", openSaveSearchModal);
   document.querySelector("#saveProfile").addEventListener("click", openSaveSearchModal);
+  closeSaveConfirmationToastButton?.addEventListener("click", hideSaveConfirmationToast);
+  viewSavedSearchToastButton?.addEventListener("click", viewSavedSearchFromToast);
   document.querySelector("#closeSaveSearch").addEventListener("click", closeSaveSearchModal);
   document.querySelector("#cancelSaveSearch").addEventListener("click", closeSaveSearchModal);
   saveSearchModal.addEventListener("click", (event) => {
@@ -1741,6 +1749,40 @@ function saveCurrentSearchFromModal() {
   setActiveTitle(currentProfile.name);
   queueSavedSearchAutoSync("save-search");
   closeSaveSearchModal();
+  showSaveConfirmationToast(currentProfile);
+}
+
+function showSaveConfirmationToast(profile) {
+  if (!saveConfirmationToast) return;
+  window.clearTimeout(saveConfirmationTimer);
+
+  const copy = saveConfirmationToast.querySelector(".save-toast-copy");
+  if (copy) copy.textContent = `${profile?.name || "Search"} saved`;
+
+  saveConfirmationToast.hidden = false;
+  window.requestAnimationFrame(() => {
+    saveConfirmationToast.classList.add("is-visible");
+  });
+
+  saveConfirmationTimer = window.setTimeout(hideSaveConfirmationToast, SAVE_CONFIRMATION_DURATION_MS);
+}
+
+function hideSaveConfirmationToast() {
+  if (!saveConfirmationToast) return;
+  window.clearTimeout(saveConfirmationTimer);
+  saveConfirmationTimer = 0;
+  saveConfirmationToast.classList.remove("is-visible");
+  window.setTimeout(() => {
+    if (!saveConfirmationToast.classList.contains("is-visible")) {
+      saveConfirmationToast.hidden = true;
+    }
+  }, SAVE_CONFIRMATION_TRANSITION_MS);
+}
+
+function viewSavedSearchFromToast() {
+  hideSaveConfirmationToast();
+  openSavedSearchPopover();
+  openSavedSearchesButton?.focus();
 }
 
 function openSettingsModal(event) {
