@@ -4162,10 +4162,11 @@ function createFeaturedHomeSection(listings, options = {}) {
       return;
     }
 
-    const card = renderListing(listing, { isFeaturedHome: true });
-    if (variant === "watched") card.classList.add("is-watched-home-card");
-    if (variant === "browse") card.classList.add("is-browse-home-card");
-    rail.appendChild(card);
+    const listingFragment = renderListing(listing, { isFeaturedHome: true });
+    const card = listingFragment.querySelector(".listing-card");
+    if (variant === "watched") card?.classList.add("is-watched-home-card");
+    if (variant === "browse") card?.classList.add("is-browse-home-card");
+    rail.appendChild(listingFragment);
   });
 
   const nextButton = document.createElement("button");
@@ -4934,6 +4935,16 @@ function createFlexiblePhrasePattern(value) {
 
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "\"": "&quot;",
+    "'": "&#39;",
+  }[character]));
 }
 
 function compareListings(a, b) {
