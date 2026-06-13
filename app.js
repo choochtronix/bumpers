@@ -665,6 +665,7 @@ const sourceList = document.querySelector("#sourceList");
 const savedSearches = document.querySelector("#savedSearches");
 const searchForm = document.querySelector("#searchForm");
 const brandHomeLink = document.querySelector("#brandHomeLink");
+const regionBadge = document.querySelector("#regionBadge");
 const termsInput = document.querySelector("#terms");
 const mobileSearchOverlay = document.querySelector("#mobileSearchOverlay");
 const mobileSearchForm = document.querySelector("#mobileSearchForm");
@@ -750,6 +751,7 @@ function initialize() {
   runStartupStep("stored theme", applyStoredTheme);
   runStartupStep("brand wave", initializeBrandWave);
   runStartupStep("sources", renderSources);
+  runStartupStep("region badge", updateRegionBadge);
   runStartupStep("active profile", () => {
     fillForm(currentProfile);
     setActiveTitle(currentProfile.name);
@@ -1149,6 +1151,7 @@ function bindEvents() {
   if (eventsBound) return;
 
   brandHomeLink.addEventListener("click", resetHomeView);
+  regionBadge?.addEventListener("click", openRegionSettings);
   searchForm.addEventListener("submit", (event) => {
     event.preventDefault();
     if (!refineSearchModal.hidden) {
@@ -1393,6 +1396,14 @@ function getRegionById(regionId) {
 
 function getActiveRegion() {
   return getRegionById(appSettings?.regionId || defaultSettings.regionId);
+}
+
+function updateRegionBadge() {
+  if (!regionBadge) return;
+  const region = getActiveRegion();
+  regionBadge.textContent = region.label;
+  regionBadge.title = `Search region: ${region.label}`;
+  regionBadge.setAttribute("aria-label", `Change search region. Current region: ${region.label}`);
 }
 
 function getRegionSourceIds(regionId = appSettings?.regionId) {
@@ -1785,7 +1796,7 @@ function viewSavedSearchFromToast() {
   openSavedSearchesButton?.focus();
 }
 
-function openSettingsModal(event) {
+function openSettingsModal(event, options = {}) {
   settingsReturnFocus = event?.currentTarget || document.activeElement;
   fillSettingsForm();
   setSavedSearchTransferStatus("");
@@ -1793,7 +1804,11 @@ function openSettingsModal(event) {
   settingsModal.hidden = false;
   document.body.classList.add("modal-open");
   updateMobileSearchOverlayVisibility();
-  currencyToggle.focus();
+  (options.focusTarget || currencyToggle)?.focus?.();
+}
+
+function openRegionSettings(event) {
+  openSettingsModal(event, { focusTarget: regionSelect });
 }
 
 function closeSettingsModal(options = {}) {
@@ -2218,6 +2233,7 @@ async function saveSettingsFromModal() {
     sourceSearchMeta = new Map();
     currentProfile = createFreshProfile();
     renderSources();
+    updateRegionBadge();
     fillForm(currentProfile);
     resetToIdleSearch();
   } else {
@@ -2377,6 +2393,7 @@ function applyCloudPreferences(preferences = {}) {
       sourceSearchMeta = new Map();
       currentProfile = createFreshProfile();
       renderSources();
+      updateRegionBadge();
       fillForm(currentProfile);
       resetToIdleSearch();
     } else {
@@ -4923,6 +4940,7 @@ function applyActiveRegion(regionId) {
   sourceSearchStatuses = new Map();
   sourceSearchMeta = new Map();
   renderSources();
+  updateRegionBadge();
   renderSourceFilters();
   renderRefineSummary();
   renderSavedSearches();

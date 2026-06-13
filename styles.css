@@ -55,6 +55,13 @@ a {
   gap: 8px;
 }
 
+.brand-region-cluster {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 12px;
+}
+
 .brand {
   display: flex;
   gap: 12px;
@@ -79,6 +86,42 @@ a {
   outline: 3px solid var(--blue);
   outline-offset: 8px;
   border-radius: var(--radius-control);
+}
+
+.region-badge {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  gap: 5px;
+  margin-top: 8px;
+  padding: 0 12px;
+  border: 1px solid color-mix(in srgb, var(--line) 82%, var(--ink));
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1;
+  white-space: nowrap;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+  backdrop-filter: blur(14px);
+}
+
+.region-badge::after {
+  content: "▾";
+  color: var(--muted);
+  font-size: 10px;
+  transform: translateY(-1px);
+}
+
+.region-badge:hover,
+.region-badge:focus-visible {
+  border-color: #0072ff;
+  background: #fff;
+  box-shadow: 0 0 0 2px rgba(0, 114, 255, 0.12), 0 12px 28px rgba(15, 23, 42, 0.08);
 }
 
 .brand-mark {
@@ -952,6 +995,11 @@ body[data-theme="dark"] .refine-icon {
 body[data-theme="dark"] .bumpers-secondary-button:hover .refine-icon,
 body[data-theme="dark"] .bumpers-secondary-button:focus-visible .refine-icon {
   background-image: url("assets/ICONS-site/icon-refine-animated-v02-spin.svg");
+}
+
+body[data-theme="dark"] .region-badge:hover,
+body[data-theme="dark"] .region-badge:focus-visible {
+  background: color-mix(in srgb, var(--panel) 94%, #0072ff);
 }
 
 .quick-search-actions .refine-icon {
@@ -4399,9 +4447,22 @@ body[data-theme="dark"] .refine-backdrop {
     transform: translateY(-50%);
   }
 
+  .brand-region-cluster {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+  }
+
   .brand-home-link {
     width: fit-content;
     max-width: min(220px, 42vw);
+  }
+
+  .region-badge {
+    min-height: 24px;
+    margin-top: 0;
+    padding: 0 9px;
+    font-size: 10px;
   }
 
   .brand-logo {
@@ -4982,6 +5043,12 @@ body[data-theme="dark"] .refine-backdrop {
 
   .brand-logo {
     width: min(160px, 40vw);
+  }
+
+  .region-badge {
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .saved-trigger {
