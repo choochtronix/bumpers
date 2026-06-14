@@ -38,6 +38,7 @@ const EBAY_CLIENT_ID = process.env.EBAY_CLIENT_ID || "";
 const EBAY_CLIENT_SECRET = process.env.EBAY_CLIENT_SECRET || "";
 const EBAY_MARKETPLACE_ID = process.env.EBAY_MARKETPLACE_ID || "EBAY_US";
 const EBAY_CATEGORY_IDS = splitParam(process.env.EBAY_CATEGORY_IDS || "");
+const EBAY_PENDING_MESSAGE = "eBay connector is waiting for API approval. Add EBAY_CLIENT_ID and EBAY_CLIENT_SECRET when production keys are available.";
 const CRAIGSLIST_SFBAY_BASE_URL = "https://sfbay.craigslist.org";
 const CRAIGSLIST_LA_BASE_URL = "https://losangeles.craigslist.org";
 const JINA_READER_BASE_URL = "https://r.jina.ai/http://";
@@ -994,11 +995,13 @@ async function handleSearch(url, response) {
     sourceTasks.push(Promise.resolve(createParkedCraigslistSourceResult("craigslist-la", terms, CRAIGSLIST_LA_BASE_URL, { maxPrice })));
   }
 
-  if (wantsEbayUs) {
+  if (wantsEbayUs && hasEbayCredentials()) {
     sourceTasks.push(searchSourceTerms("ebay-us", terms, searchEbayUs, {
       maxTerms: EBAY_TERM_LIMIT,
       termDelayMs: 0,
     }));
+  } else if (wantsEbayUs) {
+    sourceTasks.push(Promise.resolve(createPendingSourceResult("ebay-us", terms, EBAY_PENDING_MESSAGE)));
   }
 
   if (wantsJimoty) {
@@ -1319,6 +1322,20 @@ function createParkedCraigslistSourceResult(source, terms, baseUrl, options = {}
       rawCount: 0,
       message: CRAIGSLIST_PARKED_MESSAGE,
       manualUrl,
+    },
+  };
+}
+
+function createPendingSourceResult(source, terms, message) {
+  return {
+    listings: [],
+    errors: [],
+    stats: {
+      source,
+      status: "pending",
+      searchedTerms: terms.slice(0, 1),
+      rawCount: 0,
+      message,
     },
   };
 }

@@ -2102,6 +2102,12 @@ body[data-theme="dark"] .source-filter-button.is-active {
   background: color-mix(in srgb, var(--button-bg) 92%, var(--muted) 8%);
 }
 
+.source-filter-button.is-pending {
+  border-color: color-mix(in srgb, var(--source-solid, var(--primary)) 46%, var(--line));
+  color: var(--source-solid-mark, var(--ink));
+  background: color-mix(in srgb, var(--button-bg) 90%, var(--source-solid, var(--primary)) 10%);
+}
+
 .source-filter-button.is-manual {
   border-color: color-mix(in srgb, var(--source-solid, var(--primary)) 48%, var(--line));
   color: var(--source-solid-mark, var(--ink));
@@ -3113,6 +3119,13 @@ body[data-theme="dark"] .listing-card.is-featured-home-card {
   border-color: currentColor;
   opacity: 0.48;
   animation: none;
+}
+
+.source-filter-button.is-pending .source-filter-avatar::after {
+  inset: -3px;
+  border-color: var(--source-solid, var(--primary));
+  opacity: 0.34;
+  animation: sourceLoadingRing 1.6s linear infinite;
 }
 
 .source-filter-button.is-manual .source-filter-avatar::after {

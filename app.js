@@ -3114,6 +3114,8 @@ function updateSourceSearchStatus(group, result) {
       ? "manual"
       : sourceStat?.status === "parked"
         ? "parked"
+        : sourceStat?.status === "pending"
+          ? "pending"
       : result.mode === "error"
         ? "error"
         : "complete";
@@ -3571,6 +3573,7 @@ function renderSourceFilters(baseResults = currentResults) {
     button.classList.toggle("is-loading", status === "loading");
     button.classList.toggle("is-manual", status === "manual");
     button.classList.toggle("is-parked", status === "parked");
+    button.classList.toggle("is-pending", status === "pending");
     button.classList.toggle("is-error", status === "error");
     button.classList.toggle("is-zero", status === "complete" && count === 0);
     button.classList.toggle("has-single-digit-count", isSingleDigitSourceCount(count, status));
@@ -3612,10 +3615,11 @@ function createSourceFilterSummary(counts) {
   if (activeSources.length === 1) {
     const sourceId = activeSources[0];
     const source = SOURCES.find((item) => item.id === sourceId);
+    const status = sourceSearchStatuses.get(sourceId);
     const count = counts.get(sourceId) || 0;
     return {
       count,
-      label: `${formatMatchTotal(count)} ${source?.label || "Source"} ${matchLabel(count)}`,
+      label: createSingleSourceSummaryLabel(source, count, status),
       activeSources,
     };
   }
@@ -3635,6 +3639,16 @@ function createSourceFilterSummary(counts) {
     label: `${formatMatchTotal(count)} ${matchLabel(count)}`,
     activeSources: [],
   };
+}
+
+function createSingleSourceSummaryLabel(source, count, status) {
+  const label = source?.label || "Source";
+  if (status === "loading") return `${label} loading`;
+  if (status === "manual") return `${label} Assist`;
+  if (status === "parked") return `${label} parked`;
+  if (status === "pending") return `${label} pending setup`;
+  if (status === "error") return `${label} needs attention`;
+  return `${formatMatchTotal(count)} ${label} ${matchLabel(count)}`;
 }
 
 function formatMatchTotal(count) {
@@ -3674,12 +3688,13 @@ function formatSourceFilterCount(count, status) {
   if (status === "loading") return "…";
   if (status === "manual") return "↗";
   if (status === "parked") return "⏸";
+  if (status === "pending") return "…";
   if (status === "error") return "!";
   return count;
 }
 
 function isSingleDigitSourceCount(count, status) {
-  if (["loading", "manual", "parked", "error"].includes(status)) return false;
+  if (["loading", "manual", "parked", "pending", "error"].includes(status)) return false;
   return Number.isFinite(count) && count >= 0 && count < 10;
 }
 
@@ -3687,6 +3702,7 @@ function getSourceFilterTitle(source, count, status) {
   if (status === "loading") return `${source.label} is still searching`;
   if (status === "manual") return `Open ${source.label} search on Craigslist`;
   if (status === "parked") return `${source.label} is parked for beta safety`;
+  if (status === "pending") return `${source.label} is waiting for API approval`;
   if (status === "error") return `${source.label} search needs attention`;
   if (count === 0) return `${source.label} returned no matches`;
   return `${source.label} results`;
@@ -3696,6 +3712,7 @@ function getSourceFilterLabel(source, count, status) {
   if (status === "loading") return `${source.label} search loading`;
   if (status === "manual") return `Open prepared ${source.label} search in a new tab`;
   if (status === "parked") return `${source.label} search parked for beta safety`;
+  if (status === "pending") return `${source.label} connector waiting for API approval`;
   if (status === "error") return `${source.label} search error`;
   return `Filter to ${source.label} results, ${count} ${count === 1 ? "match" : "matches"}`;
 }
@@ -5070,6 +5087,7 @@ function createSourceBreakdown(sourceStats) {
 
   const parts = sourceStats.map((item) => {
     if (item.status === "manual") return `${labelForSource(item.source)} Assist`;
+    if (item.status === "pending") return `${labelForSource(item.source)} pending setup`;
     return `${labelForSource(item.source)} ${item.rawCount}`;
   });
   return ` from ${parts.join(", ")}`;
@@ -5078,7 +5096,11 @@ function createSourceBreakdown(sourceStats) {
 function createLiveSourceLabel(meta = {}, fallback = "") {
   const sourceStats = Array.isArray(meta.sourceStats) ? meta.sourceStats : [];
   if (sourceStats.length > 0) {
-    const labels = sourceStats.map((item) => item.status === "manual" ? `${labelForSource(item.source)} Assist` : labelForSource(item.source));
+    const labels = sourceStats.map((item) => {
+      if (item.status === "manual") return `${labelForSource(item.source)} Assist`;
+      if (item.status === "pending") return `${labelForSource(item.source)} pending setup`;
+      return labelForSource(item.source);
+    });
     return [...new Set(labels)].join(", ");
   }
 
