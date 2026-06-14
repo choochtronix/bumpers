@@ -664,6 +664,7 @@ let browseCategoryIntent = DEFAULT_CATEGORY_INTENT;
 let browseCategoryStatus = "idle";
 let browseCategoryListings = [];
 let browseCategoryError = "";
+let browseCategoryCacheSignature = "";
 let isSourceRowExpanded = true;
 const rakumaClientThumbnailCache = new Map();
 let searchState = {
@@ -4084,6 +4085,7 @@ function createFeaturedHomeHeader(count, options = {}) {
   const isWatched = variant === "watched";
   const isBrowse = variant === "browse";
   const isCached = Boolean(options.isCached);
+  const isBrowseCached = Boolean(options.isBrowseCached);
   const seedLabel = starterFreshFindTerms.length > 0 ? starterFreshFindTerms.join(" + ") : "vintage synths";
   if (isBrowse) {
     header.classList.add("is-browse-header");
@@ -4093,7 +4095,11 @@ function createFeaturedHomeHeader(count, options = {}) {
     header.innerHTML = `
       <div>
         <h3>Synth Browser</h3>
-        <span>${browseCategoryStatus === "loading"
+        <span>${isBrowseCached && browseCategoryStatus === "loading"
+          ? `Recently spotted ${getCategoryIntentLabel(browseCategoryIntent).toLowerCase()} while Brrtz refreshes`
+          : isBrowseCached
+            ? `Recently spotted ${getCategoryIntentLabel(browseCategoryIntent).toLowerCase()}`
+          : browseCategoryStatus === "loading"
           ? `Browsing latest ${getCategoryIntentLabel(browseCategoryIntent).toLowerCase()} listings`
           : browseCategoryStatus === "error"
             ? browseCategoryError || "Browse mode is warming up"
@@ -4133,6 +4139,7 @@ function createFeaturedHomeSection(listings, options = {}) {
   const isStarterLive = listings.some((listing) => listing.isStarterLiveFreshFind);
   const isStarterLoading = isStarter && starterFreshFindStatus === "loading";
   const isCached = listings.some((listing) => listing.isFreshFindCached);
+  const isBrowseCached = listings.some((listing) => listing.isBrowseCategoryCached);
   const variant = options.variant || "fresh";
   const section = document.createElement("section");
   section.className = [
@@ -4143,7 +4150,7 @@ function createFeaturedHomeSection(listings, options = {}) {
     isStarterLoading ? "is-loading-starter-fresh-finds" : "",
   ].filter(Boolean).join(" ");
   section.setAttribute("aria-label", variant === "watched" ? "Watched Gear" : variant === "browse" ? "Synth Browser" : "Fresh Finds");
-  section.appendChild(createFeaturedHomeHeader(listings.length, { isStarter, isStarterLive, isStarterLoading, isCached, variant }));
+  section.appendChild(createFeaturedHomeHeader(listings.length, { isStarter, isStarterLive, isStarterLoading, isCached, isBrowseCached, variant }));
 
   const carousel = document.createElement("div");
   carousel.className = "featured-home-carousel";
@@ -4239,8 +4246,12 @@ function getFreshFindHomeListings() {
 function getBrowseCategoryHomeListings() {
   ensureBrowseCategoryListings();
   if (browseCategoryListings.length > 0) {
-    return curateFreshFindListings(browseCategoryListings, { limit: FEATURED_HOME_LIMIT });
+    const curatedListings = curateFreshFindListings(browseCategoryListings, { limit: FEATURED_HOME_LIMIT });
+    maybeSaveBrowseCategoryCache(browseCategoryIntent, curatedListings);
+    return curatedListings;
   }
+  const cachedListings = getCachedBrowseCategoryListings();
+  if (cachedListings.length > 0) return cachedListings;
   if (browseCategoryStatus === "loading") return createBrowseCategoryLoadingPlaceholders();
   return [];
 }
@@ -4256,6 +4267,11 @@ function ensureBrowseCategoryListings() {
     .then((listings) => {
       browseCategoryListings = listings;
       browseCategoryStatus = listings.length > 0 ? "live" : "empty";
+      const curatedListings = curateFreshFindListings(listings, { limit: FEATURED_HOME_LIMIT });
+      if (curatedListings.length > 0) {
+        recordListingDiscoveries({ name: `${getCategoryIntentLabel(browseCategoryIntent)} Browser` }, curatedListings);
+        maybeSaveBrowseCategoryCache(browseCategoryIntent, curatedListings);
+      }
       if (searchState.mode === "idle") renderResults();
     })
     .catch((error) => {
@@ -4307,6 +4323,20 @@ function setHomeBrowseCategory(categoryIntent) {
   if (searchState.mode === "idle") renderResults();
 }
 
+function getCachedBrowseCategoryListings(categoryIntent = browseCategoryIntent) {
+  const cache = loadFreshFindCache();
+  const regionCache = cache[getActiveRegion().id];
+  const categoryCache = regionCache?.browseCategories?.[sanitizeCategoryIntent(categoryIntent, appSettings.regionId)];
+  const listings = Array.isArray(categoryCache?.listings) ? categoryCache.listings : [];
+
+  return curateFreshFindListings(listings, { limit: FEATURED_HOME_LIMIT })
+    .map((listing) => ({
+      ...listing,
+      isBrowseCategoryCached: true,
+      browseCategoryCachedAt: categoryCache?.generatedAt || "",
+    }));
+}
+
 function getCachedFreshFindListings() {
   const cache = loadFreshFindCache();
   const regionCache = cache[getActiveRegion().id];
@@ -4333,7 +4363,9 @@ function saveFreshFindCache(listings) {
 
   const cache = loadFreshFindCache();
   const regionId = getActiveRegion().id;
+  const regionCache = cache[regionId] || { regionId };
   cache[regionId] = {
+    ...regionCache,
     regionId,
     generatedAt: new Date().toISOString(),
     terms: [...starterFreshFindTerms],
@@ -4352,6 +4384,55 @@ function saveFreshFindCache(listings) {
       console.warn("Fresh Finds cache skipped because browser storage is full.", retryError);
     }
   }
+}
+
+function saveBrowseCategoryCache(categoryIntent, listings) {
+  if (!Array.isArray(listings) || listings.length === 0) return;
+
+  const cache = loadFreshFindCache();
+  const regionId = getActiveRegion().id;
+  const normalizedCategoryIntent = sanitizeCategoryIntent(categoryIntent, appSettings.regionId);
+  const regionCache = cache[regionId] || { regionId };
+  const browseCategories = {
+    ...(regionCache.browseCategories || {}),
+    [normalizedCategoryIntent]: {
+      categoryIntent: normalizedCategoryIntent,
+      generatedAt: new Date().toISOString(),
+      listings: listings.slice(0, FEATURED_HOME_LIMIT).map(serializeFreshFindCacheListing),
+    },
+  };
+
+  cache[regionId] = {
+    ...regionCache,
+    regionId,
+    browseCategories,
+  };
+
+  try {
+    localStorage.setItem(STORAGE_KEYS.freshFindCache, JSON.stringify(cache));
+  } catch (error) {
+    if (!isStorageQuotaError(error)) throw error;
+    cache[regionId].browseCategories[normalizedCategoryIntent].listings = cache[regionId].browseCategories[normalizedCategoryIntent].listings.slice(0, Math.ceil(FEATURED_HOME_LIMIT / 2));
+    try {
+      localStorage.setItem(STORAGE_KEYS.freshFindCache, JSON.stringify(cache));
+    } catch (retryError) {
+      if (!isStorageQuotaError(retryError)) throw retryError;
+      console.warn("Synth Browser cache skipped because browser storage is full.", retryError);
+    }
+  }
+}
+
+function maybeSaveBrowseCategoryCache(categoryIntent, listings) {
+  if (!Array.isArray(listings) || listings.length === 0) return;
+  const normalizedCategoryIntent = sanitizeCategoryIntent(categoryIntent, appSettings.regionId);
+  const signature = [
+    getActiveRegion().id,
+    normalizedCategoryIntent,
+    listings.map((listing) => listing.id || listing.url || listing.title).join("|"),
+  ].join(":");
+  if (signature === browseCategoryCacheSignature) return;
+  browseCategoryCacheSignature = signature;
+  saveBrowseCategoryCache(normalizedCategoryIntent, listings);
 }
 
 function serializeFreshFindCacheListing(listing) {
