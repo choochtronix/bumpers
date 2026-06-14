@@ -625,6 +625,11 @@ const defaultSettings = {
 const CATEGORY_INTENTS = [
   { id: "synthesizers", label: "Synthesizers" },
   { id: "drum-machines", label: "Drum Machines" },
+  { id: "samplers", label: "Samplers" },
+  { id: "sequencers", label: "Sequencers" },
+  { id: "modular", label: "Eurorack / Modular" },
+  { id: "effects-pedals", label: "Effects / Pedals" },
+  { id: "pro-audio", label: "Pro Audio" },
 ];
 const DEFAULT_CATEGORY_INTENT = "synthesizers";
 const CATEGORY_INTENT_IDS = new Set(CATEGORY_INTENTS.map((intent) => intent.id));
@@ -665,6 +670,7 @@ let browseCategoryStatus = "idle";
 let browseCategoryListings = [];
 let browseCategoryError = "";
 let browseCategoryCacheSignature = "";
+let browseCategoryUpdatedAt = "";
 let isSourceRowExpanded = true;
 const rakumaClientThumbnailCache = new Map();
 let searchState = {
@@ -4086,24 +4092,26 @@ function createFeaturedHomeHeader(count, options = {}) {
   const isBrowse = variant === "browse";
   const isCached = Boolean(options.isCached);
   const isBrowseCached = Boolean(options.isBrowseCached);
+  const browseCacheUpdatedAt = options.browseCacheUpdatedAt || "";
   const seedLabel = starterFreshFindTerms.length > 0 ? starterFreshFindTerms.join(" + ") : "vintage synths";
   if (isBrowse) {
     header.classList.add("is-browse-header");
     const optionsMarkup = CATEGORY_INTENTS.map((intent) => `
       <option value="${escapeHtml(intent.id)}" ${intent.id === browseCategoryIntent ? "selected" : ""}>${escapeHtml(intent.label)}</option>
     `).join("");
+    const browseFreshness = formatBrowseFreshnessDetail(browseCacheUpdatedAt);
     header.innerHTML = `
       <div>
         <h3>Synth Browser</h3>
         <span>${isBrowseCached && browseCategoryStatus === "loading"
-          ? `Recently spotted ${getCategoryIntentLabel(browseCategoryIntent).toLowerCase()} while Brrtz refreshes`
+          ? `Recently spotted ${getCategoryIntentLabel(browseCategoryIntent).toLowerCase()} · Refreshing now${browseFreshness}`
           : isBrowseCached
-            ? `Recently spotted ${getCategoryIntentLabel(browseCategoryIntent).toLowerCase()}`
+            ? `Recently spotted ${getCategoryIntentLabel(browseCategoryIntent).toLowerCase()}${browseFreshness}`
           : browseCategoryStatus === "loading"
           ? `Browsing latest ${getCategoryIntentLabel(browseCategoryIntent).toLowerCase()} listings`
           : browseCategoryStatus === "error"
             ? browseCategoryError || "Browse mode is warming up"
-            : `${count} latest ${count === 1 ? "listing" : "listings"} in ${getCategoryIntentLabel(browseCategoryIntent).toLowerCase()}`
+            : `${count} latest ${count === 1 ? "listing" : "listings"} in ${getCategoryIntentLabel(browseCategoryIntent).toLowerCase()}${browseFreshness}`
         }</span>
       </div>
       <label class="browse-category-control">
@@ -4139,8 +4147,9 @@ function createFeaturedHomeSection(listings, options = {}) {
   const isStarterLive = listings.some((listing) => listing.isStarterLiveFreshFind);
   const isStarterLoading = isStarter && starterFreshFindStatus === "loading";
   const isCached = listings.some((listing) => listing.isFreshFindCached);
-  const isBrowseCached = listings.some((listing) => listing.isBrowseCategoryCached);
   const variant = options.variant || "fresh";
+  const isBrowseCached = listings.some((listing) => listing.isBrowseCategoryCached);
+  const browseCacheUpdatedAt = listings.find((listing) => listing.browseCategoryCachedAt)?.browseCategoryCachedAt || (variant === "browse" ? browseCategoryUpdatedAt : "");
   const section = document.createElement("section");
   section.className = [
     "featured-home-section",
@@ -4150,7 +4159,7 @@ function createFeaturedHomeSection(listings, options = {}) {
     isStarterLoading ? "is-loading-starter-fresh-finds" : "",
   ].filter(Boolean).join(" ");
   section.setAttribute("aria-label", variant === "watched" ? "Watched Gear" : variant === "browse" ? "Synth Browser" : "Fresh Finds");
-  section.appendChild(createFeaturedHomeHeader(listings.length, { isStarter, isStarterLive, isStarterLoading, isCached, isBrowseCached, variant }));
+  section.appendChild(createFeaturedHomeHeader(listings.length, { isStarter, isStarterLive, isStarterLoading, isCached, isBrowseCached, browseCacheUpdatedAt, variant }));
 
   const carousel = document.createElement("div");
   carousel.className = "featured-home-carousel";
@@ -4337,6 +4346,22 @@ function getCachedBrowseCategoryListings(categoryIntent = browseCategoryIntent) 
     }));
 }
 
+function formatBrowseFreshnessDetail(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  const timestamp = date.getTime();
+  if (Number.isNaN(timestamp)) return "";
+
+  const ageMs = Date.now() - timestamp;
+  if (ageMs < 0 || ageMs < 60 * 1000) return " · Updated just now";
+  if (ageMs < 60 * 60 * 1000) {
+    const minutes = Math.max(1, Math.floor(ageMs / (60 * 1000)));
+    return ` · Updated ${minutes} min ago`;
+  }
+
+  return ` · Updated ${formatShortDate(value)}`;
+}
+
 function getCachedFreshFindListings() {
   const cache = loadFreshFindCache();
   const regionCache = cache[getActiveRegion().id];
@@ -4393,11 +4418,12 @@ function saveBrowseCategoryCache(categoryIntent, listings) {
   const regionId = getActiveRegion().id;
   const normalizedCategoryIntent = sanitizeCategoryIntent(categoryIntent, appSettings.regionId);
   const regionCache = cache[regionId] || { regionId };
+  const generatedAt = new Date().toISOString();
   const browseCategories = {
     ...(regionCache.browseCategories || {}),
     [normalizedCategoryIntent]: {
       categoryIntent: normalizedCategoryIntent,
-      generatedAt: new Date().toISOString(),
+      generatedAt,
       listings: listings.slice(0, FEATURED_HOME_LIMIT).map(serializeFreshFindCacheListing),
     },
   };
@@ -4410,11 +4436,13 @@ function saveBrowseCategoryCache(categoryIntent, listings) {
 
   try {
     localStorage.setItem(STORAGE_KEYS.freshFindCache, JSON.stringify(cache));
+    browseCategoryUpdatedAt = generatedAt;
   } catch (error) {
     if (!isStorageQuotaError(error)) throw error;
     cache[regionId].browseCategories[normalizedCategoryIntent].listings = cache[regionId].browseCategories[normalizedCategoryIntent].listings.slice(0, Math.ceil(FEATURED_HOME_LIMIT / 2));
     try {
       localStorage.setItem(STORAGE_KEYS.freshFindCache, JSON.stringify(cache));
+      browseCategoryUpdatedAt = generatedAt;
     } catch (retryError) {
       if (!isStorageQuotaError(retryError)) throw retryError;
       console.warn("Synth Browser cache skipped because browser storage is full.", retryError);

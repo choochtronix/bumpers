@@ -75,6 +75,31 @@ const CATEGORY_INTENT_CONFIG = {
     yahooAuctionsBrowseCategoryId: "2084019005",
     yahooAuctionsCategorySweeps: ["", "22436", "2084019005"],
   },
+  samplers: {
+    label: "Samplers",
+    yahooAuctionsBrowseTerms: ["sampler", "サンプラー", "akai mpc", "sp-404"],
+    yahooAuctionsCategorySweeps: ["", "22436"],
+  },
+  sequencers: {
+    label: "Sequencers",
+    yahooAuctionsBrowseTerms: ["sequencer", "シーケンサー", "step sequencer"],
+    yahooAuctionsCategorySweeps: ["", "22436"],
+  },
+  modular: {
+    label: "Eurorack / Modular",
+    yahooAuctionsBrowseTerms: ["eurorack", "modular synth", "モジュラーシンセ", "ユーロラック"],
+    yahooAuctionsCategorySweeps: ["", "22436"],
+  },
+  "effects-pedals": {
+    label: "Effects / Pedals",
+    yahooAuctionsBrowseTerms: ["effects pedal", "delay pedal", "reverb pedal", "エフェクター", "ディレイ"],
+    yahooAuctionsCategorySweeps: ["", "22436"],
+  },
+  "pro-audio": {
+    label: "Pro Audio",
+    yahooAuctionsBrowseTerms: ["audio interface", "mixer", "compressor", "preamp", "オーディオインターフェイス", "ミキサー"],
+    yahooAuctionsCategorySweeps: ["", "22436"],
+  },
 };
 const YAHOO_AUCTIONS_RHYTHM_CATEGORY = "2084019005";
 const YAHOO_AUCTIONS_RHYTHM_TERMS = [
@@ -1039,13 +1064,16 @@ async function handleBrowse(url, response) {
 
   if (regionId === "japan") {
     const categoryId = getYahooAuctionsBrowseCategoryId(categoryIntent);
+    const browseTerms = getYahooAuctionsBrowseTerms(categoryIntent);
 
     try {
-      const listings = await browseYahooAuctionsCategory(categoryIntent);
+      const listings = categoryId
+        ? await browseYahooAuctionsCategory(categoryIntent)
+        : await browseYahooAuctionsCategoryTerms(categoryIntent);
       sourceStats.push({
         source: "yahoo-auctions",
         status: "ok",
-        searchedTerms: [],
+        searchedTerms: browseTerms,
         categoryIntent,
         categoryId,
         rawCount: listings.length,
@@ -1060,7 +1088,7 @@ async function handleBrowse(url, response) {
       sourceStats.push({
         source: "yahoo-auctions",
         status: "error",
-        searchedTerms: [],
+        searchedTerms: browseTerms,
         categoryIntent,
         categoryId,
         rawCount: 0,
@@ -1229,6 +1257,10 @@ function getCategoryIntentLabel(categoryIntent) {
 
 function getYahooAuctionsBrowseCategoryId(categoryIntent) {
   return CATEGORY_INTENT_CONFIG[sanitizeCategoryIntent(categoryIntent)]?.yahooAuctionsBrowseCategoryId || "";
+}
+
+function getYahooAuctionsBrowseTerms(categoryIntent) {
+  return CATEGORY_INTENT_CONFIG[sanitizeCategoryIntent(categoryIntent)]?.yahooAuctionsBrowseTerms || [];
 }
 
 function isCraigslistLiveEnabled() {
@@ -1906,6 +1938,25 @@ async function browseYahooAuctionsCategory(categoryIntent = DEFAULT_CATEGORY_INT
     ...listing,
     categoryIntent: sanitizeCategoryIntent(categoryIntent),
   }));
+}
+
+async function browseYahooAuctionsCategoryTerms(categoryIntent = DEFAULT_CATEGORY_INTENT) {
+  const listingsById = new Map();
+  const browseTerms = getYahooAuctionsBrowseTerms(categoryIntent);
+
+  for (const [index, term] of browseTerms.entries()) {
+    const listings = await searchYahooAuctions(term, { categoryIntent });
+    listings.forEach((listing) => listingsById.set(listing.id, {
+      ...listing,
+      categoryIntent: sanitizeCategoryIntent(categoryIntent),
+    }));
+
+    if (index < browseTerms.length - 1) {
+      await wait(400);
+    }
+  }
+
+  return [...listingsById.values()];
 }
 
 async function searchYahooFleamarket(term) {
