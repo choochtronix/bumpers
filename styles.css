@@ -3683,6 +3683,8 @@ body[data-theme="dark"] .listing-card.is-watched-home-card {
 .browse-category-control select {
   appearance: none;
   -webkit-appearance: none;
+  position: relative;
+  z-index: 1;
   min-height: 46px;
   padding: 0 48px 0 18px;
   border: 1px solid var(--line);
@@ -3697,13 +3699,14 @@ body[data-theme="dark"] .listing-card.is-watched-home-card {
   content: "";
   position: absolute;
   right: 20px;
-  bottom: 18px;
+  bottom: 19px;
   width: 9px;
   height: 9px;
   border-right: 2px solid var(--text);
   border-bottom: 2px solid var(--text);
   pointer-events: none;
   transform: rotate(45deg);
+  z-index: 2;
 }
 
 .listing-card.is-browse-home-card {
