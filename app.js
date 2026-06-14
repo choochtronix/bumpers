@@ -1316,6 +1316,12 @@ function bindEvents() {
       openManualSourceSearch(sourceId);
       return;
     }
+    if (isNonFilterableSourceStatus(sourceId)) {
+      activeViewSources.delete(sourceId);
+      resetPagination();
+      renderResults();
+      return;
+    }
     toggleViewSource(sourceId);
     resetPagination();
     renderResults();
@@ -3721,6 +3727,10 @@ function isManualSourceStatus(sourceId) {
   return sourceSearchStatuses.get(sourceId) === "manual";
 }
 
+function isNonFilterableSourceStatus(sourceId) {
+  return ["pending", "parked"].includes(sourceSearchStatuses.get(sourceId));
+}
+
 function openManualSourceSearch(sourceId) {
   const url = getManualSourceUrl(sourceId);
   if (!url) return;
@@ -3770,6 +3780,10 @@ function toggleViewSource(sourceId) {
 function pruneActiveViewSources() {
   const availableSources = new Set(currentResults.map((listing) => listing.source));
   activeViewSources.forEach((sourceId) => {
+    if (isNonFilterableSourceStatus(sourceId)) {
+      activeViewSources.delete(sourceId);
+      return;
+    }
     if (!availableSources.has(sourceId) && !sourceSearchStatuses.has(sourceId)) activeViewSources.delete(sourceId);
   });
 }
