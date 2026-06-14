@@ -3655,8 +3655,9 @@ body[data-theme="dark"] .listing-card.is-watched-home-card {
 
 .featured-home-header span {
   color: var(--muted);
-  font-size: 18px;
-  font-weight: 850;
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.2;
 }
 
 .featured-home-header.is-browse-header {
@@ -4845,7 +4846,8 @@ body[data-theme="dark"] .refine-backdrop {
   }
 
   .featured-home-header span {
-    font-size: 14px;
+    font-size: 12px;
+    font-weight: 600;
   }
 
   .featured-home-rail {
