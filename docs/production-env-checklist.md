@@ -31,6 +31,7 @@ These enable additional marketplace sources. Leave them blank unless that source
 | `EBAY_CLIENT_ID` | For eBay only | No | `<eBay app client id>` | eBay developer application Client ID. |
 | `EBAY_CLIENT_SECRET` | For eBay only | Yes | `<eBay app client secret>` | Server-only. Required for client-credentials OAuth. |
 | `EBAY_MARKETPLACE_ID` | No | No | `EBAY_US` | Defaults to `EBAY_US` for US regions. |
+| `EBAY_CATEGORY_IDS` | No | No | `619` | Optional comma-separated Browse API category IDs. Leave blank until category IDs are verified. |
 
 ## Hosting Runtime
 
@@ -90,6 +91,28 @@ where email = 'friend@example.com';
 - [ ] Signed-in invited user can use Settings -> Sync now.
 - [ ] Signed-in invited user can use Settings -> Pull from cloud.
 - [ ] No real `.env` files are tracked by Git.
+
+## Source QA Commands
+
+Run these locally before turning on a new source for beta testers:
+
+```bash
+npm run qa:golden-searches
+```
+
+Against production:
+
+```bash
+BRRTZ_QA_BASE_URL=https://brrtz.com npm run qa:golden-searches
+```
+
+Source health requires the job token:
+
+```bash
+BRRTZ_QA_BASE_URL=https://brrtz.com BUMPERS_JOB_TOKEN=<token> npm run jobs:source-health:http
+```
+
+`/api/health` exposes safe booleans such as `supabaseConfigured` and `ebayConfigured`; it does not expose secret values.
 
 ## Current Beta Recommendation
 

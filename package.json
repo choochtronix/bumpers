@@ -6,7 +6,9 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "jobs:source-health": "node src/jobs/runSourceHealth.js"
+    "jobs:source-health": "node src/jobs/runSourceHealth.js",
+    "jobs:source-health:http": "node scripts/source-health-http.js",
+    "qa:golden-searches": "node scripts/golden-search-check.js"
   },
   "dependencies": {
     "playwright": "^1.60.0"

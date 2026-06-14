@@ -37,6 +37,7 @@ const EBAY_API_BASE_URL = "https://api.ebay.com";
 const EBAY_CLIENT_ID = process.env.EBAY_CLIENT_ID || "";
 const EBAY_CLIENT_SECRET = process.env.EBAY_CLIENT_SECRET || "";
 const EBAY_MARKETPLACE_ID = process.env.EBAY_MARKETPLACE_ID || "EBAY_US";
+const EBAY_CATEGORY_IDS = splitParam(process.env.EBAY_CATEGORY_IDS || "");
 const CRAIGSLIST_SFBAY_BASE_URL = "https://sfbay.craigslist.org";
 const CRAIGSLIST_LA_BASE_URL = "https://losangeles.craigslist.org";
 const JINA_READER_BASE_URL = "https://r.jina.ai/http://";
@@ -277,6 +278,7 @@ function handleHealthCheck(request, response) {
     cloudProvider: CLOUD_PROVIDER,
     inviteRequired: REQUIRE_INVITE,
     supabaseConfigured: Boolean(SUPABASE_URL && SUPABASE_ANON_KEY && SUPABASE_SERVICE_ROLE_KEY),
+    ebayConfigured: hasEbayCredentials(),
     craigslistMode: CRAIGSLIST_MODE,
     checkedAt: new Date().toISOString(),
   });
@@ -430,6 +432,7 @@ async function checkSourceHealthSource(source) {
 
 function getSourceHealthSearchFn(sourceId) {
   if (!isCraigslistLiveEnabled() && sourceId.startsWith("craigslist-")) return null;
+  if (sourceId === "ebay-us" && !hasEbayCredentials()) return null;
 
   return {
     digimart: searchDigimart,
@@ -447,6 +450,10 @@ function getSourceHealthSearchFn(sourceId) {
     "yahoo-auctions": searchYahooAuctions,
     "yahoo-fleamarket": searchYahooFleamarket,
   }[sourceId] || null;
+}
+
+function hasEbayCredentials() {
+  return Boolean(EBAY_CLIENT_ID && EBAY_CLIENT_SECRET);
 }
 
 function isAuthorizedOpsRequest(request) {
@@ -1615,7 +1622,7 @@ async function searchReverbUs(term) {
 }
 
 async function searchEbayUs(term) {
-  if (!EBAY_CLIENT_ID || !EBAY_CLIENT_SECRET) {
+  if (!hasEbayCredentials()) {
     throw new Error("eBay API credentials are not configured. Add EBAY_CLIENT_ID and EBAY_CLIENT_SECRET.");
   }
 
@@ -1624,6 +1631,9 @@ async function searchEbayUs(term) {
   url.searchParams.set("q", term);
   url.searchParams.set("limit", String(EBAY_RESULT_LIMIT));
   url.searchParams.set("sort", "newlyListed");
+  if (EBAY_CATEGORY_IDS.length) {
+    url.searchParams.set("category_ids", EBAY_CATEGORY_IDS.join(","));
+  }
   url.searchParams.set("filter", [
     "buyingOptions:{FIXED_PRICE|AUCTION}",
     "itemLocationCountry:US",
