@@ -42,6 +42,11 @@ Live runs store discovered listing IDs in local browser storage. This lets Brrtz
 
 The Daily Radar panel shows fresh discoveries from the current scan. Saved searches also keep their latest scan time, match count, and new-find count so the sidebar can act as a quick daily checklist.
 
+## Feature Docs
+
+- [Synth Browser](docs/synth-browser.md): homepage browse mode, category intents, cache behavior, and source category strategy.
+- [Browse category verification](docs/browse-category-verification.md): verified category IDs and keyword-backed category notes.
+
 ## Connector Model
 
 Every live source should return normalized listing objects:
