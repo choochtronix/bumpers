@@ -3668,6 +3668,7 @@ body[data-theme="dark"] .listing-card.is-watched-home-card {
   display: inline-grid;
   gap: 5px;
   min-width: min(220px, 42vw);
+  position: relative;
 }
 
 .browse-category-control span {
@@ -3679,14 +3680,29 @@ body[data-theme="dark"] .listing-card.is-watched-home-card {
 }
 
 .browse-category-control select {
+  appearance: none;
+  -webkit-appearance: none;
   min-height: 46px;
-  padding: 0 44px 0 18px;
+  padding: 0 48px 0 18px;
   border: 1px solid var(--line);
   border-radius: var(--radius-pill);
   background-color: var(--panel);
   color: var(--text);
   font: inherit;
   font-weight: 850;
+}
+
+.browse-category-control::after {
+  content: "";
+  position: absolute;
+  right: 20px;
+  bottom: 18px;
+  width: 9px;
+  height: 9px;
+  border-right: 2px solid var(--text);
+  border-bottom: 2px solid var(--text);
+  pointer-events: none;
+  transform: rotate(45deg);
 }
 
 .listing-card.is-browse-home-card {
