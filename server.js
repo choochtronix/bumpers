@@ -97,8 +97,9 @@ const CATEGORY_INTENT_CONFIG = {
   },
   "pro-audio": {
     label: "Pro Audio",
+    yahooAuctionsBrowseCategoryId: "2084019010",
     yahooAuctionsBrowseTerms: ["audio interface", "mixer", "compressor", "preamp", "オーディオインターフェイス", "ミキサー"],
-    yahooAuctionsCategorySweeps: ["", "22436"],
+    yahooAuctionsCategorySweeps: ["", "22436", "2084019010"],
   },
 };
 const YAHOO_AUCTIONS_RHYTHM_CATEGORY = "2084019005";
