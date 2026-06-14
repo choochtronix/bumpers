@@ -16,6 +16,7 @@ Verified live category pages:
 
 | Brrtz category intent | Yahoo Auctions category ID | Yahoo category label | Current Brrtz behavior |
 | --- | --- | --- | --- |
+| `all` | Multiple verified categories | Synthesizers + rhythm machines | Aggregates the verified fast synth-centric branches for homepage browsing |
 | `synthesizers` | `2084019003` | `キーボード、シンセサイザー` | Exact category browse and search sweep |
 | `drum-machines` | `2084019005` | `リズムマシン` | Exact category browse and search sweep |
 | `pro-audio` | `2084019010` | `レコーディング、PA機器` | Exact category browse and search sweep |

@@ -623,6 +623,7 @@ const defaultSettings = {
 };
 
 const CATEGORY_INTENTS = [
+  { id: "all", label: "All Synth Gear" },
   { id: "synthesizers", label: "Synthesizers" },
   { id: "drum-machines", label: "Drum Machines" },
   { id: "samplers", label: "Samplers" },
@@ -632,6 +633,7 @@ const CATEGORY_INTENTS = [
   { id: "pro-audio", label: "Pro Audio" },
 ];
 const DEFAULT_CATEGORY_INTENT = "synthesizers";
+const DEFAULT_BROWSE_CATEGORY_INTENT = "all";
 const CATEGORY_INTENT_IDS = new Set(CATEGORY_INTENTS.map((intent) => intent.id));
 
 const defaultProfile = {
@@ -665,7 +667,7 @@ let mobileSearchOverlayFrame = 0;
 let starterFreshFindStatus = "idle";
 let starterFreshFindListings = [];
 let starterFreshFindTerms = [];
-let browseCategoryIntent = DEFAULT_CATEGORY_INTENT;
+let browseCategoryIntent = DEFAULT_BROWSE_CATEGORY_INTENT;
 let browseCategoryStatus = "idle";
 let browseCategoryListings = [];
 let browseCategoryError = "";

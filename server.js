@@ -65,6 +65,11 @@ const YAHOO_AUCTIONS_DEFAULT_CATEGORY_SWEEPS = [
 ];
 const DEFAULT_CATEGORY_INTENT = "synthesizers";
 const CATEGORY_INTENT_CONFIG = {
+  all: {
+    label: "All Synth Gear",
+    yahooAuctionsBrowseCategoryIntents: ["synthesizers", "drum-machines"],
+    yahooAuctionsCategorySweeps: ["", "22436", "2084019003", "2084019005"],
+  },
   synthesizers: {
     label: "Synthesizers",
     yahooAuctionsBrowseCategoryId: "2084019003",
@@ -1064,36 +1069,53 @@ async function handleBrowse(url, response) {
   const listingsById = new Map();
 
   if (regionId === "japan") {
-    const categoryId = getYahooAuctionsBrowseCategoryId(categoryIntent);
-    const browseTerms = getYahooAuctionsBrowseTerms(categoryIntent);
+    const browseIntents = getYahooAuctionsBrowseCategoryIntents(categoryIntent);
+    const categoryIntents = browseIntents.length > 0 ? browseIntents : [categoryIntent];
+    const browseResults = await Promise.all(categoryIntents.map(async (browseIntent) => {
+      const categoryId = getYahooAuctionsBrowseCategoryId(browseIntent);
+      const browseTerms = getYahooAuctionsBrowseTerms(browseIntent);
 
-    try {
-      const listings = categoryId
-        ? await browseYahooAuctionsCategory(categoryIntent)
-        : await browseYahooAuctionsCategoryTerms(categoryIntent);
-      sourceStats.push({
-        source: "yahoo-auctions",
-        status: "ok",
-        searchedTerms: browseTerms,
-        categoryIntent,
-        categoryId,
-        rawCount: listings.length,
-      });
-      collectFilteredListings(listings, listingsById, excludes, maxPrice);
-    } catch (error) {
-      errors.push({
-        source: "yahoo-auctions",
-        term: "",
-        message: error instanceof Error ? error.message : "Unknown browse connector error",
-      });
-      sourceStats.push({
-        source: "yahoo-auctions",
-        status: "error",
-        searchedTerms: browseTerms,
-        categoryIntent,
-        categoryId,
-        rawCount: 0,
-      });
+      try {
+        const listings = categoryId
+          ? await browseYahooAuctionsCategory(browseIntent)
+          : await browseYahooAuctionsCategoryTerms(browseIntent);
+        return {
+          listings,
+          stat: {
+            source: "yahoo-auctions",
+            status: "ok",
+            searchedTerms: browseTerms,
+            categoryIntent: browseIntent,
+            categoryId,
+            rawCount: listings.length,
+          },
+        };
+      } catch (error) {
+        return {
+          error: {
+            source: "yahoo-auctions",
+            term: "",
+            message: error instanceof Error ? error.message : "Unknown browse connector error",
+          },
+          stat: {
+            source: "yahoo-auctions",
+            status: "error",
+            searchedTerms: browseTerms,
+            categoryIntent: browseIntent,
+            categoryId,
+            rawCount: 0,
+          },
+        };
+      }
+    }));
+
+    for (const result of browseResults) {
+      sourceStats.push(result.stat);
+      if (result.error) {
+        errors.push(result.error);
+      } else {
+        collectFilteredListings(result.listings, listingsById, excludes, maxPrice);
+      }
     }
   } else {
     errors.push({
@@ -1118,6 +1140,12 @@ async function handleBrowse(url, response) {
       region: regionId,
     },
   });
+}
+
+function getSourceConfig(sourceId) {
+  return getRegionConfigs()
+    .flatMap((region) => region.sources || [])
+    .find((source) => source.id === sourceId);
 }
 
 function collectFilteredListings(listings, listingsById, excludes, maxPrice) {
@@ -1258,6 +1286,10 @@ function getCategoryIntentLabel(categoryIntent) {
 
 function getYahooAuctionsBrowseCategoryId(categoryIntent) {
   return CATEGORY_INTENT_CONFIG[sanitizeCategoryIntent(categoryIntent)]?.yahooAuctionsBrowseCategoryId || "";
+}
+
+function getYahooAuctionsBrowseCategoryIntents(categoryIntent) {
+  return CATEGORY_INTENT_CONFIG[sanitizeCategoryIntent(categoryIntent)]?.yahooAuctionsBrowseCategoryIntents || [];
 }
 
 function getYahooAuctionsBrowseTerms(categoryIntent) {
