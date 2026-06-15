@@ -32,7 +32,7 @@ window.BRRTZ_REGION_CONFIG = (() => {
       currency: "USD",
       defaultLocale: "en-US",
       status: "beta",
-      sources: ["craigslist-sfbay", "reverb-us", "ebay-us"],
+      sources: ["craigslist-sfbay", "reverb-us", "ebay-us", "guitar-center-used"],
       searchDefaults: {
         cleanGear: true,
         categoryIntent: "synthesizers",
@@ -47,7 +47,7 @@ window.BRRTZ_REGION_CONFIG = (() => {
       currency: "USD",
       defaultLocale: "en-US",
       status: "beta",
-      sources: ["craigslist-la", "reverb-us", "ebay-us"],
+      sources: ["craigslist-la", "reverb-us", "ebay-us", "guitar-center-used"],
       searchDefaults: {
         cleanGear: true,
         categoryIntent: "synthesizers",

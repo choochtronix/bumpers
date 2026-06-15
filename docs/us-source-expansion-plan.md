@@ -15,7 +15,7 @@ Brrtz should prefer official APIs and user-assisted deep links over brittle scra
 | P0 | Facebook Marketplace | `facebook-marketplace` | Manual deep-link assist | Candidate | High local signal, but avoid scraping for beta. |
 | P1 | Craigslist SF Bay | `craigslist-sfbay` | Manual deep-link assist | Parked | Keep as user-initiated search assist only after block risk. |
 | P1 | Craigslist Los Angeles | `craigslist-la` | Manual deep-link assist | Parked | Same Craigslist safety posture as SF Bay. |
-| P1 | Guitar Center Used | `guitar-center-used` | API investigation / light connector | Candidate | Strong used inventory, useful category structure. |
+| P1 | Guitar Center Used | `guitar-center-used` | Manual category assist | Beta assist | Strong used inventory, useful category structure. Direct fetch returned access denial and search paths are not scraper-friendly, so beta uses user-opened category links. |
 | P1 | Sweetwater Gear Exchange | `sweetwater-gear-exchange` | API investigation / light connector | Candidate | Music-gear-specific marketplace. |
 | P1 | ShopGoodwill | `shopgoodwill` | Light connector | Candidate | Hidden gems, noisy categories, auctions. |
 | P2 | OfferUp | `offerup` | Manual deep-link assist | Candidate | Local signal, app-first friction. |
@@ -32,7 +32,7 @@ Brrtz should prefer official APIs and user-assisted deep links over brittle scra
 ## Beta Build Order
 
 1. Keep `ebay-us` and `reverb-us` healthy as the first live US beta sources.
-2. Add one retailer/shop connector after the core US sources are stable; Guitar Center Used is the next source-scout target.
+2. Add one retailer/shop connector after the core US sources are stable; Guitar Center Used is now a beta manual category assist.
 3. Add `facebook-marketplace` as a manual deep-link assist only if testers specifically ask for it.
 4. Keep Craigslist as deep-link assist only until a safe access path is confirmed.
 5. Tune `reverb-us` and `ebay-us` relevance for Bay Area / Los Angeles search quality.
@@ -73,3 +73,15 @@ For beta, Facebook Marketplace should be a manual/deep-link source only:
 - Build a precise Marketplace search URL from the current search term.
 - Let the user open Facebook directly.
 - Do not scrape or automate login sessions.
+
+## Guitar Center Used Notes
+
+Guitar Center Used should remain manual/category-assisted for beta:
+
+- Direct server fetches to used category pages returned an access denial during scout.
+- `robots.txt` disallows broad search and category/search query surfaces.
+- Brrtz maps broad intent to stable public used-category links:
+  - Synthesizers / sound modules: `https://www.guitarcenter.com/Used/Synthesizers-Sound-Modules.gc`
+  - Drum machines / samplers: `https://www.guitarcenter.com/Used/Drum-Machines-Samplers.gc`
+  - Keyboards / MIDI: `https://www.guitarcenter.com/Used/Keyboards-MIDI.gc`
+- The source pill should behave as an assist link, not as a counted live ingestion source.

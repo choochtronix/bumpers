@@ -184,6 +184,20 @@ export const SOURCE_REGISTRY = [
     notes: "Official Browse API connector live in Bay Area and Los Angeles beta. Defaults to eBay category 619; requires EBAY_CLIENT_ID and EBAY_CLIENT_SECRET.",
   },
   {
+    id: "guitar-center-used",
+    name: "Guitar Center Used",
+    slug: "guitar-center-used",
+    regionId: "bay-area",
+    url: "https://www.guitarcenter.com/Used/Synthesizers-Sound-Modules.gc",
+    type: "shop",
+    accessType: SOURCE_ACCESS_TYPES.MANUAL,
+    status: SOURCE_STATUSES.TESTING,
+    reliabilityScore: 55,
+    noiseScore: 25,
+    testQuery: "drum machine",
+    notes: "Beta manual assist. Direct server fetch returned access denial and robots.txt disallows broad search paths; open relevant used category links in the user browser instead.",
+  },
+  {
     id: "craigslist-sfbay",
     name: "Craigslist SF Bay Area",
     slug: "craigslist-sfbay",
@@ -267,6 +281,7 @@ export function getSourcesByRegion(regionId) {
 export function getCheckableSources({ includeCandidates = false } = {}) {
   return SOURCE_REGISTRY.filter((source) => {
     if (source.status === SOURCE_STATUSES.PAUSED || source.status === SOURCE_STATUSES.BROKEN) return false;
+    if (source.accessType === SOURCE_ACCESS_TYPES.MANUAL) return false;
     if (!includeCandidates && source.status === SOURCE_STATUSES.CANDIDATE) return false;
     return true;
   });

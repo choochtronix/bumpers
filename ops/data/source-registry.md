@@ -39,6 +39,7 @@ This registry tracks active integrations, parked sources, and source candidates.
 |---|---|---|---|---|---|
 | Reverb US | active | api | marketplace | synth | Live in Bay Area and Los Angeles. Broad, fast, and useful, but region-locality is weaker than Craigslist. |
 | eBay US | active | api | marketplace | drum machine | Official Browse API connector. Uses eBay category `619` (Musical Instruments & Gear) by default and is live in Bay Area and Los Angeles. Treat as US/global inventory unless a future location strategy is added. |
+| Guitar Center Used | testing | manual | shop | drum machine | Beta manual category assist for Bay Area and Los Angeles. Opens relevant used-category pages instead of server-side ingestion because direct fetches were access-denied and search paths are not scraper-friendly. |
 | Craigslist SF Bay Area | paused | search-url | classifieds | synth | Parked for beta safety after Craigslist blocking. Use Craigslist Assist manual deep links only. |
 | Craigslist Los Angeles | paused | search-url | classifieds | synth | Parked for beta safety after Craigslist blocking. Use Craigslist Assist manual deep links only. |
 | Facebook Marketplace Musical Instruments | candidate | manual | marketplace | synth | High signal, but keep manual/user-assisted until official access is clear. |
@@ -51,7 +52,6 @@ These were gathered for Bay Area / California expansion and should be promoted o
 
 | Source | Region | Priority | Notes |
 |---|---|---:|---|
-| Guitar Center Used Synths | US | P1 | High inventory; useful used-gear filters. Next safest source-scout target after eBay because it is music-specific and lower-risk than social/local marketplaces. Task: `ops/tasks/guitar-center-used-source.md`. |
 | Sweetwater Gear Exchange | US | P1 | Used peer-to-peer music gear. Good second source-scout target after Guitar Center because it is music-gear-specific. |
 | ShopGoodwill Musical Instruments | US | P1 | Potential hidden gems, but noisy and condition varies. |
 | Mission Synths | San Francisco | P1 | Local synth/modular specialist; investigate used or consignment surfaces. |

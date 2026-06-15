@@ -7,6 +7,7 @@ const SOURCES = [
   { id: "reverb", label: "Reverb", icon: "Rv", color: "orange" },
   { id: "reverb-us", label: "Reverb US", icon: "Rv", color: "orange" },
   { id: "ebay-us", label: "eBay US", icon: "eB", color: "blue" },
+  { id: "guitar-center-used", label: "Guitar Center", icon: "GC", color: "black" },
   { id: "craigslist-sfbay", label: "Craigslist SF", icon: "SF", color: "purple" },
   { id: "craigslist-la", label: "Craigslist LA", icon: "LA", color: "purple" },
   { id: "jimoty", label: "Jimoty", icon: "Jm", color: "orange" },
@@ -17,8 +18,8 @@ const SOURCES = [
 ];
 
 const LEGACY_DEFAULT_SOURCE_IDS = ["mercari", "yahoo-auctions", "yahoo-fleamarket", "rakuma", "digimart", "offmall", "five-g", "implant4", "hardoff"];
-const LIVE_SOURCE_IDS = ["mercari", "yahoo-auctions", "yahoo-fleamarket", "rakuma", "digimart", "reverb", "reverb-us", "ebay-us", "craigslist-sfbay", "craigslist-la", "jimoty", "offmall", "five-g", "implant4", "hardoff"];
-const LIVE_SOURCE_DISPLAY_ORDER = ["craigslist-sfbay", "craigslist-la", "reverb-us", "ebay-us", "yahoo-auctions", "yahoo-fleamarket", "digimart", "reverb", "jimoty", "offmall", "five-g", "implant4", "hardoff", "mercari", "rakuma"];
+const LIVE_SOURCE_IDS = ["mercari", "yahoo-auctions", "yahoo-fleamarket", "rakuma", "digimart", "reverb", "reverb-us", "ebay-us", "guitar-center-used", "craigslist-sfbay", "craigslist-la", "jimoty", "offmall", "five-g", "implant4", "hardoff"];
+const LIVE_SOURCE_DISPLAY_ORDER = ["craigslist-sfbay", "craigslist-la", "reverb-us", "ebay-us", "guitar-center-used", "yahoo-auctions", "yahoo-fleamarket", "digimart", "reverb", "jimoty", "offmall", "five-g", "implant4", "hardoff", "mercari", "rakuma"];
 const SOURCE_SEARCH_CONTEXT_TRUST_IDS = new Set(["craigslist-sfbay", "craigslist-la"]);
 const CATEGORY_SEARCH_CONTEXT_IDS = new Set(["reverb", "reverb-us"]);
 const REGION_CONFIG = typeof window !== "undefined" ? window.BRRTZ_REGION_CONFIG : null;
@@ -75,6 +76,7 @@ const SOURCE_ACCENT_TOKENS = {
   reverb: "--source-reverb",
   "reverb-us": "--source-reverb",
   "ebay-us": "--source-ebay",
+  "guitar-center-used": "--source-guitar-center",
   "craigslist-sfbay": "--source-craigslist",
   "craigslist-la": "--source-craigslist",
   jimoty: "--source-jimoty",
@@ -93,6 +95,7 @@ const SOURCE_METADATA_ALIASES = {
   reverb: ["Reverb", "Reverb.com"],
   "reverb-us": ["Reverb US", "Reverb", "Reverb.com"],
   "ebay-us": ["eBay US", "eBay", "ebay.com"],
+  "guitar-center-used": ["Guitar Center", "Guitar Center Used", "GC Used"],
   "craigslist-sfbay": ["Craigslist SF", "Craigslist", "SF Bay Craigslist"],
   "craigslist-la": ["Craigslist LA", "Craigslist Los Angeles", "LA Craigslist"],
   jimoty: ["Jimoty", "ジモティー", "ジモティ"],
@@ -3019,6 +3022,10 @@ function createLiveSearchGroups(profile) {
     groups.push({ id: "ebay-us", sources: ["ebay-us"] });
   }
 
+  if (selectedSources.has("guitar-center-used")) {
+    groups.push({ id: "guitar-center-used", sources: ["guitar-center-used"] });
+  }
+
   if (selectedSources.has("craigslist-sfbay")) {
     groups.push({ id: "craigslist-sfbay", sources: ["craigslist-sfbay"] });
   }
@@ -3706,7 +3713,7 @@ function isSingleDigitSourceCount(count, status) {
 
 function getSourceFilterTitle(source, count, status) {
   if (status === "loading") return `${source.label} is still searching`;
-  if (status === "manual") return `Open ${source.label} search on Craigslist`;
+  if (status === "manual") return `Open ${source.label} search assist`;
   if (status === "parked") return `${source.label} is parked for beta safety`;
   if (status === "pending") return `${source.label} is waiting for API approval`;
   if (status === "error") return `${source.label} search needs attention`;
@@ -3716,7 +3723,7 @@ function getSourceFilterTitle(source, count, status) {
 
 function getSourceFilterLabel(source, count, status) {
   if (status === "loading") return `${source.label} search loading`;
-  if (status === "manual") return `Open prepared ${source.label} search in a new tab`;
+  if (status === "manual") return `Open prepared ${source.label} search assist in a new tab`;
   if (status === "parked") return `${source.label} search parked for beta safety`;
   if (status === "pending") return `${source.label} connector waiting for API approval`;
   if (status === "error") return `${source.label} search error`;
@@ -3745,7 +3752,10 @@ function getManualSourceUrl(sourceId) {
 function isSafeManualSourceUrl(value) {
   try {
     const url = new URL(value);
-    return url.protocol === "https:" && url.hostname.endsWith(".craigslist.org") && url.pathname.startsWith("/search/");
+    if (url.protocol !== "https:") return false;
+    if (url.hostname.endsWith(".craigslist.org") && url.pathname.startsWith("/search/")) return true;
+    if (url.hostname === "www.guitarcenter.com" && url.pathname.startsWith("/Used/")) return true;
+    return false;
   } catch {
     return false;
   }

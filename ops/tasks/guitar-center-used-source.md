@@ -1,13 +1,13 @@
 # Guitar Center Used Source Scout
 
-Status: ready-for-scout
+Status: beta-assist-implemented
 Owner: Codex
 Region target: Bay Area, Los Angeles, future US/global
 Source key: `guitar-center-used`
 
 ## Goal
 
-Evaluate Guitar Center Used as the next US-region Brrtz source after eBay US and Reverb US. Prefer a low-risk connector that reads public used-gear listings without account automation.
+Evaluate Guitar Center Used as the next US-region Brrtz source after eBay US and Reverb US. Prefer a low-risk path that helps beta users reach relevant used-gear inventory without account automation or scraper risk.
 
 ## Why This Source
 
@@ -30,7 +30,40 @@ Evaluate Guitar Center Used as the next US-region Brrtz source after eBay US and
 - `https://www.guitarcenter.com/Used/Keyboards-MIDI.gc`
 - `https://www.guitarcenter.com/Used/Drum-Machines-Samplers.gc`
 
-## Acceptance For v1 Connector
+## Scout Result
+
+- `robots.txt` disallows broad search and query/category surfaces such as `/search`, `/browse`, `/*?*N=*`, and `/*?*q=*`.
+- Direct server fetch to `https://www.guitarcenter.com/Used/Synthesizers-Sound-Modules.gc` returned an access-denied response.
+- Beta decision: ship Guitar Center as a manual category assist, not as an automated listing connector.
+
+## Current v1 Behavior
+
+- Source appears in Bay Area and Los Angeles beta regions.
+- Source pill uses manual assist status and opens the best Guitar Center Used category for the current search intent.
+- Category mapping:
+  - Synth/default: `https://www.guitarcenter.com/Used/Synthesizers-Sound-Modules.gc`
+  - Drum machines / samplers: `https://www.guitarcenter.com/Used/Drum-Machines-Samplers.gc`
+  - Keyboards / MIDI: `https://www.guitarcenter.com/Used/Keyboards-MIDI.gc`
+- No server-side Guitar Center fetching is performed.
+
+## Agentic Team Tasks
+
+- [x] Scout page access and robots posture.
+- [x] Choose beta-safe manual assist mode.
+- [x] Add `guitar-center-used` to the source registry.
+- [x] Add source identity to Brrtz UI.
+- [x] Add Bay Area and Los Angeles region availability.
+- [x] Add server manual URL response with category-intent mapping.
+- [ ] Promote beyond manual assist only if a compliant API or stable permissioned feed appears.
+
+## Craig Tasks
+
+1. In Bay Area, search `drum machine` and click the Guitar Center source pill. Confirm it opens Guitar Center Used drum machines / samplers.
+2. In Bay Area, search `Waldorf` or `synthesizer` and click the Guitar Center source pill. Confirm it opens Guitar Center Used synthesizers / sound modules.
+3. Switch to Los Angeles and repeat one Guitar Center source-pill click.
+4. Decide whether this manual assist is useful enough for beta testers, even though it does not populate cards yet.
+
+## Future Acceptance For Automated Connector
 
 - Returns at least 10 useful synth/pro-audio listings for broad terms like `synthesizer`, `drum machine`, and `Roland`.
 - Does not require user login.

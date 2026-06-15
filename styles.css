@@ -2264,6 +2264,12 @@ body[data-theme="dark"] .source-filter-all::after {
   --source-solid-mark: var(--source-ebay);
 }
 
+.source-filter-button[data-source="guitar-center-used"] {
+  --source-solid: var(--source-guitar-center);
+  --source-solid-ink: var(--source-ink-on-color);
+  --source-solid-mark: var(--source-guitar-center);
+}
+
 .source-filter-button[data-source="craigslist-sfbay"],
 .source-filter-button[data-source="craigslist-la"] {
   --source-solid: var(--source-craigslist);
@@ -3047,6 +3053,10 @@ body[data-theme="dark"] .listing-card.is-featured-home-card {
 
 .source-avatar[data-source="ebay-us"] {
   background: var(--source-ebay);
+}
+
+.source-avatar[data-source="guitar-center-used"] {
+  background: var(--source-guitar-center);
 }
 
 .source-avatar[data-source="craigslist-sfbay"],

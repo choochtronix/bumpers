@@ -43,6 +43,14 @@ const EBAY_CATEGORY_IDS = CONFIGURED_EBAY_CATEGORY_IDS.length
   ? CONFIGURED_EBAY_CATEGORY_IDS
   : DEFAULT_EBAY_CATEGORY_IDS;
 const EBAY_PENDING_MESSAGE = "eBay connector is waiting for API approval. Add EBAY_CLIENT_ID and EBAY_CLIENT_SECRET when production keys are available.";
+const GUITAR_CENTER_BASE_URL = "https://www.guitarcenter.com";
+const GUITAR_CENTER_ASSIST_MESSAGE = "Guitar Center Assist is active. Brrtz is not querying Guitar Center automatically; open the relevant used-gear category instead.";
+const GUITAR_CENTER_USED_CATEGORIES = {
+  synthesizers: "/Used/Synthesizers-Sound-Modules.gc",
+  "drum-machines": "/Used/Drum-Machines-Samplers.gc",
+  samplers: "/Used/Drum-Machines-Samplers.gc",
+  keyboards: "/Used/Keyboards-MIDI.gc",
+};
 const CRAIGSLIST_SFBAY_BASE_URL = "https://sfbay.craigslist.org";
 const CRAIGSLIST_LA_BASE_URL = "https://losangeles.craigslist.org";
 const JINA_READER_BASE_URL = "https://r.jina.ai/http://";
@@ -961,6 +969,7 @@ async function handleSearch(url, response) {
   const wantsCraigslistSfbay = sources.length === 0 || sources.includes("craigslist-sfbay");
   const wantsCraigslistLa = sources.length === 0 || sources.includes("craigslist-la");
   const wantsEbayUs = sources.length === 0 || sources.includes("ebay-us");
+  const wantsGuitarCenterUsed = sources.length === 0 || sources.includes("guitar-center-used");
   const wantsJimoty = sources.length === 0 || sources.includes("jimoty");
   const wantsMercari = sources.length === 0 || sources.includes("mercari");
   const wantsOffmall = sources.length === 0 || sources.includes("offmall") || sources.includes("hardoff");
@@ -971,7 +980,7 @@ async function handleSearch(url, response) {
   const wantsYahooFleamarket = sources.length === 0 || sources.includes("yahoo-fleamarket");
   const startedAt = new Date();
 
-  if ((!wantsDigimart && !wantsFiveG && !wantsImplant4 && !wantsCraigslistSfbay && !wantsCraigslistLa && !wantsEbayUs && !wantsJimoty && !wantsMercari && !wantsOffmall && !wantsRakuma && !wantsReverb && !wantsReverbUs && !wantsYahooAuctions && !wantsYahooFleamarket) || terms.length === 0) {
+  if ((!wantsDigimart && !wantsFiveG && !wantsImplant4 && !wantsCraigslistSfbay && !wantsCraigslistLa && !wantsEbayUs && !wantsGuitarCenterUsed && !wantsJimoty && !wantsMercari && !wantsOffmall && !wantsRakuma && !wantsReverb && !wantsReverbUs && !wantsYahooAuctions && !wantsYahooFleamarket) || terms.length === 0) {
     sendJson(response, 200, { listings: [], meta: createSearchMeta(startedAt, [], [], terms, { categoryIntent }) });
     return;
   }
@@ -1022,6 +1031,10 @@ async function handleSearch(url, response) {
     }));
   } else if (wantsEbayUs) {
     sourceTasks.push(Promise.resolve(createPendingSourceResult("ebay-us", terms, EBAY_PENDING_MESSAGE)));
+  }
+
+  if (wantsGuitarCenterUsed) {
+    sourceTasks.push(Promise.resolve(createManualGuitarCenterSourceResult(terms, { categoryIntent })));
   }
 
   if (wantsJimoty) {
@@ -1346,6 +1359,22 @@ function createParkedCraigslistSourceResult(source, terms, baseUrl, options = {}
   };
 }
 
+function createManualGuitarCenterSourceResult(terms, options = {}) {
+  const manualUrl = createGuitarCenterManualSearchUrl(terms[0] || "", options);
+  return {
+    listings: [],
+    errors: [],
+    stats: {
+      source: "guitar-center-used",
+      status: "manual",
+      searchedTerms: terms.slice(0, 1),
+      rawCount: 0,
+      message: GUITAR_CENTER_ASSIST_MESSAGE,
+      manualUrl,
+    },
+  };
+}
+
 function createPendingSourceResult(source, terms, message) {
   return {
     listings: [],
@@ -1368,6 +1397,22 @@ function createCraigslistManualSearchUrl(baseUrl, term, options = {}) {
     url.searchParams.set("max_price", String(Math.round(Number(options.maxPrice))));
   }
   return url.toString();
+}
+
+function createGuitarCenterManualSearchUrl(term, options = {}) {
+  const categoryPath = getGuitarCenterUsedCategoryPath(term, options.categoryIntent);
+  return new URL(categoryPath, GUITAR_CENTER_BASE_URL).toString();
+}
+
+function getGuitarCenterUsedCategoryPath(term = "", categoryIntent = "") {
+  const value = normalizeText(`${categoryIntent} ${term}`);
+  if (/(drum|sampler|mpc|sp-404|tr-|rhythm|リズム|ドラム)/.test(value)) {
+    return GUITAR_CENTER_USED_CATEGORIES["drum-machines"];
+  }
+  if (/(keyboard|midi|controller|piano|keys|鍵盤)/.test(value)) {
+    return GUITAR_CENTER_USED_CATEGORIES.keyboards;
+  }
+  return GUITAR_CENTER_USED_CATEGORIES.synthesizers;
 }
 
 async function searchSourceTerms(source, terms, searchFn, options = {}) {
