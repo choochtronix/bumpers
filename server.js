@@ -37,7 +37,11 @@ const EBAY_API_BASE_URL = "https://api.ebay.com";
 const EBAY_CLIENT_ID = process.env.EBAY_CLIENT_ID || "";
 const EBAY_CLIENT_SECRET = process.env.EBAY_CLIENT_SECRET || "";
 const EBAY_MARKETPLACE_ID = process.env.EBAY_MARKETPLACE_ID || "EBAY_US";
-const EBAY_CATEGORY_IDS = splitParam(process.env.EBAY_CATEGORY_IDS || "");
+const DEFAULT_EBAY_CATEGORY_IDS = ["619"]; // Musical Instruments & Gear
+const CONFIGURED_EBAY_CATEGORY_IDS = splitParam(process.env.EBAY_CATEGORY_IDS || "");
+const EBAY_CATEGORY_IDS = CONFIGURED_EBAY_CATEGORY_IDS.length
+  ? CONFIGURED_EBAY_CATEGORY_IDS
+  : DEFAULT_EBAY_CATEGORY_IDS;
 const EBAY_PENDING_MESSAGE = "eBay connector is waiting for API approval. Add EBAY_CLIENT_ID and EBAY_CLIENT_SECRET when production keys are available.";
 const CRAIGSLIST_SFBAY_BASE_URL = "https://sfbay.craigslist.org";
 const CRAIGSLIST_LA_BASE_URL = "https://losangeles.craigslist.org";
@@ -50,7 +54,7 @@ const MERCARI_RESULT_LIMIT = 40;
 const MERCARI_TERM_LIMIT = 2;
 const REVERB_RESULT_LIMIT = 32;
 const REVERB_TERM_LIMIT = 3;
-const EBAY_RESULT_LIMIT = 40;
+const EBAY_RESULT_LIMIT = 100;
 const EBAY_TERM_LIMIT = 3;
 const CRAIGSLIST_DETAIL_VERIFY_LIMIT = 12;
 const CRAIGSLIST_DETAIL_VERIFY_CONCURRENCY = 6;
