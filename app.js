@@ -623,7 +623,7 @@ const defaultSettings = {
 };
 
 const CATEGORY_INTENTS = [
-  { id: "all", label: "All\u00a0Synth Gear" },
+  { id: "all", label: "All Synth Gear" },
   { id: "synthesizers", label: "Synthesizers" },
   { id: "drum-machines", label: "Drum Machines" },
   { id: "samplers", label: "Samplers" },

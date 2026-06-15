@@ -3687,6 +3687,9 @@ body[data-theme="dark"] .listing-card.is-watched-home-card {
   color: var(--text);
   font: inherit;
   font-weight: 850;
+  letter-spacing: 0;
+  word-spacing: normal;
+  white-space: nowrap;
 }
 
 body[data-theme="dark"] .browse-category-control select {

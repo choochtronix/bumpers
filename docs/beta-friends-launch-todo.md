@@ -68,7 +68,7 @@ Target: week of June 8, 2026
 |---|---|---|---|
 | Todo | Validate top saved searches | Craig | 5-10 real saved searches return useful results. |
 | Todo | Note bad-result examples | Craig | URLs and search terms are added under Known Issues. |
-| Todo | Confirm source health | Codex | Enabled beta sources have a basic working/failing/parked status. Craigslist is parked by default for beta safety. |
+| Done | Confirm source health | Codex | Enabled beta sources have a basic working/failing/parked status. Craigslist is parked by default for beta safety. See `ops/reports/source-health-report.md`. |
 | Todo | Check "new" discovery behavior | Craig/Codex | New listings are understood as first-seen-by-Brrtz discoveries. |
 | Done | Add beta Fresh Finds curation pass | Codex | Homepage Fresh Finds favors fresh, image-rich, likely-gear listings and filters stale/unavailable ledger items. |
 

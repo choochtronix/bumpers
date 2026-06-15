@@ -2,10 +2,12 @@ const DEFAULT_BASE_URL = "http://127.0.0.1:5173";
 
 const baseUrl = normalizeBaseUrl(process.env.BRRTZ_QA_BASE_URL || DEFAULT_BASE_URL);
 const jobToken = process.env.BUMPERS_JOB_TOKEN || process.env.BRRTZ_JOB_TOKEN || "";
+const requestedRegion = process.env.BRRTZ_QA_REGION || "";
 const requestedSources = process.env.BRRTZ_QA_SOURCES || "";
 
 const url = new URL("/api/jobs/source-health", baseUrl);
-if (requestedSources) url.searchParams.set("sources", requestedSources);
+if (requestedRegion) url.searchParams.set("region", requestedRegion);
+if (requestedSources) url.searchParams.set("sources", splitEnvList(requestedSources).join("|"));
 
 const headers = jobToken ? { authorization: `Bearer ${jobToken}` } : {};
 const response = await fetch(url, { method: "POST", headers });
@@ -24,6 +26,8 @@ const summary = logs.reduce((acc, log) => {
 }, {});
 
 console.log(JSON.stringify({
+  baseUrl,
+  region: requestedRegion || "japan",
   sourceCount: payload.sourceCount,
   summary,
   logs: logs.map((log) => ({
@@ -37,4 +41,11 @@ console.log(JSON.stringify({
 
 function normalizeBaseUrl(value) {
   return String(value).replace(/\/+$/, "");
+}
+
+function splitEnvList(value) {
+  return String(value)
+    .split(/[,\n|]/)
+    .map((part) => part.trim())
+    .filter(Boolean);
 }

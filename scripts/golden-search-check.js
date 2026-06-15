@@ -9,10 +9,11 @@ const GOLDEN_SEARCHES = [
 ];
 
 const baseUrl = normalizeBaseUrl(process.env.BRRTZ_QA_BASE_URL || DEFAULT_BASE_URL);
-const minResults = Number(process.env.BRRTZ_QA_MIN_RESULTS || 0);
+const minResults = Number(process.env.BRRTZ_QA_MIN_RESULTS || 1);
 const requestedRegion = process.env.BRRTZ_QA_REGION || "";
 const requestedSources = splitEnvList(process.env.BRRTZ_QA_SOURCES || "");
 const onlyQuery = process.env.BRRTZ_QA_QUERY || "";
+const categoryIntent = process.env.BRRTZ_QA_CATEGORY_INTENT || "synthesizers";
 
 const checks = GOLDEN_SEARCHES
   .filter((check) => !requestedRegion || check.region === requestedRegion)
@@ -33,8 +34,8 @@ for (const check of checks) {
   const url = new URL("/api/search", baseUrl);
   url.searchParams.set("region", check.region);
   url.searchParams.set("terms", check.terms.join("\n"));
-  url.searchParams.set("sources", check.sources.join(","));
-  url.searchParams.set("categoryIntent", "synthesizers");
+  url.searchParams.set("sources", check.sources.join("|"));
+  url.searchParams.set("categoryIntent", categoryIntent);
 
   const startedAt = Date.now();
   try {
@@ -49,10 +50,12 @@ for (const check of checks) {
     const payload = await response.json();
     const listings = Array.isArray(payload.listings) ? payload.listings : [];
     const sourceSummary = summarizeSources(payload.meta?.sourceStats || []);
+    const sourceFailures = getSourceFailures(payload.meta?.sourceStats || [], payload.meta?.errors || []);
     const status = listings.length >= minResults ? "PASS" : "WARN";
-    if (status === "WARN" && minResults > 0) failures += 1;
+    if ((status === "WARN" && minResults > 0) || sourceFailures.length > 0) failures += 1;
 
     console.log(`${status} ${labelCheck(check)} -> ${listings.length} listings (${elapsedMs}ms) ${sourceSummary}`);
+    sourceFailures.forEach((failure) => console.error(`  SOURCE ${failure}`));
   } catch (error) {
     failures += 1;
     console.error(`FAIL ${labelCheck(check)} -> ${error instanceof Error ? error.message : "Unknown error"}`);
@@ -72,11 +75,24 @@ function summarizeSources(sourceStats) {
   if (!sourceStats.length) return "";
   return sourceStats
     .map((stat) => {
-      const count = Number(stat.count || 0);
-      const suffix = stat.error ? "!" : "";
+      const count = Number(stat.rawCount || stat.count || 0);
+      const status = stat.status || "ok";
+      const suffix = status === "ok" ? "" : `/${status}`;
       return `${stat.source}:${count}${suffix}`;
     })
     .join(" ");
+}
+
+function getSourceFailures(sourceStats, errors) {
+  const brokenStats = sourceStats
+    .filter((stat) => ["error"].includes(stat.status))
+    .map((stat) => `${stat.source} returned ${stat.status}`);
+
+  const errorMessages = errors
+    .filter((error) => error.source)
+    .map((error) => `${error.source}: ${error.message || "unknown error"}`);
+
+  return [...brokenStats, ...errorMessages];
 }
 
 function splitEnvList(value) {
