@@ -402,8 +402,7 @@ async function handleSourceHealthJob(request, url, response) {
 
   const regionId = url.searchParams.get("region") || "japan";
   const sourceIds = splitParam(url.searchParams.get("sources"));
-  const checkableSources = getCheckableSources()
-    .filter((source) => source.regionId === regionId)
+  const checkableSources = getHealthSourcesForRegion(regionId)
     .filter((source) => sourceIds.length === 0 || sourceIds.includes(source.id))
     .filter((source) => Boolean(getSourceHealthSearchFn(source.id)));
 
@@ -419,6 +418,23 @@ async function handleSourceHealthJob(request, url, response) {
     sourceCount: checkableSources.length,
     latestState: state.sources,
   });
+}
+
+const SHARED_SOURCE_HEALTH_REGION_IDS = {
+  "bay-area": ["craigslist-sfbay", "reverb-us", "ebay-us"],
+  "los-angeles": ["craigslist-la", "reverb-us", "ebay-us"],
+};
+
+function getHealthSourcesForRegion(regionId) {
+  const checkableSources = getCheckableSources();
+  const sharedSourceIds = SHARED_SOURCE_HEALTH_REGION_IDS[regionId];
+
+  if (!sharedSourceIds) {
+    return checkableSources.filter((source) => source.regionId === regionId);
+  }
+
+  const allowedSourceIds = new Set(sharedSourceIds);
+  return checkableSources.filter((source) => allowedSourceIds.has(source.id));
 }
 
 async function checkSourceHealthSource(source) {

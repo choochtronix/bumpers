@@ -10,8 +10,8 @@ Brrtz should prefer official APIs and user-assisted deep links over brittle scra
 
 | Priority | Source | Source key | Build method | Status | Notes |
 | --- | --- | --- | --- | --- | --- |
-| P0 | eBay US | `ebay-us` | Official API connector | In progress | Best first US expansion source after Reverb. Broad inventory and stable API path. |
-| P0 | Reverb US | `reverb-us` | API connector | Beta | Already live in Bay Area / Los Angeles regions. Continue tuning US relevance. |
+| P0 | eBay US | `ebay-us` | Official API connector | Beta | Live in Bay Area / Los Angeles regions. Uses eBay category `619` (Musical Instruments & Gear) by default. Broad inventory and stable API path. |
+| P0 | Reverb US | `reverb-us` | API connector | Beta | Live in Bay Area / Los Angeles regions. Continue tuning US relevance. |
 | P0 | Facebook Marketplace | `facebook-marketplace` | Manual deep-link assist | Candidate | High local signal, but avoid scraping for beta. |
 | P1 | Craigslist SF Bay | `craigslist-sfbay` | Manual deep-link assist | Parked | Keep as user-initiated search assist only after block risk. |
 | P1 | Craigslist Los Angeles | `craigslist-la` | Manual deep-link assist | Parked | Same Craigslist safety posture as SF Bay. |
@@ -31,11 +31,11 @@ Brrtz should prefer official APIs and user-assisted deep links over brittle scra
 
 ## Beta Build Order
 
-1. Add `ebay-us` as a real API-backed source.
-2. Add `facebook-marketplace` as a manual deep-link assist.
-3. Tune `reverb-us` for Bay Area / Los Angeles search quality.
+1. Keep `ebay-us` and `reverb-us` healthy as the first live US beta sources.
+2. Add one retailer/shop connector after the core US sources are stable; Guitar Center Used is the next source-scout target.
+3. Add `facebook-marketplace` as a manual deep-link assist only if testers specifically ask for it.
 4. Keep Craigslist as deep-link assist only until a safe access path is confirmed.
-5. Add one retailer/shop connector after the core US sources are stable.
+5. Tune `reverb-us` and `ebay-us` relevance for Bay Area / Los Angeles search quality.
 
 ## eBay Connector Notes
 
@@ -57,7 +57,14 @@ Implementation notes:
 - Prefer US marketplace headers for US regions.
 - Keep Gear Mode and Brrtz noise filtering in the shared normalization/filtering layer.
 - If credentials are missing, the source should report a setup-needed error rather than silently failing.
-- First beta pass keeps eBay API filters conservative: US item location and fixed-price/auction buying options. Avoid over-filtering by condition until live result behavior is verified.
+- Brrtz defaults to category `619` (Musical Instruments & Gear) to avoid general eBay noise while preserving broad gear coverage.
+- First beta pass keeps eBay API filters conservative: US marketplace, music category, and shared Gear Mode relevance. Avoid over-filtering by condition until live result behavior is verified.
+
+June 15 beta check:
+
+- `/api/health` reports `ebayConfigured: true` locally and on `https://brrtz.com`.
+- Bay Area and Los Angeles eBay searches returned healthy results for broad terms such as `drum machine`.
+- eBay is considered US/global inside US regions; it is not yet local-only.
 
 ## Facebook Marketplace Notes
 

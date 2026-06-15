@@ -20,7 +20,7 @@ Target: week of June 8, 2026
 - [ ] Mobile layout is usable on iPhone-sized screens.
 - [ ] Core Japan sources return useful synth/pro-audio results.
 - [ ] Region model exists so Japan and future US regions are config-driven, not forks.
-- [ ] Beta tester instructions are clear enough to send by email or message.
+- [x] Beta tester instructions are clear enough to send by email or message.
 
 ## This Week Priorities
 
@@ -51,7 +51,7 @@ Target: week of June 8, 2026
 | Done | Choose beta hosting path | Craig/Codex | Railway + Docker selected for the beta. |
 | Done | Configure production secrets outside Git | Craig/Codex | Supabase keys and invite settings live in host env vars only. |
 | Done | Test public URL | Craig | Brrtz is live at `https://brrtz.com` and `/api/health` returns `ok=true`. |
-| Todo | Smoke test search from public URL | Craig | At least one saved search returns live results through the hosted app. |
+| Done | Smoke test search from public URL | Craig/Codex | Public `https://brrtz.com` searches return live results, including eBay/Reverb beta results in US regions. |
 
 ### 4. UI / Mobile Polish
 
@@ -94,7 +94,7 @@ const bayAreaRegion = {
   label: "Bay Area",
   currency: "USD",
   defaultLocale: "en-US",
-  sources: ["craigslist-sfbay", "reverb-us"],
+  sources: ["craigslist-sfbay", "reverb-us", "ebay-us"],
   searchDefaults: {
     cleanGear: true,
     maxDistanceMiles: 75
@@ -106,7 +106,7 @@ const losAngelesRegion = {
   label: "Los Angeles",
   currency: "USD",
   defaultLocale: "en-US",
-  sources: ["craigslist-la", "reverb-us"],
+  sources: ["craigslist-la", "reverb-us", "ebay-us"],
   searchDefaults: {
     cleanGear: true,
     maxDistanceMiles: 75
@@ -122,7 +122,7 @@ Region selector placement decision, June 8: put region selection in Settings -> 
 
 Region regression check, June 8: validated `app.js`, `server.js`, and `regions.js` with Node syntax checks. Local search smoke tests against Japan source groups returned live listings without connector errors for Waldorf, Roland Juno 106, and Oberheim across Yahoo Auctions, Yahoo Fleamarket, Digimart, OFFMALL, Rakuma, Mercari, Five G, implant4, and Reverb.
 
-California beta source pass, June 10: Bay Area and Los Angeles are now selectable in Settings -> General as beta regions. The first live California source set is intentionally lean: Bay Area uses Craigslist SF Bay plus Reverb US, and Los Angeles uses Craigslist LA plus Reverb US. Reverb US uses the Reverb country filter for US listings, while the Craigslist regions read public musical-instruments search pages and normalize listing title, price, city, URL, and image when available. eBay US, Craigslist OC/SD, Facebook Marketplace, OfferUp, and specialty California synth shops remain follow-up source candidates.
+California beta source pass, June 10: Bay Area and Los Angeles are now selectable in Settings -> General as beta regions. The current live California source set is intentionally lean: Reverb US and eBay US are active in both Bay Area and Los Angeles. Craigslist remains parked for beta safety after blocking risk and should be treated as manual/search-link assist, not as a scraped live source. Craigslist OC/SD, Facebook Marketplace, OfferUp, Guitar Center Used, Sweetwater Gear Exchange, and specialty California synth shops remain follow-up source candidates.
 
 ## Known Issues
 
@@ -133,6 +133,8 @@ California beta source pass, June 10: Bay Area and Los Angeles are now selectabl
 - Safari stale-session check, June 8: Brrtz now clears local auth state when Supabase rejects a cloud token as unverifiable, so Safari should prompt for a clean sign-in instead of looping on sync failure.
 - Production env checklist, June 8: added `docs/production-env-checklist.md` with required beta variables, secret handling notes, Supabase table requirements, invite SQL, and pre-launch checks.
 - Public beta launch, June 9: Brrtz is live at `https://brrtz.com` on Railway with Supabase Auth and cloud pull confirmed. DNS/TLS launch notes are recorded in `docs/beta-launch-milestone-2026-06-09.md`.
+- eBay beta source check, June 15: eBay US is live through the official Browse API for Bay Area and Los Angeles. Craig confirmed healthy local and production results. Default eBay category targeting is `619` for Musical Instruments & Gear.
+- Beta tester quickstart, June 15: added `docs/beta-tester-quickstart.md` as the current invite-friend guide.
 
 ## Beta Tester Notes
 
