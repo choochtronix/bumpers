@@ -166,6 +166,16 @@ After the app starts:
 7. Confirm eBay appears in US regions if eBay env vars are present.
 8. Watch/unwatch a listing, sync, then verify the change on another browser.
 
+## Continuing Codex Context On PC
+
+If this exact Mac Codex chat is not visible on the Windows PC, use the repo as the source of truth:
+
+1. Open `docs/pc-codex-handoff.md`.
+2. Copy the short prompt from that file into the new Codex session.
+3. Ask Codex to read the files listed there before continuing work.
+
+That handoff file is intentionally small and current, while this migration guide is the full machine setup checklist.
+
 ## Git And Railway Flow
 
 Daily Windows workflow:
