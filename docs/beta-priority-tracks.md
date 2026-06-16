@@ -13,9 +13,10 @@ This is the short-term working list for getting Brrtz ready for friend beta whil
 - [x] Add Watching empty-state guidance.
 - [x] Center the back-to-top button across desktop and mobile.
 - [x] Add consistent top nav hover/focus states.
+- [x] Expand Synth Browser into a larger newest-first browsing feed.
 - [ ] Re-test cloud sync in Chrome + Safari after the next local restart.
 - [ ] Continue save/search UX cleanup.
-- [ ] Expand Synth Browser into a full newest-first browsing feed.
+- [ ] Review expanded Synth Browser with live source data in Japan, Bay Area, and LA.
 
 ## Beta-Critical
 

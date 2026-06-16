@@ -38,6 +38,7 @@ const ACTIVE_REGION = REGION_CONFIG?.activeRegion || {
 };
 const RESULTS_PER_PAGE = 48;
 const FEATURED_HOME_LIMIT = 12;
+const BROWSE_EXPANDED_LIMIT = 48;
 const FEATURED_HOME_ALERT_LIMIT = 6;
 const FRESH_FIND_LOADING_CARD_COUNT = 6;
 const FRESH_FIND_STALE_HOURS = 72;
@@ -714,6 +715,7 @@ let browseCategoryListings = [];
 let browseCategoryError = "";
 let browseCategoryCacheSignature = "";
 let browseCategoryUpdatedAt = "";
+let isBrowseExpanded = false;
 let isSourceRowExpanded = true;
 const rakumaClientThumbnailCache = new Map();
 let searchState = {
@@ -3340,6 +3342,10 @@ function renderResults() {
   const watching = loadSet(STORAGE_KEYS.watching);
   if (searchState.mode === "idle") {
     ensureStarterFreshFindListings();
+    if (isBrowseExpanded) {
+      renderBrowseExpandedView(watching);
+      return;
+    }
     renderHomeView(watching);
     return;
   }
@@ -3355,6 +3361,7 @@ function renderResults() {
   resultGrid.innerHTML = "";
   resultGrid.classList.toggle("is-featured-home", isShowingFeaturedHome);
   resultGrid.classList.toggle("is-list-view", !isShowingFeaturedHome && appSettings.resultView === "list");
+  resultGrid.classList.toggle("is-browse-expanded", false);
   renderSourceFilters(resultSource);
   renderAlertPanel(featuredHomeResults);
 
@@ -3386,6 +3393,7 @@ function renderResults() {
 }
 
 function renderHomeView(watching) {
+  isBrowseExpanded = false;
   const freshFindResults = filterMode === "watching" ? [] : getFreshFindHomeListings();
   const browseResults = filterMode === "watching" ? [] : getBrowseCategoryHomeListings();
   const watchedHomeResults = getWatchedHomeListings(watching);
@@ -3395,6 +3403,7 @@ function renderHomeView(watching) {
   resultGrid.innerHTML = "";
   resultGrid.classList.toggle("is-featured-home", isShowingFeaturedHome);
   resultGrid.classList.toggle("is-list-view", false);
+  resultGrid.classList.toggle("is-browse-expanded", false);
   renderSourceFilters(homeResults);
   renderAlertPanel([]);
 
@@ -3422,11 +3431,56 @@ function renderHomeView(watching) {
   renderTopWatchingControl();
 }
 
+function renderBrowseExpandedView(watching) {
+  ensureBrowseCategoryListings();
+  const browseListings = getBrowseCategoryExpandedListings();
+  const visibleListings = getVisibleResults(watching, browseListings);
+
+  resultGrid.innerHTML = "";
+  resultGrid.classList.toggle("is-featured-home", false);
+  resultGrid.classList.toggle("is-list-view", true);
+  resultGrid.classList.toggle("is-browse-expanded", true);
+  renderSourceFilters(browseListings);
+  renderAlertPanel([]);
+
+  resultGrid.appendChild(createBrowseExpandedHeader(visibleListings.length, browseListings.length));
+
+  if (visibleListings.length > 0) {
+    visibleListings.forEach((listing) => resultGrid.appendChild(renderListing(listing)));
+  } else if (browseCategoryStatus === "loading") {
+    resultGrid.insertAdjacentHTML("beforeend", `
+      <div class="empty-state browse-expanded-empty">
+        <strong>Loading latest ${escapeHtml(getCategoryIntentLabel(browseCategoryIntent).toLowerCase())}.</strong>
+        <span>Brrtz is checking the source feeds now.</span>
+      </div>
+    `);
+  } else if (browseListings.length > 0) {
+    resultGrid.insertAdjacentHTML("beforeend", createNoResultsMessage(browseListings));
+  } else {
+    resultGrid.insertAdjacentHTML("beforeend", `
+      <div class="empty-state browse-expanded-empty">
+        <strong>No latest ${escapeHtml(getCategoryIntentLabel(browseCategoryIntent).toLowerCase())} yet.</strong>
+        <span>${escapeHtml(browseCategoryError || "Try another category or region.")}</span>
+      </div>
+    `);
+  }
+
+  renderPagination(visibleListings.length, 1);
+  renderQualityModeControls();
+  renderResultViewControls(false);
+  renderTopWatchingControl();
+}
+
 function handleResultGridAction(event) {
   if (event.type === "change") {
     const browseSelect = event.target.closest("#homeBrowseCategory");
     if (browseSelect) {
       setHomeBrowseCategory(browseSelect.value);
+    }
+    const expandedBrowseSelect = event.target.closest("#expandedBrowseCategory");
+    if (expandedBrowseSelect) {
+      setHomeBrowseCategory(expandedBrowseSelect.value);
+      isBrowseExpanded = true;
     }
     return;
   }
@@ -3436,6 +3490,20 @@ function handleResultGridAction(event) {
 
   if (button.dataset.resultAction === "clear-view-filters") {
     clearResultViewFilters();
+  }
+
+  if (button.dataset.resultAction === "open-browse-expanded") {
+    isBrowseExpanded = true;
+    resetPagination();
+    renderResults();
+    scrollResultsTop();
+  }
+
+  if (button.dataset.resultAction === "close-browse-expanded") {
+    isBrowseExpanded = false;
+    resetPagination();
+    renderResults();
+    scrollResultsTop();
   }
 }
 
@@ -4379,10 +4447,13 @@ function createFeaturedHomeHeader(count, options = {}) {
             : `${count} latest ${count === 1 ? "listing" : "listings"} in ${getCategoryIntentLabel(browseCategoryIntent).toLowerCase()}${browseFreshness}`
         }</span>
       </div>
-      <label class="browse-category-control">
-        <span>Browse</span>
-        <select id="homeBrowseCategory" aria-label="Browse category">${optionsMarkup}</select>
-      </label>
+      <div class="browse-header-actions">
+        <label class="browse-category-control">
+          <span>Browse</span>
+          <select id="homeBrowseCategory" aria-label="Browse category">${optionsMarkup}</select>
+        </label>
+        <button class="browse-view-all-button" type="button" data-result-action="open-browse-expanded">Browse latest</button>
+      </div>
     `;
     return header;
   }
@@ -4403,6 +4474,38 @@ function createFeaturedHomeHeader(count, options = {}) {
           ? "Vintage synth portals to get you digging right away"
           : `${count} curated ${count === 1 ? "listing" : "listings"} from the latest scans`
     }</span>
+  `;
+  return header;
+}
+
+function createBrowseExpandedHeader(visibleCount, totalCount) {
+  const header = document.createElement("section");
+  header.className = "browse-expanded-header";
+  const optionsMarkup = CATEGORY_INTENTS.map((intent) => `
+    <option value="${escapeHtml(intent.id)}" ${intent.id === browseCategoryIntent ? "selected" : ""}>${escapeHtml(intent.label)}</option>
+  `).join("");
+  const freshness = formatBrowseFreshnessDetail(getBrowseCategoryFreshness());
+  const status = browseCategoryStatus === "loading" && totalCount > 0
+    ? `${visibleCount} cached ${visibleCount === 1 ? "listing" : "listings"} · Refreshing now${freshness}`
+    : browseCategoryStatus === "loading"
+      ? "Checking source feeds now"
+      : browseCategoryStatus === "error"
+        ? browseCategoryError || "Browse mode is warming up"
+        : `${visibleCount} newest ${visibleCount === 1 ? "listing" : "listings"}${freshness}`;
+
+  header.innerHTML = `
+    <div class="browse-expanded-copy">
+      <span class="browse-expanded-eyebrow">Browse</span>
+      <h3>Latest ${escapeHtml(getCategoryIntentLabel(browseCategoryIntent))}</h3>
+      <p>${escapeHtml(status)}</p>
+    </div>
+    <div class="browse-expanded-actions">
+      <label class="browse-category-control">
+        <span>Category</span>
+        <select id="expandedBrowseCategory" aria-label="Browse category">${optionsMarkup}</select>
+      </label>
+      <button class="browse-view-all-button" type="button" data-result-action="close-browse-expanded">Back to home</button>
+    </div>
   `;
   return header;
 }
@@ -4521,12 +4624,24 @@ function getBrowseCategoryHomeListings() {
   ensureBrowseCategoryListings();
   if (browseCategoryListings.length > 0) {
     const curatedListings = curateFreshFindListings(browseCategoryListings, { limit: FEATURED_HOME_LIMIT });
-    maybeSaveBrowseCategoryCache(browseCategoryIntent, curatedListings);
+    maybeSaveBrowseCategoryCache(browseCategoryIntent, browseCategoryListings);
     return curatedListings;
   }
   const cachedListings = getCachedBrowseCategoryListings();
   if (cachedListings.length > 0) return cachedListings;
   if (browseCategoryStatus === "loading") return createBrowseCategoryLoadingPlaceholders();
+  return [];
+}
+
+function getBrowseCategoryExpandedListings() {
+  ensureBrowseCategoryListings();
+  if (browseCategoryListings.length > 0) {
+    maybeSaveBrowseCategoryCache(browseCategoryIntent, browseCategoryListings);
+    return prepareLatestBrowseListings(browseCategoryListings, { limit: BROWSE_EXPANDED_LIMIT });
+  }
+
+  const cachedListings = getCachedBrowseCategoryListings(browseCategoryIntent, { limit: BROWSE_EXPANDED_LIMIT, latest: true });
+  if (cachedListings.length > 0) return cachedListings;
   return [];
 }
 
@@ -4544,7 +4659,7 @@ function ensureBrowseCategoryListings() {
       const curatedListings = curateFreshFindListings(listings, { limit: FEATURED_HOME_LIMIT });
       if (curatedListings.length > 0) {
         recordListingDiscoveries({ name: `${getCategoryIntentLabel(browseCategoryIntent)} Browser` }, curatedListings);
-        maybeSaveBrowseCategoryCache(browseCategoryIntent, curatedListings);
+        maybeSaveBrowseCategoryCache(browseCategoryIntent, listings);
       }
       if (searchState.mode === "idle") renderResults();
     })
@@ -4597,18 +4712,65 @@ function setHomeBrowseCategory(categoryIntent) {
   if (searchState.mode === "idle") renderResults();
 }
 
-function getCachedBrowseCategoryListings(categoryIntent = browseCategoryIntent) {
+function getCachedBrowseCategoryListings(categoryIntent = browseCategoryIntent, options = {}) {
   const cache = loadFreshFindCache();
   const regionCache = cache[getActiveRegion().id];
   const categoryCache = regionCache?.browseCategories?.[sanitizeCategoryIntent(categoryIntent, appSettings.regionId)];
   const listings = Array.isArray(categoryCache?.listings) ? categoryCache.listings : [];
+  const limit = options.limit || FEATURED_HOME_LIMIT;
+  const preparedListings = options.latest
+    ? prepareLatestBrowseListings(listings, { limit })
+    : curateFreshFindListings(listings, { limit });
 
-  return curateFreshFindListings(listings, { limit: FEATURED_HOME_LIMIT })
-    .map((listing) => ({
-      ...listing,
-      isBrowseCategoryCached: true,
-      browseCategoryCachedAt: categoryCache?.generatedAt || "",
-    }));
+  return preparedListings.map((listing) => ({
+    ...listing,
+    isBrowseCategoryCached: true,
+    browseCategoryCachedAt: categoryCache?.generatedAt || "",
+  }));
+}
+
+function getBrowseCategoryFreshness(categoryIntent = browseCategoryIntent) {
+  const cache = loadFreshFindCache();
+  const regionCache = cache[getActiveRegion().id];
+  const categoryCache = regionCache?.browseCategories?.[sanitizeCategoryIntent(categoryIntent, appSettings.regionId)];
+  return browseCategoryUpdatedAt || categoryCache?.generatedAt || "";
+}
+
+function prepareLatestBrowseListings(listings, options = {}) {
+  const limit = options.limit || BROWSE_EXPANDED_LIMIT;
+  const ledger = loadLedger();
+  const seenIds = new Set();
+  return listings
+    .filter((listing) => {
+      if (!listing?.id || seenIds.has(listing.id)) return false;
+      seenIds.add(listing.id);
+      return true;
+    })
+    .filter((listing) => !isUnavailableListing(listing))
+    .filter((listing) => !isStaleFreshFind(listing, ledger))
+    .filter((listing) => qualityFilter === "all" || isCleanGearListing(listing))
+    .sort((a, b) => getLatestBrowseTime(b, ledger) - getLatestBrowseTime(a, ledger))
+    .slice(0, limit)
+    .map((listing) => decorateFreshFindListing(listing, ledger));
+}
+
+function getLatestBrowseTime(listing, ledger = loadLedger()) {
+  const entry = ledger[listing.id] || {};
+  const candidates = [
+    listing.listedAt,
+    listing.firstSeenAt,
+    entry.firstSeenAt,
+    entry.firstDiscoveredAt,
+    listing.lastVerifiedAt,
+    entry.lastVerifiedAt,
+    entry.lastSeenAt,
+    entry.lastFoundAt,
+  ];
+  for (const value of candidates) {
+    const time = Date.parse(value || "");
+    if (Number.isFinite(time)) return time;
+  }
+  return 0;
 }
 
 function formatBrowseFreshnessDetail(value) {
@@ -4689,7 +4851,7 @@ function saveBrowseCategoryCache(categoryIntent, listings) {
     [normalizedCategoryIntent]: {
       categoryIntent: normalizedCategoryIntent,
       generatedAt,
-      listings: listings.slice(0, FEATURED_HOME_LIMIT).map(serializeFreshFindCacheListing),
+      listings: prepareLatestBrowseListings(listings, { limit: BROWSE_EXPANDED_LIMIT }).map(serializeFreshFindCacheListing),
     },
   };
 
@@ -4704,7 +4866,7 @@ function saveBrowseCategoryCache(categoryIntent, listings) {
     browseCategoryUpdatedAt = generatedAt;
   } catch (error) {
     if (!isStorageQuotaError(error)) throw error;
-    cache[regionId].browseCategories[normalizedCategoryIntent].listings = cache[regionId].browseCategories[normalizedCategoryIntent].listings.slice(0, Math.ceil(FEATURED_HOME_LIMIT / 2));
+    cache[regionId].browseCategories[normalizedCategoryIntent].listings = cache[regionId].browseCategories[normalizedCategoryIntent].listings.slice(0, Math.ceil(BROWSE_EXPANDED_LIMIT / 2));
     try {
       localStorage.setItem(STORAGE_KEYS.freshFindCache, JSON.stringify(cache));
       browseCategoryUpdatedAt = generatedAt;
