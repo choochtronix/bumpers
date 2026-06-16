@@ -2852,11 +2852,6 @@ function createSourceSearchTermVariants(term) {
     variants.push(value.replace(/([a-zA-Z]+)(\d+)/g, "$1-$2"));
     variants.push(value.replace(/([a-zA-Z]+)(\d+)/g, "$1 $2"));
   }
-  const looseWordTerms = createLooseWordTerms(value);
-  if (looseWordTerms.length > 1) {
-    variants.push(...looseWordTerms);
-  }
-
   return variants;
 }
 

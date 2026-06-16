@@ -140,6 +140,25 @@ const AMBIGUOUS_GEAR_BRANDS = [
   "ワルドルフ",
 ];
 const BRAND_MODEL_SIGNAL_TERMS = {
+  mackie: [
+    "1202",
+    "1402",
+    "1604",
+    "1642",
+    "8 bus",
+    "8-bus",
+    "cr1604",
+    "cr-1604",
+    "d8b",
+    "mix8",
+    "mix12",
+    "onyx",
+    "pro fx",
+    "profx",
+    "vlz",
+    "vlz3",
+    "vlz4",
+  ],
   roli: [
     "airwave",
     "blocks",
@@ -225,9 +244,13 @@ const ACCESSORY_TERMS = [
 ];
 const GEAR_SIGNAL_TERMS = [
   "analog",
+  "analog mixer",
   "audio interface",
+  "audio mixer",
+  "compact mixer",
   "desktop",
   "digital",
+  "digital mixer",
   "drum machine",
   "drum machines",
   "drum module",
@@ -239,8 +262,15 @@ const GEAR_SIGNAL_TERMS = [
   "groovebox",
   "keyboard",
   "midi",
+  "mixer",
+  "mixers",
+  "mixing board",
+  "mixing console",
+  "mixing desk",
   "module",
   "mpc",
+  "powered mixer",
+  "rack mixer",
   "rack",
   "rhythm composer",
   "rhythm machine",
@@ -252,6 +282,7 @@ const GEAR_SIGNAL_TERMS = [
   "vco",
   "vca",
   "vcf",
+  "vlz",
   "アナログ",
   "インターフェース",
   "オーディオ",
@@ -265,6 +296,7 @@ const GEAR_SIGNAL_TERMS = [
   "リズムボックス",
   "リズムマシン",
   "ミキサー",
+  "ミキシング",
   "モジュール",
 ];
 const MEDIA_NOISE_TERMS = [
@@ -1641,7 +1673,21 @@ function syncRefineTermsToPrimary() {
 }
 
 function getSearchTermsFromForm() {
-  return splitLines(refineTermsInput.value || termsInput.value);
+  if (!refineSearchModal.hidden) return splitLines(refineTermsInput.value);
+
+  const primaryTerms = splitLines(termsInput.value);
+  if (!primaryTerms.length) return splitLines(refineTermsInput.value);
+
+  const refineTerms = splitLines(refineTermsInput.value);
+  if (refineTerms.length <= 1) return primaryTerms;
+
+  const primaryTerm = primaryTerms[0] || "";
+  const refinePrimaryTerm = refineTerms[0] || "";
+  if (normalizeText(primaryTerm) !== normalizeText(refinePrimaryTerm)) {
+    return primaryTerms;
+  }
+
+  return uniqueTerms([...primaryTerms, ...refineTerms.slice(1)]);
 }
 
 function renderPrimarySearchTerm() {
@@ -5967,11 +6013,6 @@ function createSourceSearchTermVariants(term) {
     variants.push(value.replace(/([a-zA-Z]+)(\d+)/g, "$1-$2"));
     variants.push(value.replace(/([a-zA-Z]+)(\d+)/g, "$1 $2"));
   }
-  const looseWordTerms = createLooseWordTerms(value);
-  if (looseWordTerms.length > 1) {
-    variants.push(...looseWordTerms);
-  }
-
   return variants;
 }
 
