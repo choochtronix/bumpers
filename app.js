@@ -42,6 +42,8 @@ const FEATURED_HOME_ALERT_LIMIT = 6;
 const FRESH_FIND_LOADING_CARD_COUNT = 6;
 const FRESH_FIND_STALE_HOURS = 72;
 const FRESH_FIND_STALE_MS = FRESH_FIND_STALE_HOURS * 60 * 60 * 1000;
+const FRESH_LISTING_HOURS = 72;
+const FRESH_LISTING_MS = FRESH_LISTING_HOURS * 60 * 60 * 1000;
 const SAVE_CONFIRMATION_DURATION_MS = 3500;
 const SAVE_CONFIRMATION_TRANSITION_MS = 220;
 const FRESH_FIND_CURATOR_TERMS = [
@@ -657,6 +659,7 @@ let appSettings = loadSettings();
 let currentProfile = createFreshProfile();
 let currentResults = [];
 let currentDiscoveryIds = new Set();
+let currentNewForSearchIds = new Set();
 let filterMode = "all";
 let qualityFilter = getActiveRegion().searchDefaults?.cleanGear === false ? "all" : "clean";
 let sortMode = "newest";
@@ -1285,9 +1288,6 @@ function bindEvents() {
   });
 
   document.querySelector("#markAllSeen").addEventListener("click", () => {
-    const seen = new Set(loadSet(STORAGE_KEYS.seen));
-    currentResults.forEach((listing) => seen.add(listing.id));
-    saveSet(STORAGE_KEYS.seen, seen);
     acknowledgeListings(currentResults);
     renderResults();
   });
@@ -1396,6 +1396,7 @@ function resetHomeView(event) {
   document.querySelectorAll("#urgencyFilter button").forEach((item) => item.classList.toggle("active", item.dataset.filter === filterMode));
   currentResults = [];
   currentDiscoveryIds = new Set();
+  currentNewForSearchIds = new Set();
   closeSavedSearchPopover();
   closeRefineSearchModal({ restoreFocus: false });
   closeSaveSearchModal({ restoreFocus: false });
@@ -2899,6 +2900,7 @@ async function runSearch() {
   sourceSearchMeta = new Map();
   currentResults = [];
   currentDiscoveryIds = new Set();
+  currentNewForSearchIds = new Set();
   setActiveTitle(profileSnapshot.name);
   scrollResultsTop();
   searchState = { mode: "searching", message: "Searching", detail: "Checking live sources.", errors: [] };
@@ -2951,6 +2953,7 @@ function applySearchResult(profile, liveResult, isFinal) {
   pruneActiveViewSources();
 
   currentDiscoveryIds = isFinal && liveResult.mode === "live" ? getNewDiscoveryIds(currentResults) : new Set();
+  currentNewForSearchIds = isFinal && liveResult.mode === "live" ? getNewForSearchIds(currentProfile, currentResults) : new Set();
   if (isFinal && liveResult.mode === "live") {
     recordListingDiscoveries(currentProfile, currentResults);
     liveResult.detail = appendDiscoveryDetail(liveResult.detail, currentDiscoveryIds.size);
@@ -2981,6 +2984,7 @@ function resetToIdleSearch() {
   sourceSearchMeta = new Map();
   currentResults = [];
   currentDiscoveryIds = new Set();
+  currentNewForSearchIds = new Set();
   resetPagination();
   setActiveTitle(currentProfile.name);
   searchState = {
@@ -3218,7 +3222,7 @@ function updateBackToTopPlacement() {
 }
 
 function getCurrentAlertListings() {
-  return currentResults.filter((listing) => currentDiscoveryIds.has(listing.id));
+  return currentResults.filter((listing) => isListingNewToUser(listing));
 }
 
 function renderResults() {
@@ -3356,7 +3360,7 @@ function createNoResultsMessage(baseResults = currentResults) {
 
 function getActiveResultFilterLabels() {
   const labels = [];
-  if (filterMode !== "all") labels.push(`${capitalize(filterMode)} view`);
+  if (filterMode !== "all") labels.push(`${getResultFilterLabel(filterMode)} view`);
   if (qualityFilter === "clean") labels.push("Gear Mode");
   if (activeViewSources.size > 0) labels.push("source filter");
   return labels;
@@ -3376,7 +3380,7 @@ function getSearchConstraintSummary() {
   }
   if (qualityFilter === "clean") parts.push("Gear Mode");
   if (filterMode !== "all") {
-    parts.push(`${capitalize(filterMode)} view`);
+    parts.push(`${getResultFilterLabel(filterMode)} view`);
   }
 
   return parts.length > 0 ? `This browser is using: ${parts.join(" · ")}.` : "";
@@ -3385,6 +3389,15 @@ function getSearchConstraintSummary() {
 function capitalize(value) {
   const text = String(value || "");
   return text ? text.charAt(0).toUpperCase() + text.slice(1) : "";
+}
+
+function getResultFilterLabel(mode) {
+  return {
+    new: "New to me",
+    fresh: "Fresh",
+    maybe: "Maybe",
+    watching: "Watching",
+  }[mode] || capitalize(mode);
 }
 
 function toggleWatchingFilter() {
@@ -3565,6 +3578,7 @@ function getVisibleResults(watching, baseResults = currentResults) {
   return baseResults
     .filter((listing) => {
       if (filterMode === "new") return isListingMarkedNew(listing);
+      if (filterMode === "fresh") return isListingFresh(listing);
       if (filterMode === "maybe") return formatGearConfidence(listing).level === "maybe-gear";
       if (filterMode === "watching") return watching.includes(listing.id);
       return true;
@@ -3807,6 +3821,7 @@ function getSourceFilteredBaseResults(baseResults = currentResults) {
   return baseResults
     .filter((listing) => {
       if (filterMode === "new") return isListingMarkedNew(listing);
+      if (filterMode === "fresh") return isListingFresh(listing);
       if (filterMode === "maybe") return formatGearConfidence(listing).level === "maybe-gear";
       if (filterMode === "watching") return watching.includes(listing.id);
       return true;
@@ -3916,9 +3931,12 @@ function renderListing(listing, options = {}) {
   const feedback = getProfileFeedback();
   const feedbackStatus = getListingFeedbackStatus(listing, feedback);
   const isFeaturedHome = Boolean(options.isFeaturedHome);
+  const newness = getListingNewness(listing);
 
   card.classList.toggle("is-featured-home-card", isFeaturedHome);
-  card.classList.toggle("is-new", isListingMarkedNew(listing));
+  card.classList.toggle("is-new", newness.isNewToUser || newness.isNewForSearch);
+  card.classList.toggle("is-fresh", newness.isFresh);
+  card.classList.toggle("is-new-for-search", newness.isNewForSearch);
   card.classList.toggle("is-feedback-gear", feedbackStatus === "gear");
   card.classList.toggle("is-feedback-noise", feedbackStatus === "noise");
   if (isFeaturedHome) {
@@ -3931,6 +3949,7 @@ function renderListing(listing, options = {}) {
   image.alt = listing.title;
   hydrateRenderedRakumaImage(listing, image);
   renderSourceAvatar(fragment.querySelector(".source-avatar"), source, listing.source);
+  renderListingNewnessBadges(fragment, newness);
   fragment.querySelector(".source-chip").textContent = source?.label || listing.source;
   fragment.querySelector("h3").textContent = listing.title;
   renderShopName(fragment.querySelector(".shop-name"), listing);
@@ -3978,6 +3997,7 @@ function renderListing(listing, options = {}) {
     } else {
       next.add(listing.id);
       recordListingSnapshot(listing);
+      acknowledgeListings([listing], { watched: true });
     }
     saveSet(STORAGE_KEYS.watching, next);
     queueProfileAutoSync("watch-listing");
@@ -3988,6 +4008,7 @@ function renderListing(listing, options = {}) {
     event.preventDefault();
     event.stopPropagation();
     saveListingFeedback(listing, "hide-similar");
+    acknowledgeListings([listing], { dismissed: true });
     renderResults();
   });
 
@@ -3995,6 +4016,7 @@ function renderListing(listing, options = {}) {
     event.preventDefault();
     event.stopPropagation();
     saveListingFeedback(listing, "gear");
+    acknowledgeListings([listing]);
     renderResults();
   });
 
@@ -4002,18 +4024,23 @@ function renderListing(listing, options = {}) {
     event.preventDefault();
     event.stopPropagation();
     saveListingFeedback(listing, "noise");
+    acknowledgeListings([listing], { dismissed: true });
     renderResults();
   });
 
   if (isFeaturedHome) {
     card.addEventListener("click", (event) => {
       if (event.target.closest("a, button")) return;
+      acknowledgeListings([listing], { viewed: true });
       openExternalListing(listing.url);
+      renderResults();
     });
     card.addEventListener("keydown", (event) => {
       if (event.key !== "Enter" && event.key !== " ") return;
       event.preventDefault();
+      acknowledgeListings([listing], { viewed: true });
       openExternalListing(listing.url);
+      renderResults();
     });
   }
 
@@ -4028,7 +4055,27 @@ function openExternalListing(url) {
 function handlePrimaryListingOpen(event, url) {
   if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
   event.preventDefault();
+  const listing = currentResults.find((item) => item.url === url);
+  if (listing) acknowledgeListings([listing], { viewed: true });
   openExternalListing(url);
+  if (listing) renderResults();
+}
+
+function renderListingNewnessBadges(fragment, newness) {
+  const newPill = fragment.querySelector(".new-pill");
+  const freshPill = fragment.querySelector(".fresh-pill");
+
+  if (newPill) {
+    newPill.textContent = newness.isNewForSearch && !newness.isNewToUser ? "New here" : "New";
+    newPill.title = newness.isNewForSearch && !newness.isNewToUser
+      ? "First time Brrtz has found this listing for this saved search."
+      : "New to you in Brrtz.";
+  }
+
+  if (freshPill) {
+    freshPill.textContent = "Fresh";
+    freshPill.title = `Listed within about ${FRESH_LISTING_HOURS} hours, when the source provides a usable date.`;
+  }
 }
 
 function configureBuyeeLink(link, listing) {
@@ -4100,7 +4147,7 @@ function renderAlertPanel(featuredHomeResults = []) {
   }
 
   alertPanel.classList.remove("is-featured-home");
-  alertTitle.textContent = "New Finds";
+  alertTitle.textContent = "New to You";
   const alertListings = getCurrentAlertListings().filter((listing) => qualityFilter === "all" || isCleanGearListing(listing));
   alertList.innerHTML = "";
   alertCount.textContent = alertListings.length;
@@ -4141,16 +4188,22 @@ function renderAlertItem(listing, options = {}) {
   fragment.querySelector(".alert-price").textContent = formatPrice(listing.price);
   fragment.querySelector("h4").textContent = listing.title;
   openLink.href = listing.url;
+  imageLink.addEventListener("click", (event) => handlePrimaryListingOpen(event, listing.url));
+  openLink.addEventListener("click", (event) => handlePrimaryListingOpen(event, listing.url));
 
   if (isFeaturedHome) {
     item.addEventListener("click", (event) => {
       if (event.target.closest("a, button")) return;
+      acknowledgeListings([listing], { viewed: true });
       openExternalListing(listing.url);
+      renderResults();
     });
     item.addEventListener("keydown", (event) => {
       if (event.key !== "Enter" && event.key !== " ") return;
       event.preventDefault();
+      acknowledgeListings([listing], { viewed: true });
       openExternalListing(listing.url);
+      renderResults();
     });
   }
 
@@ -4161,8 +4214,8 @@ function createAlertDetail(count) {
   if (isSearching) return "Scanning now";
   if (searchState.mode === "idle") return "No scan yet";
   if (searchState.mode !== "live") return searchState.message;
-  if (count === 1) return "1 fresh listing";
-  return `${count} fresh listings`;
+  if (count === 1) return "1 unseen listing";
+  return `${count} unseen listings`;
 }
 
 function createFeaturedHomeHeader(count, options = {}) {
@@ -4774,8 +4827,55 @@ function createListingFromLedgerEntry(entry) {
 }
 
 function isListingMarkedNew(listing) {
-  if (currentDiscoveryIds.has(listing.id)) return true;
-  return searchState.mode === "idle" && !isSeen(listing.id);
+  return isListingNewToUser(listing) || isListingNewForSearch(listing);
+}
+
+function isListingNewToUser(listing) {
+  return getListingNewness(listing).isNewToUser;
+}
+
+function isListingNewForSearch(listing) {
+  return getListingNewness(listing).isNewForSearch;
+}
+
+function isListingFresh(listing) {
+  return getListingNewness(listing).isFresh;
+}
+
+function getListingNewness(listing) {
+  if (!listing?.id) {
+    return {
+      isNewToUser: false,
+      isNewForSearch: false,
+      isFresh: false,
+      isSeen: true,
+    };
+  }
+
+  const ledger = loadLedger();
+  const entry = ledger[listing.id];
+  const seen = isListingAcknowledged(entry) || isSeen(listing.id);
+  const isCurrentDiscovery = currentDiscoveryIds.has(listing.id);
+  const isNewToUser = !seen && (isCurrentDiscovery || !entry);
+  const isNewForSearch = !seen && currentNewForSearchIds.has(listing.id) && Boolean(entry);
+
+  return {
+    isNewToUser,
+    isNewForSearch,
+    isFresh: isFreshBySourceDate(listing, entry),
+    isSeen: seen,
+  };
+}
+
+function isListingAcknowledged(entry) {
+  return Boolean(entry?.acknowledgedAt || entry?.viewedAt || entry?.dismissedAt || entry?.watchedAt);
+}
+
+function isFreshBySourceDate(listing, entry = {}) {
+  const candidate = listing?.listedAt || entry?.listedAt || entry?.firstDiscoveredAt || "";
+  const listedAtMs = new Date(candidate).getTime();
+  if (!Number.isFinite(listedAtMs)) return false;
+  return Date.now() - listedAtMs <= FRESH_LISTING_MS;
 }
 
 function updateSearchStatus() {
@@ -4793,7 +4893,7 @@ function createLiveDetail(listings, meta, errors) {
 }
 
 function appendDiscoveryDetail(detail, discoveryCount) {
-  const noun = discoveryCount === 1 ? "new discovery" : "new discoveries";
+  const noun = discoveryCount === 1 ? "new-to-you discovery" : "new-to-you discoveries";
   return `${detail} ${discoveryCount} ${noun} this scan.`;
 }
 
@@ -5930,6 +6030,20 @@ function getNewDiscoveryIds(listings) {
   return new Set(listings.filter((listing) => !ledger[listing.id]).map((listing) => listing.id));
 }
 
+function getNewForSearchIds(profile, listings) {
+  const ledger = loadLedger();
+  const profileName = profile?.name || "";
+  if (!profileName) return new Set();
+
+  return new Set(listings
+    .filter((listing) => {
+      const entry = ledger[listing.id];
+      if (!entry || isListingAcknowledged(entry)) return false;
+      return !normalizeStoredList(entry.profileNames).includes(profileName);
+    })
+    .map((listing) => listing.id));
+}
+
 function recordListingDiscoveries(profile, listings) {
   const ledger = loadLedger();
   const now = new Date().toISOString();
@@ -5985,14 +6099,22 @@ function createLedgerEntry(listing, previous = {}, options = {}) {
   };
 }
 
-function acknowledgeListings(listings) {
+function acknowledgeListings(listings, options = {}) {
   const ledger = loadLedger();
   const now = new Date().toISOString();
 
   listings.forEach((listing) => {
-    if (ledger[listing.id]) {
-      ledger[listing.id].acknowledgedAt = now;
-    }
+    if (!listing?.id) return;
+    ledger[listing.id] = createLedgerEntry(listing, ledger[listing.id], {
+      lastFoundAt: ledger[listing.id]?.lastFoundAt || now,
+      profileName: currentProfile.name,
+    });
+    ledger[listing.id].acknowledgedAt = ledger[listing.id].acknowledgedAt || now;
+    if (options.viewed) ledger[listing.id].viewedAt = now;
+    if (options.dismissed) ledger[listing.id].dismissedAt = now;
+    if (options.watched) ledger[listing.id].watchedAt = now;
+    currentDiscoveryIds.delete(listing.id);
+    currentNewForSearchIds.delete(listing.id);
   });
 
   saveLedger(ledger);

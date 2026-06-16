@@ -2701,11 +2701,16 @@ body[data-theme="dark"] .back-to-top:hover {
   object-fit: cover;
 }
 
-.result-grid.is-list-view .new-pill {
+.result-grid.is-list-view .new-pill,
+.result-grid.is-list-view .fresh-pill {
   top: 8px;
   left: 8px;
   padding: 4px 7px;
   font-size: 11px;
+}
+
+.result-grid.is-list-view .fresh-pill {
+  top: 34px;
 }
 
 .result-grid.is-list-view .source-avatar {
@@ -3033,7 +3038,8 @@ body[data-theme="dark"] .listing-card.is-featured-home-card {
   }
 }
 
-.new-pill {
+.new-pill,
+.fresh-pill {
   position: absolute;
   top: 10px;
   left: 10px;
@@ -3046,7 +3052,16 @@ body[data-theme="dark"] .listing-card.is-featured-home-card {
   font-weight: 800;
 }
 
+.fresh-pill {
+  top: 42px;
+  background: var(--green);
+}
+
 .listing-card.is-new .new-pill {
+  display: inline-flex;
+}
+
+.listing-card.is-fresh .fresh-pill {
   display: inline-flex;
 }
 
