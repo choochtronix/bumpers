@@ -9,6 +9,10 @@ This is the short-term working list for getting Brrtz ready for friend beta whil
 - [x] Fix multi-word search fidelity for terms like `Mackie Mixer`.
 - [x] Add visible Save Settings feedback.
 - [x] Add a defensive cloud preference sync guard for stale browser/runtime state.
+- [x] Make the search-field star quick-save with toast confirmation only.
+- [x] Add Watching empty-state guidance.
+- [x] Center the back-to-top button across desktop and mobile.
+- [x] Add consistent top nav hover/focus states.
 - [ ] Re-test cloud sync in Chrome + Safari after the next local restart.
 - [ ] Continue save/search UX cleanup.
 - [ ] Expand Synth Browser into a full newest-first browsing feed.

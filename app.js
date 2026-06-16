@@ -1251,7 +1251,7 @@ function bindEvents() {
 
   openSavedSearchesButton.addEventListener("click", toggleSavedSearchPopover);
   document.addEventListener("click", handleSavedPopoverOutsideClick);
-  quickSaveSearchButton.addEventListener("click", openSaveSearchModal);
+  quickSaveSearchButton.addEventListener("click", saveCurrentSearchQuick);
   document.querySelector("#openSaveSearch").addEventListener("click", openSaveSearchModal);
   document.querySelector("#saveProfile").addEventListener("click", openSaveSearchModal);
   closeSaveConfirmationToastButton?.addEventListener("click", hideSaveConfirmationToast);
@@ -1811,7 +1811,7 @@ function updateQuickSaveSearchButton() {
 
   const draftProfile = readProfileFromForm();
   const hasSearchTerms = draftProfile.terms.length > 0;
-  const isSaved = hasSearchTerms && loadProfiles().some((profile) => profilesMatchSearch(profile, draftProfile));
+  const isSaved = hasSearchTerms && Boolean(findMatchingSavedSearchByProfile(draftProfile));
 
   quickSaveSearchButton.disabled = !hasSearchTerms;
   quickSaveSearchButton.classList.toggle("is-saved", isSaved);
@@ -1831,6 +1831,39 @@ function profilesMatchSearch(firstProfile, secondProfile) {
     && Number(first.maxPrice || 0) === Number(second.maxPrice || 0)
     && first.categoryIntent === second.categoryIntent
     && first.alertMode === second.alertMode;
+}
+
+function findMatchingSavedSearchByProfile(candidateProfile) {
+  const draftProfile = hydrateProfile(candidateProfile);
+  return loadProfiles().find((profile) => profilesMatchSearch(profile, draftProfile));
+}
+
+function saveCurrentSearchQuick(event) {
+  if (quickSaveSearchButton?.disabled) {
+    termsInput.focus();
+    return;
+  }
+
+  event?.preventDefault?.();
+  closeSavedSearchPopover();
+  const draftProfile = {
+    ...readProfileFromForm(),
+    regionId: appSettings.regionId,
+  };
+  const existingProfile = findMatchingSavedSearchByProfile(draftProfile);
+
+  if (existingProfile) {
+    currentProfile = hydrateProfile(existingProfile);
+    updateQuickSaveSearchButton();
+    showSaveConfirmationToast(currentProfile, { alreadySaved: true });
+    return;
+  }
+
+  currentProfile = saveProfile(draftProfile);
+  renderSavedSearches();
+  setActiveTitle(currentProfile.name);
+  queueSavedSearchAutoSync("quick-save-search");
+  showSaveConfirmationToast(currentProfile);
 }
 
 function openSaveSearchModal(event) {
@@ -1876,10 +1909,11 @@ function saveCurrentSearchFromModal() {
   showSaveConfirmationToast(currentProfile);
 }
 
-function showSaveConfirmationToast(profile) {
+function showSaveConfirmationToast(profile, options = {}) {
+  const prefix = options.alreadySaved ? "Already saved" : "Saved";
   showStatusToast({
     icon: "★",
-    message: `${profile?.name || "Search"} saved`,
+    message: `${prefix}: ${profile?.name || "Search"}`,
     showView: true,
   });
 }
@@ -3415,6 +3449,15 @@ function clearResultViewFilters() {
 }
 
 function createNoResultsMessage(baseResults = currentResults) {
+  if (filterMode === "watching" && !hasWatchedListings()) {
+    return `
+      <div class="empty-state">
+        <strong>No watched gear yet.</strong>
+        <span>Tap a heart on any listing to save it here.</span>
+      </div>
+    `;
+  }
+
   if (baseResults.length === 0) {
     const constraintSummary = getSearchConstraintSummary();
     return `
@@ -3484,6 +3527,12 @@ function toggleWatchingFilter() {
   resetPagination();
   document.querySelectorAll("#urgencyFilter button").forEach((item) => item.classList.toggle("active", item.dataset.filter === filterMode));
   renderResults();
+  if (filterMode === "watching" && !hasWatchedListings()) {
+    showStatusToast({
+      icon: "♡",
+      message: "Tap a heart on any listing to save it to Watching.",
+    });
+  }
 }
 
 function renderTopWatchingControl() {
@@ -6046,6 +6095,10 @@ function loadSet(key) {
   } catch {
     return [];
   }
+}
+
+function hasWatchedListings() {
+  return loadSet(STORAGE_KEYS.watching).length > 0;
 }
 
 function saveSet(key, values) {

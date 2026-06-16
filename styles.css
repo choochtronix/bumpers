@@ -1189,7 +1189,7 @@ body[data-theme="dark"] .region-badge:focus-visible {
 
 .save-confirmation-toast {
   position: fixed;
-  right: clamp(18px, 4vw, 44px);
+  left: 50%;
   bottom: clamp(18px, 4vw, 44px);
   z-index: 1300;
   display: grid;
@@ -1206,14 +1206,14 @@ body[data-theme="dark"] .region-badge:focus-visible {
   box-shadow: 0 18px 48px rgba(0, 0, 0, 0.32);
   opacity: 0;
   pointer-events: none;
-  transform: translate3d(0, 16px, 0) scale(0.98);
+  transform: translate3d(-50%, 16px, 0) scale(0.98);
   transition: opacity 180ms ease, transform 220ms ease;
 }
 
 .save-confirmation-toast.is-visible {
   opacity: 1;
   pointer-events: auto;
-  transform: translate3d(0, 0, 0) scale(1);
+  transform: translate3d(-50%, 0, 0) scale(1);
 }
 
 .save-confirmation-toast[hidden] {
@@ -2614,7 +2614,7 @@ body[data-theme="dark"] .source-filter-all::after {
   --back-to-top-offset: clamp(18px, 3vw, 34px);
 
   position: fixed;
-  right: clamp(18px, 3vw, 34px);
+  left: 50%;
   bottom: var(--back-to-top-offset);
   z-index: 45;
   display: grid;
@@ -2631,7 +2631,7 @@ body[data-theme="dark"] .source-filter-all::after {
   font-weight: 900;
   line-height: 1;
   opacity: 1;
-  transform: translateY(0);
+  transform: translateX(-50%);
   transition:
     background 160ms ease,
     bottom 180ms ease,
@@ -4030,9 +4030,12 @@ body[data-theme="dark"] .browse-category-control select {
 .saved-trigger,
 .watching-trigger {
   min-height: 46px;
+  border: 1px solid var(--secondary-button-stroke);
   border-radius: var(--radius-pill);
-  background: var(--button-bg);
+  background: var(--secondary-button-bg);
+  color: var(--secondary-button-ink);
   box-shadow: 0 6px 18px rgba(20, 24, 28, 0.04);
+  transition: background var(--motion-fast), border-color var(--motion-fast), color var(--motion-fast), box-shadow var(--motion-fast), transform var(--motion-fast);
 }
 
 .theme-toggle {
@@ -4051,10 +4054,28 @@ body[data-theme="dark"] .browse-category-control select {
   justify-content: center;
   gap: 8px;
   padding: 0 14px;
-  border: 1px solid var(--line);
-  color: var(--ink);
   cursor: pointer;
   font-weight: 850;
+}
+
+.theme-toggle:hover,
+.theme-toggle:focus-visible,
+.saved-trigger:hover,
+.saved-trigger:focus-visible,
+.watching-trigger:hover,
+.watching-trigger:focus-visible {
+  border-color: var(--secondary-button-hover-bg);
+  background: var(--secondary-button-hover-bg);
+  color: var(--secondary-button-hover-ink);
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.12);
+  transform: translateY(-1px);
+}
+
+.theme-toggle:focus-visible,
+.saved-trigger:focus-visible,
+.watching-trigger:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring), 0 14px 32px rgba(15, 23, 42, 0.12);
 }
 
 .saved-trigger span,
@@ -4066,8 +4087,15 @@ body[data-theme="dark"] .browse-category-control select {
 
 .watching-trigger.is-active {
   border-color: color-mix(in srgb, #ff00ff 44%, var(--line));
-  background: var(--button-bg);
+  background: var(--secondary-button-bg);
   color: var(--ink);
+}
+
+.watching-trigger.is-active:hover,
+.watching-trigger.is-active:focus-visible {
+  border-color: color-mix(in srgb, #ff00ff 54%, var(--secondary-button-hover-bg));
+  background: var(--secondary-button-hover-bg);
+  color: var(--secondary-button-hover-ink);
 }
 
 .watching-trigger.is-active .site-icon-watched {
@@ -4456,14 +4484,14 @@ body[data-theme="dark"] .refine-backdrop {
   }
 
   .save-confirmation-toast {
-    right: 50%;
+    left: 50%;
     bottom: 18px;
     width: calc(100vw - 28px);
-    transform: translate3d(50%, 16px, 0) scale(0.98);
+    transform: translate3d(-50%, 16px, 0) scale(0.98);
   }
 
   .save-confirmation-toast.is-visible {
-    transform: translate3d(50%, 0, 0) scale(1);
+    transform: translate3d(-50%, 0, 0) scale(1);
   }
 
   .brand h1 {
@@ -5163,11 +5191,12 @@ body[data-theme="dark"] .refine-backdrop {
   }
 
   .back-to-top {
-    right: 14px;
+    left: 50%;
     bottom: max(14px, env(safe-area-inset-bottom));
     width: 44px;
     height: 44px;
     font-size: 24px;
+    transform: translateX(-50%);
   }
 
   .back-to-top.is-above-pagination {
