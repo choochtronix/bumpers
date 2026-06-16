@@ -1873,6 +1873,82 @@ body[data-theme="dark"] .region-badge:focus-visible {
   gap: 8px;
 }
 
+.source-assist-panel {
+  display: flex;
+  grid-column: 1 / -1;
+  min-width: 0;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px 8px;
+  margin-top: -4px;
+}
+
+.source-assist-panel[hidden] {
+  display: none;
+}
+
+.source-assist-panel > span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.source-assist-list {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.source-assist-button {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px 3px 4px;
+  border: 1px solid color-mix(in srgb, var(--source-solid, var(--line)) 30%, var(--line));
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--button-bg) 92%, var(--source-solid, var(--primary)) 8%);
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 900;
+  transition:
+    background 140ms ease,
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    color 140ms ease,
+    transform 140ms ease;
+}
+
+.source-assist-button:hover,
+.source-assist-button:focus-visible {
+  border-color: var(--source-solid, var(--primary));
+  background: color-mix(in srgb, var(--button-bg) 84%, var(--source-solid, var(--primary)) 16%);
+  box-shadow: 0 8px 18px rgba(20, 24, 28, 0.11);
+  transform: translateY(-1px);
+}
+
+.source-assist-button:focus-visible {
+  outline: 3px solid var(--accent-soft);
+  outline-offset: 2px;
+}
+
+.source-assist-label {
+  max-width: 18ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.source-assist-arrow {
+  color: var(--source-solid-mark, var(--source-solid, var(--primary)));
+  font-size: 13px;
+  line-height: 1;
+}
+
 .result-view-toggle {
   display: inline-flex;
   align-items: center;
@@ -2264,20 +2340,24 @@ body[data-theme="dark"] .source-filter-all::after {
   --source-solid-mark: var(--source-ebay);
 }
 
-.source-filter-button[data-source="sweetwater-used"] {
+.source-filter-button[data-source="sweetwater-used"],
+.source-assist-button[data-source="sweetwater-used"] {
   --source-solid: var(--source-sweetwater);
   --source-solid-ink: var(--source-ink-on-color);
   --source-solid-mark: var(--source-sweetwater);
 }
 
-.source-filter-button[data-source="guitar-center-used"] {
+.source-filter-button[data-source="guitar-center-used"],
+.source-assist-button[data-source="guitar-center-used"] {
   --source-solid: var(--source-guitar-center);
   --source-solid-ink: var(--source-ink-on-color);
   --source-solid-mark: var(--source-guitar-center);
 }
 
 .source-filter-button[data-source="craigslist-sfbay"],
-.source-filter-button[data-source="craigslist-la"] {
+.source-filter-button[data-source="craigslist-la"],
+.source-assist-button[data-source="craigslist-sfbay"],
+.source-assist-button[data-source="craigslist-la"] {
   --source-solid: var(--source-craigslist);
   --source-solid-ink: var(--source-ink-on-color);
   --source-solid-mark: var(--source-craigslist);
@@ -3107,6 +3187,18 @@ body[data-theme="dark"] .listing-card.is-featured-home-card {
   box-shadow: none;
   font-size: 9px;
   overflow: visible;
+}
+
+.source-assist-button .source-assist-avatar {
+  position: relative;
+  inset: auto;
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  border-width: 1px;
+  box-shadow: none;
+  font-size: 7px;
+  overflow: hidden;
 }
 
 .source-filter-button .source-filter-avatar::after {
@@ -4709,6 +4801,30 @@ body[data-theme="dark"] .refine-backdrop {
   .source-filter-list.is-collapsed .source-filter-source {
     flex-basis: 0;
     min-width: 0;
+  }
+
+  .source-assist-panel {
+    grid-column: 1 / -1;
+    flex-wrap: nowrap;
+    align-items: center;
+    overflow: hidden;
+  }
+
+  .source-assist-list {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding: 0 2px 4px;
+    scroll-padding-inline: 2px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .source-assist-list::-webkit-scrollbar {
+    display: none;
+  }
+
+  .source-assist-button {
+    flex: 0 0 auto;
+    min-height: 34px;
   }
 
   .source-sort-control {

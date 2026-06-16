@@ -713,6 +713,8 @@ const alertCount = document.querySelector("#alertCount");
 const alertDetail = document.querySelector("#alertDetail");
 const alertTitle = document.querySelector("#alertTitle");
 const sourceFilterList = document.querySelector("#sourceFilterList");
+const sourceAssistPanel = document.querySelector("#sourceAssistPanel");
+const sourceAssistList = document.querySelector("#sourceAssistList");
 const themeToggle = document.querySelector("#themeToggle");
 const liveStatus = document.querySelector("#liveStatus");
 const qualityModeButtons = document.querySelectorAll("[data-quality]");
@@ -1331,6 +1333,12 @@ function bindEvents() {
     toggleViewSource(sourceId);
     resetPagination();
     renderResults();
+  });
+
+  sourceAssistList?.addEventListener("click", (event) => {
+    const button = event.target.closest("button");
+    if (!button || button.disabled) return;
+    openManualSourceSearch(button.dataset.source || "");
   });
 
   qualityModeButtons.forEach((button) => {
@@ -3569,10 +3577,11 @@ function getVisibleResults(watching, baseResults = currentResults) {
 
 function renderSourceFilters(baseResults = currentResults) {
   const counts = getSourceCountsForCurrentView(baseResults);
-  const availableSources = getVisibleSources().filter((source) => shouldShowSourceFilter(source, counts));
+  const availableSources = getVisibleSources().filter((source) => !isManualSourceStatus(source.id) && shouldShowSourceFilter(source, counts));
   sourceFilterList.innerHTML = "";
   sourceFilterList.classList.toggle("is-expanded", isSourceRowExpanded);
   sourceFilterList.classList.toggle("is-collapsed", !isSourceRowExpanded);
+  renderSourceAssistFilters();
 
   if (availableSources.length === 0) {
     sourceFilterList.innerHTML = `<button class="source-filter-button source-filter-all is-active" type="button" disabled>0 Matches</button>`;
@@ -3609,6 +3618,30 @@ function renderSourceFilters(baseResults = currentResults) {
   });
 }
 
+function renderSourceAssistFilters() {
+  if (!sourceAssistPanel || !sourceAssistList) return;
+
+  const assistSources = getVisibleSources().filter((source) => isManualSourceStatus(source.id) && getManualSourceUrl(source.id));
+  sourceAssistPanel.hidden = assistSources.length === 0;
+  sourceAssistList.innerHTML = "";
+
+  assistSources.forEach((source) => {
+    const button = document.createElement("button");
+    button.className = "source-assist-button";
+    button.type = "button";
+    button.dataset.source = source.id;
+    button.title = `Open prepared ${source.label} search`;
+    button.setAttribute("aria-label", `Open prepared ${source.label} search in a new tab`);
+    button.innerHTML = `
+      <span class="source-avatar source-assist-avatar" data-source="${source.id}"></span>
+      <span class="source-assist-label">${source.label}</span>
+      <span class="source-assist-arrow" aria-hidden="true">↗</span>
+    `;
+    renderSourceAvatar(button.querySelector(".source-assist-avatar"), source, source.id);
+    sourceAssistList.appendChild(button);
+  });
+}
+
 function createAllSourceFilterButton(summary) {
   const button = document.createElement("button");
   button.className = "source-filter-button source-filter-all";
@@ -3630,7 +3663,7 @@ function createAllSourceFilterButton(summary) {
 }
 
 function createSourceFilterSummary(counts) {
-  const activeSources = [...activeViewSources].filter((sourceId) => counts.has(sourceId) || sourceSearchStatuses.has(sourceId));
+  const activeSources = [...activeViewSources].filter((sourceId) => !isManualSourceStatus(sourceId) && (counts.has(sourceId) || sourceSearchStatuses.has(sourceId)));
 
   if (activeSources.length === 1) {
     const sourceId = activeSources[0];
@@ -3798,7 +3831,7 @@ function toggleViewSource(sourceId) {
 function pruneActiveViewSources() {
   const availableSources = new Set(currentResults.map((listing) => listing.source));
   activeViewSources.forEach((sourceId) => {
-    if (isNonFilterableSourceStatus(sourceId)) {
+    if (isManualSourceStatus(sourceId) || isNonFilterableSourceStatus(sourceId)) {
       activeViewSources.delete(sourceId);
       return;
     }
