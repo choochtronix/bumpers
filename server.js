@@ -51,6 +51,8 @@ const GUITAR_CENTER_USED_CATEGORIES = {
   samplers: "/Used/Drum-Machines-Samplers.gc",
   keyboards: "/Used/Keyboards-MIDI.gc",
 };
+const SWEETWATER_USED_BASE_URL = "https://www.sweetwater.com/used/listings";
+const SWEETWATER_ASSIST_MESSAGE = "Sweetwater Used Assist is active. Brrtz is not querying Sweetwater automatically; open the prepared Sweetwater Used search instead.";
 const CRAIGSLIST_SFBAY_BASE_URL = "https://sfbay.craigslist.org";
 const CRAIGSLIST_LA_BASE_URL = "https://losangeles.craigslist.org";
 const JINA_READER_BASE_URL = "https://r.jina.ai/http://";
@@ -969,6 +971,7 @@ async function handleSearch(url, response) {
   const wantsCraigslistSfbay = sources.length === 0 || sources.includes("craigslist-sfbay");
   const wantsCraigslistLa = sources.length === 0 || sources.includes("craigslist-la");
   const wantsEbayUs = sources.length === 0 || sources.includes("ebay-us");
+  const wantsSweetwaterUsed = sources.length === 0 || sources.includes("sweetwater-used");
   const wantsGuitarCenterUsed = sources.length === 0 || sources.includes("guitar-center-used");
   const wantsJimoty = sources.length === 0 || sources.includes("jimoty");
   const wantsMercari = sources.length === 0 || sources.includes("mercari");
@@ -980,7 +983,7 @@ async function handleSearch(url, response) {
   const wantsYahooFleamarket = sources.length === 0 || sources.includes("yahoo-fleamarket");
   const startedAt = new Date();
 
-  if ((!wantsDigimart && !wantsFiveG && !wantsImplant4 && !wantsCraigslistSfbay && !wantsCraigslistLa && !wantsEbayUs && !wantsGuitarCenterUsed && !wantsJimoty && !wantsMercari && !wantsOffmall && !wantsRakuma && !wantsReverb && !wantsReverbUs && !wantsYahooAuctions && !wantsYahooFleamarket) || terms.length === 0) {
+  if ((!wantsDigimart && !wantsFiveG && !wantsImplant4 && !wantsCraigslistSfbay && !wantsCraigslistLa && !wantsEbayUs && !wantsSweetwaterUsed && !wantsGuitarCenterUsed && !wantsJimoty && !wantsMercari && !wantsOffmall && !wantsRakuma && !wantsReverb && !wantsReverbUs && !wantsYahooAuctions && !wantsYahooFleamarket) || terms.length === 0) {
     sendJson(response, 200, { listings: [], meta: createSearchMeta(startedAt, [], [], terms, { categoryIntent }) });
     return;
   }
@@ -1031,6 +1034,10 @@ async function handleSearch(url, response) {
     }));
   } else if (wantsEbayUs) {
     sourceTasks.push(Promise.resolve(createPendingSourceResult("ebay-us", terms, EBAY_PENDING_MESSAGE)));
+  }
+
+  if (wantsSweetwaterUsed) {
+    sourceTasks.push(Promise.resolve(createManualSweetwaterSourceResult(terms)));
   }
 
   if (wantsGuitarCenterUsed) {
@@ -1375,6 +1382,22 @@ function createManualGuitarCenterSourceResult(terms, options = {}) {
   };
 }
 
+function createManualSweetwaterSourceResult(terms) {
+  const manualUrl = createSweetwaterManualSearchUrl(terms[0] || "");
+  return {
+    listings: [],
+    errors: [],
+    stats: {
+      source: "sweetwater-used",
+      status: "manual",
+      searchedTerms: terms.slice(0, 1),
+      rawCount: 0,
+      message: SWEETWATER_ASSIST_MESSAGE,
+      manualUrl,
+    },
+  };
+}
+
 function createPendingSourceResult(source, terms, message) {
   return {
     listings: [],
@@ -1402,6 +1425,13 @@ function createCraigslistManualSearchUrl(baseUrl, term, options = {}) {
 function createGuitarCenterManualSearchUrl(term, options = {}) {
   const categoryPath = getGuitarCenterUsedCategoryPath(term, options.categoryIntent);
   return new URL(categoryPath, GUITAR_CENTER_BASE_URL).toString();
+}
+
+function createSweetwaterManualSearchUrl(term) {
+  const url = new URL(SWEETWATER_USED_BASE_URL);
+  const query = String(term || "").trim();
+  if (query) url.searchParams.set("query", query);
+  return url.toString();
 }
 
 function getGuitarCenterUsedCategoryPath(term = "", categoryIntent = "") {

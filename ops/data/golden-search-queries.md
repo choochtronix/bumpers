@@ -71,6 +71,8 @@ These are core searches Brrtz should handle well. Use this list for relevance te
 - Bay Area / Guitar Center Used assist / Waldorf -> Synthesizers & Sound Modules category
 - Bay Area / Guitar Center Used assist / drum machine -> Drum Machines & Samplers category
 - Los Angeles / Guitar Center Used assist / MIDI controller -> Keyboards & MIDI category
+- Bay Area / Sweetwater Used assist / drum machine -> Prepared Sweetwater Used search URL
+- Los Angeles / Sweetwater Used assist / Waldorf -> Prepared Sweetwater Used search URL
 
 ## Japanese Terms
 

@@ -7,6 +7,7 @@ const SOURCES = [
   { id: "reverb", label: "Reverb", icon: "Rv", color: "orange" },
   { id: "reverb-us", label: "Reverb US", icon: "Rv", color: "orange" },
   { id: "ebay-us", label: "eBay US", icon: "eB", color: "blue" },
+  { id: "sweetwater-used", label: "Sweetwater Used", icon: "SW", color: "blue" },
   { id: "guitar-center-used", label: "Guitar Center", icon: "GC", color: "black" },
   { id: "craigslist-sfbay", label: "Craigslist SF", icon: "SF", color: "purple" },
   { id: "craigslist-la", label: "Craigslist LA", icon: "LA", color: "purple" },
@@ -18,8 +19,8 @@ const SOURCES = [
 ];
 
 const LEGACY_DEFAULT_SOURCE_IDS = ["mercari", "yahoo-auctions", "yahoo-fleamarket", "rakuma", "digimart", "offmall", "five-g", "implant4", "hardoff"];
-const LIVE_SOURCE_IDS = ["mercari", "yahoo-auctions", "yahoo-fleamarket", "rakuma", "digimart", "reverb", "reverb-us", "ebay-us", "guitar-center-used", "craigslist-sfbay", "craigslist-la", "jimoty", "offmall", "five-g", "implant4", "hardoff"];
-const LIVE_SOURCE_DISPLAY_ORDER = ["craigslist-sfbay", "craigslist-la", "reverb-us", "ebay-us", "guitar-center-used", "yahoo-auctions", "yahoo-fleamarket", "digimart", "reverb", "jimoty", "offmall", "five-g", "implant4", "hardoff", "mercari", "rakuma"];
+const LIVE_SOURCE_IDS = ["mercari", "yahoo-auctions", "yahoo-fleamarket", "rakuma", "digimart", "reverb", "reverb-us", "ebay-us", "sweetwater-used", "guitar-center-used", "craigslist-sfbay", "craigslist-la", "jimoty", "offmall", "five-g", "implant4", "hardoff"];
+const LIVE_SOURCE_DISPLAY_ORDER = ["craigslist-sfbay", "craigslist-la", "reverb-us", "ebay-us", "sweetwater-used", "guitar-center-used", "yahoo-auctions", "yahoo-fleamarket", "digimart", "reverb", "jimoty", "offmall", "five-g", "implant4", "hardoff", "mercari", "rakuma"];
 const SOURCE_SEARCH_CONTEXT_TRUST_IDS = new Set(["craigslist-sfbay", "craigslist-la"]);
 const CATEGORY_SEARCH_CONTEXT_IDS = new Set(["reverb", "reverb-us"]);
 const REGION_CONFIG = typeof window !== "undefined" ? window.BRRTZ_REGION_CONFIG : null;
@@ -76,6 +77,7 @@ const SOURCE_ACCENT_TOKENS = {
   reverb: "--source-reverb",
   "reverb-us": "--source-reverb",
   "ebay-us": "--source-ebay",
+  "sweetwater-used": "--source-sweetwater",
   "guitar-center-used": "--source-guitar-center",
   "craigslist-sfbay": "--source-craigslist",
   "craigslist-la": "--source-craigslist",
@@ -95,6 +97,7 @@ const SOURCE_METADATA_ALIASES = {
   reverb: ["Reverb", "Reverb.com"],
   "reverb-us": ["Reverb US", "Reverb", "Reverb.com"],
   "ebay-us": ["eBay US", "eBay", "ebay.com"],
+  "sweetwater-used": ["Sweetwater Used", "Sweetwater", "Sweetwater Gear Exchange"],
   "guitar-center-used": ["Guitar Center", "Guitar Center Used", "GC Used"],
   "craigslist-sfbay": ["Craigslist SF", "Craigslist", "SF Bay Craigslist"],
   "craigslist-la": ["Craigslist LA", "Craigslist Los Angeles", "LA Craigslist"],
@@ -3022,6 +3025,10 @@ function createLiveSearchGroups(profile) {
     groups.push({ id: "ebay-us", sources: ["ebay-us"] });
   }
 
+  if (selectedSources.has("sweetwater-used")) {
+    groups.push({ id: "sweetwater-used", sources: ["sweetwater-used"] });
+  }
+
   if (selectedSources.has("guitar-center-used")) {
     groups.push({ id: "guitar-center-used", sources: ["guitar-center-used"] });
   }
@@ -3755,6 +3762,7 @@ function isSafeManualSourceUrl(value) {
     if (url.protocol !== "https:") return false;
     if (url.hostname.endsWith(".craigslist.org") && url.pathname.startsWith("/search/")) return true;
     if (url.hostname === "www.guitarcenter.com" && url.pathname.startsWith("/Used/")) return true;
+    if (url.hostname === "www.sweetwater.com" && url.pathname.startsWith("/used/")) return true;
     return false;
   } catch {
     return false;

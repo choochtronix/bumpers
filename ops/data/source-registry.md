@@ -40,6 +40,7 @@ This registry tracks active integrations, parked sources, and source candidates.
 | Reverb US | active | api | marketplace | synth | Live in Bay Area and Los Angeles. Broad, fast, and useful, but region-locality is weaker than Craigslist. |
 | eBay US | active | api | marketplace | drum machine | Official Browse API connector. Uses eBay category `619` (Musical Instruments & Gear) by default and is live in Bay Area and Los Angeles. Treat as US/global inventory unless a future location strategy is added. |
 | Guitar Center Used | testing | manual | shop | drum machine | Beta manual category assist for Bay Area and Los Angeles. Opens relevant used-category pages instead of server-side ingestion because direct fetches were access-denied and search paths are not scraper-friendly. |
+| Sweetwater Used / Gear Exchange | testing | manual | marketplace-used | drum machine | Beta manual search assist for Bay Area and Los Angeles. Music-gear-specific, but server-side access hit PerimeterX/403 during scout, so Brrtz opens prepared Sweetwater Used searches in the browser. |
 | Craigslist SF Bay Area | paused | search-url | classifieds | synth | Parked for beta safety after Craigslist blocking. Use Craigslist Assist manual deep links only. |
 | Craigslist Los Angeles | paused | search-url | classifieds | synth | Parked for beta safety after Craigslist blocking. Use Craigslist Assist manual deep links only. |
 | Facebook Marketplace Musical Instruments | candidate | manual | marketplace | synth | High signal, but keep manual/user-assisted until official access is clear. |
@@ -52,7 +53,7 @@ These were gathered for Bay Area / California expansion and should be promoted o
 
 | Source | Region | Priority | Notes |
 |---|---|---:|---|
-| Sweetwater Gear Exchange | US | P1 | Used peer-to-peer music gear. Good second source-scout target after Guitar Center because it is music-gear-specific. |
+| Sweetwater Used / Gear Exchange | US | P1 | Promoted to beta manual assist. Revisit only if an official/stable access path appears. |
 | ShopGoodwill Musical Instruments | US | P1 | Potential hidden gems, but noisy and condition varies. |
 | Mission Synths | San Francisco | P1 | Local synth/modular specialist; investigate used or consignment surfaces. |
 | Perfect Circuit | Los Angeles | P1 | Major CA synth/modular/pro-audio retailer. |

@@ -2264,6 +2264,12 @@ body[data-theme="dark"] .source-filter-all::after {
   --source-solid-mark: var(--source-ebay);
 }
 
+.source-filter-button[data-source="sweetwater-used"] {
+  --source-solid: var(--source-sweetwater);
+  --source-solid-ink: var(--source-ink-on-color);
+  --source-solid-mark: var(--source-sweetwater);
+}
+
 .source-filter-button[data-source="guitar-center-used"] {
   --source-solid: var(--source-guitar-center);
   --source-solid-ink: var(--source-ink-on-color);
@@ -3053,6 +3059,10 @@ body[data-theme="dark"] .listing-card.is-featured-home-card {
 
 .source-avatar[data-source="ebay-us"] {
   background: var(--source-ebay);
+}
+
+.source-avatar[data-source="sweetwater-used"] {
+  background: var(--source-sweetwater);
 }
 
 .source-avatar[data-source="guitar-center-used"] {

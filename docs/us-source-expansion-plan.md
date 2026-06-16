@@ -16,7 +16,7 @@ Brrtz should prefer official APIs and user-assisted deep links over brittle scra
 | P1 | Craigslist SF Bay | `craigslist-sfbay` | Manual deep-link assist | Parked | Keep as user-initiated search assist only after block risk. |
 | P1 | Craigslist Los Angeles | `craigslist-la` | Manual deep-link assist | Parked | Same Craigslist safety posture as SF Bay. |
 | P1 | Guitar Center Used | `guitar-center-used` | Manual category assist | Beta assist | Strong used inventory, useful category structure. Direct fetch returned access denial and search paths are not scraper-friendly, so beta uses user-opened category links. |
-| P1 | Sweetwater Gear Exchange | `sweetwater-gear-exchange` | API investigation / light connector | Candidate | Music-gear-specific marketplace. |
+| P1 | Sweetwater Used / Gear Exchange | `sweetwater-used` | Manual search assist | Beta assist | Music-gear-specific marketplace. Direct server access hit PerimeterX/403 during scout, so beta uses prepared user-opened used-gear searches. |
 | P1 | ShopGoodwill | `shopgoodwill` | Light connector | Candidate | Hidden gems, noisy categories, auctions. |
 | P2 | OfferUp | `offerup` | Manual deep-link assist | Candidate | Local signal, app-first friction. |
 | P2 | Perfect Circuit | `perfect-circuit` | Shop connector | Candidate | Strong LA / SoCal synth and modular signal. |
@@ -32,7 +32,7 @@ Brrtz should prefer official APIs and user-assisted deep links over brittle scra
 ## Beta Build Order
 
 1. Keep `ebay-us` and `reverb-us` healthy as the first live US beta sources.
-2. Add one retailer/shop connector after the core US sources are stable; Guitar Center Used is now a beta manual category assist.
+2. Keep Sweetwater Used and Guitar Center Used as manual assists until stable/official access is confirmed.
 3. Add `facebook-marketplace` as a manual deep-link assist only if testers specifically ask for it.
 4. Keep Craigslist as deep-link assist only until a safe access path is confirmed.
 5. Tune `reverb-us` and `ebay-us` relevance for Bay Area / Los Angeles search quality.
@@ -84,4 +84,14 @@ Guitar Center Used should remain manual/category-assisted for beta:
   - Synthesizers / sound modules: `https://www.guitarcenter.com/Used/Synthesizers-Sound-Modules.gc`
   - Drum machines / samplers: `https://www.guitarcenter.com/Used/Drum-Machines-Samplers.gc`
   - Keyboards / MIDI: `https://www.guitarcenter.com/Used/Keyboards-MIDI.gc`
+- The source pill should behave as an assist link, not as a counted live ingestion source.
+
+## Sweetwater Used Notes
+
+Sweetwater Used / Gear Exchange should remain manual/search-assisted for beta:
+
+- Sweetwater is highly relevant because it is music-gear-specific.
+- Server-side requests to used listing/search surfaces returned PerimeterX/403 during scout.
+- Brrtz builds a prepared Sweetwater Used search URL from the current search term:
+  - `https://www.sweetwater.com/used/listings?query=<term>`
 - The source pill should behave as an assist link, not as a counted live ingestion source.
