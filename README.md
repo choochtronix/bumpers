@@ -46,6 +46,7 @@ The Daily Radar panel shows fresh discoveries from the current scan. Saved searc
 
 - [Synth Browser](docs/synth-browser.md): homepage browse mode, category intents, cache behavior, and source category strategy.
 - [Browse category verification](docs/browse-category-verification.md): verified category IDs and keyword-backed category notes.
+- [Windows migration](docs/windows-migration.md): moving local development from Mac to Windows while keeping Supabase, Railway, and GitHub in sync.
 
 ## Connector Model
 
