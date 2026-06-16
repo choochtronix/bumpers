@@ -2852,8 +2852,23 @@ function createSourceSearchTermVariants(term) {
     variants.push(value.replace(/([a-zA-Z]+)(\d+)/g, "$1-$2"));
     variants.push(value.replace(/([a-zA-Z]+)(\d+)/g, "$1 $2"));
   }
+  const looseWordTerms = createLooseWordTerms(value);
+  if (looseWordTerms.length > 1) {
+    variants.push(...looseWordTerms);
+  }
 
   return variants;
+}
+
+function createLooseWordTerms(value) {
+  return String(value || "")
+    .normalize("NFKC")
+    .split(/[\s/+|・,、]+/)
+    .map((term) => term.trim())
+    .filter((term) => {
+      const normalized = normalizeText(term);
+      return normalized.length >= 2 || /^\d+$/.test(normalized);
+    });
 }
 
 function termMatches(searchable, term) {
@@ -2867,6 +2882,11 @@ function termMatches(searchable, term) {
 
   if (/^[a-z0-9]+$/.test(normalized) && normalized.length <= 3) {
     return new RegExp(`(^|[^a-z0-9])${escapeRegExp(normalized)}($|[^a-z0-9])`).test(searchable);
+  }
+
+  const looseWordTerms = createLooseWordTerms(matchTerm.value);
+  if (looseWordTerms.length > 1 && looseWordTerms.every((word) => termMatches(searchable, word))) {
+    return true;
   }
 
   return searchable.includes(normalized) || flexibleSeparatorMatches(searchable, normalized);

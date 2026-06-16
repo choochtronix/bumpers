@@ -1831,11 +1831,22 @@ function saveCurrentSearchFromModal() {
 }
 
 function showSaveConfirmationToast(profile) {
+  showStatusToast({
+    icon: "★",
+    message: `${profile?.name || "Search"} saved`,
+    showView: true,
+  });
+}
+
+function showStatusToast({ icon = "★", message = "", showView = false } = {}) {
   if (!saveConfirmationToast) return;
   window.clearTimeout(saveConfirmationTimer);
 
+  const iconNode = saveConfirmationToast.querySelector(".save-toast-icon");
   const copy = saveConfirmationToast.querySelector(".save-toast-copy");
-  if (copy) copy.textContent = `${profile?.name || "Search"} saved`;
+  if (iconNode) iconNode.textContent = icon;
+  if (copy) copy.textContent = message;
+  if (viewSavedSearchToastButton) viewSavedSearchToastButton.hidden = !showView;
 
   saveConfirmationToast.hidden = false;
   window.requestAnimationFrame(() => {
@@ -2310,6 +2321,10 @@ async function saveSettingsFromModal() {
 
   await pushCloudProfilePreferences({ silent: true });
   closeSettingsModal();
+  showStatusToast({
+    icon: "✓",
+    message: "Settings saved",
+  });
 }
 
 async function syncAccountCloudData() {
@@ -2449,28 +2464,44 @@ function applyCloudPreferences(preferences = {}) {
       saveFeedbackRules(sanitizeFeedbackRules(preferences.feedbackRules), { skipSync: true });
     }
 
+    applyStep = "repairing runtime collections";
+    ensureRuntimeCollections();
+
     applyStep = "refreshing settings form";
     fillSettingsForm();
-    if (regionChanged) {
-      applyStep = "refreshing region view";
-      qualityFilter = getActiveRegion().searchDefaults?.cleanGear === false ? "all" : "clean";
-      activeViewSources.clear();
-      pendingSourceIds = new Set();
-      sourceSearchStatuses = new Map();
-      sourceSearchMeta = new Map();
-      currentProfile = createFreshProfile();
-      renderSources();
-      updateRegionBadge();
-      fillForm(currentProfile);
-      resetToIdleSearch();
-    } else {
-      applyStep = "refreshing current results";
-      renderRefineSummary();
-      renderResults();
+    try {
+      if (regionChanged) {
+        applyStep = "refreshing region view";
+        qualityFilter = getActiveRegion().searchDefaults?.cleanGear === false ? "all" : "clean";
+        activeViewSources.clear();
+        pendingSourceIds = new Set();
+        sourceSearchStatuses = new Map();
+        sourceSearchMeta = new Map();
+        currentProfile = createFreshProfile();
+        renderSources();
+        updateRegionBadge();
+        fillForm(currentProfile);
+        resetToIdleSearch();
+      } else {
+        applyStep = "refreshing current results";
+        renderRefineSummary();
+        renderResults();
+      }
+    } catch (refreshError) {
+      console.warn(`Cloud preferences were applied, but Brrtz could not finish ${applyStep}.`, refreshError);
     }
   } catch (error) {
     throw new Error(`Could not apply cloud profile preferences while ${applyStep}. ${getErrorMessage(error)}`);
   }
+}
+
+function ensureRuntimeCollections() {
+  if (!(activeViewSources instanceof Set)) activeViewSources = new Set(normalizeStoredList(activeViewSources));
+  if (!(pendingSourceIds instanceof Set)) pendingSourceIds = new Set(normalizeStoredList(pendingSourceIds));
+  if (!(currentDiscoveryIds instanceof Set)) currentDiscoveryIds = new Set(normalizeStoredList(currentDiscoveryIds));
+  if (!(currentNewForSearchIds instanceof Set)) currentNewForSearchIds = new Set(normalizeStoredList(currentNewForSearchIds));
+  if (!(sourceSearchStatuses instanceof Map)) sourceSearchStatuses = new Map();
+  if (!(sourceSearchMeta instanceof Map)) sourceSearchMeta = new Map();
 }
 
 function getLocalPreferencePayload() {
@@ -3312,9 +3343,11 @@ function renderHomeView(watching) {
 }
 
 function handleResultGridAction(event) {
-  const browseSelect = event.target.closest("#homeBrowseCategory");
-  if (browseSelect) {
-    setHomeBrowseCategory(browseSelect.value);
+  if (event.type === "change") {
+    const browseSelect = event.target.closest("#homeBrowseCategory");
+    if (browseSelect) {
+      setHomeBrowseCategory(browseSelect.value);
+    }
     return;
   }
 
@@ -5175,6 +5208,11 @@ function termMatches(searchable, term) {
     return new RegExp(`(^|[^a-z0-9])${escapeRegExp(normalized)}($|[^a-z0-9])`).test(searchable);
   }
 
+  const looseWordTerms = createLooseWordTerms(matchTerm.value);
+  if (looseWordTerms.length > 1 && looseWordTerms.every((word) => termMatches(searchable, word))) {
+    return true;
+  }
+
   return searchable.includes(normalized) || flexibleSeparatorMatches(searchable, normalized);
 }
 
@@ -5929,8 +5967,23 @@ function createSourceSearchTermVariants(term) {
     variants.push(value.replace(/([a-zA-Z]+)(\d+)/g, "$1-$2"));
     variants.push(value.replace(/([a-zA-Z]+)(\d+)/g, "$1 $2"));
   }
+  const looseWordTerms = createLooseWordTerms(value);
+  if (looseWordTerms.length > 1) {
+    variants.push(...looseWordTerms);
+  }
 
   return variants;
+}
+
+function createLooseWordTerms(value) {
+  return String(value || "")
+    .normalize("NFKC")
+    .split(/[\s/+|・,、]+/)
+    .map((term) => term.trim())
+    .filter((term) => {
+      const normalized = normalizeText(term);
+      return normalized.length >= 2 || /^\d+$/.test(normalized);
+    });
 }
 
 function uniqueTerms(terms) {
