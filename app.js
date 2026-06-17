@@ -1514,13 +1514,13 @@ function getActiveRegion() {
   return getRegionById(appSettings?.regionId || defaultSettings.regionId);
 }
 
-function updateRegionBadge() {
+function updateRegionBadge(regionOverride = null) {
   if (!regionBadge) return;
-  const region = getActiveRegion();
+  const region = regionOverride || getActiveRegion();
   regionBadge.textContent = region.label;
   regionBadge.title = `Search region: ${region.label}`;
   regionBadge.setAttribute("aria-label", `Change search region. Current region: ${region.label}`);
-  renderRegionPopoverOptions();
+  if (!regionOverride) renderRegionPopoverOptions();
 }
 
 function getRegionStatusLabel(region) {
@@ -1569,6 +1569,19 @@ function toggleRegionPopover(event) {
   else closeRegionPopover();
 }
 
+let regionPopoverSelectionToken = 0;
+
+function scheduleAfterNextPaint(callback) {
+  if (typeof window !== "undefined" && typeof window.requestAnimationFrame === "function") {
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => callback());
+    });
+    return;
+  }
+  const timer = typeof window !== "undefined" ? window.setTimeout : setTimeout;
+  timer(callback, 0);
+}
+
 function handleRegionPopoverOutsideClick(event) {
   if (regionPopover?.hidden) return;
   if (regionSelector?.contains(event.target)) return;
@@ -1579,18 +1592,23 @@ function handleRegionPopoverClick(event) {
   const option = event.target.closest("[data-region-id]");
   if (!option) return;
   const regionId = sanitizeRegionId(option.dataset.regionId);
+  const selectionToken = ++regionPopoverSelectionToken;
   closeRegionPopover();
   if (regionId !== getActiveRegion().id) {
-    const previousProfile = readProfileFromForm();
-    applyActiveRegion(regionId);
-    currentProfile = createProfileForRegion(previousProfile, regionId);
-    fillForm(currentProfile);
-    renderRefineSummary();
-    if (currentProfile.terms.length) {
-      runSearch();
-    } else {
-      resetToIdleSearch();
-    }
+    updateRegionBadge(getRegionById(regionId));
+    scheduleAfterNextPaint(() => {
+      if (selectionToken !== regionPopoverSelectionToken) return;
+      const previousProfile = readProfileFromForm();
+      applyActiveRegion(regionId);
+      currentProfile = createProfileForRegion(previousProfile, regionId);
+      fillForm(currentProfile);
+      renderRefineSummary();
+      if (currentProfile.terms.length) {
+        runSearch();
+      } else {
+        resetToIdleSearch();
+      }
+    });
   }
 }
 
