@@ -3530,7 +3530,7 @@ function renderHomeView(watching) {
   const freshFindResults = filterMode === "watching" ? [] : getFreshFindHomeListings();
   const browseResults = filterMode === "watching" ? [] : getBrowseCategoryHomeListings();
   const watchedHomeResults = getWatchedHomeListings(watching);
-  const homeResults = [...freshFindResults, ...browseResults, ...watchedHomeResults];
+  const homeResults = [...browseResults, ...freshFindResults, ...watchedHomeResults];
   const isShowingFeaturedHome = homeResults.length > 0;
 
   resultGrid.innerHTML = "";
@@ -3540,12 +3540,12 @@ function renderHomeView(watching) {
   renderSourceFilters(homeResults);
   renderAlertPanel([]);
 
-  if (freshFindResults.length > 0) {
-    resultGrid.appendChild(createFeaturedHomeSection(freshFindResults, { variant: "fresh" }));
-  }
-
   if (browseResults.length > 0 || browseCategoryStatus === "loading" || browseCategoryStatus === "error") {
     resultGrid.appendChild(createFeaturedHomeSection(browseResults, { variant: "browse" }));
+  }
+
+  if (freshFindResults.length > 0) {
+    resultGrid.appendChild(createFeaturedHomeSection(freshFindResults, { variant: "fresh" }));
   }
 
   if (watchedHomeResults.length > 0) {

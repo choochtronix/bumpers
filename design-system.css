@@ -25,6 +25,7 @@
   --color-rose: #b13b57;
   --color-amber: #9f6a12;
   --color-image-bg: #d8dcd2;
+  --color-brand-gradient: linear-gradient(110deg, #ff00ff 0%, #0072ff 100%);
 
   /* Marketplace identity tokens */
   --source-default: #4b83d8;
@@ -89,6 +90,7 @@
   --shadow: var(--shadow-elevated);
   --card-shadow: var(--shadow-card);
   --image-bg: var(--color-image-bg);
+  --brand-gradient: var(--color-brand-gradient);
 }
 
 body[data-theme="dark"] {
@@ -148,4 +150,5 @@ body[data-theme="dark"] {
   --shadow: var(--shadow-elevated);
   --card-shadow: var(--shadow-card);
   --image-bg: var(--color-image-bg);
+  --brand-gradient: var(--color-brand-gradient);
 }

@@ -3926,10 +3926,10 @@ body[data-theme="dark"] .browse-category-control select {
 .browse-view-all-button {
   min-height: 46px;
   padding: 0 18px;
-  border: 1px solid var(--line);
+  border: 1px solid transparent;
   border-radius: var(--radius-pill);
-  background: var(--panel);
-  color: var(--text);
+  background: var(--brand-gradient, linear-gradient(110deg, #ff00ff 0%, #0072ff 100%));
+  color: #fff;
   box-shadow: var(--button-shadow);
   cursor: pointer;
   font: inherit;
@@ -3945,16 +3945,24 @@ body[data-theme="dark"] .browse-category-control select {
 }
 
 .browse-view-all-button:hover {
-  border-color: #111418;
-  background: #111418;
+  border-color: #000;
+  background: #000;
   color: #fff;
   transform: translateY(-1px);
 }
 
+body[data-theme="dark"] .browse-view-all-button {
+  color: #fff;
+}
+
 body[data-theme="dark"] .browse-view-all-button:hover {
-  border-color: #f4f4f1;
-  background: #f4f4f1;
-  color: #111418;
+  border-color: #fff;
+  background: #fff;
+  color: #000;
+}
+
+.browse-view-all-button:active {
+  transform: translateY(0);
 }
 
 .listing-card.is-browse-home-card {
