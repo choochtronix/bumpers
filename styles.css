@@ -2810,16 +2810,11 @@ body[data-theme="dark"] .back-to-top:hover {
   object-fit: cover;
 }
 
-.result-grid.is-list-view .new-pill,
-.result-grid.is-list-view .fresh-pill {
+.result-grid.is-list-view .new-pill {
   top: 8px;
   left: 8px;
   padding: 4px 7px;
   font-size: 11px;
-}
-
-.result-grid.is-list-view .fresh-pill {
-  top: 34px;
 }
 
 .result-grid.is-list-view .source-avatar {
@@ -3147,30 +3142,20 @@ body[data-theme="dark"] .listing-card.is-featured-home-card {
   }
 }
 
-.new-pill,
-.fresh-pill {
+.new-pill {
   position: absolute;
   top: 10px;
   left: 10px;
   display: none;
   padding: 5px 8px;
   border-radius: var(--radius-control);
-  background: var(--rose);
+  background: #ff00ff;
   color: white;
   font-size: 12px;
   font-weight: 800;
 }
 
-.fresh-pill {
-  top: 42px;
-  background: var(--green);
-}
-
 .listing-card.is-new .new-pill {
-  display: inline-flex;
-}
-
-.listing-card.is-fresh .fresh-pill {
   display: inline-flex;
 }
 
@@ -3433,7 +3418,7 @@ body[data-theme="dark"] .listing-card.is-featured-home-card {
   z-index: 3;
   top: 18px;
   left: 18px;
-  background: #0072ff;
+  background: #ff00ff;
   padding: 8px 15px;
   border-radius: var(--radius-pill);
   font-size: 15px;

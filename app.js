@@ -4253,7 +4253,6 @@ function renderListing(listing, options = {}) {
 
   card.classList.toggle("is-featured-home-card", isFeaturedHome);
   card.classList.toggle("is-new", newness.isNewToUser || newness.isNewForSearch);
-  card.classList.toggle("is-fresh", newness.isFresh);
   card.classList.toggle("is-new-for-search", newness.isNewForSearch);
   card.classList.toggle("is-feedback-gear", feedbackStatus === "gear");
   card.classList.toggle("is-feedback-noise", feedbackStatus === "noise");
@@ -4381,18 +4380,10 @@ function handlePrimaryListingOpen(event, url) {
 
 function renderListingNewnessBadges(fragment, newness) {
   const newPill = fragment.querySelector(".new-pill");
-  const freshPill = fragment.querySelector(".fresh-pill");
 
   if (newPill) {
-    newPill.textContent = newness.isNewForSearch && !newness.isNewToUser ? "New here" : "New";
-    newPill.title = newness.isNewForSearch && !newness.isNewToUser
-      ? "First time Brrtz has found this listing for this saved search."
-      : "New to you in Brrtz.";
-  }
-
-  if (freshPill) {
-    freshPill.textContent = "Fresh";
-    freshPill.title = `Listed within about ${FRESH_LISTING_HOURS} hours, when the source provides a usable date.`;
+    newPill.textContent = "New";
+    newPill.title = "New to you in Brrtz.";
   }
 }
 
