@@ -1,6 +1,6 @@
 # Source Health Report
 
-Date: 2026-06-15
+Date: 2026-06-17
 
 ## Commands
 
@@ -55,8 +55,21 @@ BRRTZ_QA_REGION=bay-area BRRTZ_QA_QUERY=Waldorf npm run qa:golden-searches
 - Golden-search CLI now reports source states such as `pending`, `manual`, `parked`, and `error` beside raw counts.
 - Treat real `error` statuses as beta blockers; treat `pending` and `manual` as expected setup/user-assist states.
 - June 15 eBay beta checks passed locally and on production search smoke tests.
+- June 17 eBay polish checks passed locally for targeted Bay Area and Los Angeles beta paths.
 - Source health now maps shared US sources into both Bay Area and Los Angeles health checks.
 - Production source-health jobs are protected by `BUMPERS_JOB_TOKEN`; do not run them from local shells without that token.
+
+## Latest eBay Polish Snapshot - 2026-06-17
+
+Local server on `http://127.0.0.1:5173`:
+
+| Check | Result | Notes |
+|---|---|---|
+| Bay Area Synth Browser / All Synth Gear | Passed | 442 listings from Reverb US + eBay US. |
+| Los Angeles Synth Browser / Synthesizers | Passed | 340 listings from Reverb US + eBay US. |
+| Bay Area golden search / `synthesizer` / eBay US | Passed | 92 listings. |
+| Los Angeles golden search / `Waldorf` / eBay US | Passed | 99 listings. |
+| Bay Area source health / eBay US | Healthy | 92 listings, 561ms. |
 
 ## Latest Snapshot - 2026-06-15
 

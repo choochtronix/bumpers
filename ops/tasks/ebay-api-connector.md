@@ -72,10 +72,15 @@ Acceptance:
 Checklist:
 
 - [ ] Run `npm run qa:golden-searches` against local Brrtz with eBay enabled.
-- [ ] Run `npm run jobs:source-health:http` with `BUMPERS_JOB_TOKEN`.
+- [x] Run targeted local eBay golden checks for Bay Area and Los Angeles.
+- [x] Run targeted eBay source-health check with `BUMPERS_JOB_TOKEN`.
+- [ ] Run full `npm run qa:golden-searches` against local Brrtz with eBay enabled.
+- [ ] Run full `npm run jobs:source-health:http` with `BUMPERS_JOB_TOKEN`.
 - [x] Spot-check card UI in card and list views.
 - [x] Spot-check mobile source pill row.
 - [ ] Confirm eBay source status in `ops/reports/source-health-report.md`.
+- [x] Add eBay US to Bay Area / Los Angeles Synth Browser browse feeds.
+- [x] Document eBay-backed US browse behavior in Synth Browser docs.
 
 Acceptance:
 
@@ -95,3 +100,17 @@ Acceptance:
 - Watch beta feedback for eBay noise terms and false positives.
 - Track Browse API quota once beta tester traffic increases.
 - Consider a future location strategy if users expect eBay to be local rather than US/global.
+- Continue tuning US browse seed terms as beta testers use Synth Browser.
+
+## June 17 Polish Pass
+
+- Bay Area Synth Browser now uses Reverb US and eBay US seed terms for `all` browse.
+- Los Angeles Synth Browser now uses Reverb US and eBay US seed terms for category-specific browse.
+- Local browse probe passed:
+  - Bay Area / All Synth Gear: 442 listings from Reverb US + eBay US.
+  - Los Angeles / Synthesizers: 340 listings from Reverb US + eBay US.
+- Targeted local golden checks passed:
+  - Bay Area / `synthesizer` / eBay US: 92 listings.
+  - Los Angeles / `Waldorf` / eBay US: 99 listings.
+- Targeted source-health check passed:
+  - Bay Area / eBay US: healthy, 92 listings, 561ms.

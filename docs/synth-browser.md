@@ -1,6 +1,6 @@
 # Synth Browser
 
-Last updated: 2026-06-14
+Last updated: 2026-06-17
 
 Synth Browser is Brrtz's homepage browsing layer. It is meant to feel like walking into a live vintage synth shop: image-forward, fast, and useful even before a user has saved searches.
 
@@ -50,6 +50,14 @@ Current options:
 - Synthesizers
 - Drum Machines
 
+In US beta regions, `All Synth Gear` uses conservative category search terms across Reverb US and eBay US:
+
+- `synthesizer`
+- `drum machine`
+- `sampler`
+- `sequencer`
+- `eurorack`
+
 Pro Audio is intentionally kept as its own selectable category. It is verified and useful, but mixing it into the default feed brought in broader PA and lighting-adjacent results that weakened the vintage synth browsing feel.
 
 ## Server Endpoint
@@ -64,7 +72,7 @@ Important query params:
 
 | Param | Purpose |
 | --- | --- |
-| `region` | Active Brrtz region. Japan is currently the only fully wired browse region. |
+| `region` | Active Brrtz region. Japan uses verified Yahoo Auctions categories; US beta regions use Reverb US + eBay US category terms. |
 | `categoryIntent` | One of the shared category intent IDs. |
 | `excludes` | Pipe-delimited terms to exclude. |
 | `maxPrice` | Optional price ceiling. `0` means no ceiling. |
@@ -82,6 +90,7 @@ Each category intent can use one of three strategies:
 1. Exact source category ID
 2. Aggregated exact source category intents
 3. Keyword-backed category search
+4. US beta source terms for Reverb/eBay browse
 
 Examples:
 
@@ -102,9 +111,21 @@ synthesizers: {
 ```js
 samplers: {
   label: "Samplers",
+  usBrowseTerms: ["sampler", "akai mpc", "sp-404"],
   yahooAuctionsBrowseTerms: ["sampler", "サンプラー", "akai mpc", "sp-404"],
 }
 ```
+
+## United States Beta Browse
+
+Bay Area and Los Angeles browse feeds use:
+
+- Reverb US keyword search filtered to US listings
+- eBay Browse API keyword search filtered to US item location and category `619` by default
+
+Craigslist, Sweetwater, and Guitar Center remain assist/manual sources in the browse context. They are intentionally not mixed into Synth Browser cards until a low-risk live listing strategy exists.
+
+The US browse path favors freshness and breadth over perfect locality. Craigslist remains the local-first path through prepared deep links.
 
 ## Verified Yahoo Auctions Categories
 

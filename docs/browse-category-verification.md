@@ -1,6 +1,6 @@
 # Brrtz Browse Category Verification
 
-Last updated: 2026-06-14
+Last updated: 2026-06-17
 
 This document records which Brrtz browse categories are backed by verified source category IDs and which are currently keyword-backed. It is meant to keep the Synth Browser feature honest as we add sources and regions.
 
@@ -55,18 +55,33 @@ Keyword-backed category intents:
 
 ## United States Beta Regions
 
-Current US beta regions are source-search based, not category-browse based.
+Current US beta regions use keyword-backed category browse across API/search-friendly sources. They do not yet have exact category browse parity with Japan's Yahoo Auctions category IDs.
 
 | Region | Source | Category browse status |
 | --- | --- | --- |
-| Bay Area | Reverb US | Keyword search filtered to US listings. Reverb category browse/API expansion is planned. |
+| Bay Area | Reverb US | Keyword-backed browse terms filtered to US listings. Reverb category browse/API expansion is planned. |
+| Bay Area | eBay US | Keyword-backed browse terms filtered to US item location and default category `619` (`Musical Instruments & Gear`). |
 | Bay Area | Craigslist SF Bay | Parked as manual Craigslist Assist deep links. Brrtz does not query Craigslist automatically in beta. |
-| Los Angeles | Reverb US | Keyword search filtered to US listings. Reverb category browse/API expansion is planned. |
+| Los Angeles | Reverb US | Keyword-backed browse terms filtered to US listings. Reverb category browse/API expansion is planned. |
+| Los Angeles | eBay US | Keyword-backed browse terms filtered to US item location and default category `619` (`Musical Instruments & Gear`). |
 | Los Angeles | Craigslist LA | Parked as manual Craigslist Assist deep links. Brrtz does not query Craigslist automatically in beta. |
+
+Current US browse seed terms:
+
+| Brrtz category intent | US beta seed terms |
+| --- | --- |
+| `all` | `synthesizer`, `drum machine`, `sampler`, `sequencer`, `eurorack` |
+| `synthesizers` | `synthesizer`, `analog synth`, `vintage synth` |
+| `drum-machines` | `drum machine`, `rhythm machine`, `analog drum machine` |
+| `samplers` | `sampler`, `akai mpc`, `sp-404` |
+| `sequencers` | `sequencer`, `step sequencer`, `midi sequencer` |
+| `modular` | `eurorack`, `modular synth`, `synth module` |
+| `effects-pedals` | `synth pedal`, `delay pedal`, `reverb pedal` |
+| `pro-audio` | `audio interface`, `mixer`, `compressor`, `preamp` |
 
 ## Follow-Up Candidates
 
 - Verify Digimart category URLs for synthesizers, samplers, drum machines, modular, and pro audio.
 - Verify Reverb Browse/API categories once the US source layer is expanded.
-- Add eBay Browse API category filters when the eBay developer account is approved.
+- Consider more specific eBay Browse API category IDs if broad category `619` lets in too much noise.
 - Keep Craigslist as manual assist unless a low-risk access path is confirmed.

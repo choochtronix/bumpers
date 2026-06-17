@@ -66,6 +66,7 @@ const REVERB_RESULT_LIMIT = 32;
 const REVERB_TERM_LIMIT = 3;
 const EBAY_RESULT_LIMIT = 100;
 const EBAY_TERM_LIMIT = 3;
+const US_BROWSE_TERM_LIMIT = 4;
 const CRAIGSLIST_DETAIL_VERIFY_LIMIT = 12;
 const CRAIGSLIST_DETAIL_VERIFY_CONCURRENCY = 6;
 const CRAIGSLIST_MODE = normalizeMode(process.env.BRRTZ_CRAIGSLIST_MODE || process.env.BUMPERS_CRAIGSLIST_MODE || "parked", ["parked", "live"], "parked");
@@ -83,41 +84,49 @@ const DEFAULT_CATEGORY_INTENT = "synthesizers";
 const CATEGORY_INTENT_CONFIG = {
   all: {
     label: "All Synth Gear",
+    usBrowseTerms: ["synthesizer", "drum machine", "sampler", "sequencer", "eurorack"],
     yahooAuctionsBrowseCategoryIntents: ["synthesizers", "drum-machines"],
     yahooAuctionsCategorySweeps: ["", "22436", "2084019003", "2084019005"],
   },
   synthesizers: {
     label: "Synthesizers",
+    usBrowseTerms: ["synthesizer", "analog synth", "vintage synth"],
     yahooAuctionsBrowseCategoryId: "2084019003",
     yahooAuctionsCategorySweeps: YAHOO_AUCTIONS_DEFAULT_CATEGORY_SWEEPS,
   },
   "drum-machines": {
     label: "Drum Machines",
+    usBrowseTerms: ["drum machine", "rhythm machine", "analog drum machine"],
     yahooAuctionsBrowseCategoryId: "2084019005",
     yahooAuctionsCategorySweeps: ["", "22436", "2084019005"],
   },
   samplers: {
     label: "Samplers",
+    usBrowseTerms: ["sampler", "akai mpc", "sp-404"],
     yahooAuctionsBrowseTerms: ["sampler", "サンプラー", "akai mpc", "sp-404"],
     yahooAuctionsCategorySweeps: ["", "22436"],
   },
   sequencers: {
     label: "Sequencers",
+    usBrowseTerms: ["sequencer", "step sequencer", "midi sequencer"],
     yahooAuctionsBrowseTerms: ["sequencer", "シーケンサー", "step sequencer"],
     yahooAuctionsCategorySweeps: ["", "22436"],
   },
   modular: {
     label: "Eurorack / Modular",
+    usBrowseTerms: ["eurorack", "modular synth", "synth module"],
     yahooAuctionsBrowseTerms: ["eurorack", "modular synth", "モジュラーシンセ", "ユーロラック"],
     yahooAuctionsCategorySweeps: ["", "22436"],
   },
   "effects-pedals": {
     label: "Effects / Pedals",
+    usBrowseTerms: ["synth pedal", "delay pedal", "reverb pedal"],
     yahooAuctionsBrowseTerms: ["effects pedal", "delay pedal", "reverb pedal", "エフェクター", "ディレイ"],
     yahooAuctionsCategorySweeps: ["", "22436"],
   },
   "pro-audio": {
     label: "Pro Audio",
+    usBrowseTerms: ["audio interface", "mixer", "compressor", "preamp"],
     yahooAuctionsBrowseCategoryId: "2084019010",
     yahooAuctionsBrowseTerms: ["audio interface", "mixer", "compressor", "preamp", "オーディオインターフェイス", "ミキサー"],
     yahooAuctionsCategorySweeps: ["", "22436", "2084019010"],
@@ -1167,6 +1176,34 @@ async function handleBrowse(url, response) {
         collectFilteredListings(result.listings, listingsById, excludes, maxPrice);
       }
     }
+  } else if (isUsRegion(regionId)) {
+    const browseTerms = getUsBrowseTerms(categoryIntent);
+    const browseTasks = [
+      searchSourceTerms("reverb-us", browseTerms, searchReverbUs, {
+        maxTerms: US_BROWSE_TERM_LIMIT,
+        termDelayMs: 0,
+      }),
+    ];
+
+    if (hasEbayCredentials()) {
+      browseTasks.push(searchSourceTerms("ebay-us", browseTerms, searchEbayUs, {
+        maxTerms: US_BROWSE_TERM_LIMIT,
+        termDelayMs: 0,
+      }));
+    } else {
+      browseTasks.push(Promise.resolve(createPendingSourceResult("ebay-us", browseTerms, EBAY_PENDING_MESSAGE)));
+    }
+
+    const browseResults = await Promise.all(browseTasks);
+    for (const sourceResult of browseResults) {
+      sourceStats.push({
+        ...sourceResult.stats,
+        categoryIntent,
+        searchedTerms: sourceResult.stats.searchedTerms || browseTerms,
+      });
+      errors.push(...sourceResult.errors);
+      collectFilteredListings(sourceResult.listings, listingsById, excludes, maxPrice);
+    }
   } else {
     errors.push({
       source: "browse",
@@ -1344,6 +1381,15 @@ function getYahooAuctionsBrowseCategoryIntents(categoryIntent) {
 
 function getYahooAuctionsBrowseTerms(categoryIntent) {
   return CATEGORY_INTENT_CONFIG[sanitizeCategoryIntent(categoryIntent)]?.yahooAuctionsBrowseTerms || [];
+}
+
+function getUsBrowseTerms(categoryIntent) {
+  const config = CATEGORY_INTENT_CONFIG[sanitizeCategoryIntent(categoryIntent)];
+  return config?.usBrowseTerms?.length ? config.usBrowseTerms : [getCategoryIntentLabel(categoryIntent)];
+}
+
+function isUsRegion(regionId) {
+  return ["bay-area", "los-angeles"].includes(regionId);
 }
 
 function isCraigslistLiveEnabled() {
