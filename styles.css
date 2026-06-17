@@ -62,6 +62,12 @@ a {
   gap: 12px;
 }
 
+.region-selector {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
 .brand {
   display: flex;
   gap: 12px;
@@ -122,6 +128,109 @@ a {
   border-color: #0072ff;
   background: #fff;
   box-shadow: 0 0 0 2px rgba(0, 114, 255, 0.12), 0 12px 28px rgba(15, 23, 42, 0.08);
+}
+
+.region-popover {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  z-index: 80;
+  display: grid;
+  width: min(260px, 78vw);
+  gap: 5px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--panel) 96%, transparent);
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.18);
+  backdrop-filter: blur(18px);
+}
+
+.region-popover[hidden] {
+  display: none;
+}
+
+.region-popover-list {
+  display: grid;
+  gap: 4px;
+}
+
+.region-popover-option,
+.region-popover-settings {
+  display: grid;
+  width: 100%;
+  align-items: center;
+  border: 0;
+  border-radius: 16px;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+  letter-spacing: 0;
+  text-align: left;
+}
+
+.region-popover-option {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  padding: 10px 12px;
+}
+
+.region-popover-option:hover,
+.region-popover-option:focus-visible,
+.region-popover-settings:hover,
+.region-popover-settings:focus-visible {
+  background: color-mix(in srgb, var(--surface) 82%, var(--panel));
+  outline: none;
+}
+
+.region-popover-option.is-active {
+  background: var(--ink);
+  color: var(--panel);
+}
+
+.region-popover-copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.region-popover-name {
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 850;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.region-popover-meta {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.region-popover-option.is-active .region-popover-meta {
+  color: color-mix(in srgb, var(--panel) 72%, transparent);
+}
+
+.region-popover-check {
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.region-popover-settings {
+  margin-top: 3px;
+  padding: 10px 12px;
+  border-top: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 850;
+  justify-items: start;
 }
 
 .brand-mark {
@@ -4787,6 +4896,11 @@ body[data-theme="dark"] .refine-backdrop {
     font-size: 10px;
   }
 
+  .region-popover {
+    top: calc(100% + 8px);
+    width: min(232px, 84vw);
+  }
+
   .brand-logo {
     width: min(220px, 42vw);
   }
@@ -5395,6 +5509,10 @@ body[data-theme="dark"] .refine-backdrop {
     max-width: 150px;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  .region-popover {
+    width: min(220px, 88vw);
   }
 
   .saved-trigger {

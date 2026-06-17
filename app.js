@@ -732,6 +732,10 @@ const savedSearches = document.querySelector("#savedSearches");
 const searchForm = document.querySelector("#searchForm");
 const brandHomeLink = document.querySelector("#brandHomeLink");
 const regionBadge = document.querySelector("#regionBadge");
+const regionSelector = document.querySelector("#regionSelector");
+const regionPopover = document.querySelector("#regionPopover");
+const regionPopoverList = document.querySelector("#regionPopoverList");
+const regionPopoverSettings = document.querySelector("#regionPopoverSettings");
 const termsInput = document.querySelector("#terms");
 const mobileSearchOverlay = document.querySelector("#mobileSearchOverlay");
 const mobileSearchForm = document.querySelector("#mobileSearchForm");
@@ -1221,7 +1225,10 @@ function bindEvents() {
   if (eventsBound) return;
 
   brandHomeLink.addEventListener("click", resetHomeView);
-  regionBadge?.addEventListener("click", openRegionSettings);
+  regionBadge?.addEventListener("click", toggleRegionPopover);
+  regionPopoverList?.addEventListener("click", handleRegionPopoverClick);
+  regionPopoverSettings?.addEventListener("click", openRegionSettingsFromPopover);
+  document.addEventListener("click", handleRegionPopoverOutsideClick);
   searchForm.addEventListener("submit", (event) => {
     event.preventDefault();
     if (!refineSearchModal.hidden) {
@@ -1414,6 +1421,7 @@ function bindEvents() {
 
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;
+    closeRegionPopover();
     closeSavedSearchPopover();
     if (!refineSearchModal.hidden) closeRefineSearchModal();
     if (!saveSearchModal.hidden) closeSaveSearchModal();
@@ -1512,6 +1520,83 @@ function updateRegionBadge() {
   regionBadge.textContent = region.label;
   regionBadge.title = `Search region: ${region.label}`;
   regionBadge.setAttribute("aria-label", `Change search region. Current region: ${region.label}`);
+  renderRegionPopoverOptions();
+}
+
+function getRegionStatusLabel(region) {
+  if (region.status === "beta") return "Beta";
+  if (region.status === "future") return "Soon";
+  return "";
+}
+
+function renderRegionPopoverOptions() {
+  if (!regionPopoverList) return;
+  const activeRegionId = getActiveRegion().id;
+  regionPopoverList.innerHTML = getSelectableRegions().map((region) => {
+    const isActive = region.id === activeRegionId;
+    const statusLabel = getRegionStatusLabel(region);
+    const metaLabel = [region.currency, statusLabel].filter(Boolean).join(" · ");
+    return `
+      <button class="region-popover-option${isActive ? " is-active" : ""}" type="button" role="menuitemradio" aria-checked="${isActive}" data-region-id="${escapeHtml(region.id)}">
+        <span class="region-popover-copy">
+          <span class="region-popover-name">${escapeHtml(region.label)}</span>
+          <span class="region-popover-meta">${escapeHtml(metaLabel || "Active")}</span>
+        </span>
+        <span class="region-popover-check" aria-hidden="true">${isActive ? "✓" : ""}</span>
+      </button>
+    `;
+  }).join("");
+}
+
+function openRegionPopover() {
+  if (!regionPopover || !regionBadge) return;
+  renderRegionPopoverOptions();
+  regionPopover.hidden = false;
+  regionBadge.setAttribute("aria-expanded", "true");
+}
+
+function closeRegionPopover() {
+  if (!regionPopover || !regionBadge) return;
+  regionPopover.hidden = true;
+  regionBadge.setAttribute("aria-expanded", "false");
+}
+
+function toggleRegionPopover(event) {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+  if (!regionPopover) return;
+  if (regionPopover.hidden) openRegionPopover();
+  else closeRegionPopover();
+}
+
+function handleRegionPopoverOutsideClick(event) {
+  if (regionPopover?.hidden) return;
+  if (regionSelector?.contains(event.target)) return;
+  closeRegionPopover();
+}
+
+function handleRegionPopoverClick(event) {
+  const option = event.target.closest("[data-region-id]");
+  if (!option) return;
+  const regionId = sanitizeRegionId(option.dataset.regionId);
+  closeRegionPopover();
+  if (regionId !== getActiveRegion().id) {
+    const previousProfile = readProfileFromForm();
+    applyActiveRegion(regionId);
+    currentProfile = createProfileForRegion(previousProfile, regionId);
+    fillForm(currentProfile);
+    renderRefineSummary();
+    if (currentProfile.terms.length) {
+      runSearch();
+    } else {
+      resetToIdleSearch();
+    }
+  }
+}
+
+function openRegionSettingsFromPopover(event) {
+  closeRegionPopover();
+  openRegionSettings(event);
 }
 
 function getRegionSourceIds(regionId = appSettings?.regionId) {
