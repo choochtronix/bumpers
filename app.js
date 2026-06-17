@@ -38,7 +38,7 @@ const ACTIVE_REGION = REGION_CONFIG?.activeRegion || {
 };
 const RESULTS_PER_PAGE = 48;
 const FEATURED_HOME_LIMIT = 12;
-const BROWSE_EXPANDED_LIMIT = 48;
+const BROWSE_EXPANDED_LIMIT = 240;
 const APP_VIEW_PARAM = "view";
 const APP_VIEW_SYNTH_BROWSER = "synth-browser";
 const FEATURED_HOME_ALERT_LIMIT = 6;
@@ -3465,6 +3465,9 @@ function renderBrowseExpandedView(watching) {
   ensureBrowseCategoryListings();
   const browseListings = getBrowseCategoryExpandedListings();
   const visibleListings = getVisibleResults(watching, browseListings);
+  const totalPages = getTotalPages(visibleListings.length);
+  currentPage = Math.min(currentPage, totalPages);
+  const pageListings = paginateResults(visibleListings);
 
   resultGrid.innerHTML = "";
   resultGrid.classList.toggle("is-featured-home", false);
@@ -3476,7 +3479,7 @@ function renderBrowseExpandedView(watching) {
   resultGrid.appendChild(createBrowseExpandedHeader(visibleListings.length, browseListings.length));
 
   if (visibleListings.length > 0) {
-    visibleListings.forEach((listing) => resultGrid.appendChild(renderListing(listing)));
+    pageListings.forEach((listing) => resultGrid.appendChild(renderListing(listing)));
   } else if (browseCategoryStatus === "loading") {
     resultGrid.insertAdjacentHTML("beforeend", `
       <div class="empty-state browse-expanded-empty">
@@ -3495,7 +3498,7 @@ function renderBrowseExpandedView(watching) {
     `);
   }
 
-  renderPagination(visibleListings.length, 1);
+  renderPagination(visibleListings.length, totalPages);
   renderQualityModeControls();
   renderResultViewControls(false, "list");
   renderTopWatchingControl();
