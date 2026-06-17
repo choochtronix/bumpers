@@ -39,6 +39,8 @@ const ACTIVE_REGION = REGION_CONFIG?.activeRegion || {
 const RESULTS_PER_PAGE = 48;
 const FEATURED_HOME_LIMIT = 12;
 const BROWSE_EXPANDED_LIMIT = 48;
+const APP_VIEW_PARAM = "view";
+const APP_VIEW_SYNTH_BROWSER = "synth-browser";
 const FEATURED_HOME_ALERT_LIMIT = 6;
 const FRESH_FIND_LOADING_CARD_COUNT = 6;
 const FRESH_FIND_STALE_HOURS = 72;
@@ -814,6 +816,7 @@ let isProfileAutoSyncing = false;
 let eventsBound = false;
 
 function initialize() {
+  isBrowseExpanded = getCurrentAppView() === APP_VIEW_SYNTH_BROWSER;
   bindEvents();
   runStartupStep("stored theme", applyStoredTheme);
   runStartupStep("brand wave", initializeBrandWave);
@@ -1407,6 +1410,7 @@ function bindEvents() {
   window.addEventListener("scroll", requestBackToTopVisibilityUpdate, { passive: true });
   window.addEventListener("scroll", requestMobileSearchOverlayUpdate, { passive: true });
   window.addEventListener("resize", requestMobileSearchOverlayUpdate);
+  window.addEventListener("popstate", handleAppViewPopState);
 
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;
@@ -1422,6 +1426,7 @@ function bindEvents() {
 
 function resetHomeView(event) {
   event?.preventDefault?.();
+  setAppView(null);
   searchRunId += 1;
   currentProfile = createFreshProfile();
   fillForm(currentProfile);
@@ -1437,6 +1442,31 @@ function resetHomeView(event) {
   closeSettingsModal({ restoreFocus: false });
   resetToIdleSearch();
   scrollPageTop();
+}
+
+function getCurrentAppView() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get(APP_VIEW_PARAM) || "";
+}
+
+function setAppView(view, options = {}) {
+  const url = new URL(window.location.href);
+  if (view) {
+    url.searchParams.set(APP_VIEW_PARAM, view);
+  } else {
+    url.searchParams.delete(APP_VIEW_PARAM);
+  }
+  const nextUrl = `${url.pathname}${url.search}${url.hash}`;
+  if (nextUrl === `${window.location.pathname}${window.location.search}${window.location.hash}`) return;
+  const method = options.replace ? "replaceState" : "pushState";
+  window.history[method]({ view: view || "" }, "", nextUrl);
+}
+
+function handleAppViewPopState() {
+  isBrowseExpanded = getCurrentAppView() === APP_VIEW_SYNTH_BROWSER;
+  resetPagination();
+  renderResults();
+  scrollResultsTop();
 }
 
 function toggleTheme(event) {
@@ -3467,7 +3497,7 @@ function renderBrowseExpandedView(watching) {
 
   renderPagination(visibleListings.length, 1);
   renderQualityModeControls();
-  renderResultViewControls(false);
+  renderResultViewControls(false, "list");
   renderTopWatchingControl();
 }
 
@@ -3481,6 +3511,7 @@ function handleResultGridAction(event) {
     if (expandedBrowseSelect) {
       setHomeBrowseCategory(expandedBrowseSelect.value);
       isBrowseExpanded = true;
+      setAppView(APP_VIEW_SYNTH_BROWSER, { replace: true });
     }
     return;
   }
@@ -3494,6 +3525,7 @@ function handleResultGridAction(event) {
 
   if (button.dataset.resultAction === "open-browse-expanded") {
     isBrowseExpanded = true;
+    setAppView(APP_VIEW_SYNTH_BROWSER);
     resetPagination();
     renderResults();
     scrollResultsTop();
@@ -3501,6 +3533,7 @@ function handleResultGridAction(event) {
 
   if (button.dataset.resultAction === "close-browse-expanded") {
     isBrowseExpanded = false;
+    setAppView(null);
     resetPagination();
     renderResults();
     scrollResultsTop();
@@ -3642,9 +3675,10 @@ function setResultView(mode = "grid") {
   queueProfileAutoSync("result-view");
 }
 
-function renderResultViewControls(isShowingFeaturedHome = false) {
+function renderResultViewControls(isShowingFeaturedHome = false, forcedView = "") {
   resultViewButtons.forEach((button) => {
-    const isActive = button.dataset.resultView === appSettings.resultView;
+    const activeView = forcedView || appSettings.resultView;
+    const isActive = button.dataset.resultView === activeView;
     button.classList.toggle("is-active", isActive);
     button.disabled = isShowingFeaturedHome;
     button.setAttribute("aria-pressed", String(isActive));
@@ -4452,7 +4486,7 @@ function createFeaturedHomeHeader(count, options = {}) {
           <span>Browse</span>
           <select id="homeBrowseCategory" aria-label="Browse category">${optionsMarkup}</select>
         </label>
-        <button class="browse-view-all-button" type="button" data-result-action="open-browse-expanded">Browse latest</button>
+        <button class="browse-view-all-button" type="button" data-result-action="open-browse-expanded">See all</button>
       </div>
     `;
     return header;
@@ -4495,9 +4529,9 @@ function createBrowseExpandedHeader(visibleCount, totalCount) {
 
   header.innerHTML = `
     <div class="browse-expanded-copy">
-      <span class="browse-expanded-eyebrow">Browse</span>
+      <span class="browse-expanded-eyebrow">Synth Browser</span>
       <h3>Latest ${escapeHtml(getCategoryIntentLabel(browseCategoryIntent))}</h3>
-      <p>${escapeHtml(status)}</p>
+      <p>${escapeHtml(status)} · Newest listings first</p>
     </div>
     <div class="browse-expanded-actions">
       <label class="browse-category-control">
