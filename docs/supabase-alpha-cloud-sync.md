@@ -168,8 +168,8 @@ Current alpha cloud data:
 - Preferences currently include theme, currency, exchange rate, watched listing ids, watched listing snapshots, and search feedback/noise rules.
 - Saved-search create/delete/import/scan updates auto-sync in the background when signed in.
 - Watched listing and feedback changes auto-sync through profile preferences when signed in.
-- Manual Settings -> Account -> Sync now remains the backup sync path.
-- Background saved-search pushes check whether cloud data is newer than this browser's last sync. If another browser changed saved searches first, Brrtz pauses the push and asks you to Pull from cloud before pushing.
+- Settings -> Account -> Sync now is the primary user-facing sync path. It pulls/merges cloud data first, keeps the newest matching saved-search version, then pushes the merged browser state back to cloud.
+- Background saved-search pushes check whether cloud data is newer than this browser's last sync. If another browser changed saved searches first, Brrtz pauses the background push and asks the user to run Sync now.
 
 Leave `BUMPERS_REQUIRE_INVITE=false` while you are testing your own login. Change it to `true` when friend testing should be invite-only, then add allowed emails:
 
@@ -213,8 +213,8 @@ npm start
 
 Then open Settings and use:
 
-- `Push to cloud` to send local saved searches to Supabase.
-- `Pull from cloud` to restore saved searches from Supabase.
+- Account -> `Sync now` to keep this browser aligned with Supabase.
+- Data -> Advanced recovery tools only if support needs manual saved-search pull/push recovery.
 
 ## 6. Next Phase: Invite-Only Login
 

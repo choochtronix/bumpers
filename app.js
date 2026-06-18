@@ -2543,26 +2543,33 @@ async function saveSettingsFromModal() {
 }
 
 async function syncAccountCloudData() {
-  setAccountStatus("Syncing account profile and saved searches...");
+  setAccountStatus("Syncing this browser with Brrtz cloud...");
   setCloudSyncButtonsDisabled(true);
   let syncStep = "starting account sync";
 
   try {
-    syncStep = "pushing profile preferences";
-    await pushCloudProfilePreferences({ silent: true, surfaceErrors: true });
     syncStep = "pulling profile preferences";
     await pullCloudProfilePreferences({ silent: true, surfaceErrors: true });
-    syncStep = "pushing saved searches";
+    syncStep = "merging saved searches";
+    await pullCloudSavedSearches({
+      preferNewest: true,
+      rethrow: true,
+      silent: true,
+      skipConfirm: true,
+    });
+    syncStep = "saving merged saved searches";
     await pushCloudSavedSearches({
       allowEmpty: true,
-      checkConflicts: true,
+      checkConflicts: false,
       rethrow: true,
+      silent: true,
     });
-    syncStep = "pulling saved searches";
-    await pullCloudSavedSearches({ rethrow: true });
+    syncStep = "saving profile preferences";
+    await pushCloudProfilePreferences({ silent: true, surfaceErrors: true });
     authState.accountNotice = "";
     markCloudSynced();
-    setAccountStatus("Account profile and saved searches are synced.");
+    setAccountStatus("Synced. This browser is up to date with Brrtz cloud.");
+    setSavedSearchTransferStatus("Saved searches are synced with Brrtz cloud.");
   } catch (error) {
     console.error(`Account sync failed while ${syncStep}.`, error);
     const errorMessage = error instanceof Error ? error.message : "Could not sync account data.";
@@ -2756,11 +2763,11 @@ async function ensureSavedSearchCloudPushIsSafe() {
   const latestCloudUpdatedAt = getLatestSavedSearchUpdatedAt(cloudProfiles, payload.updatedAt);
 
   if (!lastSyncedAt) {
-    throw new Error("Cloud has saved searches for this account. Pull from cloud before pushing local changes.");
+    throw new Error("Cloud already has saved searches for this account. Use Sync now to merge before saving local changes.");
   }
 
   if (isTimestampAfter(latestCloudUpdatedAt, lastSyncedAt, 1000)) {
-    throw new Error("Cloud has newer saved-search changes. Use Pull from cloud before pushing local changes.");
+    throw new Error("Cloud has newer saved-search changes. Use Sync now to merge before saving local changes.");
   }
 
   return true;
@@ -2836,7 +2843,7 @@ async function runProfileAutoSync(reason = "profile-preference-change") {
 }
 
 async function pullCloudSavedSearches(options = {}) {
-  setSavedSearchTransferStatus("Pulling saved searches from cloud sync...");
+  if (!options.silent) setSavedSearchTransferStatus("Pulling saved searches from cloud sync...");
   setCloudSyncButtonsDisabled(true);
 
   try {
@@ -2847,16 +2854,18 @@ async function pullCloudSavedSearches(options = {}) {
     if (cloudProfiles.length === 0) {
       authState.accountNotice = "";
       markCloudSynced(payload.updatedAt);
-      setSavedSearchTransferStatus("Cloud sync has no saved searches yet.");
-      return;
+      if (!options.silent) setSavedSearchTransferStatus("Cloud sync has no saved searches yet.");
+      return { count: 0, mergedCount: savedSearchRepository.list().length };
     }
 
-    const importPreview = savedSearchRepository.previewMerge(cloudProfiles);
-    if (importPreview.duplicateCount > 0) {
+    const importPreview = savedSearchRepository.previewMerge(cloudProfiles, {
+      preferNewest: Boolean(options.preferNewest),
+    });
+    if (importPreview.duplicateCount > 0 && !options.skipConfirm) {
       const confirmed = window.confirm(`Cloud pull will replace ${importPreview.duplicateCount} local saved ${importPreview.duplicateCount === 1 ? "search" : "searches"} with matching cloud versions. Continue?`);
       if (!confirmed) {
         setSavedSearchTransferStatus("Cloud pull canceled.");
-        return;
+        return { count: 0, canceled: true, mergedCount: savedSearchRepository.list().length };
       }
     }
 
@@ -2866,7 +2875,10 @@ async function pullCloudSavedSearches(options = {}) {
     renderAccountShell(authState.user);
     renderSavedSearches();
     updateQuickSaveSearchButton();
-    setSavedSearchTransferStatus(`Pulled ${cloudProfiles.length} saved ${cloudProfiles.length === 1 ? "search" : "searches"} from cloud sync.`);
+    if (!options.silent) {
+      setSavedSearchTransferStatus(`Pulled ${cloudProfiles.length} saved ${cloudProfiles.length === 1 ? "search" : "searches"} from cloud sync.`);
+    }
+    return { count: cloudProfiles.length, mergedCount: importPreview.mergedProfiles.length };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Could not pull from cloud sync.";
     authState.accountNotice = message;
@@ -2886,7 +2898,9 @@ async function pushCloudSavedSearches(options = {}) {
     return;
   }
 
-  setSavedSearchTransferStatus(options.auto ? "Auto-syncing saved searches..." : "Pushing saved searches to cloud sync...");
+  if (!options.silent) {
+    setSavedSearchTransferStatus(options.auto ? "Auto-syncing saved searches..." : "Pushing saved searches to cloud sync...");
+  }
   setCloudSyncButtonsDisabled(true);
 
   try {
@@ -2917,9 +2931,12 @@ async function pushCloudSavedSearches(options = {}) {
       updateQuickSaveSearchButton();
     }
 
-    setSavedSearchTransferStatus(options.auto
-      ? `Auto-synced ${profiles.length} saved ${profiles.length === 1 ? "search" : "searches"}.`
-      : `Pushed ${profiles.length} saved ${profiles.length === 1 ? "search" : "searches"} to cloud sync.`);
+    if (!options.silent) {
+      setSavedSearchTransferStatus(options.auto
+        ? `Auto-synced ${profiles.length} saved ${profiles.length === 1 ? "search" : "searches"}.`
+        : `Pushed ${profiles.length} saved ${profiles.length === 1 ? "search" : "searches"} to cloud sync.`);
+    }
+    return { count: profiles.length };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Could not push to cloud sync.";
     authState.accountNotice = message;
@@ -6027,9 +6044,31 @@ function createSavedSearchRepository({ storageKey }) {
     return nextProfiles;
   }
 
-  function previewMerge(importedProfiles) {
+  function previewMerge(importedProfiles, options = {}) {
     const existingProfiles = list();
     const duplicateCount = importedProfiles.filter((profile) => findMatchingSavedSearch(existingProfiles, profile)).length;
+    if (options.preferNewest) {
+      const mergedProfiles = [];
+
+      [...importedProfiles, ...existingProfiles].forEach((profile) => {
+        const duplicateIndex = mergedProfiles.findIndex((candidate) => findMatchingSavedSearch([candidate], profile));
+        if (duplicateIndex === -1) {
+          mergedProfiles.push(profile);
+          return;
+        }
+
+        const existingProfile = mergedProfiles[duplicateIndex];
+        if (isTimestampAfter(profile.updatedAt, existingProfile.updatedAt)) {
+          mergedProfiles[duplicateIndex] = profile;
+        }
+      });
+
+      return {
+        duplicateCount,
+        mergedProfiles,
+      };
+    }
+
     const importedKeys = new Set(importedProfiles.flatMap(getSavedSearchMergeKeys));
     const mergedProfiles = [
       ...importedProfiles,

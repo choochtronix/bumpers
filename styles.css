@@ -4911,7 +4911,7 @@ body[data-theme="dark"] .refine-backdrop {
   .brand-region-cluster {
     flex-direction: column;
     align-items: flex-start;
-    gap: 5px;
+    gap: 8px;
   }
 
   .brand-home-link {
@@ -4920,15 +4920,19 @@ body[data-theme="dark"] .refine-backdrop {
   }
 
   .region-badge {
-    min-height: 24px;
+    min-width: 118px;
+    min-height: 44px;
+    max-width: min(190px, 52vw);
     margin-top: 0;
-    padding: 0 9px;
-    font-size: 10px;
+    padding: 0 16px;
+    gap: 7px;
+    font-size: 14px;
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
   }
 
   .region-popover {
     top: calc(100% + 8px);
-    width: min(232px, 84vw);
+    width: min(280px, 84vw);
   }
 
   .brand-logo {
@@ -5591,13 +5595,16 @@ body[data-theme="dark"] .refine-backdrop {
   }
 
   .region-badge {
-    max-width: 150px;
+    min-width: 112px;
+    max-width: min(178px, 52vw);
+    padding: 0 14px;
+    font-size: 13px;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
   .region-popover {
-    width: min(220px, 88vw);
+    width: min(260px, 88vw);
   }
 
   .saved-trigger {
