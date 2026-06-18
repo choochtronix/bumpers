@@ -4081,8 +4081,10 @@ body[data-theme="dark"] .browse-view-all-button:hover {
   }
 
   .browse-expanded-actions {
-    align-items: stretch;
-    flex-direction: column;
+    align-items: end;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
   }
 
   .listing-card.is-browse-home-card {
