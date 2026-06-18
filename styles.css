@@ -3997,10 +3997,15 @@ body[data-theme="dark"] .browse-view-all-button:hover {
 }
 
 .result-grid.is-browse-expanded {
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+}
+
+.result-grid.is-browse-expanded.is-list-view {
   grid-template-columns: minmax(0, 1fr);
 }
 
 .browse-expanded-header {
+  grid-column: 1 / -1;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 18px;

@@ -3574,7 +3574,7 @@ function renderBrowseExpandedView(watching) {
 
   resultGrid.innerHTML = "";
   resultGrid.classList.toggle("is-featured-home", false);
-  resultGrid.classList.toggle("is-list-view", true);
+  resultGrid.classList.toggle("is-list-view", appSettings.resultView === "list");
   resultGrid.classList.toggle("is-browse-expanded", true);
   renderSourceFilters(browseListings);
   renderAlertPanel([]);
@@ -3603,7 +3603,7 @@ function renderBrowseExpandedView(watching) {
 
   renderPagination(visibleListings.length, totalPages);
   renderQualityModeControls();
-  renderResultViewControls(false, "list");
+  renderResultViewControls(false);
   renderTopWatchingControl();
 }
 
