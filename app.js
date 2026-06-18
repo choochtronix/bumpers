@@ -672,7 +672,7 @@ const CATEGORY_INTENTS = [
   { id: "samplers", label: "Samplers" },
   { id: "sequencers", label: "Sequencers" },
   { id: "modular", label: "Eurorack / Modular" },
-  { id: "effects-pedals", label: "Effects / Pedals" },
+  { id: "effects-pedals", label: "Effects" },
   { id: "pro-audio", label: "Pro Audio" },
 ];
 const DEFAULT_CATEGORY_INTENT = "synthesizers";

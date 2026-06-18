@@ -39,7 +39,7 @@ Keyword-backed category intents:
 | `samplers` | No clean public Yahoo category branch found in the verified parent pages. | `sampler`, `サンプラー`, `akai mpc`, `sp-404` |
 | `sequencers` | No clean public Yahoo category branch found in the verified parent pages. | `sequencer`, `シーケンサー`, `step sequencer` |
 | `modular` | No clean public Yahoo category branch found in the verified parent pages. | `eurorack`, `modular synth`, `モジュラーシンセ`, `ユーロラック` |
-| `effects-pedals` | Yahoo exposes some instrument-specific effects branches, but no broad synth/pro-audio effects branch has been verified yet. | `effects pedal`, `delay pedal`, `reverb pedal`, `エフェクター`, `ディレイ` |
+| `effects-pedals` | Yahoo exposes some instrument-specific effects branches, but no broad synth/pro-audio effects branch has been verified yet. Brrtz intentionally biases this intent toward rack/tabletop/studio effects units rather than guitar-pedal browsing. | `effects processor`, `rack effects`, `multi effects`, `ラックエフェクター`, `マルチエフェクター`, `ディレイ`, `リバーブ` |
 
 ### Other Japan Sources
 
@@ -76,7 +76,7 @@ Current US browse seed terms:
 | `samplers` | `sampler`, `akai mpc`, `sp-404` |
 | `sequencers` | `sequencer`, `step sequencer`, `midi sequencer` |
 | `modular` | `eurorack`, `modular synth`, `synth module` |
-| `effects-pedals` | `synth pedal`, `delay pedal`, `reverb pedal` |
+| `effects-pedals` | `effects processor`, `rack effects`, `multi effects processor`, `delay unit`, `reverb unit` |
 | `pro-audio` | `audio interface`, `mixer`, `compressor`, `preamp` |
 
 ## Follow-Up Candidates

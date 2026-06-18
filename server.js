@@ -119,9 +119,9 @@ const CATEGORY_INTENT_CONFIG = {
     yahooAuctionsCategorySweeps: ["", "22436"],
   },
   "effects-pedals": {
-    label: "Effects / Pedals",
-    usBrowseTerms: ["synth pedal", "delay pedal", "reverb pedal"],
-    yahooAuctionsBrowseTerms: ["effects pedal", "delay pedal", "reverb pedal", "エフェクター", "ディレイ"],
+    label: "Effects",
+    usBrowseTerms: ["effects processor", "rack effects", "multi effects processor", "delay unit", "reverb unit"],
+    yahooAuctionsBrowseTerms: ["effects processor", "rack effects", "multi effects", "delay unit", "reverb unit", "ラックエフェクター", "マルチエフェクター", "ディレイ", "リバーブ"],
     yahooAuctionsCategorySweeps: ["", "22436"],
   },
   "pro-audio": {

@@ -42,7 +42,7 @@ Current options:
 - Samplers
 - Sequencers
 - Eurorack / Modular
-- Effects / Pedals
+- Effects
 - Pro Audio
 
 `All Synth Gear` is the default homepage browse mode. It aggregates the fast, verified synth-centric Yahoo Auctions category branches:
