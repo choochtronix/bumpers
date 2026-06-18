@@ -1432,7 +1432,7 @@ body[data-theme="dark"] .region-badge:focus-visible {
 
 .settings-modal {
   width: min(520px, 100%);
-  max-height: min(760px, calc(100vh - 48px));
+  max-height: min(760px, calc(100dvh - 48px));
   overflow: hidden;
 }
 
@@ -5509,8 +5509,63 @@ body[data-theme="dark"] .refine-backdrop {
     grid-template-columns: 1fr;
   }
 
+  .settings-modal {
+    width: 100%;
+    max-height: calc(100dvh - 20px);
+    border-radius: var(--radius-sheet);
+  }
+
+  .settings-modal .modal-header {
+    padding: 14px 14px 0;
+  }
+
+  .settings-tabs {
+    gap: 5px;
+    padding: 0 14px;
+  }
+
+  .settings-tab {
+    min-height: 36px;
+    font-size: 12px;
+  }
+
+  .settings-scroll {
+    padding: 0 14px;
+  }
+
+  .settings-section {
+    gap: 12px;
+    padding: 12px;
+  }
+
   .settings-actions {
     grid-template-columns: 1fr;
+  }
+
+  .settings-modal .modal-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    padding: 12px 14px calc(14px + env(safe-area-inset-bottom));
+  }
+
+  .settings-modal .modal-actions .primary-action,
+  .settings-modal .modal-actions .secondary-action {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+@media (max-height: 680px) {
+  .settings-modal {
+    max-height: calc(100dvh - 16px);
+  }
+
+  .settings-modal .modal-header {
+    padding-top: 12px;
+  }
+
+  .settings-section {
+    gap: 10px;
   }
 }
 

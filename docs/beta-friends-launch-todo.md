@@ -58,9 +58,10 @@ Target: week of June 8, 2026
 | Status | Task | Owner | Acceptance |
 |---|---|---|---|
 | Todo | Mobile header final pass | Codex | Logo, wave, utility icons, search, and controls do not overlap on iPhone. |
-| Todo | Settings modal beta pass | Codex | Account, sync, invite, and import/export controls fit on mobile. |
+| Done | Settings modal beta pass | Codex | Account, sync, invite, and import/export controls fit on mobile. |
 | Todo | List/card view sanity check | Craig | Both views are usable on mobile and desktop. |
 | Todo | Gear Mode visual pass | Craig/Codex | Gear Mode feels like a primary Brrtz feature without cluttering search. |
+| Done | Document beta QA loop | Codex | `docs/beta-qa-loop.md` covers cloud sync, mobile header, list/card view, Gear Browser, and source-health checks. |
 
 ### 5. Search Quality
 
@@ -69,7 +70,7 @@ Target: week of June 8, 2026
 | Todo | Validate top saved searches | Craig | 5-10 real saved searches return useful results. |
 | Todo | Note bad-result examples | Craig | URLs and search terms are added under Known Issues. |
 | Done | Confirm source health | Codex | Enabled beta sources have a basic working/failing/parked status. Craigslist is parked by default for beta safety. See `ops/reports/source-health-report.md`. |
-| Todo | Check "new" discovery behavior | Craig/Codex | New listings are understood as first-seen-by-Brrtz discoveries. |
+| Done | Check "new" discovery behavior | Craig/Codex | New listings are documented as first-seen-by-Brrtz discoveries, saved-search discoveries, and acknowledged user state. See `docs/newness-model.md`. |
 | Done | Add beta Fresh Finds curation pass | Codex | Homepage Fresh Finds favors fresh, image-rich, likely-gear listings and filters stale/unavailable ledger items. |
 
 ## Region Architecture Notes
@@ -135,6 +136,7 @@ California beta source pass, June 10: Bay Area and Los Angeles are now selectabl
 - Public beta launch, June 9: Brrtz is live at `https://brrtz.com` on Railway with Supabase Auth and cloud pull confirmed. DNS/TLS launch notes are recorded in `docs/beta-launch-milestone-2026-06-09.md`.
 - eBay beta source check, June 15: eBay US is live through the official Browse API for Bay Area and Los Angeles. Craig confirmed healthy local and production results. Default eBay category targeting is `619` for Musical Instruments & Gear.
 - Beta tester quickstart, June 15: added `docs/beta-tester-quickstart.md` as the current invite-friend guide.
+- Beta QA loop, June 18: added `docs/beta-qa-loop.md` so agent-run checks and Craig-run browser/device checks are separated and repeatable.
 
 ## Beta Tester Notes
 

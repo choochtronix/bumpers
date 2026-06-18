@@ -429,7 +429,7 @@ stand
               <div class="settings-section account-section" aria-labelledby="accountSettingsTitle">
                 <div>
                   <h3 id="accountSettingsTitle">Account</h3>
-                  <p>Sign in to keep saved searches available across desktop, mobile web, and the future iOS app.</p>
+                  <p>Sign in to keep saved searches, watched gear, and preferences available across desktop, mobile web, and the future iOS app.</p>
                 </div>
 
                 <div class="account-panel" id="signedOutAccountPanel">
@@ -449,6 +449,7 @@ stand
                     <button class="secondary-action" id="syncAccountSavedSearches" type="button">Sync now</button>
                     <button class="secondary-action" id="signOutAccount" type="button">Sign out</button>
                   </div>
+                  <p class="settings-sync-detail">Sync now saves this browser's latest account data to Brrtz cloud, then refreshes this browser from cloud.</p>
                   <p class="settings-sync-detail" id="accountSyncDetail">Last synced: never</p>
                 </div>
 
@@ -460,7 +461,7 @@ stand
               <div class="settings-section" aria-labelledby="savedSearchSyncTitle">
                 <div>
                   <h3 id="savedSearchSyncTitle">Saved searches</h3>
-                  <p>Sync saved searches through local cloud storage now, and Supabase when configured.</p>
+                  <p>Export or import a local backup. Normal cloud sync lives in Account.</p>
                 </div>
 
                 <div class="settings-actions">
@@ -470,7 +471,8 @@ stand
                 </div>
 
                 <details class="settings-advanced">
-                  <summary>Advanced sync tools</summary>
+                  <summary>Recovery sync tools</summary>
+                  <p class="settings-sync-detail">Use these only when manually recovering saved searches between browsers.</p>
                   <div class="settings-cloud-profile">
                     <span>Cloud profile</span>
                     <strong id="cloudProfileEmail">local@bumpers.dev</strong>

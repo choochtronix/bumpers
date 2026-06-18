@@ -14,20 +14,25 @@ This is the short-term working list for getting Brrtz ready for friend beta whil
 - [x] Center the back-to-top button across desktop and mobile.
 - [x] Add consistent top nav hover/focus states.
 - [x] Expand Synth Browser into a larger newest-first browsing feed.
+- [x] Define beta newness model in code and docs.
+- [x] Confirm duplicate Watched action is removed from the save modal.
+- [x] Simplify Settings copy around normal account sync vs recovery tools.
+- [x] Make Settings modal resilient on mobile and short browser windows.
+- [x] Run beta guardrails for golden searches and US source health.
 - [ ] Re-test cloud sync in Chrome + Safari after the next local restart.
 - [ ] Continue save/search UX cleanup.
-- [ ] Review expanded Synth Browser with live source data in Japan, Bay Area, and LA.
+- [x] Review expanded Synth Browser with live source data in Japan, Bay Area, and LA.
 
 ## Beta-Critical
 
 | Priority | Item | Owner | Acceptance |
 | --- | --- | --- | --- |
 | P0 | Synth Browser expansion | Codex + Craig review | A "show more" path opens a larger latest-synth feed sorted newest first, using real source listings instead of random curation. |
-| P0 | Newness model | Codex + Craig decision | Brrtz distinguishes latest source listings, new-to-Brrtz listings, and new-to-user listings. |
+| P0 | Newness model | Codex + Craig decision | Brrtz distinguishes latest source listings, new-to-Brrtz listings, and new-to-user listings. See `docs/newness-model.md`. |
 | P0 | Multi-word search fidelity | Codex | Normal phrases like `Mackie Mixer` return useful results without requiring the user to split words across lines in Refine. |
 | P0 | Chrome Browse dropdown stability | Codex | Selecting a Browse category never makes the Synth Browser section disappear. |
 | P0 | Cloud sync `.add` error | Codex | Settings sync no longer throws `Cannot read properties of undefined (reading 'add')`. |
-| P1 | Simplify cloud sync UX | Codex + Craig copy review | Settings explains one normal sync path; pull/push only appear as advanced recovery actions if needed. |
+| Done | Simplify cloud sync UX | Codex + Craig copy review | Settings explains one normal sync path; pull/push only appear as advanced recovery actions if needed. |
 | P1 | Save-search star flow | Codex | Clicking the search-field star saves the search and shows only a toast confirmation, no modal. |
 
 ## Quick Wins
@@ -36,7 +41,7 @@ This is the short-term working list for getting Brrtz ready for friend beta whil
 | --- | --- | --- | --- |
 | P1 | Save Settings feedback | Codex | Save Settings gives a visible saved state or toast. |
 | P1 | Watch empty-state feedback | Codex | If the user opens Watching with no watched items, the UI explains what the heart does. |
-| P1 | Remove duplicate save modal action | Codex | The save modal no longer includes "Show Watched Gear." |
+| Done | Remove duplicate save modal action | Codex | The save modal no longer includes "Show Watched Gear." |
 | P2 | Back-to-top placement | Codex | Back-to-top button is centered near the bottom and avoids pagination/actions. |
 | P2 | Source row default | Codex | Source pills are visible on homepage load unless the user explicitly hides them. |
 
@@ -54,6 +59,7 @@ This is the short-term working list for getting Brrtz ready for friend beta whil
 | Shared search packs / synth collections | Let users share saved-search bundles or personal synth collections later. |
 | Instrument fact ticker | When searching `ARP 2600`, Brrtz can show a subtle rotating fact or context line. |
 | Predictive synth suggestions | Search assist such as `ARP` -> `Odyssey`, inspired by premium marketplace search UX. |
+| Cloud listing ledger | Move first-seen/new-to-user listing observations into cloud storage when cross-device newness precision becomes more important than local beta validation speed. |
 
 ## Recommended Work Order
 

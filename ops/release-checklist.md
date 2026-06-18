@@ -1,5 +1,7 @@
 # Brrtz Release Checklist
 
+For beta-facing changes, also run the focused checklist in `docs/beta-qa-loop.md`.
+
 ## Before Merge
 
 - [ ] PR has a clear summary.

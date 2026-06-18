@@ -1,6 +1,6 @@
 # Source Health Report
 
-Date: 2026-06-17
+Date: 2026-06-18
 
 ## Commands
 
@@ -56,8 +56,23 @@ BRRTZ_QA_REGION=bay-area BRRTZ_QA_QUERY=Waldorf npm run qa:golden-searches
 - Treat real `error` statuses as beta blockers; treat `pending` and `manual` as expected setup/user-assist states.
 - June 15 eBay beta checks passed locally and on production search smoke tests.
 - June 17 eBay polish checks passed locally for targeted Bay Area and Los Angeles beta paths.
+- June 18 beta guardrails passed locally across Japan, Bay Area, and Los Angeles golden searches.
 - Source health now maps shared US sources into both Bay Area and Los Angeles health checks.
 - Production source-health jobs are protected by `BUMPERS_JOB_TOKEN`; do not run them from local shells without that token.
+
+## Latest Beta Guardrail Snapshot - 2026-06-18
+
+Local server on `http://127.0.0.1:5173`:
+
+| Check | Result | Notes |
+|---|---|---|
+| Japan golden search / `Waldorf` | Passed | 49 listings from Digimart, Reverb Japan, and Yahoo Auctions. |
+| Japan golden search / `Roland Juno 106` | Passed | 75 listings from Digimart, Yahoo Auctions, and Mercari. |
+| Japan golden search / `drum machine` | Passed | 146 listings from Yahoo Auctions and Digimart; OFFMALL returned 0 but did not error. |
+| Bay Area golden search / `synthesizer` | Passed | 126 listings from Reverb US and eBay US. |
+| Los Angeles golden search / `Waldorf` | Passed | 131 listings from Reverb US and eBay US. |
+| Bay Area source health / Reverb US + eBay US | Healthy | Reverb US: 32 listings in 723ms. eBay US: 94 listings in 552ms. |
+| Los Angeles source health / Reverb US + eBay US | Healthy | Reverb US: 32 listings in 632ms. eBay US: 94 listings in 510ms. |
 
 ## Latest eBay Polish Snapshot - 2026-06-17
 

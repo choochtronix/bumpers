@@ -4401,7 +4401,7 @@ function renderListingNewnessBadges(fragment, newness) {
 
   if (newPill) {
     newPill.textContent = "New";
-    newPill.title = "New to you in Brrtz.";
+    newPill.title = getListingNewnessTitle(newness);
   }
 }
 
@@ -5248,7 +5248,7 @@ function createListingFromLedgerEntry(entry) {
 }
 
 function isListingMarkedNew(listing) {
-  return isListingNewToUser(listing) || isListingNewForSearch(listing);
+  return getListingNewness(listing).showsNewBadge;
 }
 
 function isListingNewToUser(listing) {
@@ -5260,32 +5260,59 @@ function isListingNewForSearch(listing) {
 }
 
 function isListingFresh(listing) {
-  return getListingNewness(listing).isFresh;
+  return getListingNewness(listing).isSourceFresh;
 }
 
 function getListingNewness(listing) {
   if (!listing?.id) {
-    return {
-      isNewToUser: false,
-      isNewForSearch: false,
-      isFresh: false,
-      isSeen: true,
-    };
+    return createListingNewnessState({ isSeen: true });
   }
 
   const ledger = loadLedger();
   const entry = ledger[listing.id];
   const seen = isListingAcknowledged(entry) || isSeen(listing.id);
-  const isCurrentDiscovery = currentDiscoveryIds.has(listing.id);
-  const isNewToUser = !seen && (isCurrentDiscovery || !entry);
-  const isNewForSearch = !seen && currentNewForSearchIds.has(listing.id) && Boolean(entry);
+  const isNewToBrrtz = currentDiscoveryIds.has(listing.id) || !entry;
+  const isNewToSearch = Boolean(entry) && currentNewForSearchIds.has(listing.id);
+  const isNewToUser = !seen && isNewToBrrtz;
+  const isNewForSearch = !seen && isNewToSearch;
+  const isSourceFresh = isFreshBySourceDate(listing, entry);
+  const reason = isNewToUser ? "new-to-brrtz" : isNewForSearch ? "new-to-search" : isSourceFresh ? "latest-source" : "";
 
-  return {
+  return createListingNewnessState({
+    isNewToBrrtz,
+    isNewToSearch,
     isNewToUser,
     isNewForSearch,
-    isFresh: isFreshBySourceDate(listing, entry),
+    isSourceFresh,
     isSeen: seen,
+    reason,
+  });
+}
+
+function createListingNewnessState(overrides = {}) {
+  const state = {
+    isNewToBrrtz: false,
+    isNewToSearch: false,
+    isNewToUser: false,
+    isNewForSearch: false,
+    isSourceFresh: false,
+    isFresh: false,
+    isSeen: false,
+    showsNewBadge: false,
+    reason: "",
+    ...overrides,
   };
+
+  state.isFresh = state.isSourceFresh;
+  state.showsNewBadge = Boolean(state.isNewToUser || state.isNewForSearch);
+  return state;
+}
+
+function getListingNewnessTitle(newness = {}) {
+  if (newness.reason === "new-to-brrtz") return "New to Brrtz: first seen during this scan.";
+  if (newness.reason === "new-to-search") return "New to this saved search since you last saw it.";
+  if (newness.reason === "latest-source") return "Recently listed by the source.";
+  return "New to you in Brrtz.";
 }
 
 function isListingAcknowledged(entry) {
@@ -5314,7 +5341,7 @@ function createLiveDetail(listings, meta, errors) {
 }
 
 function appendDiscoveryDetail(detail, discoveryCount) {
-  const noun = discoveryCount === 1 ? "new-to-you discovery" : "new-to-you discoveries";
+  const noun = discoveryCount === 1 ? "first-seen Brrtz discovery" : "first-seen Brrtz discoveries";
   return `${detail} ${discoveryCount} ${noun} this scan.`;
 }
 
