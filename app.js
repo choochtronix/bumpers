@@ -4566,7 +4566,7 @@ function createFeaturedHomeHeader(count, options = {}) {
     const browseFreshness = formatBrowseFreshnessDetail(browseCacheUpdatedAt);
     header.innerHTML = `
       <div>
-        <h3>Synth Browser</h3>
+        <h3><button class="feature-headline-button" type="button" data-result-action="open-browse-expanded">Gear Browser</button></h3>
         <span>${isBrowseCached && browseCategoryStatus === "loading"
           ? `Recently spotted ${getCategoryIntentLabel(browseCategoryIntent).toLowerCase()} · Refreshing now${browseFreshness}`
           : isBrowseCached
@@ -4626,7 +4626,7 @@ function createBrowseExpandedHeader(visibleCount, totalCount) {
 
   header.innerHTML = `
     <div class="browse-expanded-copy">
-      <span class="browse-expanded-eyebrow">Synth Browser</span>
+      <span class="browse-expanded-eyebrow">Gear Browser</span>
       <h3>Latest ${escapeHtml(getCategoryIntentLabel(browseCategoryIntent))}</h3>
       <p>${escapeHtml(status)} · Newest listings first</p>
     </div>
@@ -4657,7 +4657,7 @@ function createFeaturedHomeSection(listings, options = {}) {
     isStarterLive ? "is-live-starter-fresh-finds" : "",
     isStarterLoading ? "is-loading-starter-fresh-finds" : "",
   ].filter(Boolean).join(" ");
-  section.setAttribute("aria-label", variant === "watched" ? "Watched Gear" : variant === "browse" ? "Synth Browser" : "Fresh Finds");
+  section.setAttribute("aria-label", variant === "watched" ? "Watched Gear" : variant === "browse" ? "Gear Browser" : "Fresh Finds");
   section.appendChild(createFeaturedHomeHeader(listings.length, { isStarter, isStarterLive, isStarterLoading, isCached, isBrowseCached, browseCacheUpdatedAt, variant }));
 
   const carousel = document.createElement("div");
@@ -4666,7 +4666,7 @@ function createFeaturedHomeSection(listings, options = {}) {
   const previousButton = document.createElement("button");
   previousButton.className = "featured-carousel-control featured-carousel-control-prev";
   previousButton.type = "button";
-  previousButton.setAttribute("aria-label", variant === "watched" ? "Show previous Watched Gear" : variant === "browse" ? "Show previous Synth Browser listings" : "Show previous Fresh Finds");
+  previousButton.setAttribute("aria-label", variant === "watched" ? "Show previous Watched Gear" : variant === "browse" ? "Show previous Gear Browser listings" : "Show previous Fresh Finds");
   previousButton.textContent = "‹";
 
   const rail = document.createElement("div");
@@ -4687,7 +4687,7 @@ function createFeaturedHomeSection(listings, options = {}) {
   const nextButton = document.createElement("button");
   nextButton.className = "featured-carousel-control featured-carousel-control-next";
   nextButton.type = "button";
-  nextButton.setAttribute("aria-label", variant === "watched" ? "Show more Watched Gear" : variant === "browse" ? "Show more Synth Browser listings" : "Show more Fresh Finds");
+  nextButton.setAttribute("aria-label", variant === "watched" ? "Show more Watched Gear" : variant === "browse" ? "Show more Gear Browser listings" : "Show more Fresh Finds");
   nextButton.textContent = "›";
 
   carousel.append(previousButton, rail, nextButton);
@@ -4795,7 +4795,7 @@ function ensureBrowseCategoryListings() {
       if (searchState.mode === "idle") renderResults();
     })
     .catch((error) => {
-      console.warn("Synth Browser unavailable.", error);
+      console.warn("Gear Browser unavailable.", error);
       browseCategoryError = error instanceof Error ? error.message : "Browse category unavailable";
       browseCategoryStatus = "error";
       if (searchState.mode === "idle") renderResults();
@@ -5003,7 +5003,7 @@ function saveBrowseCategoryCache(categoryIntent, listings) {
       browseCategoryUpdatedAt = generatedAt;
     } catch (retryError) {
       if (!isStorageQuotaError(retryError)) throw retryError;
-      console.warn("Synth Browser cache skipped because browser storage is full.", retryError);
+      console.warn("Gear Browser cache skipped because browser storage is full.", retryError);
     }
   }
 }
