@@ -3512,6 +3512,7 @@ function renderResults() {
   resultGrid.classList.toggle("is-featured-home", isShowingFeaturedHome);
   resultGrid.classList.toggle("is-list-view", !isShowingFeaturedHome && appSettings.resultView === "list");
   resultGrid.classList.toggle("is-browse-expanded", false);
+  resultGrid.classList.toggle("is-gear-browser-frame", false);
   renderSourceFilters(resultSource);
   renderAlertPanel(featuredHomeResults);
 
@@ -3554,6 +3555,7 @@ function renderHomeView(watching) {
   resultGrid.classList.toggle("is-featured-home", isShowingFeaturedHome);
   resultGrid.classList.toggle("is-list-view", false);
   resultGrid.classList.toggle("is-browse-expanded", false);
+  resultGrid.classList.toggle("is-gear-browser-frame", false);
   renderSourceFilters(homeResults);
   renderAlertPanel([]);
 
@@ -3593,6 +3595,7 @@ function renderBrowseExpandedView(watching) {
   resultGrid.classList.toggle("is-featured-home", false);
   resultGrid.classList.toggle("is-list-view", appSettings.resultView === "list");
   resultGrid.classList.toggle("is-browse-expanded", true);
+  resultGrid.classList.toggle("is-gear-browser-frame", true);
   renderSourceFilters(browseListings);
   renderAlertPanel([]);
 
@@ -4581,19 +4584,19 @@ function createFeaturedHomeHeader(count, options = {}) {
       <option value="${escapeHtml(intent.id)}" ${intent.id === browseCategoryIntent ? "selected" : ""}>${escapeHtml(intent.label)}</option>
     `).join("");
     const browseFreshness = formatBrowseFreshnessDetail(browseCacheUpdatedAt);
+    const browseDetail = isBrowseCached && browseCategoryStatus === "loading"
+      ? `Recently spotted ${getCategoryIntentLabel(browseCategoryIntent).toLowerCase()} · Refreshing now${browseFreshness}`
+      : isBrowseCached
+        ? `Recently spotted ${getCategoryIntentLabel(browseCategoryIntent).toLowerCase()}${browseFreshness}`
+      : browseCategoryStatus === "loading"
+        ? `Browsing latest ${getCategoryIntentLabel(browseCategoryIntent).toLowerCase()} listings`
+      : browseCategoryStatus === "error"
+        ? browseCategoryError || "Browse mode is warming up"
+        : `${count} latest ${count === 1 ? "listing" : "listings"} in ${getCategoryIntentLabel(browseCategoryIntent).toLowerCase()}${browseFreshness}`;
     header.innerHTML = `
       <div>
         <h3><button class="feature-headline-button" type="button" data-result-action="open-browse-expanded">Gear Browser</button></h3>
-        <span>${isBrowseCached && browseCategoryStatus === "loading"
-          ? `Recently spotted ${getCategoryIntentLabel(browseCategoryIntent).toLowerCase()} · Refreshing now${browseFreshness}`
-          : isBrowseCached
-            ? `Recently spotted ${getCategoryIntentLabel(browseCategoryIntent).toLowerCase()}${browseFreshness}`
-          : browseCategoryStatus === "loading"
-          ? `Browsing latest ${getCategoryIntentLabel(browseCategoryIntent).toLowerCase()} listings`
-          : browseCategoryStatus === "error"
-            ? browseCategoryError || "Browse mode is warming up"
-            : `${count} latest ${count === 1 ? "listing" : "listings"} in ${getCategoryIntentLabel(browseCategoryIntent).toLowerCase()}${browseFreshness}`
-        }</span>
+        <span>${escapeHtml(browseDetail)}</span>
       </div>
       <div class="browse-header-actions">
         <label class="browse-category-control">
@@ -4669,6 +4672,7 @@ function createFeaturedHomeSection(listings, options = {}) {
   const section = document.createElement("section");
   section.className = [
     "featured-home-section",
+    variant === "browse" ? "is-gear-browser-frame" : "",
     variant === "watched" ? "is-watched-gear" : "",
     isStarter ? "is-starter-fresh-finds" : "",
     isStarterLive ? "is-live-starter-fresh-finds" : "",
@@ -4684,7 +4688,6 @@ function createFeaturedHomeSection(listings, options = {}) {
   previousButton.className = "featured-carousel-control featured-carousel-control-prev";
   previousButton.type = "button";
   previousButton.setAttribute("aria-label", variant === "watched" ? "Show previous Watched Gear" : variant === "browse" ? "Show previous Gear Browser listings" : "Show previous Fresh Finds");
-  previousButton.textContent = "‹";
 
   const rail = document.createElement("div");
   rail.className = "featured-home-rail";
@@ -4705,7 +4708,6 @@ function createFeaturedHomeSection(listings, options = {}) {
   nextButton.className = "featured-carousel-control featured-carousel-control-next";
   nextButton.type = "button";
   nextButton.setAttribute("aria-label", variant === "watched" ? "Show more Watched Gear" : variant === "browse" ? "Show more Gear Browser listings" : "Show more Fresh Finds");
-  nextButton.textContent = "›";
 
   carousel.append(previousButton, rail, nextButton);
   section.appendChild(carousel);
