@@ -11,6 +11,10 @@
   --color-line: #d9ddd5;
   --color-field: rgba(255, 255, 255, 0.9);
   --color-button-bg: #ffffff;
+  --color-select-bg: #e7ebe3;
+  --color-select-hover-bg: #dde4d8;
+  --color-select-chevron-bg: #ffffff;
+  --color-select-chevron-ink: #151515;
   --color-primary: #171a1d;
   --color-primary-ink: #ffffff;
   --color-secondary-button-stroke: #cfd4cc;
@@ -74,6 +78,10 @@
   --line: var(--color-line);
   --field: var(--color-field);
   --button-bg: var(--color-button-bg);
+  --select-bg: var(--color-select-bg);
+  --select-hover-bg: var(--color-select-hover-bg);
+  --select-chevron-bg: var(--color-select-chevron-bg);
+  --select-chevron-ink: var(--color-select-chevron-ink);
   --primary: var(--color-primary);
   --primary-ink: var(--color-primary-ink);
   --secondary-button-stroke: var(--color-secondary-button-stroke);
@@ -107,6 +115,10 @@ body[data-theme="dark"] {
   --color-line: #30363a;
   --color-field: rgba(19, 22, 25, 0.95);
   --color-button-bg: #202428;
+  --color-select-bg: #222725;
+  --color-select-hover-bg: #2a302e;
+  --color-select-chevron-bg: #111416;
+  --color-select-chevron-ink: #f2f4f4;
   --color-primary: #f2f4f4;
   --color-primary-ink: #101214;
   --color-secondary-button-stroke: #f2f4f4;
@@ -136,6 +148,10 @@ body[data-theme="dark"] {
   --line: var(--color-line);
   --field: var(--color-field);
   --button-bg: var(--color-button-bg);
+  --select-bg: var(--color-select-bg);
+  --select-hover-bg: var(--color-select-hover-bg);
+  --select-chevron-bg: var(--color-select-chevron-bg);
+  --select-chevron-ink: var(--color-select-chevron-ink);
   --primary: var(--color-primary);
   --primary-ink: var(--color-primary-ink);
   --secondary-button-stroke: var(--color-secondary-button-stroke);

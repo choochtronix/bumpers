@@ -717,6 +717,7 @@ let browseCategoryListings = [];
 let browseCategoryError = "";
 let browseCategoryCacheSignature = "";
 let browseCategoryUpdatedAt = "";
+let browseCategoryRequestId = 0;
 let isBrowseExpanded = false;
 let isSourceRowExpanded = true;
 const rakumaClientThumbnailCache = new Map();
@@ -1247,6 +1248,7 @@ function bindEvents() {
   quickSearchExtraTermsButton?.addEventListener("click", openRefineSearchModal);
   termDropdown.addEventListener("click", handleTermDropdownClick);
   resultGrid.addEventListener("click", handleResultGridAction);
+  resultGrid.addEventListener("input", handleResultGridAction);
   resultGrid.addEventListener("change", handleResultGridAction);
   document.addEventListener("click", closeListingActionMenus);
 
@@ -3628,7 +3630,7 @@ function renderBrowseExpandedView(watching) {
 }
 
 function handleResultGridAction(event) {
-  if (event.type === "change") {
+  if (event.type === "change" || event.type === "input") {
     const browseSelect = event.target.closest("#homeBrowseCategory");
     if (browseSelect) {
       setHomeBrowseCategory(browseSelect.value);
@@ -4799,21 +4801,26 @@ function ensureBrowseCategoryListings() {
   if (browseCategoryStatus !== "idle") return;
   if (location.protocol === "file:") return;
 
+  const requestedCategoryIntent = browseCategoryIntent;
+  const requestId = browseCategoryRequestId + 1;
+  browseCategoryRequestId = requestId;
   browseCategoryStatus = "loading";
   browseCategoryError = "";
 
-  fetchBrowseCategoryListings(browseCategoryIntent)
+  fetchBrowseCategoryListings(requestedCategoryIntent)
     .then((listings) => {
+      if (requestId !== browseCategoryRequestId || requestedCategoryIntent !== browseCategoryIntent) return;
       browseCategoryListings = listings;
       browseCategoryStatus = listings.length > 0 ? "live" : "empty";
       const curatedListings = curateFreshFindListings(listings, { limit: FEATURED_HOME_LIMIT });
       if (curatedListings.length > 0) {
-        recordListingDiscoveries({ name: `${getCategoryIntentLabel(browseCategoryIntent)} Browser` }, curatedListings);
-        maybeSaveBrowseCategoryCache(browseCategoryIntent, listings);
+        recordListingDiscoveries({ name: `${getCategoryIntentLabel(requestedCategoryIntent)} Browser` }, curatedListings);
+        maybeSaveBrowseCategoryCache(requestedCategoryIntent, listings);
       }
       if (searchState.mode === "idle") renderResults();
     })
     .catch((error) => {
+      if (requestId !== browseCategoryRequestId || requestedCategoryIntent !== browseCategoryIntent) return;
       console.warn("Gear Browser unavailable.", error);
       browseCategoryError = error instanceof Error ? error.message : "Browse category unavailable";
       browseCategoryStatus = "error";
@@ -4859,6 +4866,7 @@ function setHomeBrowseCategory(categoryIntent) {
   browseCategoryListings = [];
   browseCategoryStatus = "idle";
   browseCategoryError = "";
+  browseCategoryRequestId += 1;
   if (searchState.mode === "idle") renderResults();
 }
 
