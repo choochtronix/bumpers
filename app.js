@@ -3848,11 +3848,18 @@ function renderPagination(resultCount, totalPages) {
 
 function changePage(action) {
   const watching = loadSet(STORAGE_KEYS.watching);
-  const totalPages = getTotalPages(getVisibleResults(watching).length);
+  const totalPages = getTotalPages(getPaginationResults(watching).length);
   const nextPage = action === "next" ? currentPage + 1 : currentPage - 1;
   currentPage = Math.max(1, Math.min(nextPage, totalPages));
   renderResults();
   scrollResultsTop();
+}
+
+function getPaginationResults(watching = loadSet(STORAGE_KEYS.watching)) {
+  if (searchState.mode === "idle" && isBrowseExpanded) {
+    return getVisibleResults(watching, getBrowseCategoryExpandedListings());
+  }
+  return getVisibleResults(watching);
 }
 
 function resetPagination() {
