@@ -38,6 +38,7 @@ const ACTIVE_REGION = REGION_CONFIG?.activeRegion || {
 };
 const RESULTS_PER_PAGE = 48;
 const FEATURED_HOME_LIMIT = 12;
+const BROWSE_HOME_LIMIT = 6;
 const BROWSE_EXPANDED_LIMIT = 240;
 const APP_VIEW_PARAM = "view";
 const APP_VIEW_SYNTH_BROWSER = "synth-browser";
@@ -1437,6 +1438,7 @@ function bindEvents() {
 function resetHomeView(event) {
   event?.preventDefault?.();
   setAppView(null);
+  isBrowseExpanded = false;
   searchRunId += 1;
   currentProfile = createFreshProfile();
   fillForm(currentProfile);
@@ -4775,11 +4777,11 @@ function getFreshFindHomeListings() {
 function getBrowseCategoryHomeListings() {
   ensureBrowseCategoryListings();
   if (browseCategoryListings.length > 0) {
-    const curatedListings = curateFreshFindListings(browseCategoryListings, { limit: FEATURED_HOME_LIMIT });
+    const curatedListings = curateFreshFindListings(browseCategoryListings, { limit: BROWSE_HOME_LIMIT });
     maybeSaveBrowseCategoryCache(browseCategoryIntent, browseCategoryListings);
     return curatedListings;
   }
-  const cachedListings = getCachedBrowseCategoryListings();
+  const cachedListings = getCachedBrowseCategoryListings(browseCategoryIntent, { limit: BROWSE_HOME_LIMIT });
   if (cachedListings.length > 0) return cachedListings;
   if (browseCategoryStatus === "loading") return createBrowseCategoryLoadingPlaceholders();
   return [];
@@ -4812,7 +4814,7 @@ function ensureBrowseCategoryListings() {
       if (requestId !== browseCategoryRequestId || requestedCategoryIntent !== browseCategoryIntent) return;
       browseCategoryListings = listings;
       browseCategoryStatus = listings.length > 0 ? "live" : "empty";
-      const curatedListings = curateFreshFindListings(listings, { limit: FEATURED_HOME_LIMIT });
+      const curatedListings = curateFreshFindListings(listings, { limit: BROWSE_HOME_LIMIT });
       if (curatedListings.length > 0) {
         recordListingDiscoveries({ name: `${getCategoryIntentLabel(requestedCategoryIntent)} Browser` }, curatedListings);
         maybeSaveBrowseCategoryCache(requestedCategoryIntent, listings);
