@@ -5869,3 +5869,13 @@ body[data-theme="dark"] .refine-backdrop {
     font-size: 15px;
   }
 }
+
+@media (max-width: 980px) {
+  .featured-home-section.is-gear-browser-frame .featured-carousel-control {
+    display: grid;
+  }
+
+  .featured-home-section.is-gear-browser-frame .featured-carousel-control[hidden] {
+    display: none;
+  }
+}
