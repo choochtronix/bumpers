@@ -2942,6 +2942,8 @@ body[data-theme="dark"] .back-to-top:hover {
 
 .featured-home-section.is-gear-browser-frame {
   gap: clamp(22px, 2.4vw, 34px);
+  border: 0;
+  background: #ffffff;
 }
 
 .featured-home-section + .featured-home-section {
