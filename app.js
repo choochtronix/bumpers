@@ -884,6 +884,7 @@ function initializeBrandWave() {
   const IDLE_GAIN = 0.025;
   const ACTIVE_GAIN = 0.08;
   const RELEASE_GAIN = 0.0001;
+  const HOVER_AUDIO_DELAY_MS = 3000;
   const ARP_MS = 5000;
   const pageStart = Date.now();
 
@@ -911,6 +912,8 @@ function initializeBrandWave() {
   let filt = null;
   let audioInit = false;
   let audioReady = false;
+  let audioHoverTimer = 0;
+  let audioArmed = false;
   let osc2FadeScheduled = false;
 
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
@@ -1172,6 +1175,32 @@ function initializeBrandWave() {
     return Boolean(interactive && !target.closest("#brandHomeLink"));
   }
 
+  function armHoverAudio() {
+    if (audioHoverTimer || audioArmed) return;
+    audioHoverTimer = window.setTimeout(() => {
+      audioHoverTimer = 0;
+      startHoverAudio();
+    }, HOVER_AUDIO_DELAY_MS);
+  }
+
+  async function startHoverAudio() {
+    if (!pointerActive || hoverStart === null) return;
+    if (performance.now() - hoverStart < HOVER_AUDIO_DELAY_MS) {
+      armHoverAudio();
+      return;
+    }
+
+    await initAudio();
+    await resumeAudio();
+    if (!audioReady) return;
+
+    if (!audioArmed) {
+      audioArmed = true;
+      fadeInGain();
+    }
+    engageAudio();
+  }
+
   async function wake(event) {
     if (isWaveControlEvent(event)) {
       sleep();
@@ -1179,23 +1208,30 @@ function initializeBrandWave() {
     }
 
     const clientX = getPointerClientX(event);
-    const freshEntry = clientX !== null && hoverStart === null;
 
     if (clientX !== null) {
       pointerActive = true;
       pointerX = svgX(event);
-      if (hoverStart === null) hoverStart = performance.now();
+      if (hoverStart === null) {
+        hoverStart = performance.now();
+        audioArmed = false;
+        armHoverAudio();
+      } else if (!audioArmed && performance.now() - hoverStart >= HOVER_AUDIO_DELAY_MS) {
+        await startHoverAudio();
+      } else if (audioArmed) {
+        engageAudio();
+      }
     }
-
-    await initAudio();
-    await resumeAudio();
-    if (freshEntry) fadeInGain();
-    engageAudio();
   }
 
   function sleep() {
     pointerActive = false;
     hoverStart = null;
+    audioArmed = false;
+    if (audioHoverTimer) {
+      window.clearTimeout(audioHoverTimer);
+      audioHoverTimer = 0;
+    }
     arpMode = false;
     arpSeq = [];
     osc2ArpSeq = [];
