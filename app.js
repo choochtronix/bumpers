@@ -3846,7 +3846,7 @@ function renderResultViewControls(isShowingFeaturedHome = false, forcedView = ""
     const activeView = forcedView || appSettings.resultView;
     const isActive = button.dataset.resultView === activeView;
     button.classList.toggle("is-active", isActive);
-    button.disabled = isShowingFeaturedHome;
+    button.disabled = isShowingFeaturedHome && !isSearching;
     button.setAttribute("aria-pressed", String(isActive));
   });
 }
@@ -4678,31 +4678,29 @@ function createFeaturedHomeHeader(count, options = {}) {
 
 function createBrowseExpandedHeader(visibleCount, totalCount) {
   const header = document.createElement("section");
-  header.className = "browse-expanded-header";
+  header.className = "browse-expanded-header featured-home-header is-browse-header";
   const optionsMarkup = CATEGORY_INTENTS.map((intent) => `
     <option value="${escapeHtml(intent.id)}" ${intent.id === browseCategoryIntent ? "selected" : ""}>${escapeHtml(intent.label)}</option>
   `).join("");
   const freshness = formatBrowseFreshnessDetail(getBrowseCategoryFreshness());
-  const status = browseCategoryStatus === "loading" && totalCount > 0
+  const browseDetail = browseCategoryStatus === "loading" && totalCount > 0
     ? `${visibleCount} cached ${visibleCount === 1 ? "listing" : "listings"} · Refreshing now${freshness}`
     : browseCategoryStatus === "loading"
       ? "Checking source feeds now"
       : browseCategoryStatus === "error"
         ? browseCategoryError || "Browse mode is warming up"
-        : `${visibleCount} newest ${visibleCount === 1 ? "listing" : "listings"}${freshness}`;
+        : `${visibleCount} newest ${visibleCount === 1 ? "listing" : "listings"} in ${getCategoryIntentLabel(browseCategoryIntent).toLowerCase()}${freshness}`;
 
   header.innerHTML = `
-    <div class="browse-expanded-copy">
-      <span class="browse-expanded-eyebrow">Gear Browser</span>
-      <h3>Latest ${escapeHtml(getCategoryIntentLabel(browseCategoryIntent))}</h3>
-      <p>${escapeHtml(status)} · Newest listings first</p>
+    <div>
+      <h3><span class="feature-headline-button browse-expanded-headline">Gear Browser</span></h3>
+      <span>${escapeHtml(browseDetail)}</span>
     </div>
-    <div class="browse-expanded-actions">
+    <div class="browse-header-actions">
       <label class="browse-category-control">
-        <span>Category</span>
+        <span>Browse</span>
         <select id="expandedBrowseCategory" aria-label="Browse category">${optionsMarkup}</select>
       </label>
-      <button class="browse-view-all-button" type="button" data-result-action="close-browse-expanded">Back to home</button>
     </div>
   `;
   return header;
