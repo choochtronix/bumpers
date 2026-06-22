@@ -2,7 +2,7 @@
   color-scheme: light;
 
   /* Core color tokens */
-  --color-bg: #f4f5f2;
+  --color-bg: #eef1f0;
   --color-panel: #ffffff;
   --color-panel-soft: rgba(255, 255, 255, 0.82);
   --color-panel-glass: rgba(255, 255, 255, 0.74);
@@ -65,7 +65,7 @@
   --motion-standard: 160ms ease;
 
   /* Typography */
-  --font-ui: ui-sans-serif, -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
+  --font-ui: Helvetica, Arial, "Segoe UI", ui-sans-serif, -apple-system, BlinkMacSystemFont, sans-serif;
 
   /* Backward-compatible semantic aliases used by the app CSS */
   --bg: var(--color-bg);

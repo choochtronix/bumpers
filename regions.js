@@ -56,6 +56,31 @@ window.BRRTZ_REGION_CONFIG = (() => {
         maxDistanceMiles: 75,
       },
     },
+    {
+      id: "east-coast",
+      label: "East Coast",
+      currency: "USD",
+      defaultLocale: "en-US",
+      status: "beta",
+      sources: [
+        "craigslist-east",
+        "main-drag",
+        "rogue-music",
+        "three-wave",
+        "alto-music",
+        "tone-tweakers",
+        "pro-audio-star",
+        "reverb-us",
+        "ebay-us",
+      ],
+      searchDefaults: {
+        cleanGear: true,
+        categoryIntent: "synthesizers",
+        maxResults: 80,
+        maxPrice: 10000,
+        maxDistanceMiles: 150,
+      },
+    },
   ];
 
   const activeRegionId = "japan";

@@ -53,8 +53,53 @@ const GUITAR_CENTER_USED_CATEGORIES = {
 };
 const SWEETWATER_USED_BASE_URL = "https://www.sweetwater.com/used/listings";
 const SWEETWATER_ASSIST_MESSAGE = "Sweetwater Used Assist is active. Brrtz is not querying Sweetwater automatically; open the prepared Sweetwater Used search instead.";
+const MAIN_DRAG_BASE_URL = "https://maindragmusic.com";
+const ROGUE_MUSIC_BASE_URL = "https://www.roguemusic.com";
+const EAST_COAST_STORE_ASSIST_MESSAGE = "East Coast store assist is active. Brrtz is not querying this shop automatically; open the prepared store search instead.";
+const EAST_COAST_STORE_ASSIST_SOURCES = {
+  "main-drag": {
+    baseUrl: "https://maindragmusic.com",
+    searchPath: "/search",
+    searchParam: "q",
+  },
+  "rogue-music": {
+    baseUrl: "https://www.roguemusic.com",
+    fallbackPath: "/",
+  },
+  "three-wave": {
+    baseUrl: "https://threewavemusic.com",
+    searchPath: "/search.php",
+    searchParam: "search_query",
+  },
+  "alto-music": {
+    baseUrl: "https://www.altomusic.com",
+    searchPath: "/search",
+    searchParam: "q",
+  },
+  "tone-tweakers": {
+    baseUrl: "https://tonetweakers.com",
+    searchPath: "/search",
+    searchParam: "q",
+  },
+  "pro-audio-star": {
+    baseUrl: "https://www.proaudiostar.com",
+    searchPath: "/catalogsearch/result/",
+    searchParam: "q",
+  },
+};
 const CRAIGSLIST_SFBAY_BASE_URL = "https://sfbay.craigslist.org";
 const CRAIGSLIST_LA_BASE_URL = "https://losangeles.craigslist.org";
+const CRAIGSLIST_EAST_BASE_URL = "https://newyork.craigslist.org";
+const CRAIGSLIST_EAST_REGION_TARGETS = [
+  { sourceId: "craigslist-east", baseUrl: "https://newyork.craigslist.org", label: "Craigslist NYC" },
+  { sourceId: "craigslist-east", baseUrl: "https://newjersey.craigslist.org", label: "Craigslist New Jersey" },
+  { sourceId: "craigslist-east", baseUrl: "https://longisland.craigslist.org", label: "Craigslist Long Island" },
+  { sourceId: "craigslist-east", baseUrl: "https://hudsonvalley.craigslist.org", label: "Craigslist Hudson Valley" },
+  { sourceId: "craigslist-east", baseUrl: "https://boston.craigslist.org", label: "Craigslist Boston" },
+  { sourceId: "craigslist-east", baseUrl: "https://philadelphia.craigslist.org", label: "Craigslist Philadelphia" },
+  { sourceId: "craigslist-east", baseUrl: "https://washingtondc.craigslist.org", label: "Craigslist DC" },
+  { sourceId: "craigslist-east", baseUrl: "https://baltimore.craigslist.org", label: "Craigslist Baltimore" },
+];
 const JINA_READER_BASE_URL = "https://r.jina.ai/http://";
 const YAHOO_AUCTIONS_BASE_URL = "https://auctions.yahoo.co.jp";
 const YAHOO_FLEAMARKET_BASE_URL = "https://paypayfleamarket.yahoo.co.jp";
@@ -442,6 +487,7 @@ async function handleSourceHealthJob(request, url, response) {
 const SHARED_SOURCE_HEALTH_REGION_IDS = {
   "bay-area": ["craigslist-sfbay", "reverb-us", "ebay-us"],
   "los-angeles": ["craigslist-la", "reverb-us", "ebay-us"],
+  "east-coast": ["craigslist-east", "reverb-us", "ebay-us"],
 };
 
 function getHealthSourcesForRegion(regionId) {
@@ -482,6 +528,7 @@ function getSourceHealthSearchFn(sourceId) {
     jimoty: searchJimoty,
     mercari: searchMercari,
     offmall: searchOffmall,
+    "craigslist-east": searchCraigslistEast,
     "craigslist-la": searchCraigslistLa,
     "craigslist-sfbay": searchCraigslistSfbay,
     rakuma: searchRakuma,
@@ -979,9 +1026,16 @@ async function handleSearch(url, response) {
   const wantsImplant4 = sources.length === 0 || sources.includes("implant4");
   const wantsCraigslistSfbay = sources.length === 0 || sources.includes("craigslist-sfbay");
   const wantsCraigslistLa = sources.length === 0 || sources.includes("craigslist-la");
+  const wantsCraigslistEast = sources.length === 0 || sources.includes("craigslist-east");
   const wantsEbayUs = sources.length === 0 || sources.includes("ebay-us");
   const wantsSweetwaterUsed = sources.length === 0 || sources.includes("sweetwater-used");
   const wantsGuitarCenterUsed = sources.length === 0 || sources.includes("guitar-center-used");
+  const wantsMainDrag = sources.includes("main-drag") || (sources.length === 0 && regionId === "east-coast");
+  const wantsRogueMusic = sources.includes("rogue-music") || (sources.length === 0 && regionId === "east-coast");
+  const wantsThreeWave = sources.includes("three-wave") || (sources.length === 0 && regionId === "east-coast");
+  const wantsAltoMusic = sources.includes("alto-music") || (sources.length === 0 && regionId === "east-coast");
+  const wantsToneTweakers = sources.includes("tone-tweakers") || (sources.length === 0 && regionId === "east-coast");
+  const wantedEastCoastStoreSources = getWantedEastCoastStoreSources(sources, regionId);
   const wantsJimoty = sources.length === 0 || sources.includes("jimoty");
   const wantsMercari = sources.length === 0 || sources.includes("mercari");
   const wantsOffmall = sources.length === 0 || sources.includes("offmall") || sources.includes("hardoff");
@@ -992,7 +1046,7 @@ async function handleSearch(url, response) {
   const wantsYahooFleamarket = sources.length === 0 || sources.includes("yahoo-fleamarket");
   const startedAt = new Date();
 
-  if ((!wantsDigimart && !wantsFiveG && !wantsImplant4 && !wantsCraigslistSfbay && !wantsCraigslistLa && !wantsEbayUs && !wantsSweetwaterUsed && !wantsGuitarCenterUsed && !wantsJimoty && !wantsMercari && !wantsOffmall && !wantsRakuma && !wantsReverb && !wantsReverbUs && !wantsYahooAuctions && !wantsYahooFleamarket) || terms.length === 0) {
+  if ((!wantsDigimart && !wantsFiveG && !wantsImplant4 && !wantsCraigslistSfbay && !wantsCraigslistLa && !wantsCraigslistEast && !wantsEbayUs && !wantsSweetwaterUsed && !wantsGuitarCenterUsed && !wantsMainDrag && !wantsRogueMusic && !wantsThreeWave && !wantsAltoMusic && !wantsToneTweakers && wantedEastCoastStoreSources.length === 0 && !wantsJimoty && !wantsMercari && !wantsOffmall && !wantsRakuma && !wantsReverb && !wantsReverbUs && !wantsYahooAuctions && !wantsYahooFleamarket) || terms.length === 0) {
     sendJson(response, 200, { listings: [], meta: createSearchMeta(startedAt, [], [], terms, { categoryIntent }) });
     return;
   }
@@ -1036,6 +1090,15 @@ async function handleSearch(url, response) {
     sourceTasks.push(Promise.resolve(createParkedCraigslistSourceResult("craigslist-la", terms, CRAIGSLIST_LA_BASE_URL, { maxPrice })));
   }
 
+  if (wantsCraigslistEast && isCraigslistLiveEnabled()) {
+    sourceTasks.push(searchSourceTerms("craigslist-east", terms, searchCraigslistEast, {
+      maxTerms: 1,
+      termDelayMs: 250,
+    }));
+  } else if (wantsCraigslistEast) {
+    sourceTasks.push(Promise.resolve(createParkedCraigslistSourceResult("craigslist-east", terms, CRAIGSLIST_EAST_BASE_URL, { maxPrice })));
+  }
+
   if (wantsEbayUs && hasEbayCredentials()) {
     sourceTasks.push(searchSourceTerms("ebay-us", terms, searchEbayUs, {
       maxTerms: EBAY_TERM_LIMIT,
@@ -1051,6 +1114,45 @@ async function handleSearch(url, response) {
 
   if (wantsGuitarCenterUsed) {
     sourceTasks.push(Promise.resolve(createManualGuitarCenterSourceResult(terms, { categoryIntent })));
+  }
+
+  if (wantsMainDrag) {
+    sourceTasks.push(searchSourceTerms("main-drag", terms, searchMainDrag, {
+      maxTerms: 1,
+      termDelayMs: 0,
+    }));
+  }
+
+  if (wantsRogueMusic) {
+    sourceTasks.push(searchSourceTerms("rogue-music", terms, searchRogueMusic, {
+      maxTerms: 1,
+      termDelayMs: 0,
+    }));
+  }
+
+  if (wantsThreeWave) {
+    sourceTasks.push(searchSourceTerms("three-wave", terms, searchThreeWave, {
+      maxTerms: 1,
+      termDelayMs: 0,
+    }));
+  }
+
+  if (wantsAltoMusic) {
+    sourceTasks.push(searchSourceTerms("alto-music", terms, searchAltoMusic, {
+      maxTerms: 1,
+      termDelayMs: 0,
+    }));
+  }
+
+  if (wantsToneTweakers) {
+    sourceTasks.push(searchSourceTerms("tone-tweakers", terms, searchToneTweakers, {
+      maxTerms: 1,
+      termDelayMs: 0,
+    }));
+  }
+
+  for (const sourceId of wantedEastCoastStoreSources) {
+    sourceTasks.push(Promise.resolve(createManualEastCoastStoreSourceResult(sourceId, terms)));
   }
 
   if (wantsJimoty) {
@@ -1192,6 +1294,46 @@ async function handleBrowse(url, response) {
       }));
     } else {
       browseTasks.push(Promise.resolve(createPendingSourceResult("ebay-us", browseTerms, EBAY_PENDING_MESSAGE)));
+    }
+
+    if (regionId === "east-coast") {
+      browseTasks.push(searchSourceTerms("main-drag", browseTerms, searchMainDrag, {
+        maxTerms: 1,
+        termDelayMs: 0,
+      }));
+
+      browseTasks.push(searchSourceTerms("rogue-music", browseTerms, searchRogueMusic, {
+        maxTerms: 1,
+        termDelayMs: 0,
+      }));
+
+      browseTasks.push(searchSourceTerms("three-wave", browseTerms, searchThreeWave, {
+        maxTerms: 1,
+        termDelayMs: 0,
+      }));
+
+      browseTasks.push(searchSourceTerms("alto-music", browseTerms, searchAltoMusic, {
+        maxTerms: 1,
+        termDelayMs: 0,
+      }));
+
+      browseTasks.push(searchSourceTerms("tone-tweakers", browseTerms, searchToneTweakers, {
+        maxTerms: 1,
+        termDelayMs: 0,
+      }));
+
+      if (isCraigslistLiveEnabled()) {
+        browseTasks.push(searchSourceTerms("craigslist-east", browseTerms, searchCraigslistEast, {
+          maxTerms: 1,
+          termDelayMs: 250,
+        }));
+      } else {
+        browseTasks.push(Promise.resolve(createParkedCraigslistSourceResult("craigslist-east", browseTerms, CRAIGSLIST_EAST_BASE_URL, { maxPrice })));
+      }
+
+      for (const sourceId of Object.keys(EAST_COAST_STORE_ASSIST_SOURCES)) {
+        browseTasks.push(Promise.resolve(createManualEastCoastStoreSourceResult(sourceId, browseTerms)));
+      }
     }
 
     const browseResults = await Promise.all(browseTasks);
@@ -1355,7 +1497,7 @@ function normalizeMode(value, allowedModes, fallback) {
 }
 
 function sanitizeRegionId(regionId) {
-  return ["bay-area", "los-angeles"].includes(regionId) ? regionId : "japan";
+  return ["bay-area", "los-angeles", "east-coast"].includes(regionId) ? regionId : "japan";
 }
 
 function getRegionCurrency(regionId) {
@@ -1389,7 +1531,7 @@ function getUsBrowseTerms(categoryIntent) {
 }
 
 function isUsRegion(regionId) {
-  return ["bay-area", "los-angeles"].includes(regionId);
+  return ["bay-area", "los-angeles", "east-coast"].includes(regionId);
 }
 
 function isCraigslistLiveEnabled() {
@@ -1444,6 +1586,28 @@ function createManualSweetwaterSourceResult(terms) {
   };
 }
 
+function getWantedEastCoastStoreSources(sources = [], regionId = "") {
+  const sourceIds = Object.keys(EAST_COAST_STORE_ASSIST_SOURCES)
+    .filter((sourceId) => !["main-drag", "rogue-music", "three-wave", "alto-music", "tone-tweakers"].includes(sourceId));
+  if (sources.length === 0) return regionId === "east-coast" ? sourceIds : [];
+  return sourceIds.filter((sourceId) => sources.includes(sourceId));
+}
+
+function createManualEastCoastStoreSourceResult(source, terms) {
+  return {
+    listings: [],
+    errors: [],
+    stats: {
+      source,
+      status: "manual",
+      searchedTerms: terms.slice(0, 1),
+      rawCount: 0,
+      message: EAST_COAST_STORE_ASSIST_MESSAGE,
+      manualUrl: createEastCoastStoreManualSearchUrl(source, terms[0] || ""),
+    },
+  };
+}
+
 function createPendingSourceResult(source, terms, message) {
   return {
     listings: [],
@@ -1477,6 +1641,16 @@ function createSweetwaterManualSearchUrl(term) {
   const url = new URL(SWEETWATER_USED_BASE_URL);
   const query = String(term || "").trim();
   if (query) url.searchParams.set("query", query);
+  return url.toString();
+}
+
+function createEastCoastStoreManualSearchUrl(source, term) {
+  const config = EAST_COAST_STORE_ASSIST_SOURCES[source];
+  if (!config) return "";
+
+  const url = new URL(config.searchPath || config.fallbackPath || "/", config.baseUrl);
+  const query = String(term || "").trim();
+  if (query && config.searchParam) url.searchParams.set(config.searchParam, query);
   return url.toString();
 }
 
@@ -1815,6 +1989,127 @@ async function searchEbayUs(term) {
   return parseEbayBrowse(await response.json());
 }
 
+async function searchMainDrag(term) {
+  const url = new URL("/search", MAIN_DRAG_BASE_URL);
+  url.searchParams.set("q", term);
+
+  const response = await fetch(url, {
+    headers: {
+      "user-agent": USER_AGENT,
+      "accept": "text/html,application/xhtml+xml",
+      "accept-language": "en-US,en;q=0.9",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Main Drag responded with ${response.status}`);
+  }
+
+  return parseMainDrag(await response.text());
+}
+
+async function searchRogueMusic(term) {
+  const searches = getRogueMusicSearches(term);
+  const listingsById = new Map();
+
+  for (const [index, search] of searches.entries()) {
+    const html = await fetchRogueMusicSearch(search);
+    parseRogueMusic(html, search).forEach((listing) => listingsById.set(listing.id, listing));
+    if (index < searches.length - 1) await wait(250);
+  }
+
+  const listings = [...listingsById.values()];
+  return isGenericRogueMusicTerm(term)
+    ? listings
+    : listings.filter((listing) => rogueListingMatchesTerm(listing, term));
+}
+
+async function fetchRogueMusicSearch(search) {
+  const response = await fetch(new URL("/golink5.php", ROGUE_MUSIC_BASE_URL), {
+    method: "POST",
+    headers: {
+      "user-agent": USER_AGENT,
+      "accept": "text/html,application/xhtml+xml",
+      "accept-language": "en-US,en;q=0.9",
+      "content-type": "application/x-www-form-urlencoded",
+      "referer": ROGUE_MUSIC_BASE_URL,
+    },
+    body: new URLSearchParams({
+      d: search.d,
+      v: search.v,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Rogue Music responded with ${response.status}`);
+  }
+
+  return response.text();
+}
+
+async function searchThreeWave(term) {
+  const url = new URL("/search.php", "https://threewavemusic.com");
+  url.searchParams.set("search_query", term);
+  url.searchParams.set("section", "product");
+
+  const response = await fetch(url, {
+    headers: {
+      "user-agent": USER_AGENT,
+      "accept": "text/html,application/xhtml+xml",
+      "accept-language": "en-US,en;q=0.9",
+    },
+  });
+
+  if (!response.ok) throw new Error(`Three Wave responded with ${response.status}`);
+  return parseThreeWave(await response.text());
+}
+
+async function searchAltoMusic(term) {
+  const url = new URL("/search", "https://www.altomusic.com");
+  url.searchParams.set("q", term);
+
+  const response = await fetch(url, {
+    headers: {
+      "user-agent": USER_AGENT,
+      "accept": "text/html,application/xhtml+xml",
+      "accept-language": "en-US,en;q=0.9",
+    },
+  });
+
+  if (!response.ok) throw new Error(`Alto Music responded with ${response.status}`);
+  return hydrateShopifySearchListings(parseShopifySearchCards(await response.text(), {
+    sourceId: "alto-music",
+    baseUrl: "https://www.altomusic.com",
+    shop: "Alto Music",
+    priceMode: "alto-localized",
+    conditionFallback: "Listed",
+  }), {
+    baseUrl: "https://www.altomusic.com",
+    priceMode: "alto-localized",
+    limit: 18,
+  });
+}
+
+async function searchToneTweakers(term) {
+  const url = new URL("/search", "https://tonetweakers.com");
+  url.searchParams.set("q", term);
+
+  const response = await fetch(url, {
+    headers: {
+      "user-agent": USER_AGENT,
+      "accept": "text/html,application/xhtml+xml",
+      "accept-language": "en-US,en;q=0.9",
+    },
+  });
+
+  if (!response.ok) throw new Error(`Tone Tweakers responded with ${response.status}`);
+  return hydrateShopifySearchListings(parseToneTweakersSearch(await response.text()), {
+    baseUrl: "https://tonetweakers.com",
+    priceMode: "standard-cents",
+    limit: 24,
+  });
+}
+
 async function getEbayAccessToken() {
   const now = Date.now();
   if (ebayTokenCache?.token && ebayTokenCache.expiresAt > now + 60_000) {
@@ -1890,6 +2185,18 @@ async function searchCraigslistLa(term) {
     baseUrl: CRAIGSLIST_LA_BASE_URL,
     label: "Craigslist LA",
   });
+}
+
+async function searchCraigslistEast(term) {
+  const listingsById = new Map();
+
+  for (const [index, target] of CRAIGSLIST_EAST_REGION_TARGETS.entries()) {
+    const listings = await searchCraigslistRegion(term, target);
+    listings.forEach((listing) => listingsById.set(listing.id, listing));
+    if (index < CRAIGSLIST_EAST_REGION_TARGETS.length - 1) await wait(250);
+  }
+
+  return [...listingsById.values()];
 }
 
 async function searchCraigslistRegion(term, options) {
@@ -2694,6 +3001,297 @@ function parseEbayBrowse(data) {
   }).filter((listing) => listing.id !== "ebay-us-" && listing.title && listing.url && listing.price > 0);
 }
 
+function parseMainDrag(html) {
+  const productList = matchOne(html, /<div class="product-list product-list--collection">([\s\S]*?)<div class="pagination/i) || html;
+  const blocks = splitHtmlBlocks(productList, /<div class="product-item\b/g).slice(0, 36);
+  const listedAt = new Date().toISOString();
+
+  return blocks.map((block) => {
+    const href = readAttributeFromPattern(block, /<a[^>]+class="product-item__image-wrapper[^"]*"[^>]+href="([^"]+)"/i)
+      || readAttributeFromPattern(block, /<a[^>]+href="([^"]+)"[^>]+class="product-item__title/i)
+      || readAttributeFromPattern(block, /<a[^>]+class="product-item__title[^"]*"[^>]+href="([^"]+)"/i);
+    const url = normalizeRelativeUrl(href, MAIN_DRAG_BASE_URL);
+    const rawId = url.match(/\/products\/([^/?#]+)/)?.[1] || href;
+    const title = cleanText(readAttributeFromPattern(block, /<img[^>]+alt="([^"]+)"/i))
+      || cleanText(matchOne(block, /<a[^>]+class="product-item__title[^"]*"[^>]*>([\s\S]*?)<\/a>/i));
+    const priceHtml = matchOne(block, /<div class="product-item__price-list price-list">([\s\S]*?)<\/div>/i);
+    const price = parseUsdPrice(priceHtml);
+    const image = normalizeShopifySizedImage(
+      readAttributeFromPattern(block, /<img[^>]+class="product-item__primary-image[^"]*"[^>]+data-src="([^"]+)"/i)
+        || readAttributeFromPattern(block, /<img[^>]+data-src="([^"]+)"[^>]+class="product-item__primary-image/i)
+        || readAttributeFromPattern(block, /<img[^>]+src="([^"]+)"/i),
+      MAIN_DRAG_BASE_URL,
+    );
+
+    return {
+      id: `main-drag-${rawId}`,
+      source: "main-drag",
+      region: "east-coast",
+      currency: "USD",
+      title,
+      price,
+      condition: title.toLowerCase().includes("used") || title.toLowerCase().includes("vintage") ? "Used" : "Listed",
+      shop: "Main Drag Music",
+      listedAt,
+      url,
+      image,
+      categoryPath: ["East Coast Shops"],
+    };
+  }).filter((listing) => listing.id !== "main-drag-" && listing.title && listing.url && listing.price > 0);
+}
+
+function getRogueMusicSearches(term = "") {
+  const normalized = normalizeText(term);
+  const searches = [];
+
+  if (/(drum|sequencer|sampler|mpc|sp-404|tr-|rhythm)/.test(normalized)) {
+    searches.push({ d: "Category", v: "DrumMach_Sequencer" });
+  }
+
+  if (/(pro audio|recording|mixer|preamp|compressor|interface|microphone|mic|monitor)/.test(normalized)) {
+    searches.push({ d: "Category", v: "ProAudio" });
+  }
+
+  if (/(vintage|prophet|juno|jupiter|oberheim|moog|arp|rhodes|wurlitzer)/.test(normalized)) {
+    searches.push({ d: "SubCat2", v: "Vintage" });
+  }
+
+  if (isGenericRogueMusicTerm(term) || searches.length === 0) {
+    searches.push({ d: "Category", v: "Keys_Synth" });
+  }
+
+  if (!isGenericRogueMusicTerm(term) && /^[a-z0-9][a-z0-9 ._-]{1,40}$/i.test(String(term || "").trim())) {
+    searches.push({ d: "Brand", v: String(term).trim() });
+  }
+
+  const seen = new Set();
+  return searches.filter((search) => {
+    const key = `${search.d}:${search.v}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function isGenericRogueMusicTerm(term = "") {
+  const normalized = normalizeText(term);
+  return [
+    "synth",
+    "synths",
+    "synthesizer",
+    "synthesizers",
+    "keyboard",
+    "keyboards",
+    "sampler",
+    "samplers",
+    "drum machine",
+    "drum machines",
+    "sequencer",
+    "sequencers",
+    "pro audio",
+    "recording",
+    "vintage",
+  ].some((value) => normalized === normalizeText(value));
+}
+
+function rogueListingMatchesTerm(listing, term) {
+  const searchable = normalizeText([
+    listing.title,
+    listing.description,
+    listing.condition,
+    ...(Array.isArray(listing.categoryPath) ? listing.categoryPath : []),
+  ].filter(Boolean).join(" "));
+
+  return createSourceSearchTermVariants(term).some((variant) => termMatches(searchable, variant));
+}
+
+function parseRogueMusic(html, search = {}) {
+  const blocks = splitHtmlBlocks(html, /<div class="box" itemprop="itemListElement"(?=[\s>])/g).slice(0, 80);
+  const listedAt = new Date().toISOString();
+
+  return blocks.map((block) => {
+    const detailUrl = normalizeRelativeUrl(readAttributeFromPattern(block, /<link[^>]+itemprop="url"[^>]+href="([^"]+)"/i), ROGUE_MUSIC_BASE_URL);
+    const rawId = detailUrl.match(/[?&]p=(\d+)/)?.[1]
+      || normalizeText(`${search.d || "rogue"}-${search.v || ""}-${matchOne(block, /itemprop="position" content="([^"]+)"/i)}`);
+    const title = cleanText(matchOne(block, /<p[^>]+itemprop="name"[^>]*class="itemname"[^>]*>([\s\S]*?)<\/p>/i));
+    const description = cleanText(matchOne(block, /<p[^>]+class="itemlistdescription"[^>]*>([\s\S]*?)<\/p>/i));
+    const condition = cleanText(matchOne(block, /<p[^>]+class="itemtag"[^>]*>([\s\S]*?)<\/p>/i)) || "Used";
+    const price = Number(matchOne(block, /itemprop="price"[^>]*>([\d,.]+)<\/span>/i).replace(/[^\d.]/g, ""));
+    const image = normalizeRelativeUrl(readAttributeFromPattern(block, /<img[^>]+itemprop="image"[^>]+src="([^"]+)"/i), ROGUE_MUSIC_BASE_URL);
+    const brand = cleanText(matchOne(block, /itemprop="brand">([\s\S]*?)<\/div>/i));
+    const model = cleanText(matchOne(block, /itemprop="model">([\s\S]*?)<\/div>/i));
+
+    return {
+      id: `rogue-music-${rawId}`,
+      source: "rogue-music",
+      region: "east-coast",
+      currency: "USD",
+      title: title || [brand, model].filter(Boolean).join(" "),
+      price,
+      condition,
+      shop: "Rogue Music",
+      listedAt,
+      url: detailUrl || new URL("/golink5.php", ROGUE_MUSIC_BASE_URL).toString(),
+      image,
+      description,
+      categoryPath: ["East Coast Shops", search.v || ""].filter(Boolean),
+    };
+  }).filter((listing) => listing.id !== "rogue-music-" && listing.title && listing.url && listing.price > 0);
+}
+
+function parseThreeWave(html) {
+  const blocks = splitHtmlBlocks(html, /<li class="product"(?=[\s>])/g).slice(0, 48);
+  const listedAt = new Date().toISOString();
+
+  return blocks.map((block) => {
+    const rawId = matchOne(block, /data-test="card-([^"]+)"/i)
+      || matchOne(block, /data-product-id="([^"]+)"/i)
+      || normalizeText(matchOne(block, /<h3 class="card-title">[\s\S]*?<a[^>]*>([\s\S]*?)<\/a>/i));
+    const url = normalizeRelativeUrl(readAttributeFromPattern(block, /<h3 class="card-title">[\s\S]*?<a[^>]+href="([^"]+)"/i), "https://threewavemusic.com");
+    const title = cleanText(matchOne(block, /<h3 class="card-title">[\s\S]*?<a[^>]*>([\s\S]*?)<\/a>/i))
+      || cleanText(readAttributeFromPattern(block, /<img[^>]+alt="([^"]+)"/i));
+    const brand = cleanText(matchOne(block, /data-test-info-type="brandName"[^>]*>([\s\S]*?)<\/p>/i));
+    const price = parseUsdPrice(matchOne(block, /data-test-info-type="price"[^>]*>([\s\S]*?)<\/div>\s*<\/div>/i) || block);
+    const image = normalizeRelativeUrl(readAttributeFromPattern(block, /<img[^>]+src="([^"]+)"/i), "https://threewavemusic.com");
+    const isOutOfStock = /out of stock/i.test(cleanText(block));
+
+    return {
+      id: `three-wave-${rawId}`,
+      source: "three-wave",
+      region: "east-coast",
+      currency: "USD",
+      title,
+      price,
+      condition: isOutOfStock ? "Out of stock" : "Listed",
+      availability: isOutOfStock ? "Out of stock" : "In stock",
+      shop: brand ? `Three Wave · ${brand}` : "Three Wave",
+      listedAt,
+      url,
+      image,
+      categoryPath: ["East Coast Shops"],
+    };
+  }).filter((listing) => listing.id !== "three-wave-" && listing.title && listing.url && listing.price > 0 && listing.availability !== "Out of stock");
+}
+
+function parseShopifySearchCards(html, options = {}) {
+  const sourceId = options.sourceId || "shopify";
+  const baseUrl = options.baseUrl || "";
+  const blocks = splitHtmlBlocks(html, /<(?:li|div)[^>]+class="[^"]*(?:grid__item|product-card-wrapper)[^"]*"/g).slice(0, 36);
+  const listedAt = new Date().toISOString();
+
+  return blocks.map((block) => {
+    const href = readAttributeFromPattern(block, /<h3[^>]+class="card__heading[^"]*"[\s\S]*?<a[^>]+href="([^"]+)"/i)
+      || readAttributeFromPattern(block, /<a[^>]+href="([^"]*\/products\/[^"]+)"/i);
+    const url = normalizeRelativeUrl(href, baseUrl);
+    const rawId = url.match(/\/products\/([^/?#]+)/)?.[1] || href;
+    const title = cleanText(matchOne(block, /<h3[^>]+class="card__heading[^"]*"[\s\S]*?<a[^>]*>([\s\S]*?)<\/a>/i))
+      || cleanText(readAttributeFromPattern(block, /<img[^>]+alt="([^"]+)"/i));
+    const image = normalizeRelativeUrl(readAttributeFromPattern(block, /<img[^>]+src="([^"]+)"/i), baseUrl);
+    const priceText = cleanText(matchOne(block, /<div class="[^"]*\bprice\b[^"]*"[\s\S]*?<\/div>\s*<\/div>/i));
+    const price = parseUsdPrice(priceText);
+
+    return {
+      id: `${sourceId}-${rawId}`,
+      source: sourceId,
+      region: "east-coast",
+      currency: "USD",
+      title,
+      price,
+      priceLabel: price > 0 ? "" : "See store",
+      condition: options.conditionFallback || "Listed",
+      shop: options.shop || sourceId,
+      listedAt,
+      url,
+      image,
+      categoryPath: ["East Coast Shops"],
+    };
+  }).filter((listing) => listing.id !== `${sourceId}-` && listing.title && listing.url);
+}
+
+function parseToneTweakersSearch(html) {
+  const blocks = splitHtmlBlocks(html, /<article class="result [^"]*item-product\b/g).slice(0, 36);
+  const listedAt = new Date().toISOString();
+
+  return blocks.map((block) => {
+    const url = normalizeRelativeUrl(readAttributeFromPattern(block, /<p class="title">[\s\S]*?<a[^>]+href="([^"]+)"/i)
+      || readAttributeFromPattern(block, /<a class="overlay"[^>]+href="([^"]+)"/i), "https://tonetweakers.com");
+    const rawId = url.match(/\/products\/([^/?#]+)/)?.[1] || url;
+    const title = cleanText(matchOne(block, /<p class="title">[\s\S]*?<a[^>]*>([\s\S]*?)<\/a>/i))
+      || cleanText(readAttributeFromPattern(block, /<img[^>]+alt="([^"]+)"/i));
+    const brand = cleanText(matchOne(block, /<p class="brand">[\s\S]*?<a[^>]*>([\s\S]*?)<\/a>/i));
+    const image = normalizeRelativeUrl(readAttributeFromPattern(block, /<img[^>]+src="([^"]+)"/i), "https://tonetweakers.com");
+    const type = cleanText(readAttributeFromPattern(block, /<article[^>]+data-type="([^"]*)"/i));
+
+    return {
+      id: `tone-tweakers-${rawId}`,
+      source: "tone-tweakers",
+      region: "east-coast",
+      currency: "USD",
+      title,
+      price: 0,
+      priceLabel: "Contact",
+      condition: type || "Listed",
+      shop: brand ? `Tone Tweakers · ${brand}` : "Tone Tweakers",
+      listedAt,
+      url,
+      image,
+      categoryPath: ["East Coast Shops", type].filter(Boolean),
+    };
+  }).filter((listing) => listing.id !== "tone-tweakers-" && listing.title && listing.url);
+}
+
+async function hydrateShopifySearchListings(listings, options = {}) {
+  const targets = listings.slice(0, options.limit || listings.length);
+  const enriched = await mapWithConcurrency(targets, 4, async (listing) => {
+    const handle = listing.url.match(/\/products\/([^/?#]+)/)?.[1];
+    if (!handle) return listing;
+
+    try {
+      const response = await fetch(new URL(`/products/${handle}.js`, options.baseUrl), {
+        headers: {
+          "user-agent": USER_AGENT,
+          "accept": "application/json,text/javascript,*/*",
+          "accept-language": "en-US,en;q=0.9",
+        },
+      });
+      if (!response.ok) return listing;
+      const product = await response.json();
+      return mergeShopifyProductListing(listing, product, options);
+    } catch {
+      return listing;
+    }
+  });
+
+  return enriched.filter((listing) => listing.title && listing.url);
+}
+
+function mergeShopifyProductListing(listing, product = {}, options = {}) {
+  const rawPrice = Number(product.price_min || product.price || product.variants?.find((variant) => variant.available)?.price || 0);
+  const price = options.priceMode === "alto-localized"
+    ? rawPrice / 10000
+    : rawPrice / 100;
+  const hasPrice = Number.isFinite(price) && price > 0;
+  const image = normalizeRelativeUrl(product.featured_image || product.images?.[0] || listing.image, options.baseUrl);
+
+  return {
+    ...listing,
+    title: cleanText(String(product.title || listing.title)),
+    price: hasPrice ? price : listing.price,
+    priceLabel: hasPrice ? "" : listing.priceLabel,
+    condition: createShopifyCondition(product, listing.condition),
+    shop: product.vendor ? `${listing.shop.split(" · ")[0]} · ${cleanText(String(product.vendor))}` : listing.shop,
+    image,
+    availability: product.available === false ? "Sold out" : listing.availability || "",
+  };
+}
+
+function createShopifyCondition(product = {}, fallback = "Listed") {
+  const variantTitle = product.variants?.find((variant) => variant.available)?.title || product.variants?.[0]?.title || "";
+  return [cleanText(String(product.type || "")), cleanText(String(variantTitle || ""))]
+    .filter((value) => value && value !== "Default Title")
+    .join(" · ") || fallback;
+}
+
 function parseReverbPrice(price) {
   if (!price) return 0;
   if (price.currency === "JPY") return Number(String(price.amount || "").replace(/[^\d]/g, ""));
@@ -3029,6 +3627,10 @@ function normalizeRelativeUrl(value, baseUrl) {
 
 function normalizeShopifyImage(value) {
   return String(value || "").replace("{width}", "600");
+}
+
+function normalizeShopifySizedImage(value, baseUrl) {
+  return normalizeRelativeUrl(normalizeShopifyImage(value), baseUrl);
 }
 
 function matchOne(value, pattern) {

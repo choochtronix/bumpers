@@ -11,6 +11,13 @@ const SOURCES = [
   { id: "guitar-center-used", label: "Guitar Center", icon: "GC", color: "black" },
   { id: "craigslist-sfbay", label: "Craigslist SF", icon: "SF", color: "purple" },
   { id: "craigslist-la", label: "Craigslist LA", icon: "LA", color: "purple" },
+  { id: "craigslist-east", label: "Craigslist East", icon: "EC", color: "purple" },
+  { id: "main-drag", label: "Main Drag", icon: "MD", color: "black" },
+  { id: "rogue-music", label: "Rogue Music", icon: "Rg", color: "black" },
+  { id: "three-wave", label: "Three Wave", icon: "3W", color: "blue" },
+  { id: "alto-music", label: "Alto Music", icon: "AM", color: "blue" },
+  { id: "tone-tweakers", label: "Tone Tweakers", icon: "TT", color: "amber" },
+  { id: "pro-audio-star", label: "ProAudioStar", icon: "PS", color: "blue" },
   { id: "jimoty", label: "Jimoty", icon: "Jm", color: "orange" },
   { id: "offmall", label: "OFFMALL", icon: "O", color: "green", logo: "assets/logos/ICONS/hardoff-ic.svg" },
   { id: "five-g", label: "Five G", icon: "5G", color: "amber" },
@@ -19,9 +26,9 @@ const SOURCES = [
 ];
 
 const LEGACY_DEFAULT_SOURCE_IDS = ["mercari", "yahoo-auctions", "yahoo-fleamarket", "rakuma", "digimart", "offmall", "five-g", "implant4", "hardoff"];
-const LIVE_SOURCE_IDS = ["mercari", "yahoo-auctions", "yahoo-fleamarket", "rakuma", "digimart", "reverb", "reverb-us", "ebay-us", "sweetwater-used", "guitar-center-used", "craigslist-sfbay", "craigslist-la", "jimoty", "offmall", "five-g", "implant4", "hardoff"];
-const LIVE_SOURCE_DISPLAY_ORDER = ["craigslist-sfbay", "craigslist-la", "reverb-us", "ebay-us", "sweetwater-used", "guitar-center-used", "yahoo-auctions", "yahoo-fleamarket", "digimart", "reverb", "jimoty", "offmall", "five-g", "implant4", "hardoff", "mercari", "rakuma"];
-const SOURCE_SEARCH_CONTEXT_TRUST_IDS = new Set(["craigslist-sfbay", "craigslist-la"]);
+const LIVE_SOURCE_IDS = ["mercari", "yahoo-auctions", "yahoo-fleamarket", "rakuma", "digimart", "reverb", "reverb-us", "ebay-us", "sweetwater-used", "guitar-center-used", "craigslist-sfbay", "craigslist-la", "craigslist-east", "main-drag", "rogue-music", "three-wave", "alto-music", "tone-tweakers", "pro-audio-star", "jimoty", "offmall", "five-g", "implant4", "hardoff"];
+const LIVE_SOURCE_DISPLAY_ORDER = ["craigslist-sfbay", "craigslist-la", "craigslist-east", "main-drag", "rogue-music", "three-wave", "alto-music", "tone-tweakers", "pro-audio-star", "reverb-us", "ebay-us", "sweetwater-used", "guitar-center-used", "yahoo-auctions", "yahoo-fleamarket", "digimart", "reverb", "jimoty", "offmall", "five-g", "implant4", "hardoff", "mercari", "rakuma"];
+const SOURCE_SEARCH_CONTEXT_TRUST_IDS = new Set(["craigslist-sfbay", "craigslist-la", "craigslist-east"]);
 const CATEGORY_SEARCH_CONTEXT_IDS = new Set(["reverb", "reverb-us"]);
 const REGION_CONFIG = typeof window !== "undefined" ? window.BRRTZ_REGION_CONFIG : null;
 const ACTIVE_REGION = REGION_CONFIG?.activeRegion || {
@@ -40,6 +47,7 @@ const RESULTS_PER_PAGE = 48;
 const FEATURED_HOME_LIMIT = 12;
 const BROWSE_HOME_LIMIT = 6;
 const BROWSE_EXPANDED_LIMIT = 240;
+const BROWSE_CARD_RENDER_CHUNK_SIZE = 6;
 const APP_VIEW_PARAM = "view";
 const APP_VIEW_SYNTH_BROWSER = "synth-browser";
 const FEATURED_HOME_ALERT_LIMIT = 6;
@@ -87,6 +95,13 @@ const SOURCE_ACCENT_TOKENS = {
   "guitar-center-used": "--source-guitar-center",
   "craigslist-sfbay": "--source-craigslist",
   "craigslist-la": "--source-craigslist",
+  "craigslist-east": "--source-craigslist",
+  "main-drag": "--source-guitar-center",
+  "rogue-music": "--source-guitar-center",
+  "three-wave": "--source-ebay",
+  "alto-music": "--source-ebay",
+  "tone-tweakers": "--source-five-g",
+  "pro-audio-star": "--source-ebay",
   jimoty: "--source-jimoty",
   offmall: "--source-offmall",
   "five-g": "--source-five-g",
@@ -107,6 +122,13 @@ const SOURCE_METADATA_ALIASES = {
   "guitar-center-used": ["Guitar Center", "Guitar Center Used", "GC Used"],
   "craigslist-sfbay": ["Craigslist SF", "Craigslist", "SF Bay Craigslist"],
   "craigslist-la": ["Craigslist LA", "Craigslist Los Angeles", "LA Craigslist"],
+  "craigslist-east": ["Craigslist East", "Craigslist East Coast", "NYC Craigslist", "Boston Craigslist", "Philly Craigslist", "DC Craigslist"],
+  "main-drag": ["Main Drag", "Main Drag Music"],
+  "rogue-music": ["Rogue Music", "Rogue Music Store"],
+  "three-wave": ["Three Wave", "Three Wave Music"],
+  "alto-music": ["Alto Music"],
+  "tone-tweakers": ["Tone Tweakers", "Tone Tweakers Inc."],
+  "pro-audio-star": ["ProAudioStar", "Pro Audio Star"],
   jimoty: ["Jimoty", "ジモティー", "ジモティ"],
   offmall: ["OFFMALL", "Off Mall", "Hard Off", "ハードオフ"],
   "five-g": ["Five G", "FIVE G", "Five G music technology"],
@@ -564,6 +586,12 @@ const STARTER_FRESH_FIND_TERMS = [
   "vintage synthesizer",
 ];
 const STARTER_FRESH_FIND_SOURCE_IDS = ["yahoo-auctions", "digimart", "offmall", "mercari", "reverb"];
+const REGIONAL_FRESH_FIND_SOURCE_IDS = {
+  japan: STARTER_FRESH_FIND_SOURCE_IDS,
+  "bay-area": ["craigslist-sfbay", "reverb-us", "ebay-us", "sweetwater-used", "guitar-center-used"],
+  "los-angeles": ["craigslist-la", "reverb-us", "ebay-us", "sweetwater-used", "guitar-center-used"],
+  "east-coast": ["main-drag", "rogue-music", "three-wave", "alto-music", "tone-tweakers", "reverb-us", "ebay-us"],
+};
 const STARTER_FRESH_FIND_EXCLUDES = [
   "CD",
   "LP",
@@ -667,7 +695,7 @@ const defaultSettings = {
 };
 
 const CATEGORY_INTENTS = [
-  { id: "all", label: "All Synth Gear" },
+  { id: "all", label: "Everything" },
   { id: "synthesizers", label: "Synthesizers" },
   { id: "drum-machines", label: "Drum Machines" },
   { id: "samplers", label: "Samplers" },
@@ -709,6 +737,10 @@ let searchRunId = 0;
 let loadingCardId = 0;
 let backToTopFrame = 0;
 let mobileSearchOverlayFrame = 0;
+let selectInteractionActive = false;
+let deferredResultsRender = false;
+let selectInteractionReleaseTimer = 0;
+let deferredSearchApply = null;
 let starterFreshFindStatus = "idle";
 let starterFreshFindListings = [];
 let starterFreshFindTerms = [];
@@ -719,6 +751,10 @@ let browseCategoryError = "";
 let browseCategoryCacheSignature = "";
 let browseCategoryUpdatedAt = "";
 let browseCategoryRequestId = 0;
+let browseCategorySelectionTimer = 0;
+let browseCategoryAbortController = null;
+let browseCategoryPostLoadTaskId = 0;
+let browseCardRenderId = 0;
 let isBrowseExpanded = false;
 let isSourceRowExpanded = true;
 const rakumaClientThumbnailCache = new Map();
@@ -733,11 +769,8 @@ const sourceList = document.querySelector("#sourceList");
 const savedSearches = document.querySelector("#savedSearches");
 const searchForm = document.querySelector("#searchForm");
 const brandHomeLink = document.querySelector("#brandHomeLink");
-const regionBadge = document.querySelector("#regionBadge");
+const regionQuickSelect = document.querySelector("#regionQuickSelect");
 const regionSelector = document.querySelector("#regionSelector");
-const regionPopover = document.querySelector("#regionPopover");
-const regionPopoverList = document.querySelector("#regionPopoverList");
-const regionPopoverSettings = document.querySelector("#regionPopoverSettings");
 const termsInput = document.querySelector("#terms");
 const mobileSearchOverlay = document.querySelector("#mobileSearchOverlay");
 const mobileSearchForm = document.querySelector("#mobileSearchForm");
@@ -915,6 +948,9 @@ function initializeBrandWave() {
   let audioHoverTimer = 0;
   let audioArmed = false;
   let osc2FadeScheduled = false;
+  let controlInteractionActive = false;
+  let waveAnimationFrame = 0;
+  let waveAnimationActive = false;
 
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
@@ -949,6 +985,17 @@ function initializeBrandWave() {
     const last = points[points.length - 1];
     d += ` T ${last.x.toFixed(2)} ${last.y.toFixed(2)}`;
     return d;
+  }
+
+  function renderStaticWave() {
+    const sinePoints = [];
+    for (let x = -40; x <= W + 40; x += STEP_SIN) {
+      sinePoints.push({
+        x,
+        y: MID + CLEAN_AMP * Math.sin(0.022 * x),
+      });
+    }
+    sinePath.setAttribute("d", buildBezier(sinePoints));
   }
 
   function pickNote(pool, avoid) {
@@ -1134,6 +1181,12 @@ function initializeBrandWave() {
   function render(now) {
     const dt = now - lastTime;
     lastTime = now;
+
+    if (!waveAnimationActive || controlInteractionActive) {
+      waveAnimationFrame = 0;
+      return;
+    }
+
     phase += dt * 0.16;
     wt += 0.025;
     hoverMix += ((pointerActive ? 1 : 0) - hoverMix) * 0.085;
@@ -1165,7 +1218,22 @@ function initializeBrandWave() {
     sinePath.setAttribute("d", buildBezier(sinePoints));
 
     updateAudio(now);
-    requestAnimationFrame(render);
+    waveAnimationFrame = requestAnimationFrame(render);
+  }
+
+  function startWaveAnimation() {
+    if (waveAnimationActive) return;
+    waveAnimationActive = true;
+    lastTime = performance.now();
+    waveAnimationFrame = requestAnimationFrame(render);
+  }
+
+  function stopWaveAnimation() {
+    waveAnimationActive = false;
+    if (waveAnimationFrame) {
+      window.cancelAnimationFrame(waveAnimationFrame);
+      waveAnimationFrame = 0;
+    }
   }
 
   function isWaveControlEvent(event) {
@@ -1184,20 +1252,21 @@ function initializeBrandWave() {
   }
 
   async function startHoverAudio() {
-    if (!pointerActive || hoverStart === null) return;
+    if (hoverStart === null) return;
     if (performance.now() - hoverStart < HOVER_AUDIO_DELAY_MS) {
       armHoverAudio();
       return;
     }
 
+    pointerActive = true;
+    audioArmed = true;
+    startWaveAnimation();
+
     await initAudio();
     await resumeAudio();
     if (!audioReady) return;
 
-    if (!audioArmed) {
-      audioArmed = true;
-      fadeInGain();
-    }
+    fadeInGain();
     engageAudio();
   }
 
@@ -1210,7 +1279,6 @@ function initializeBrandWave() {
     const clientX = getPointerClientX(event);
 
     if (clientX !== null) {
-      pointerActive = true;
       pointerX = svgX(event);
       if (hoverStart === null) {
         hoverStart = performance.now();
@@ -1228,6 +1296,7 @@ function initializeBrandWave() {
     pointerActive = false;
     hoverStart = null;
     audioArmed = false;
+    stopWaveAnimation();
     if (audioHoverTimer) {
       window.clearTimeout(audioHoverTimer);
       audioHoverTimer = 0;
@@ -1240,11 +1309,36 @@ function initializeBrandWave() {
   }
 
   const interactionSurface = waveSurface || svg;
+  renderStaticWave();
   interactionSurface.addEventListener("pointerenter", wake, { passive: true });
   interactionSurface.addEventListener("pointermove", wake, { passive: true });
   interactionSurface.addEventListener("pointerdown", wake, { passive: true });
   interactionSurface.addEventListener("touchstart", wake, { passive: true });
   interactionSurface.addEventListener("pointerleave", sleep);
+
+  document.addEventListener("pointerover", (event) => {
+    controlInteractionActive = isWaveControlEvent(event);
+    if (controlInteractionActive) sleep();
+  }, { passive: true });
+  document.addEventListener("pointerout", (event) => {
+    if (!controlInteractionActive || isWaveControlEvent(event)) return;
+    controlInteractionActive = false;
+  }, { passive: true });
+  document.addEventListener("mouseover", (event) => {
+    controlInteractionActive = isWaveControlEvent(event);
+    if (controlInteractionActive) sleep();
+  }, { passive: true });
+  document.addEventListener("mouseout", (event) => {
+    if (!controlInteractionActive || isWaveControlEvent(event)) return;
+    controlInteractionActive = false;
+  }, { passive: true });
+  document.addEventListener("focusin", (event) => {
+    controlInteractionActive = isWaveControlEvent(event);
+    if (controlInteractionActive) sleep();
+  });
+  document.addEventListener("focusout", () => {
+    controlInteractionActive = false;
+  });
 
   document.addEventListener("visibilitychange", async () => {
     if (!audioCtx) return;
@@ -1256,17 +1350,13 @@ function initializeBrandWave() {
     }
   });
 
-  requestAnimationFrame(render);
 }
 
 function bindEvents() {
   if (eventsBound) return;
 
   brandHomeLink.addEventListener("click", resetHomeView);
-  regionBadge?.addEventListener("click", toggleRegionPopover);
-  regionPopoverList?.addEventListener("click", handleRegionPopoverClick);
-  regionPopoverSettings?.addEventListener("click", openRegionSettingsFromPopover);
-  document.addEventListener("click", handleRegionPopoverOutsideClick);
+  regionQuickSelect?.addEventListener("change", handleRegionQuickSelectChange);
   searchForm.addEventListener("submit", (event) => {
     event.preventDefault();
     if (!refineSearchModal.hidden) {
@@ -1284,6 +1374,14 @@ function bindEvents() {
   refineTermsInput.addEventListener("input", syncRefineTermsToPrimary);
   quickSearchExtraTermsButton?.addEventListener("click", openRefineSearchModal);
   termDropdown.addEventListener("click", handleTermDropdownClick);
+  document.addEventListener("pointerover", handleSelectInteractionStart, { capture: true, passive: true });
+  document.addEventListener("mouseover", handleSelectInteractionStart, { capture: true, passive: true });
+  document.addEventListener("pointerdown", handleSelectInteractionStart, { capture: true, passive: true });
+  document.addEventListener("pointerout", handleSelectInteractionEnd, { capture: true, passive: true });
+  document.addEventListener("mouseout", handleSelectInteractionEnd, { capture: true, passive: true });
+  document.addEventListener("focusin", handleSelectInteractionStart);
+  document.addEventListener("focusout", handleSelectInteractionEnd);
+  document.addEventListener("change", handleSelectInteractionCommit, { capture: true });
   resultGrid.addEventListener("click", handleResultGridAction);
   resultGrid.addEventListener("input", handleResultGridAction);
   resultGrid.addEventListener("change", handleResultGridAction);
@@ -1392,6 +1490,8 @@ function bindEvents() {
   sourceFilterList.addEventListener("click", (event) => {
     const button = event.target.closest("button");
     if (!button) return;
+    selectInteractionActive = false;
+    flushDeferredSearchApplyNow();
     if (button.dataset.source === "all") {
       if (activeViewSources.size > 0) {
         activeViewSources.clear();
@@ -1399,7 +1499,7 @@ function bindEvents() {
         isSourceRowExpanded = !isSourceRowExpanded;
       }
       resetPagination();
-      renderResults();
+      renderResults({ force: true });
       return;
     }
     const sourceId = button.dataset.source || "";
@@ -1410,12 +1510,12 @@ function bindEvents() {
     if (isNonFilterableSourceStatus(sourceId)) {
       activeViewSources.delete(sourceId);
       resetPagination();
-      renderResults();
+      renderResults({ force: true });
       return;
     }
     toggleViewSource(sourceId);
     resetPagination();
-    renderResults();
+    renderResults({ force: true });
   });
 
   sourceAssistList?.addEventListener("click", (event) => {
@@ -1437,7 +1537,7 @@ function bindEvents() {
   sortModeSelect.addEventListener("change", () => {
     sortMode = sortModeSelect.value;
     resetPagination();
-    renderResults();
+    renderResults({ force: true });
   });
 
   resultViewButtons.forEach((button) => {
@@ -1471,8 +1571,71 @@ function bindEvents() {
   window.__brrtzAppReady = true;
 }
 
+function isSelectInteractionEvent(event) {
+  if (!(event?.target instanceof Element)) return false;
+  return Boolean(event.target.closest([
+    "select",
+    "#regionSelector",
+    "#brandHomeLink",
+    "#sourceFilterList",
+    ".source-filter-button",
+  ].join(",")));
+}
+
+function handleSelectInteractionStart(event) {
+  if (!isSelectInteractionEvent(event)) return;
+  if (selectInteractionReleaseTimer) {
+    window.clearTimeout(selectInteractionReleaseTimer);
+    selectInteractionReleaseTimer = 0;
+  }
+  selectInteractionActive = true;
+}
+
+function handleSelectInteractionEnd(event) {
+  if (!isSelectInteractionEvent(event)) return;
+  scheduleSelectInteractionRelease();
+}
+
+function handleSelectInteractionCommit(event) {
+  if (!isSelectInteractionEvent(event)) return;
+  scheduleSelectInteractionRelease(220);
+}
+
+function scheduleSelectInteractionRelease(delay = 80) {
+  if (selectInteractionReleaseTimer) window.clearTimeout(selectInteractionReleaseTimer);
+  selectInteractionReleaseTimer = window.setTimeout(() => {
+    selectInteractionReleaseTimer = 0;
+    selectInteractionActive = false;
+    flushDeferredResultsRender();
+  }, delay);
+}
+
+function flushDeferredResultsRender() {
+  if (deferredSearchApply) {
+    const pendingApply = deferredSearchApply;
+    deferredSearchApply = null;
+    deferredResultsRender = false;
+    applySearchResult(pendingApply.profile, pendingApply.liveResult, pendingApply.isFinal);
+    return;
+  }
+  if (!deferredResultsRender) return;
+  deferredResultsRender = false;
+  renderResults({ force: true });
+}
+
+function flushDeferredSearchApplyNow() {
+  if (!deferredSearchApply) return;
+  const pendingApply = deferredSearchApply;
+  deferredSearchApply = null;
+  deferredResultsRender = false;
+  applySearchResult(pendingApply.profile, pendingApply.liveResult, pendingApply.isFinal);
+}
+
 function resetHomeView(event) {
   event?.preventDefault?.();
+  selectInteractionActive = false;
+  deferredSearchApply = null;
+  deferredResultsRender = false;
   setAppView(null);
   isBrowseExpanded = false;
   searchRunId += 1;
@@ -1555,12 +1718,36 @@ function getActiveRegion() {
 }
 
 function updateRegionBadge(regionOverride = null) {
-  if (!regionBadge) return;
   const region = regionOverride || getActiveRegion();
-  regionBadge.textContent = region.label;
-  regionBadge.title = `Search region: ${region.label}`;
-  regionBadge.setAttribute("aria-label", `Change search region. Current region: ${region.label}`);
-  if (!regionOverride) renderRegionPopoverOptions();
+  if (!regionOverride) renderRegionQuickSelectOptions(region.id);
+}
+
+function renderRegionQuickSelectOptions(activeRegionId = getActiveRegion().id) {
+  if (!regionQuickSelect) return;
+  const optionsMarkup = getSelectableRegions().map((region) => {
+    const statusLabel = getRegionStatusLabel(region);
+    const label = statusLabel ? `${region.label} (${statusLabel})` : region.label;
+    return `<option value="${escapeHtml(region.id)}">${escapeHtml(label)}</option>`;
+  }).join("");
+  if (regionQuickSelect.innerHTML !== optionsMarkup) {
+    regionQuickSelect.innerHTML = optionsMarkup;
+  }
+  regionQuickSelect.value = sanitizeRegionId(activeRegionId);
+  const activeRegion = getRegionById(regionQuickSelect.value);
+  regionQuickSelect.title = `Search region: ${activeRegion.label}`;
+}
+
+function handleRegionQuickSelectChange(event) {
+  const nextRegionId = sanitizeRegionId(event.target.value);
+  if (nextRegionId === appSettings.regionId) {
+    renderRegionQuickSelectOptions(nextRegionId);
+    return;
+  }
+  selectInteractionActive = false;
+  applyActiveRegion(nextRegionId);
+  currentProfile = createFreshProfile();
+  fillForm(currentProfile);
+  resetToIdleSearch();
 }
 
 function getRegionStatusLabel(region) {
@@ -1568,48 +1755,6 @@ function getRegionStatusLabel(region) {
   if (region.status === "future") return "Soon";
   return "";
 }
-
-function renderRegionPopoverOptions() {
-  if (!regionPopoverList) return;
-  const activeRegionId = getActiveRegion().id;
-  regionPopoverList.innerHTML = getSelectableRegions().map((region) => {
-    const isActive = region.id === activeRegionId;
-    const statusLabel = getRegionStatusLabel(region);
-    const metaLabel = [region.currency, statusLabel].filter(Boolean).join(" · ");
-    return `
-      <button class="region-popover-option${isActive ? " is-active" : ""}" type="button" role="menuitemradio" aria-checked="${isActive}" data-region-id="${escapeHtml(region.id)}">
-        <span class="region-popover-copy">
-          <span class="region-popover-name">${escapeHtml(region.label)}</span>
-          <span class="region-popover-meta">${escapeHtml(metaLabel || "Active")}</span>
-        </span>
-        <span class="region-popover-check" aria-hidden="true">${isActive ? "✓" : ""}</span>
-      </button>
-    `;
-  }).join("");
-}
-
-function openRegionPopover() {
-  if (!regionPopover || !regionBadge) return;
-  renderRegionPopoverOptions();
-  regionPopover.hidden = false;
-  regionBadge.setAttribute("aria-expanded", "true");
-}
-
-function closeRegionPopover() {
-  if (!regionPopover || !regionBadge) return;
-  regionPopover.hidden = true;
-  regionBadge.setAttribute("aria-expanded", "false");
-}
-
-function toggleRegionPopover(event) {
-  event?.preventDefault?.();
-  event?.stopPropagation?.();
-  if (!regionPopover) return;
-  if (regionPopover.hidden) openRegionPopover();
-  else closeRegionPopover();
-}
-
-let regionPopoverSelectionToken = 0;
 
 function scheduleAfterNextPaint(callback) {
   if (typeof window !== "undefined" && typeof window.requestAnimationFrame === "function") {
@@ -1626,35 +1771,6 @@ function handleRegionPopoverOutsideClick(event) {
   if (regionPopover?.hidden) return;
   if (regionSelector?.contains(event.target)) return;
   closeRegionPopover();
-}
-
-function handleRegionPopoverClick(event) {
-  const option = event.target.closest("[data-region-id]");
-  if (!option) return;
-  const regionId = sanitizeRegionId(option.dataset.regionId);
-  const selectionToken = ++regionPopoverSelectionToken;
-  closeRegionPopover();
-  if (regionId !== getActiveRegion().id) {
-    updateRegionBadge(getRegionById(regionId));
-    scheduleAfterNextPaint(() => {
-      if (selectionToken !== regionPopoverSelectionToken) return;
-      const previousProfile = readProfileFromForm();
-      applyActiveRegion(regionId);
-      currentProfile = createProfileForRegion(previousProfile, regionId);
-      fillForm(currentProfile);
-      renderRefineSummary();
-      if (currentProfile.terms.length) {
-        runSearch();
-      } else {
-        resetToIdleSearch();
-      }
-    });
-  }
-}
-
-function openRegionSettingsFromPopover(event) {
-  closeRegionPopover();
-  openRegionSettings(event);
 }
 
 function getRegionSourceIds(regionId = appSettings?.regionId) {
@@ -2564,6 +2680,7 @@ async function saveSettingsFromModal() {
     pendingSourceIds = new Set();
     sourceSearchStatuses = new Map();
     sourceSearchMeta = new Map();
+    resetFreshFindRegionState();
     currentProfile = createFreshProfile();
     renderSources();
     updateRegionBadge();
@@ -3197,6 +3314,8 @@ async function runSearch() {
 
   activeViewSources.clear();
   resetPagination();
+  deferredSearchApply = null;
+  deferredResultsRender = false;
   isSearching = true;
   pendingSourceIds = new Set(searchGroups.filter((group) => group.id !== "mock").map((group) => group.id));
   sourceSearchStatuses = createInitialSourceStatuses(searchGroups);
@@ -3219,7 +3338,7 @@ async function runSearch() {
       if (runId === searchRunId) {
         pendingSourceIds.delete(group.id);
         updateSourceSearchStatus(group, result);
-        applySearchResult(profileSnapshot, combineLiveResults(completedResults), false);
+        scheduleSearchResultApply(profileSnapshot, combineLiveResults(completedResults), false);
       }
 
       return result;
@@ -3228,7 +3347,7 @@ async function runSearch() {
     const liveResults = await Promise.all(searchPromises);
     if (runId !== searchRunId) return;
     pendingSourceIds.clear();
-    applySearchResult(profileSnapshot, combineLiveResults(liveResults), true);
+    scheduleSearchResultApply(profileSnapshot, combineLiveResults(liveResults), true);
     return;
   }
 
@@ -3238,7 +3357,20 @@ async function runSearch() {
   searchGroups.forEach((group) => {
     if (group.id !== "mock") updateSourceSearchStatus(group, liveResult);
   });
-  applySearchResult(profileSnapshot, liveResult, true);
+  scheduleSearchResultApply(profileSnapshot, liveResult, true);
+}
+
+function scheduleSearchResultApply(profile, liveResult, isFinal) {
+  if (selectInteractionActive) {
+    deferredSearchApply = {
+      profile: cloneProfile(profile),
+      liveResult,
+      isFinal,
+    };
+    deferredResultsRender = true;
+    return;
+  }
+  applySearchResult(profile, liveResult, isFinal);
 }
 
 function applySearchResult(profile, liveResult, isFinal) {
@@ -3285,6 +3417,8 @@ function resetToIdleSearch() {
   pendingSourceIds = new Set();
   sourceSearchStatuses = new Map();
   sourceSearchMeta = new Map();
+  deferredSearchApply = null;
+  deferredResultsRender = false;
   currentResults = [];
   currentDiscoveryIds = new Set();
   currentNewForSearchIds = new Set();
@@ -3355,6 +3489,16 @@ function createLiveSearchGroups(profile) {
   if (selectedSources.has("craigslist-la")) {
     groups.push({ id: "craigslist-la", sources: ["craigslist-la"] });
   }
+
+  if (selectedSources.has("craigslist-east")) {
+    groups.push({ id: "craigslist-east", sources: ["craigslist-east"] });
+  }
+
+  ["main-drag", "rogue-music", "three-wave", "alto-music", "tone-tweakers", "pro-audio-star"].forEach((sourceId) => {
+    if (selectedSources.has(sourceId)) {
+      groups.push({ id: sourceId, sources: [sourceId] });
+    }
+  });
 
   if (selectedSources.has("jimoty")) {
     groups.push({ id: "jimoty", sources: ["jimoty"] });
@@ -3528,7 +3672,13 @@ function getCurrentAlertListings() {
   return currentResults.filter((listing) => isListingNewToUser(listing));
 }
 
-function renderResults() {
+function renderResults(options = {}) {
+  if (!options.force && selectInteractionActive) {
+    deferredResultsRender = true;
+    return;
+  }
+
+  browseCardRenderId += 1;
   const watching = loadSet(STORAGE_KEYS.watching);
   if (searchState.mode === "idle") {
     ensureStarterFreshFindListings();
@@ -3589,7 +3739,8 @@ function renderHomeView(watching) {
   const browseResults = filterMode === "watching" ? [] : getBrowseCategoryHomeListings();
   const watchedHomeResults = getWatchedHomeListings(watching);
   const homeResults = [...browseResults, ...freshFindResults, ...watchedHomeResults];
-  const isShowingFeaturedHome = homeResults.length > 0;
+  const isBrowseLoading = filterMode !== "watching" && browseCategoryStatus === "loading";
+  const isShowingFeaturedHome = homeResults.length > 0 || isBrowseLoading;
 
   resultGrid.innerHTML = "";
   resultGrid.classList.toggle("is-featured-home", isShowingFeaturedHome);
@@ -3611,7 +3762,7 @@ function renderHomeView(watching) {
     resultGrid.appendChild(createFeaturedHomeSection(watchedHomeResults, { variant: "watched" }));
   }
 
-  if (homeResults.length === 0) {
+  if (homeResults.length === 0 && !isBrowseLoading) {
     resultGrid.innerHTML = filterMode === "watching"
       ? `<div class="empty-state"><strong>No watched gear yet.</strong><span>Tap a heart on any listing to save it here.</span></div>`
       : `<div class="empty-state"><strong>Start a fresh search.</strong><span>${searchState.detail}</span></div>`;
@@ -3630,6 +3781,7 @@ function renderBrowseExpandedView(watching) {
   const totalPages = getTotalPages(visibleListings.length);
   currentPage = Math.min(currentPage, totalPages);
   const pageListings = paginateResults(visibleListings);
+  const renderId = ++browseCardRenderId;
 
   resultGrid.innerHTML = "";
   resultGrid.classList.toggle("is-featured-home", false);
@@ -3641,18 +3793,19 @@ function renderBrowseExpandedView(watching) {
 
   resultGrid.appendChild(createBrowseExpandedHeader(visibleListings.length, browseListings.length));
 
+  if (browseCategoryStatus === "loading") {
+    resultGrid.appendChild(createBrowseExpandedLoadingState({ compact: visibleListings.length > 0 }));
+  }
+
   if (visibleListings.length > 0) {
-    pageListings.forEach((listing) => resultGrid.appendChild(renderListing(listing)));
-  } else if (browseCategoryStatus === "loading") {
-    resultGrid.insertAdjacentHTML("beforeend", `
-      <div class="empty-state browse-expanded-empty">
-        <strong>Loading latest ${escapeHtml(getCategoryIntentLabel(browseCategoryIntent).toLowerCase())}.</strong>
-        <span>Brrtz is checking the source feeds now.</span>
-      </div>
-    `);
-  } else if (browseListings.length > 0) {
+    const preparingLoader = browseCategoryStatus === "loading"
+      ? null
+      : createBrowseExpandedLoadingState({ compact: true, detail: "Preparing latest cards." });
+    if (preparingLoader) resultGrid.appendChild(preparingLoader);
+    appendBrowseListingCardsInChunks(pageListings, renderId, { loaderToRemove: preparingLoader });
+  } else if (browseCategoryStatus !== "loading" && browseListings.length > 0) {
     resultGrid.insertAdjacentHTML("beforeend", createNoResultsMessage(browseListings));
-  } else {
+  } else if (browseCategoryStatus !== "loading") {
     resultGrid.insertAdjacentHTML("beforeend", `
       <div class="empty-state browse-expanded-empty">
         <strong>No latest ${escapeHtml(getCategoryIntentLabel(browseCategoryIntent).toLowerCase())} yet.</strong>
@@ -3667,17 +3820,65 @@ function renderBrowseExpandedView(watching) {
   renderTopWatchingControl();
 }
 
+function createBrowseExpandedLoadingState(options = {}) {
+  const loadingState = document.createElement("div");
+  loadingState.className = "browse-expanded-loader";
+  if (options.compact) loadingState.classList.add("browse-refresh-loader");
+  loadingState.setAttribute("role", "status");
+  loadingState.setAttribute("aria-live", "polite");
+  const detail = options.detail || "Brrtz is checking the source feeds now.";
+  loadingState.innerHTML = `
+    <img class="browse-expanded-loader-svg" src="assets/animations/synth-search-loop-horizontal-transparent.svg" alt="" loading="eager" decoding="async" />
+    <div class="browse-expanded-loader-copy">
+      <strong>Loading latest ${escapeHtml(getCategoryIntentLabel(browseCategoryIntent).toLowerCase())}.</strong>
+      <span>${escapeHtml(detail)}</span>
+    </div>
+  `;
+  return loadingState;
+}
+
+function appendBrowseListingCardsInChunks(listings, renderId, options = {}) {
+  let index = 0;
+  const loaderToRemove = options.loaderToRemove || null;
+
+  const appendNextChunk = () => {
+    if (renderId !== browseCardRenderId) return;
+    const fragment = document.createDocumentFragment();
+    const end = Math.min(index + BROWSE_CARD_RENDER_CHUNK_SIZE, listings.length);
+    for (; index < end; index += 1) {
+      fragment.appendChild(renderListing(listings[index]));
+    }
+    resultGrid.appendChild(fragment);
+    loaderToRemove?.remove();
+    if (index < listings.length) requestAnimationFrame(appendNextChunk);
+  };
+
+  requestAnimationFrame(appendNextChunk);
+}
+
+function createBrowseHomeLoadingState() {
+  const loadingState = createBrowseExpandedLoadingState();
+  loadingState.classList.add("browse-home-loader");
+  return loadingState;
+}
+
+function createBrowseHomeRefreshLoadingState() {
+  const loadingState = createBrowseExpandedLoadingState({ compact: true });
+  loadingState.classList.add("browse-home-loader", "browse-home-refresh-loader");
+  return loadingState;
+}
+
 function handleResultGridAction(event) {
   if (event.type === "change" || event.type === "input") {
+    if (event.type === "input" && event.target.closest("select")) return;
+
     const browseSelect = event.target.closest("#homeBrowseCategory");
     if (browseSelect) {
-      setHomeBrowseCategory(browseSelect.value);
+      scheduleHomeBrowseCategoryChange(browseSelect.value);
     }
     const expandedBrowseSelect = event.target.closest("#expandedBrowseCategory");
     if (expandedBrowseSelect) {
-      setHomeBrowseCategory(expandedBrowseSelect.value);
-      isBrowseExpanded = true;
-      setAppView(APP_VIEW_SYNTH_BROWSER, { replace: true });
+      scheduleHomeBrowseCategoryChange(expandedBrowseSelect.value, { expanded: true });
     }
     return;
   }
@@ -4213,6 +4414,12 @@ function isSafeManualSourceUrl(value) {
     if (url.hostname.endsWith(".craigslist.org") && url.pathname.startsWith("/search/")) return true;
     if (url.hostname === "www.guitarcenter.com" && url.pathname.startsWith("/Used/")) return true;
     if (url.hostname === "www.sweetwater.com" && url.pathname.startsWith("/used/")) return true;
+    if (url.hostname === "maindragmusic.com" && (url.pathname.startsWith("/search") || url.pathname.startsWith("/collections/"))) return true;
+    if (url.hostname === "www.roguemusic.com") return true;
+    if (url.hostname === "threewavemusic.com" && (url.pathname.startsWith("/search") || url.pathname === "/")) return true;
+    if (url.hostname === "www.altomusic.com" && url.pathname.startsWith("/search")) return true;
+    if (url.hostname === "tonetweakers.com" && (url.pathname.startsWith("/search") || url.pathname.startsWith("/collections/"))) return true;
+    if (url.hostname === "www.proaudiostar.com" && url.pathname.startsWith("/catalogsearch/result/")) return true;
     return false;
   } catch {
     return false;
@@ -4642,12 +4849,12 @@ function createFeaturedHomeHeader(count, options = {}) {
         : `${count} latest ${count === 1 ? "listing" : "listings"} in ${getCategoryIntentLabel(browseCategoryIntent).toLowerCase()}${browseFreshness}`;
     header.innerHTML = `
       <div>
-        <h3><button class="feature-headline-button" type="button" data-result-action="open-browse-expanded">Gear Browser</button></h3>
+        <h3><button class="feature-headline-button" type="button" data-result-action="open-browse-expanded">Gear Goggles</button></h3>
         <span>${escapeHtml(browseDetail)}</span>
       </div>
       <div class="browse-header-actions">
         <label class="browse-category-control">
-          <span>Browse</span>
+          <span>Browse Random</span>
           <select id="homeBrowseCategory" aria-label="Browse category">${optionsMarkup}</select>
         </label>
         <button class="browse-view-all-button" type="button" data-result-action="open-browse-expanded">See all</button>
@@ -4693,12 +4900,12 @@ function createBrowseExpandedHeader(visibleCount, totalCount) {
 
   header.innerHTML = `
     <div>
-      <h3><span class="feature-headline-button browse-expanded-headline">Gear Browser</span></h3>
+      <h3><span class="feature-headline-button browse-expanded-headline">Gear Goggles</span></h3>
       <span>${escapeHtml(browseDetail)}</span>
     </div>
     <div class="browse-header-actions">
       <label class="browse-category-control">
-        <span>Browse</span>
+        <span>Browse Random</span>
         <select id="expandedBrowseCategory" aria-label="Browse category">${optionsMarkup}</select>
       </label>
     </div>
@@ -4723,8 +4930,13 @@ function createFeaturedHomeSection(listings, options = {}) {
     isStarterLive ? "is-live-starter-fresh-finds" : "",
     isStarterLoading ? "is-loading-starter-fresh-finds" : "",
   ].filter(Boolean).join(" ");
-  section.setAttribute("aria-label", variant === "watched" ? "Watched Gear" : variant === "browse" ? "Gear Browser" : "Fresh Finds");
+  section.setAttribute("aria-label", variant === "watched" ? "Watched Gear" : variant === "browse" ? "Gear Goggles" : "Fresh Finds");
   section.appendChild(createFeaturedHomeHeader(listings.length, { isStarter, isStarterLive, isStarterLoading, isCached, isBrowseCached, browseCacheUpdatedAt, variant }));
+
+  if (variant === "browse" && browseCategoryStatus === "loading") {
+    section.appendChild(listings.length > 0 ? createBrowseHomeRefreshLoadingState() : createBrowseHomeLoadingState());
+    if (listings.length === 0) return section;
+  }
 
   const carousel = document.createElement("div");
   carousel.className = "featured-home-carousel";
@@ -4732,7 +4944,7 @@ function createFeaturedHomeSection(listings, options = {}) {
   const previousButton = document.createElement("button");
   previousButton.className = "featured-carousel-control featured-carousel-control-prev";
   previousButton.type = "button";
-  previousButton.setAttribute("aria-label", variant === "watched" ? "Show previous Watched Gear" : variant === "browse" ? "Show previous Gear Browser listings" : "Show previous Fresh Finds");
+  previousButton.setAttribute("aria-label", variant === "watched" ? "Show previous Watched Gear" : variant === "browse" ? "Show previous Gear Goggles listings" : "Show previous Fresh Finds");
 
   const rail = document.createElement("div");
   rail.className = "featured-home-rail";
@@ -4752,7 +4964,7 @@ function createFeaturedHomeSection(listings, options = {}) {
   const nextButton = document.createElement("button");
   nextButton.className = "featured-carousel-control featured-carousel-control-next";
   nextButton.type = "button";
-  nextButton.setAttribute("aria-label", variant === "watched" ? "Show more Watched Gear" : variant === "browse" ? "Show more Gear Browser listings" : "Show more Fresh Finds");
+  nextButton.setAttribute("aria-label", variant === "watched" ? "Show more Watched Gear" : variant === "browse" ? "Show more Gear Goggles listings" : "Show more Fresh Finds");
 
   carousel.append(previousButton, rail, nextButton);
   section.appendChild(carousel);
@@ -4762,14 +4974,24 @@ function createFeaturedHomeSection(listings, options = {}) {
 }
 
 function createFeaturedHomeLoadingCard(listing) {
+  const isBrowseLoading = Boolean(listing.isBrowseCategoryLoading);
   const card = document.createElement("article");
-  card.className = "listing-card loading-card featured-home-loading-card is-featured-home-card";
+  card.className = [
+    "listing-card",
+    "loading-card",
+    "featured-home-loading-card",
+    "is-featured-home-card",
+    isBrowseLoading ? "is-browse-home-card is-browse-loading-card" : "",
+  ].filter(Boolean).join(" ");
   card.style.setProperty("--loading-accent", "#0072ff");
-  card.setAttribute("aria-label", listing.title || "Fresh Finds loading");
+  card.setAttribute("aria-label", listing.title || (isBrowseLoading ? "Gear Goggles loading" : "Fresh Finds loading"));
+  const loadingImageMarkup = isBrowseLoading
+    ? `<img class="gear-browser-loader-svg" src="assets/animations/synth-search-loop-horizontal-transparent.svg" alt="" loading="eager" decoding="async" />`
+    : `<span class="featured-home-loading-sweep"></span>`;
   card.innerHTML = `
     <div class="image-stage" aria-hidden="true">
       <div class="image-link loading-image featured-home-loading-image">
-        <span class="featured-home-loading-sweep"></span>
+        ${loadingImageMarkup}
       </div>
     </div>
     <span class="new-pill">New</span>
@@ -4812,26 +5034,23 @@ function getFreshFindHomeListings() {
   const cachedListings = getCachedFreshFindListings();
   if (cachedListings.length > 0) return cachedListings;
   if (starterFreshFindStatus === "loading") return createFreshFindLoadingPlaceholders();
-  return STARTER_FRESH_FIND_LISTINGS;
+  return getStarterFreshFindFallbackListings();
 }
 
 function getBrowseCategoryHomeListings() {
   ensureBrowseCategoryListings();
   if (browseCategoryListings.length > 0) {
     const curatedListings = curateFreshFindListings(browseCategoryListings, { limit: BROWSE_HOME_LIMIT });
-    maybeSaveBrowseCategoryCache(browseCategoryIntent, browseCategoryListings);
     return curatedListings;
   }
   const cachedListings = getCachedBrowseCategoryListings(browseCategoryIntent, { limit: BROWSE_HOME_LIMIT });
   if (cachedListings.length > 0) return cachedListings;
-  if (browseCategoryStatus === "loading") return createBrowseCategoryLoadingPlaceholders();
   return [];
 }
 
 function getBrowseCategoryExpandedListings() {
   ensureBrowseCategoryListings();
   if (browseCategoryListings.length > 0) {
-    maybeSaveBrowseCategoryCache(browseCategoryIntent, browseCategoryListings);
     return prepareLatestBrowseListings(browseCategoryListings, { limit: BROWSE_EXPANDED_LIMIT });
   }
 
@@ -4846,39 +5065,51 @@ function ensureBrowseCategoryListings() {
 
   const requestedCategoryIntent = browseCategoryIntent;
   const requestId = browseCategoryRequestId + 1;
+  const abortController = new AbortController();
+  if (browseCategoryAbortController) browseCategoryAbortController.abort();
+  browseCategoryAbortController = abortController;
   browseCategoryRequestId = requestId;
   browseCategoryStatus = "loading";
   browseCategoryError = "";
 
-  fetchBrowseCategoryListings(requestedCategoryIntent)
+  fetchBrowseCategoryListings(requestedCategoryIntent, { signal: abortController.signal })
     .then((listings) => {
       if (requestId !== browseCategoryRequestId || requestedCategoryIntent !== browseCategoryIntent) return;
       browseCategoryListings = listings;
       browseCategoryStatus = listings.length > 0 ? "live" : "empty";
-      const curatedListings = curateFreshFindListings(listings, { limit: BROWSE_HOME_LIMIT });
-      if (curatedListings.length > 0) {
-        recordListingDiscoveries({ name: `${getCategoryIntentLabel(requestedCategoryIntent)} Browser` }, curatedListings);
-        maybeSaveBrowseCategoryCache(requestedCategoryIntent, listings);
+      if (searchState.mode === "idle") {
+        requestAnimationFrame(() => {
+          if (requestId !== browseCategoryRequestId || requestedCategoryIntent !== browseCategoryIntent) return;
+          renderResults({ force: true });
+          scheduleBrowseCategoryPostLoadWork(requestedCategoryIntent, listings);
+        });
+      } else {
+        scheduleBrowseCategoryPostLoadWork(requestedCategoryIntent, listings);
       }
-      if (searchState.mode === "idle") renderResults();
     })
     .catch((error) => {
       if (requestId !== browseCategoryRequestId || requestedCategoryIntent !== browseCategoryIntent) return;
+      if (error?.name === "AbortError") return;
       console.warn("Gear Browser unavailable.", error);
       browseCategoryError = error instanceof Error ? error.message : "Browse category unavailable";
       browseCategoryStatus = "error";
       if (searchState.mode === "idle") renderResults();
+    })
+    .finally(() => {
+      if (requestId === browseCategoryRequestId && browseCategoryAbortController === abortController) {
+        browseCategoryAbortController = null;
+      }
     });
 }
 
-async function fetchBrowseCategoryListings(categoryIntent) {
+async function fetchBrowseCategoryListings(categoryIntent, options = {}) {
   const params = new URLSearchParams({
     categoryIntent: sanitizeCategoryIntent(categoryIntent, appSettings.regionId),
     region: getActiveRegion().id,
     excludes: STARTER_FRESH_FIND_EXCLUDES.join("|"),
     maxPrice: "0",
   });
-  const response = await fetch(`/api/browse?${params.toString()}`, { cache: "no-store" });
+  const response = await fetch(`/api/browse?${params.toString()}`, { cache: "no-store", signal: options.signal });
   if (!response.ok) throw new Error(`Browse failed with ${response.status}`);
 
   const payload = await response.json();
@@ -4899,18 +5130,78 @@ function createBrowseCategoryLoadingPlaceholders() {
     source: "yahoo-auctions",
     title: `Browsing ${getCategoryIntentLabel(browseCategoryIntent)}`,
     isFreshFindLoading: true,
+    isBrowseCategoryLoading: true,
   }));
 }
 
-function setHomeBrowseCategory(categoryIntent) {
+function cancelBrowseCategoryLoad() {
+  if (browseCategoryAbortController) {
+    browseCategoryAbortController.abort();
+    browseCategoryAbortController = null;
+  }
+  browseCategoryRequestId += 1;
+  browseCategoryPostLoadTaskId += 1;
+  browseCardRenderId += 1;
+}
+
+function scheduleBrowseCategoryPostLoadWork(categoryIntent, listings) {
+  if (!Array.isArray(listings) || listings.length === 0) return;
+  const normalizedCategoryIntent = sanitizeCategoryIntent(categoryIntent, appSettings.regionId);
+  const taskId = ++browseCategoryPostLoadTaskId;
+  const run = () => {
+    if (taskId !== browseCategoryPostLoadTaskId || normalizedCategoryIntent !== browseCategoryIntent) return;
+    const curatedListings = curateFreshFindListings(listings, { limit: BROWSE_HOME_LIMIT });
+    if (curatedListings.length > 0) {
+      recordListingDiscoveries({ name: `${getCategoryIntentLabel(normalizedCategoryIntent)} Browser` }, curatedListings);
+      maybeSaveBrowseCategoryCache(normalizedCategoryIntent, listings);
+    }
+  };
+
+  requestAnimationFrame(() => {
+    if ("requestIdleCallback" in window) {
+      window.requestIdleCallback(run, { timeout: 2500 });
+      return;
+    }
+    window.setTimeout(run, 250);
+  });
+}
+
+function scheduleHomeBrowseCategoryChange(categoryIntent, options = {}) {
   const nextCategoryIntent = sanitizeCategoryIntent(categoryIntent, appSettings.regionId);
-  if (nextCategoryIntent === browseCategoryIntent && browseCategoryStatus !== "error") return;
+  if (browseCategorySelectionTimer) window.clearTimeout(browseCategorySelectionTimer);
+
+  cancelBrowseCategoryLoad();
   browseCategoryIntent = nextCategoryIntent;
   browseCategoryListings = [];
   browseCategoryStatus = "idle";
   browseCategoryError = "";
-  browseCategoryRequestId += 1;
-  if (searchState.mode === "idle") renderResults();
+  resetPagination();
+
+  if (options.expanded) {
+    isBrowseExpanded = true;
+    setAppView(APP_VIEW_SYNTH_BROWSER, { replace: true });
+  }
+
+  browseCategorySelectionTimer = window.setTimeout(() => {
+    browseCategorySelectionTimer = 0;
+    selectInteractionActive = false;
+    if (selectInteractionReleaseTimer) {
+      window.clearTimeout(selectInteractionReleaseTimer);
+      selectInteractionReleaseTimer = 0;
+    }
+    if (searchState.mode === "idle") renderResults({ force: true });
+  }, 0);
+}
+
+function setHomeBrowseCategory(categoryIntent, options = {}) {
+  const nextCategoryIntent = sanitizeCategoryIntent(categoryIntent, appSettings.regionId);
+  if (nextCategoryIntent === browseCategoryIntent && browseCategoryStatus !== "error") return;
+  cancelBrowseCategoryLoad();
+  browseCategoryIntent = nextCategoryIntent;
+  browseCategoryListings = [];
+  browseCategoryStatus = "idle";
+  browseCategoryError = "";
+  if (searchState.mode === "idle") renderResults({ force: Boolean(options.forceRender) });
 }
 
 function getCachedBrowseCategoryListings(categoryIntent = browseCategoryIntent, options = {}) {
@@ -5095,6 +5386,8 @@ function serializeFreshFindCacheListing(listing) {
   return {
     id: listing.id,
     source: listing.source,
+    region: listing.region || getActiveRegion().id,
+    currency: listing.currency || getActiveRegion().currency,
     title: listing.title,
     price: listing.price,
     priceLabel: listing.priceLabel || "",
@@ -5129,13 +5422,20 @@ function getWatchedHomeListings(watchingIds = loadSet(STORAGE_KEYS.watching)) {
 }
 
 function createFreshFindLoadingPlaceholders() {
+  const sourceIds = getStarterFreshFindSourceIds();
   return Array.from({ length: FRESH_FIND_LOADING_CARD_COUNT }, (_, index) => ({
     id: `fresh-find-loading-${index}`,
-    source: STARTER_FRESH_FIND_SOURCE_IDS[index % STARTER_FRESH_FIND_SOURCE_IDS.length],
+    source: sourceIds[index % sourceIds.length],
     title: "Scanning Fresh Finds",
     isStarterFreshFind: true,
     isFreshFindLoading: true,
   }));
+}
+
+function resetFreshFindRegionState() {
+  starterFreshFindStatus = "idle";
+  starterFreshFindListings = [];
+  starterFreshFindTerms = [];
 }
 
 function ensureStarterFreshFindListings() {
@@ -5163,13 +5463,66 @@ function pickStarterFreshFindTerms() {
   return shuffled.slice(0, 2);
 }
 
+function getStarterFreshFindSourceIds(regionId = getActiveRegion().id) {
+  const configuredSourceIds = REGIONAL_FRESH_FIND_SOURCE_IDS[regionId] || getRegionById(regionId).sources || STARTER_FRESH_FIND_SOURCE_IDS;
+  const regionSources = new Set(getRegionById(regionId).sources || []);
+  const sourceIds = configuredSourceIds.filter((sourceId) => regionSources.has(sourceId));
+  return sourceIds.length > 0 ? sourceIds : STARTER_FRESH_FIND_SOURCE_IDS;
+}
+
+function getStarterFreshFindFallbackListings() {
+  const region = getActiveRegion();
+  if (region.id === "japan") return STARTER_FRESH_FIND_LISTINGS;
+
+  const sourceIds = getStarterFreshFindSourceIds(region.id);
+  const fallbackTerms = STARTER_FRESH_FIND_TERMS.slice(0, FEATURED_HOME_LIMIT);
+  return sourceIds.slice(0, FEATURED_HOME_LIMIT).map((sourceId, index) => {
+    const label = labelForSource(sourceId);
+    const term = fallbackTerms[index % fallbackTerms.length] || "vintage synthesizer";
+    return {
+      id: `starter-${region.id}-${sourceId}`,
+      source: sourceId,
+      region: region.id,
+      currency: region.currency,
+      title: `${label} fresh ${term}`,
+      priceLabel: "Explore",
+      condition: "Starter search",
+      listedAt: new Date(Date.now() - index * 60 * 60 * 1000).toISOString(),
+      url: createStarterFreshFindUrl(sourceId, term),
+      image: createStarterSynthArtwork(label, index % 2 === 0 ? "#d8e6f7" : "#e6e0ec", "#171a1d"),
+      isStarterFreshFind: true,
+    };
+  });
+}
+
+function createStarterFreshFindUrl(sourceId, term) {
+  const encodedTerm = encodeURIComponent(term);
+  if (sourceId === "craigslist-sfbay") return `https://sfbay.craigslist.org/search/msa?query=${encodedTerm}&sort=date`;
+  if (sourceId === "craigslist-la") return `https://losangeles.craigslist.org/search/msa?query=${encodedTerm}&sort=date`;
+  if (sourceId === "craigslist-east") return `https://newyork.craigslist.org/search/msa?query=${encodedTerm}&sort=date`;
+  if (sourceId === "reverb-us") return `https://reverb.com/marketplace?query=${encodedTerm}`;
+  if (sourceId === "ebay-us") return `https://www.ebay.com/sch/i.html?_nkw=${encodedTerm}`;
+  if (sourceId === "sweetwater-used") return `https://www.sweetwater.com/used/listings?query=${encodedTerm}`;
+  if (sourceId === "guitar-center-used") return `https://www.guitarcenter.com/Used/?Ntt=${encodedTerm}`;
+  if (sourceId === "main-drag") return `https://maindragmusic.com/search?q=${encodedTerm}`;
+  if (sourceId === "rogue-music") return "https://www.roguemusic.com/golink5.php";
+  if (sourceId === "three-wave") return `https://threewavemusic.com/search.php?search_query=${encodedTerm}&section=product`;
+  if (sourceId === "alto-music") return `https://www.altomusic.com/search?q=${encodedTerm}`;
+  if (sourceId === "tone-tweakers") return `https://tonetweakers.com/search?q=${encodedTerm}`;
+  if (sourceId === "pro-audio-star") return `https://www.proaudiostar.com/catalogsearch/result/?q=${encodedTerm}`;
+  return "#";
+}
+
 async function fetchStarterFreshFindListings() {
+  const region = getActiveRegion();
+  const sourceIds = getStarterFreshFindSourceIds(region.id);
   const params = new URLSearchParams({
     terms: starterFreshFindTerms.join("|"),
     excludes: STARTER_FRESH_FIND_EXCLUDES.join("|"),
-    categoryIntent: DEFAULT_CATEGORY_INTENT,
+    categoryIntent: getRegionCategoryIntent(region.id),
+    region: region.id,
     maxPrice: "0",
-    sources: STARTER_FRESH_FIND_SOURCE_IDS.join("|"),
+    sources: sourceIds.join("|"),
   });
   const response = await fetch(`/api/search?${params.toString()}`, { cache: "no-store" });
   if (!response.ok) throw new Error(`Starter Fresh Finds failed with ${response.status}`);
@@ -5177,7 +5530,8 @@ async function fetchStarterFreshFindListings() {
   const payload = await response.json();
   const listings = Array.isArray(payload.listings) ? payload.listings : [];
   const freshListings = listings
-    .filter((listing) => STARTER_FRESH_FIND_SOURCE_IDS.includes(listing.source))
+    .filter((listing) => sourceIds.includes(listing.source))
+    .filter((listing) => !listing.region || listing.region === region.id)
     .filter((listing) => !isUnavailableListing(listing))
     .filter((listing) => isCleanGearListing(listing))
     .filter((listing) => !hasStarterFreshFindNoise(listing))
@@ -5918,6 +6272,7 @@ function applyActiveRegion(regionId) {
   pendingSourceIds = new Set();
   sourceSearchStatuses = new Map();
   sourceSearchMeta = new Map();
+  resetFreshFindRegionState();
   renderSources();
   updateRegionBadge();
   renderSourceFilters();
