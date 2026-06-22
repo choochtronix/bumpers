@@ -32,3 +32,9 @@ screenshots/
 # Temporary files
 .tmp/
 temp/
+
+# macOS / Windows metadata
+.DS_Store
+._*
+*:com.apple.*
+*:Zone.Identifier
