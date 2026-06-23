@@ -1,0 +1,181 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 700" width="1600" height="700" role="img" aria-labelledby="title desc">
+  <title id="title">Perspective line graph loading animation</title>
+  <desc id="desc">Transparent ultra-wide SVG loading animation with black one point perspective grid lines and a searching magnifying glass.</desc>
+  <style>
+    :root {
+      color: #000;
+    }
+
+    svg {
+      background: transparent;
+    }
+
+    .line,
+    .lens {
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1pt;
+      stroke-linecap: square;
+      stroke-linejoin: miter;
+      vector-effect: non-scaling-stroke;
+    }
+
+    .ray {
+      opacity: 0.72;
+    }
+
+    .horizon {
+      opacity: 0.55;
+    }
+
+    .band {
+      opacity: 0;
+      animation: bandFade 3.2s linear infinite;
+    }
+
+    .band.a {
+      animation-delay: 0s;
+    }
+
+    .band.b {
+      animation-delay: -1.07s;
+    }
+
+    .band.c {
+      animation-delay: -2.14s;
+    }
+
+    .magnifier {
+      animation: lensBob 1.1s ease-in-out infinite alternate;
+    }
+
+    @keyframes bandFade {
+      0% {
+        opacity: 0;
+      }
+      11% {
+        opacity: 0.72;
+      }
+      72% {
+        opacity: 0.72;
+      }
+      100% {
+        opacity: 0;
+      }
+    }
+
+    @keyframes lensBob {
+      from {
+        transform: translateY(-5px);
+      }
+      to {
+        transform: translateY(5px);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .band,
+      .magnifier {
+        animation: none;
+        opacity: 0.68;
+      }
+
+      animate,
+      animateMotion,
+      animateTransform {
+        display: none;
+      }
+    }
+  </style>
+
+  <defs>
+    <path id="search-path" d="M 0 0 C 142 -148 322 -154 412 -84 S 634 34 784 -128 C 892 -244 760 -315 617 -269 C 462 -219 388 -284 272 -306 C 170 -325 45 -268 48 -160 C 51 -53 190 -8 298 -41" />
+
+    <g id="horizontal-floor-lines" class="line">
+      <line x1="-800" y1="12" x2="800" y2="12" />
+      <line x1="-800" y1="22" x2="800" y2="22" />
+      <line x1="-800" y1="35" x2="800" y2="35" />
+      <line x1="-800" y1="51" x2="800" y2="51" />
+      <line x1="-800" y1="72" x2="800" y2="72" />
+      <line x1="-800" y1="98" x2="800" y2="98" />
+      <line x1="-800" y1="130" x2="800" y2="130" />
+      <line x1="-800" y1="168" x2="800" y2="168" />
+      <line x1="-800" y1="214" x2="800" y2="214" />
+      <line x1="-800" y1="268" x2="800" y2="268" />
+      <line x1="-800" y1="331" x2="800" y2="331" />
+      <line x1="-800" y1="404" x2="800" y2="404" />
+    </g>
+
+    <g id="horizontal-ceiling-lines" class="line">
+      <line x1="-800" y1="-10" x2="800" y2="-10" />
+      <line x1="-800" y1="-18" x2="800" y2="-18" />
+      <line x1="-800" y1="-29" x2="800" y2="-29" />
+      <line x1="-800" y1="-43" x2="800" y2="-43" />
+      <line x1="-800" y1="-61" x2="800" y2="-61" />
+      <line x1="-800" y1="-83" x2="800" y2="-83" />
+      <line x1="-800" y1="-110" x2="800" y2="-110" />
+      <line x1="-800" y1="-143" x2="800" y2="-143" />
+      <line x1="-800" y1="-182" x2="800" y2="-182" />
+      <line x1="-800" y1="-229" x2="800" y2="-229" />
+      <line x1="-800" y1="-284" x2="800" y2="-284" />
+    </g>
+  </defs>
+
+  <g id="perspective-grid">
+    <g class="line ray">
+      <line x1="800" y1="300" x2="-90" y2="700" />
+      <line x1="800" y1="300" x2="112" y2="700" />
+      <line x1="800" y1="300" x2="288" y2="700" />
+      <line x1="800" y1="300" x2="452" y2="700" />
+      <line x1="800" y1="300" x2="612" y2="700" />
+      <line x1="800" y1="300" x2="800" y2="700" />
+      <line x1="800" y1="300" x2="988" y2="700" />
+      <line x1="800" y1="300" x2="1148" y2="700" />
+      <line x1="800" y1="300" x2="1312" y2="700" />
+      <line x1="800" y1="300" x2="1488" y2="700" />
+      <line x1="800" y1="300" x2="1690" y2="700" />
+
+      <line x1="800" y1="300" x2="-50" y2="0" />
+      <line x1="800" y1="300" x2="130" y2="0" />
+      <line x1="800" y1="300" x2="300" y2="0" />
+      <line x1="800" y1="300" x2="470" y2="0" />
+      <line x1="800" y1="300" x2="635" y2="0" />
+      <line x1="800" y1="300" x2="800" y2="0" />
+      <line x1="800" y1="300" x2="965" y2="0" />
+      <line x1="800" y1="300" x2="1130" y2="0" />
+      <line x1="800" y1="300" x2="1300" y2="0" />
+      <line x1="800" y1="300" x2="1470" y2="0" />
+      <line x1="800" y1="300" x2="1650" y2="0" />
+    </g>
+
+    <line class="line horizon" x1="0" y1="300" x2="1600" y2="300" />
+
+    <g transform="translate(800 300)">
+      <g class="band a">
+        <use href="#horizontal-floor-lines" />
+        <use href="#horizontal-ceiling-lines" />
+        <animateTransform attributeName="transform" type="scale" values="1 .08; 1 1.34" dur="3.2s" repeatCount="indefinite" />
+      </g>
+      <g class="band b">
+        <use href="#horizontal-floor-lines" />
+        <use href="#horizontal-ceiling-lines" />
+        <animateTransform attributeName="transform" type="scale" values="1 .08; 1 1.34" dur="3.2s" begin="-1.07s" repeatCount="indefinite" />
+      </g>
+      <g class="band c">
+        <use href="#horizontal-floor-lines" />
+        <use href="#horizontal-ceiling-lines" />
+        <animateTransform attributeName="transform" type="scale" values="1 .08; 1 1.34" dur="3.2s" begin="-2.14s" repeatCount="indefinite" />
+      </g>
+    </g>
+  </g>
+
+  <g class="magnifier">
+    <g transform="translate(378 498)">
+      <animateMotion dur="6.2s" repeatCount="indefinite" rotate="0">
+        <mpath href="#search-path" />
+      </animateMotion>
+      <circle class="lens" cx="0" cy="0" r="58" />
+      <line class="lens" x1="42" y1="42" x2="112" y2="112" />
+    </g>
+  </g>
+</svg>

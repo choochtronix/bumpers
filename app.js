@@ -45,7 +45,7 @@ const ACTIVE_REGION = REGION_CONFIG?.activeRegion || {
 };
 const RESULTS_PER_PAGE = 48;
 const FEATURED_HOME_LIMIT = 12;
-const BROWSE_HOME_LIMIT = 6;
+const BROWSE_HOME_LIMIT = 8;
 const BROWSE_EXPANDED_LIMIT = 240;
 const BROWSE_CARD_RENDER_CHUNK_SIZE = 6;
 const APP_VIEW_PARAM = "view";
@@ -695,7 +695,7 @@ const defaultSettings = {
 };
 
 const CATEGORY_INTENTS = [
-  { id: "all", label: "Everything" },
+  { id: "all", label: "All Gear" },
   { id: "synthesizers", label: "Synthesizers" },
   { id: "drum-machines", label: "Drum Machines" },
   { id: "samplers", label: "Samplers" },
@@ -707,6 +707,16 @@ const CATEGORY_INTENTS = [
 const DEFAULT_CATEGORY_INTENT = "synthesizers";
 const DEFAULT_BROWSE_CATEGORY_INTENT = "all";
 const CATEGORY_INTENT_IDS = new Set(CATEGORY_INTENTS.map((intent) => intent.id));
+// Update this list to change the cycling typed prompts in the main search field.
+const QUICK_SEARCH_PLACEHOLDER_PROMPTS = [
+  "Drum Machine, no cat pee smell",
+  "Ensoniq Fizmo",
+  "R2-D2",
+];
+const R2D2_SEARCH_TARGET = "Arp 2600";
+const QUICK_SEARCH_PLACEHOLDER_TIMING = {
+  cycleMs: 3600,
+};
 
 const defaultProfile = {
   name: "Waldorf",
@@ -744,6 +754,8 @@ let deferredSearchApply = null;
 let starterFreshFindStatus = "idle";
 let starterFreshFindListings = [];
 let starterFreshFindTerms = [];
+let starterFreshFindRequestId = 0;
+let starterFreshFindAbortController = null;
 let browseCategoryIntent = DEFAULT_BROWSE_CATEGORY_INTENT;
 let browseCategoryStatus = "idle";
 let browseCategoryListings = [];
@@ -772,6 +784,7 @@ const brandHomeLink = document.querySelector("#brandHomeLink");
 const regionQuickSelect = document.querySelector("#regionQuickSelect");
 const regionSelector = document.querySelector("#regionSelector");
 const termsInput = document.querySelector("#terms");
+const quickSearchPlaceholder = document.querySelector("#quickSearchPlaceholder");
 const mobileSearchOverlay = document.querySelector("#mobileSearchOverlay");
 const mobileSearchForm = document.querySelector("#mobileSearchForm");
 const mobileSearchInput = document.querySelector("#mobileSearchInput");
@@ -853,10 +866,12 @@ let saveConfirmationTimer = 0;
 let isSavedSearchAutoSyncing = false;
 let isProfileAutoSyncing = false;
 let eventsBound = false;
+let searchChirpAudioCtx = null;
 
 function initialize() {
   isBrowseExpanded = getCurrentAppView() === APP_VIEW_SYNTH_BROWSER;
   bindEvents();
+  runStartupStep("quick search placeholder", initializeQuickSearchPlaceholder);
   runStartupStep("stored theme", applyStoredTheme);
   runStartupStep("brand wave", initializeBrandWave);
   runStartupStep("sources", renderSources);
@@ -879,6 +894,44 @@ function runStartupStep(label, action) {
   } catch (error) {
     console.error(`Brrtz startup step failed: ${label}`, error);
   }
+}
+
+function initializeQuickSearchPlaceholder() {
+  if (!quickSearchPlaceholder) return;
+  const prompts = QUICK_SEARCH_PLACEHOLDER_PROMPTS
+    .map((prompt) => String(prompt || "").trim())
+    .filter(Boolean);
+  if (prompts.length === 0) return;
+
+  const placeholderStyles = window.getComputedStyle(quickSearchPlaceholder);
+  const widthCanvas = document.createElement("canvas");
+  const widthContext = widthCanvas.getContext("2d");
+  if (widthContext) {
+    widthContext.font = placeholderStyles.font || `${placeholderStyles.fontWeight} ${placeholderStyles.fontSize} ${placeholderStyles.fontFamily}`;
+  }
+  const measurePromptWidth = (prompt) => Math.ceil(widthContext?.measureText(prompt).width || prompt.length * 9) + 2;
+
+  const terms = document.createElement("span");
+  terms.className = "quick-search-placeholder-terms";
+  terms.style.setProperty("--quick-search-placeholder-duration", `${prompts.length * QUICK_SEARCH_PLACEHOLDER_TIMING.cycleMs}ms`);
+
+  const longestPrompt = prompts.reduce((longest, prompt) => prompt.length > longest.length ? prompt : longest, "");
+  const sizer = document.createElement("span");
+  sizer.className = "quick-search-placeholder-sizer";
+  sizer.textContent = longestPrompt;
+  terms.appendChild(sizer);
+
+  prompts.forEach((prompt, index) => {
+    const text = document.createElement("span");
+    text.className = "quick-search-placeholder-text";
+    if (index === 0) text.classList.add("is-first");
+    text.textContent = prompt;
+    text.style.setProperty("--quick-search-placeholder-delay", `${index * QUICK_SEARCH_PLACEHOLDER_TIMING.cycleMs}ms`);
+    text.style.setProperty("--quick-search-placeholder-width", `${measurePromptWidth(prompt)}px`);
+    terms.appendChild(text);
+  });
+
+  quickSearchPlaceholder.replaceChildren(terms);
 }
 
 function initializeBrandWave() {
@@ -1357,12 +1410,15 @@ function bindEvents() {
 
   brandHomeLink.addEventListener("click", resetHomeView);
   regionQuickSelect?.addEventListener("change", handleRegionQuickSelectChange);
+  document.addEventListener("pointerdown", primeSearchChirpAudio, { capture: true, passive: true });
+  document.addEventListener("keydown", primeSearchChirpAudio, { capture: true });
+  document.addEventListener("touchstart", primeSearchChirpAudio, { capture: true, passive: true });
   searchForm.addEventListener("submit", (event) => {
     event.preventDefault();
     if (!refineSearchModal.hidden) {
       syncRefineTermsToPrimary();
     }
-    currentProfile = readProfileFromForm();
+    currentProfile = applySearchEasterEggs(readProfileFromForm(), { syncForm: true, playSound: true });
     renderRefineSummary();
     closeRefineSearchModal({ restoreFocus: false });
     runSearch();
@@ -1743,11 +1799,19 @@ function handleRegionQuickSelectChange(event) {
     renderRegionQuickSelectOptions(nextRegionId);
     return;
   }
+  const profileBeforeSwitch = readProfileFromForm();
+  const shouldRunSearchAfterSwitch = profileBeforeSwitch.terms.length > 0;
   selectInteractionActive = false;
   applyActiveRegion(nextRegionId);
-  currentProfile = createFreshProfile();
+  currentProfile = shouldRunSearchAfterSwitch
+    ? createProfileForRegion(profileBeforeSwitch, nextRegionId)
+    : createFreshProfile();
   fillForm(currentProfile);
-  resetToIdleSearch();
+  if (shouldRunSearchAfterSwitch) {
+    runSearch();
+  } else {
+    resetToIdleSearch();
+  }
 }
 
 function getRegionStatusLabel(region) {
@@ -1852,6 +1916,117 @@ function readProfileFromForm() {
     alertMode: document.querySelector("#alertMode").value,
     sources: [...document.querySelectorAll("input[name='sources']:checked")].map((input) => input.value),
   };
+}
+
+function applySearchEasterEggs(profile, options = {}) {
+  if (!profile.terms.some(isR2D2SearchTerm)) return profile;
+
+  const nextProfile = {
+    ...profile,
+    name: R2D2_SEARCH_TARGET,
+    terms: [R2D2_SEARCH_TARGET],
+  };
+
+  if (options.syncForm) {
+    refineTermsInput.value = nextProfile.terms.join("\n");
+    renderPrimarySearchTerm();
+  }
+
+  if (options.playSound) {
+    playSearchRobotChirp();
+  }
+
+  return nextProfile;
+}
+
+function isR2D2SearchTerm(term) {
+  const compactTerm = normalizeText(term || "").replace(/[^a-z0-9]/g, "");
+  return compactTerm === "r2d2" || compactTerm === "r2d2sound" || compactTerm === "r2d2sounds";
+}
+
+function getSearchChirpAudioContext() {
+  const AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextConstructor) return null;
+
+  if (!searchChirpAudioCtx || searchChirpAudioCtx.state === "closed") {
+    try {
+      searchChirpAudioCtx = new AudioContextConstructor();
+    } catch (error) {
+      searchChirpAudioCtx = null;
+    }
+  }
+
+  return searchChirpAudioCtx;
+}
+
+function primeSearchChirpAudio() {
+  const chirpAudioCtx = getSearchChirpAudioContext();
+  if (!chirpAudioCtx || chirpAudioCtx.state !== "suspended") return;
+  chirpAudioCtx.resume().catch(() => {});
+}
+
+function playSearchRobotChirp() {
+  const chirpAudioCtx = getSearchChirpAudioContext();
+  if (!chirpAudioCtx) return;
+
+  const scheduleChirp = () => {
+    const startTime = chirpAudioCtx.currentTime + 0.02;
+    const masterGain = chirpAudioCtx.createGain();
+    const chirpFilter = chirpAudioCtx.createBiquadFilter();
+    const chirpNotes = [
+      { at: 0, frequency: 1040, duration: 0.12 },
+      { at: 0.16, frequency: 1680, duration: 0.1 },
+      { at: 0.29, frequency: 740, duration: 0.13 },
+      { at: 0.46, frequency: 1860, duration: 0.11 },
+      { at: 0.61, frequency: 1280, duration: 0.12 },
+      { at: 0.78, frequency: 920, duration: 0.15 },
+      { at: 1, frequency: 1540, duration: 0.12 },
+      { at: 1.18, frequency: 680, duration: 0.13 },
+      { at: 1.36, frequency: 1780, duration: 0.11 },
+      { at: 1.51, frequency: 1120, duration: 0.16 },
+    ];
+
+    chirpFilter.type = "bandpass";
+    chirpFilter.frequency.setValueAtTime(1450, startTime);
+    chirpFilter.Q.setValueAtTime(9, startTime);
+
+    masterGain.gain.setValueAtTime(0.0001, startTime);
+    masterGain.gain.exponentialRampToValueAtTime(0.24, startTime + 0.025);
+    masterGain.gain.setValueAtTime(0.22, startTime + 1.52);
+    masterGain.gain.exponentialRampToValueAtTime(0.0001, startTime + 1.84);
+    chirpFilter.connect(masterGain);
+    masterGain.connect(chirpAudioCtx.destination);
+
+    chirpNotes.forEach((note, index) => {
+      const oscillator = chirpAudioCtx.createOscillator();
+      const noteGain = chirpAudioCtx.createGain();
+      const noteStart = startTime + note.at;
+      const pitchTarget = Math.max(80, note.frequency * (index % 2 ? 0.62 : 1.32));
+
+      oscillator.type = index % 2 === 0 ? "square" : "triangle";
+      oscillator.frequency.setValueAtTime(note.frequency, noteStart);
+      oscillator.frequency.exponentialRampToValueAtTime(pitchTarget, noteStart + note.duration);
+
+      noteGain.gain.setValueAtTime(0.0001, noteStart);
+      noteGain.gain.exponentialRampToValueAtTime(0.36, noteStart + 0.01);
+      noteGain.gain.exponentialRampToValueAtTime(0.0001, noteStart + note.duration);
+
+      oscillator.connect(noteGain);
+      noteGain.connect(chirpFilter);
+      oscillator.start(noteStart);
+      oscillator.stop(noteStart + note.duration + 0.02);
+    });
+
+    window.setTimeout(() => {
+      chirpFilter.disconnect?.();
+      masterGain.disconnect?.();
+    }, 2100);
+  };
+
+  scheduleChirp();
+  if (chirpAudioCtx.state === "suspended") {
+    chirpAudioCtx.resume().catch(() => {});
+  }
 }
 
 function getFormProfileName(terms) {
@@ -2675,12 +2850,7 @@ async function saveSettingsFromModal() {
   localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(appSettings));
 
   if (regionChanged) {
-    qualityFilter = nextRegion.searchDefaults?.cleanGear === false ? "all" : "clean";
-    activeViewSources.clear();
-    pendingSourceIds = new Set();
-    sourceSearchStatuses = new Map();
-    sourceSearchMeta = new Map();
-    resetFreshFindRegionState();
+    resetRegionRuntimeState();
     currentProfile = createFreshProfile();
     renderSources();
     updateRegionBadge();
@@ -2851,11 +3021,7 @@ function applyCloudPreferences(preferences = {}) {
     try {
       if (regionChanged) {
         applyStep = "refreshing region view";
-        qualityFilter = getActiveRegion().searchDefaults?.cleanGear === false ? "all" : "clean";
-        activeViewSources.clear();
-        pendingSourceIds = new Set();
-        sourceSearchStatuses = new Map();
-        sourceSearchMeta = new Map();
+        resetRegionRuntimeState();
         currentProfile = createFreshProfile();
         renderSources();
         updateRegionBadge();
@@ -3828,7 +3994,7 @@ function createBrowseExpandedLoadingState(options = {}) {
   loadingState.setAttribute("aria-live", "polite");
   const detail = options.detail || "Brrtz is checking the source feeds now.";
   loadingState.innerHTML = `
-    <img class="browse-expanded-loader-svg" src="assets/animations/synth-search-loop-horizontal-transparent.svg" alt="" loading="eager" decoding="async" />
+    <img class="browse-expanded-loader-svg" src="assets/animations/perspective-line-graph-loading.svg" alt="" loading="eager" decoding="async" />
     <div class="browse-expanded-loader-copy">
       <strong>Loading latest ${escapeHtml(getCategoryIntentLabel(browseCategoryIntent).toLowerCase())}.</strong>
       <span>${escapeHtml(detail)}</span>
@@ -4819,6 +4985,30 @@ function createAlertDetail(count) {
   return `${count} unseen listings`;
 }
 
+function createBrowseCategoryDetailMarkup(options = {}) {
+  const {
+    count = 0,
+    freshness = "",
+    loading = false,
+    error = "",
+  } = options;
+  const categoryLabel = getCategoryIntentLabel(browseCategoryIntent).toLowerCase();
+
+  if (loading && count > 0) {
+    return `<span class="browse-category-label">${escapeHtml(categoryLabel)}</span><span class="browse-detail-rest"> has ${escapeHtml(`${count} cached ${count === 1 ? "listing" : "listings"} · Refreshing now${freshness}`)}</span>`;
+  }
+
+  if (loading) {
+    return "Checking source feeds now";
+  }
+
+  if (error) {
+    return escapeHtml(error);
+  }
+
+  return `<span class="browse-category-label">${escapeHtml(categoryLabel)}</span><span class="browse-detail-rest"> has ${escapeHtml(`${count} newest ${count === 1 ? "listing" : "listings"}${freshness}`)}</span>`;
+}
+
 function createFeaturedHomeHeader(count, options = {}) {
   const header = document.createElement("div");
   header.className = "featured-home-header";
@@ -4838,26 +5028,23 @@ function createFeaturedHomeHeader(count, options = {}) {
       <option value="${escapeHtml(intent.id)}" ${intent.id === browseCategoryIntent ? "selected" : ""}>${escapeHtml(intent.label)}</option>
     `).join("");
     const browseFreshness = formatBrowseFreshnessDetail(browseCacheUpdatedAt);
-    const browseDetail = isBrowseCached && browseCategoryStatus === "loading"
-      ? `Recently spotted ${getCategoryIntentLabel(browseCategoryIntent).toLowerCase()} · Refreshing now${browseFreshness}`
-      : isBrowseCached
-        ? `Recently spotted ${getCategoryIntentLabel(browseCategoryIntent).toLowerCase()}${browseFreshness}`
-      : browseCategoryStatus === "loading"
-        ? `Browsing latest ${getCategoryIntentLabel(browseCategoryIntent).toLowerCase()} listings`
-      : browseCategoryStatus === "error"
-        ? browseCategoryError || "Browse mode is warming up"
-        : `${count} latest ${count === 1 ? "listing" : "listings"} in ${getCategoryIntentLabel(browseCategoryIntent).toLowerCase()}${browseFreshness}`;
+    const browseDetailMarkup = createBrowseCategoryDetailMarkup({
+      count,
+      freshness: browseFreshness,
+      loading: browseCategoryStatus === "loading",
+      error: browseCategoryStatus === "error" ? browseCategoryError || "Browse mode is warming up" : "",
+    });
     header.innerHTML = `
       <div>
         <h3><button class="feature-headline-button" type="button" data-result-action="open-browse-expanded">Gear Goggles</button></h3>
-        <span>${escapeHtml(browseDetail)}</span>
+        <span>${browseDetailMarkup}</span>
       </div>
       <div class="browse-header-actions">
         <label class="browse-category-control">
-          <span>Browse Random</span>
+          <span>Browse</span>
           <select id="homeBrowseCategory" aria-label="Browse category">${optionsMarkup}</select>
         </label>
-        <button class="browse-view-all-button" type="button" data-result-action="open-browse-expanded">See all</button>
+        <button class="browse-view-all-button" type="button" data-result-action="open-browse-expanded">More</button>
       </div>
     `;
     return header;
@@ -4890,22 +5077,21 @@ function createBrowseExpandedHeader(visibleCount, totalCount) {
     <option value="${escapeHtml(intent.id)}" ${intent.id === browseCategoryIntent ? "selected" : ""}>${escapeHtml(intent.label)}</option>
   `).join("");
   const freshness = formatBrowseFreshnessDetail(getBrowseCategoryFreshness());
-  const browseDetail = browseCategoryStatus === "loading" && totalCount > 0
-    ? `${visibleCount} cached ${visibleCount === 1 ? "listing" : "listings"} · Refreshing now${freshness}`
-    : browseCategoryStatus === "loading"
-      ? "Checking source feeds now"
-      : browseCategoryStatus === "error"
-        ? browseCategoryError || "Browse mode is warming up"
-        : `${visibleCount} newest ${visibleCount === 1 ? "listing" : "listings"} in ${getCategoryIntentLabel(browseCategoryIntent).toLowerCase()}${freshness}`;
+  const browseDetailMarkup = createBrowseCategoryDetailMarkup({
+    count: visibleCount,
+    freshness,
+    loading: browseCategoryStatus === "loading",
+    error: browseCategoryStatus === "error" ? browseCategoryError || "Browse mode is warming up" : "",
+  });
 
   header.innerHTML = `
     <div>
       <h3><span class="feature-headline-button browse-expanded-headline">Gear Goggles</span></h3>
-      <span>${escapeHtml(browseDetail)}</span>
+      <span>${browseDetailMarkup}</span>
     </div>
     <div class="browse-header-actions">
       <label class="browse-category-control">
-        <span>Browse Random</span>
+        <span>Browse</span>
         <select id="expandedBrowseCategory" aria-label="Browse category">${optionsMarkup}</select>
       </label>
     </div>
@@ -4954,21 +5140,37 @@ function createFeaturedHomeSection(listings, options = {}) {
       return;
     }
 
-    const listingFragment = renderListing(listing, { isFeaturedHome: true });
+    const listingFragment = renderListing(listing, { isFeaturedHome: variant !== "browse" });
     const card = listingFragment.querySelector(".listing-card");
     if (variant === "watched") card?.classList.add("is-watched-home-card");
     if (variant === "browse") card?.classList.add("is-browse-home-card");
     rail.appendChild(listingFragment);
   });
+  if (variant === "browse") {
+    const endcap = document.createElement("span");
+    endcap.className = "featured-home-rail-endcap";
+    endcap.setAttribute("aria-hidden", "true");
+    rail.appendChild(endcap);
+  }
 
   const nextButton = document.createElement("button");
   nextButton.className = "featured-carousel-control featured-carousel-control-next";
   nextButton.type = "button";
   nextButton.setAttribute("aria-label", variant === "watched" ? "Show more Watched Gear" : variant === "browse" ? "Show more Gear Goggles listings" : "Show more Fresh Finds");
 
+  const seeMoreButton = variant === "browse" ? document.createElement("button") : null;
+  if (seeMoreButton) {
+    seeMoreButton.className = "browse-carousel-see-more";
+    seeMoreButton.type = "button";
+    seeMoreButton.dataset.resultAction = "open-browse-expanded";
+    seeMoreButton.textContent = "More";
+    seeMoreButton.hidden = true;
+  }
+
   carousel.append(previousButton, rail, nextButton);
+  if (seeMoreButton) carousel.appendChild(seeMoreButton);
   section.appendChild(carousel);
-  setupFeaturedHomeCarousel(rail, previousButton, nextButton);
+  setupFeaturedHomeCarousel(rail, previousButton, nextButton, { seeMoreButton });
 
   return section;
 }
@@ -4986,7 +5188,7 @@ function createFeaturedHomeLoadingCard(listing) {
   card.style.setProperty("--loading-accent", "#0072ff");
   card.setAttribute("aria-label", listing.title || (isBrowseLoading ? "Gear Goggles loading" : "Fresh Finds loading"));
   const loadingImageMarkup = isBrowseLoading
-    ? `<img class="gear-browser-loader-svg" src="assets/animations/synth-search-loop-horizontal-transparent.svg" alt="" loading="eager" decoding="async" />`
+    ? `<img class="gear-browser-loader-svg" src="assets/animations/perspective-line-graph-loading.svg" alt="" loading="eager" decoding="async" />`
     : `<span class="featured-home-loading-sweep"></span>`;
   card.innerHTML = `
     <div class="image-stage" aria-hidden="true">
@@ -5004,7 +5206,8 @@ function createFeaturedHomeLoadingCard(listing) {
   return card;
 }
 
-function setupFeaturedHomeCarousel(rail, previousButton, nextButton) {
+function setupFeaturedHomeCarousel(rail, previousButton, nextButton, options = {}) {
+  const seeMoreButton = options.seeMoreButton || null;
   const scrollByPage = (direction) => {
     const distance = Math.max(rail.clientWidth * 0.82, 260);
     rail.scrollBy({ left: direction * distance, behavior: "smooth" });
@@ -5013,10 +5216,12 @@ function setupFeaturedHomeCarousel(rail, previousButton, nextButton) {
   const updateControls = () => {
     const maxScroll = rail.scrollWidth - rail.clientWidth;
     const hasOverflow = maxScroll > 8;
+    const isAtEnd = hasOverflow && rail.scrollLeft >= maxScroll - 8;
     previousButton.hidden = !hasOverflow;
-    nextButton.hidden = !hasOverflow;
+    nextButton.hidden = !hasOverflow || Boolean(seeMoreButton && isAtEnd);
     previousButton.disabled = rail.scrollLeft <= 8;
-    nextButton.disabled = rail.scrollLeft >= maxScroll - 8;
+    nextButton.disabled = isAtEnd;
+    if (seeMoreButton) seeMoreButton.hidden = !isAtEnd;
   };
 
   previousButton.addEventListener("click", () => scrollByPage(-1));
@@ -5433,6 +5638,11 @@ function createFreshFindLoadingPlaceholders() {
 }
 
 function resetFreshFindRegionState() {
+  if (starterFreshFindAbortController) {
+    starterFreshFindAbortController.abort();
+    starterFreshFindAbortController = null;
+  }
+  starterFreshFindRequestId += 1;
   starterFreshFindStatus = "idle";
   starterFreshFindListings = [];
   starterFreshFindTerms = [];
@@ -5442,19 +5652,31 @@ function ensureStarterFreshFindListings() {
   if (starterFreshFindStatus !== "idle") return;
   if (location.protocol === "file:") return;
 
+  const requestRegionId = getActiveRegion().id;
+  const requestId = ++starterFreshFindRequestId;
+  const abortController = new AbortController();
+  if (starterFreshFindAbortController) starterFreshFindAbortController.abort();
+  starterFreshFindAbortController = abortController;
   starterFreshFindStatus = "loading";
   starterFreshFindTerms = pickStarterFreshFindTerms();
 
-  fetchStarterFreshFindListings()
+  fetchStarterFreshFindListings({ signal: abortController.signal })
     .then((listings) => {
+      if (requestId !== starterFreshFindRequestId || requestRegionId !== getActiveRegion().id) return;
       starterFreshFindListings = listings;
       starterFreshFindStatus = listings.length > 0 ? "live" : "fallback";
       if (searchState.mode === "idle") renderResults();
     })
     .catch((error) => {
+      if (requestId !== starterFreshFindRequestId || error?.name === "AbortError") return;
       console.warn("Starter Fresh Finds unavailable; keeping portal cards.", error);
       starterFreshFindStatus = "fallback";
       if (searchState.mode === "idle") renderResults();
+    })
+    .finally(() => {
+      if (requestId === starterFreshFindRequestId && starterFreshFindAbortController === abortController) {
+        starterFreshFindAbortController = null;
+      }
     });
 }
 
@@ -5513,7 +5735,7 @@ function createStarterFreshFindUrl(sourceId, term) {
   return "#";
 }
 
-async function fetchStarterFreshFindListings() {
+async function fetchStarterFreshFindListings(options = {}) {
   const region = getActiveRegion();
   const sourceIds = getStarterFreshFindSourceIds(region.id);
   const params = new URLSearchParams({
@@ -5524,7 +5746,7 @@ async function fetchStarterFreshFindListings() {
     maxPrice: "0",
     sources: sourceIds.join("|"),
   });
-  const response = await fetch(`/api/search?${params.toString()}`, { cache: "no-store" });
+  const response = await fetch(`/api/search?${params.toString()}`, { cache: "no-store", signal: options.signal });
   if (!response.ok) throw new Error(`Starter Fresh Finds failed with ${response.status}`);
 
   const payload = await response.json();
@@ -6267,18 +6489,37 @@ function applyActiveRegion(regionId) {
   };
   localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(appSettings));
   if (regionSelect) regionSelect.value = nextRegion.id;
-  qualityFilter = nextRegion.searchDefaults?.cleanGear === false ? "all" : "clean";
-  activeViewSources.clear();
-  pendingSourceIds = new Set();
-  sourceSearchStatuses = new Map();
-  sourceSearchMeta = new Map();
-  resetFreshFindRegionState();
+  resetRegionRuntimeState();
   renderSources();
   updateRegionBadge();
   renderSourceFilters();
   renderRefineSummary();
   renderSavedSearches();
   pushCloudProfilePreferences({ silent: true });
+}
+
+function resetRegionRuntimeState() {
+  qualityFilter = getActiveRegion().searchDefaults?.cleanGear === false ? "all" : "clean";
+  activeViewSources.clear();
+  pendingSourceIds = new Set();
+  sourceSearchStatuses = new Map();
+  sourceSearchMeta = new Map();
+  resetFreshFindRegionState();
+  resetBrowseCategoryRegionState();
+}
+
+function resetBrowseCategoryRegionState() {
+  if (browseCategorySelectionTimer) {
+    window.clearTimeout(browseCategorySelectionTimer);
+    browseCategorySelectionTimer = 0;
+  }
+  cancelBrowseCategoryLoad();
+  browseCategoryIntent = sanitizeCategoryIntent(browseCategoryIntent, appSettings.regionId);
+  browseCategoryListings = [];
+  browseCategoryStatus = "idle";
+  browseCategoryError = "";
+  browseCategoryCacheSignature = "";
+  browseCategoryUpdatedAt = "";
 }
 
 function createProfileForRegion(profile, targetRegionId, options = {}) {
