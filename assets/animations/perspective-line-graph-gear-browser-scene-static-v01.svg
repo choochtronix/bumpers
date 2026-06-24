@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2400 420" width="2400" height="420" role="img" aria-labelledby="title desc">
+  <title id="title">Gear browser perspective scene</title>
+  <desc id="desc">Transparent panoramic SVG scene with open sky above a static one point perspective ground grid.</desc>
+  <style>
+    :root {
+      color: #111827;
+    }
+
+    svg {
+      background: transparent;
+    }
+
+    .line {
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1pt;
+      stroke-linecap: square;
+      stroke-linejoin: miter;
+      vector-effect: non-scaling-stroke;
+    }
+
+    .ray {
+      opacity: 0.26;
+    }
+
+    .horizon {
+      opacity: 0.16;
+    }
+
+    .floor {
+      opacity: 0.32;
+    }
+  </style>
+
+  <defs>
+    <clipPath id="ground-clip">
+      <rect x="0" y="174" width="2400" height="246" />
+    </clipPath>
+
+    <g id="floor-lines" class="line floor">
+      <line x1="-1500" y1="7" x2="1500" y2="7" />
+      <line x1="-1500" y1="10.07" x2="1500" y2="10.07" />
+      <line x1="-1500" y1="14.5" x2="1500" y2="14.5" />
+      <line x1="-1500" y1="20.86" x2="1500" y2="20.86" />
+      <line x1="-1500" y1="30.02" x2="1500" y2="30.02" />
+      <line x1="-1500" y1="43.2" x2="1500" y2="43.2" />
+      <line x1="-1500" y1="62.16" x2="1500" y2="62.16" />
+      <line x1="-1500" y1="89.45" x2="1500" y2="89.45" />
+      <line x1="-1500" y1="128.72" x2="1500" y2="128.72" />
+      <line x1="-1500" y1="185.23" x2="1500" y2="185.23" />
+      <line x1="-1500" y1="266.55" x2="1500" y2="266.55" />
+      <line x1="-1500" y1="383.57" x2="1500" y2="383.57" />
+      <line x1="-1500" y1="551.97" x2="1500" y2="551.97" />
+      <line x1="-1500" y1="794.3" x2="1500" y2="794.3" />
+      <line x1="-1500" y1="1143.02" x2="1500" y2="1143.02" />
+    </g>
+  </defs>
+
+  <g id="perspective-grid" clip-path="url(#ground-clip)">
+    <g class="line ray">
+      <line x1="1200" y1="174" x2="-1200" y2="420" />
+      <line x1="1200" y1="174" x2="-740" y2="420" />
+      <line x1="1200" y1="174" x2="-320" y2="420" />
+      <line x1="1200" y1="174" x2="92" y2="420" />
+      <line x1="1200" y1="174" x2="500" y2="420" />
+      <line x1="1200" y1="174" x2="850" y2="420" />
+      <line x1="1200" y1="174" x2="1200" y2="420" />
+      <line x1="1200" y1="174" x2="1550" y2="420" />
+      <line x1="1200" y1="174" x2="1900" y2="420" />
+      <line x1="1200" y1="174" x2="2308" y2="420" />
+      <line x1="1200" y1="174" x2="2720" y2="420" />
+      <line x1="1200" y1="174" x2="3140" y2="420" />
+      <line x1="1200" y1="174" x2="3600" y2="420" />
+    </g>
+
+    <line class="line horizon" x1="0" y1="174" x2="2400" y2="174" />
+
+    <g transform="translate(1200 174) scale(1 .82)">
+      <use href="#floor-lines" />
+    </g>
+  </g>
+</svg>

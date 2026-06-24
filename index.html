@@ -91,7 +91,7 @@
         <form class="search-form" id="searchForm">
           <div class="search-terms-field">
             <span>Search</span>
-            <input class="terms-state-field quick-search-input" id="terms" type="search" autocomplete="off" enterkeyhint="search" placeholder=" " aria-label="Search for gear" />
+            <input class="terms-state-field quick-search-input" id="terms" type="search" autocomplete="off" enterkeyhint="search" placeholder=" " aria-label="Search for gear" aria-controls="quickSearchSuggestions" aria-expanded="false" />
             <div class="quick-search-placeholder" id="quickSearchPlaceholder" aria-hidden="true">
               <span class="quick-search-placeholder-terms">
                 <span class="quick-search-placeholder-sizer">Drum Machine, no cat pee smell</span>
@@ -99,8 +99,10 @@
               </span>
             </div>
             <button class="quick-search-extra" id="quickSearchExtraTerms" type="button" aria-label="Edit additional search terms" hidden></button>
+            <button class="quick-search-clear" id="quickSearchClear" type="button" aria-label="Clear search terms" title="Clear search terms" hidden>×</button>
             <button class="quick-search-save" id="quickSaveSearch" type="button" aria-label="Save current search" title="Save current search" disabled>☆</button>
             <button class="quick-search-submit" type="submit" aria-label="Run search"></button>
+            <div class="quick-search-suggestions" id="quickSearchSuggestions" aria-label="Synth model suggestions" hidden></div>
           </div>
 
           <div class="quick-search-actions">
@@ -115,10 +117,6 @@
               <span class="refine-icon" aria-hidden="true"></span>
               Refine
             </button>
-            <div class="quality-mode-inline" aria-label="Search quality mode">
-              <button class="quality-mode-button" type="button" data-quality="all">All</button>
-              <button class="quality-mode-button" type="button" data-quality="clean" role="switch">Gear Mode</button>
-            </div>
           </div>
 
           <div class="refine-summary" id="refineSummary" aria-live="polite"></div>
@@ -142,7 +140,7 @@
 
         <section class="filter-bar" aria-label="Result filters">
           <section class="source-filter-panel" aria-label="Source filter">
-            <span>Sources</span>
+            <span class="source-filter-heading">Sources <span class="source-quality-status" id="sourceQualityStatus" hidden><span class="source-quality-separator" aria-hidden="true">|</span><span>Gear Mode On</span><span class="source-quality-check" aria-hidden="true">✓</span></span></span>
             <div class="source-filter-list" id="sourceFilterList"></div>
             <div class="source-row-meta">
               <div class="result-view-toggle" id="resultViewToggle" role="group" aria-label="Result view">
@@ -417,6 +415,19 @@ stand
                 <label class="setting-toggle">
                   <span>Dark mode</span>
                   <input id="themeSettingsToggle" type="checkbox" />
+                  <span class="toggle-track" aria-hidden="true"></span>
+                </label>
+              </div>
+
+              <div class="settings-section" aria-labelledby="searchQualitySettingsTitle">
+                <div>
+                  <h3 id="searchQualitySettingsTitle">Search Quality</h3>
+                  <p>Hide likely non-gear listings from results.</p>
+                </div>
+
+                <label class="setting-toggle">
+                  <span>Gear Mode</span>
+                  <input id="gearModeSettingsToggle" type="checkbox" />
                   <span class="toggle-track" aria-hidden="true"></span>
                 </label>
               </div>
