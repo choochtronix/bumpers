@@ -59,9 +59,10 @@
 
         <div class="header-actions">
           <div class="saved-menu">
-            <button class="saved-trigger" id="openSavedSearches" type="button" aria-haspopup="dialog" aria-expanded="false">
-              <span class="site-icon site-icon-saved-search" aria-hidden="true"></span>
-              Saved
+            <button class="saved-trigger" id="openSavedSearches" type="button" aria-haspopup="dialog" aria-expanded="false" aria-label="Open saved searches" title="Saved searches">
+              <svg class="header-action-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+                <path d="M7 4.5C7 3.67 7.67 3 8.5 3H15.5C16.33 3 17 3.67 17 4.5V20L12 17L7 20V4.5Z" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
             </button>
             <div class="saved-popover" id="savedSearchPopover" hidden>
               <div class="panel-heading">
@@ -74,9 +75,10 @@
             </div>
           </div>
 
-          <button class="watching-trigger" id="topWatchingFilter" type="button" aria-pressed="false">
-            <span class="site-icon site-icon-watched" aria-hidden="true"></span>
-            Watching
+          <button class="watching-trigger" id="topWatchingFilter" type="button" aria-pressed="false" aria-label="Open watchlist" title="Watchlist">
+            <svg class="header-action-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+              <path d="M12 20.5C12 20.5 3.5 15.3 3.5 9C3.5 6.1 5.6 4 8.2 4C9.85 4 11.25 4.95 12 6.35C12.75 4.95 14.15 4 15.8 4C18.4 4 20.5 6.1 20.5 9C20.5 15.3 12 20.5 12 20.5Z" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
           </button>
           <button class="theme-toggle" id="themeToggle" type="button" aria-label="Switch to dark mode" title="Switch to dark mode">
             <span class="theme-icon" aria-hidden="true">◐</span>
@@ -100,16 +102,12 @@
             </div>
             <button class="quick-search-extra" id="quickSearchExtraTerms" type="button" aria-label="Edit additional search terms" hidden></button>
             <button class="quick-search-clear" id="quickSearchClear" type="button" aria-label="Clear search terms" title="Clear search terms" hidden>×</button>
-            <button class="quick-search-save" id="quickSaveSearch" type="button" aria-label="Save current search" title="Save current search" disabled>☆</button>
+            <button class="quick-search-refine" id="openRefineSearch" type="button" aria-label="Open refine search options" title="Refine search">
+              <span class="refine-icon" aria-hidden="true"></span>
+              <span class="quick-search-refine-label">Refine</span>
+            </button>
             <button class="quick-search-submit" type="submit" aria-label="Run search"></button>
             <div class="quick-search-suggestions" id="quickSearchSuggestions" aria-label="Synth model suggestions" hidden></div>
-          </div>
-
-          <div class="quick-search-actions">
-            <button class="secondary-action bumpers-secondary-button" id="openRefineSearch" type="button">
-              <span class="refine-icon" aria-hidden="true"></span>
-              Refine
-            </button>
           </div>
 
           <div class="result-options">
@@ -140,7 +138,7 @@
 
         <section class="filter-bar" aria-label="Result filters">
           <section class="source-filter-panel" aria-label="Source filter">
-            <span class="source-filter-heading">Sources <span class="source-quality-status" id="sourceQualityStatus" hidden><span class="source-quality-separator" aria-hidden="true">|</span><span>Gear Mode On</span><span class="source-quality-check" aria-hidden="true">✓</span></span></span>
+            <span class="source-filter-heading">Sources <span class="source-quality-status" id="sourceQualityStatus" hidden><span class="source-quality-separator" aria-hidden="true">|</span><button class="source-quality-link" id="openSourceQualitySettings" type="button" aria-label="Open Search Quality settings" aria-pressed="true"><span>Gear Mode On</span><span class="source-quality-check" aria-hidden="true">✓</span></button></span></span>
             <div class="source-filter-list" id="sourceFilterList"></div>
             <div class="source-row-meta">
               <div class="result-view-toggle" id="resultViewToggle" role="group" aria-label="Result view">
@@ -255,9 +253,12 @@
             </select>
           </label>
 
-          <label>
-            <span>Exclude</span>
-            <textarea id="excludes" rows="5" form="searchForm">manual
+          <section class="exclude-tags-section" aria-labelledby="excludeTagsLabel">
+            <div class="exclude-tags-copy">
+              <span id="excludeTagsLabel">Exclude</span>
+              <p>Hide listings containing these words or phrases.</p>
+            </div>
+            <textarea id="excludes" class="exclude-tags-storage" rows="5" form="searchForm" hidden>manual
 magnet
 power cord
 doll
@@ -267,10 +268,43 @@ CD
 Moments to Remember
 record
 shoes</textarea>
-          </label>
+            <div class="exclude-tag-cloud" id="excludeTagField" role="group" aria-labelledby="excludeTagsLabel">
+              <div class="exclude-tag-list" id="excludeTagList" aria-live="polite"></div>
+              <input id="excludeTagInput" type="text" autocomplete="off" aria-label="Add excluded word or phrase" placeholder="Add word or phrase..." />
+            </div>
+          </section>
 
-          <details class="advanced-options" open>
-            <summary>Clean gear noise</summary>
+          <div class="form-grid">
+            <label>
+              <span>Max price</span>
+              <input id="maxPrice" form="searchForm" type="number" value="2000000" min="0" step="1000" />
+            </label>
+            <label>
+              <span>Alert</span>
+              <select id="alertMode" form="searchForm">
+                <option value="immediate">Immediate</option>
+                <option value="hourly">Hourly</option>
+                <option value="daily">Daily</option>
+              </select>
+            </label>
+          </div>
+
+          <details class="advanced-options source-options" id="refineSourceOptions">
+            <summary>
+              <span>Sources</span>
+              <span class="advanced-options-meta" id="refineSourceCount">Sources</span>
+            </summary>
+            <fieldset class="source-options-fieldset">
+              <legend class="sr-only">Sources</legend>
+              <div class="source-list" id="sourceList"></div>
+            </fieldset>
+          </details>
+
+          <details class="advanced-options noise-options" id="refineNoiseOptions">
+            <summary>
+              <span>Clean gear noise</span>
+              <span class="advanced-options-meta" id="refineNoiseCount">Noise terms</span>
+            </summary>
             <label>
               <span>Hide when quality is clean</span>
               <textarea id="noiseTerms" rows="4" form="searchForm">adapter
@@ -298,30 +332,10 @@ stand
             </label>
           </details>
 
-          <div class="form-grid">
-            <label>
-              <span>Max price</span>
-              <input id="maxPrice" form="searchForm" type="number" value="2000000" min="0" step="1000" />
-            </label>
-            <label>
-              <span>Alert</span>
-              <select id="alertMode" form="searchForm">
-                <option value="immediate">Immediate</option>
-                <option value="hourly">Hourly</option>
-                <option value="daily">Daily</option>
-              </select>
-            </label>
-          </div>
-
-          <fieldset>
-            <legend>Sources</legend>
-            <div class="source-list" id="sourceList"></div>
-          </fieldset>
-
           <div class="modal-actions">
             <button class="secondary-action" id="cancelRefineSearch" type="button">Cancel</button>
-            <button class="secondary-action" id="applyRefineSearch" type="button">Apply only</button>
-            <button class="primary-action" form="searchForm" type="submit">Apply & search</button>
+            <button class="secondary-action apply-search-action" form="searchForm" type="submit">Apply & search</button>
+            <button class="secondary-action save-refine-search-action" id="saveRefineSearch" type="button">Save this search</button>
           </div>
         </div>
       </section>

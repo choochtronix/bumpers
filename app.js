@@ -121,6 +121,19 @@ const SOURCE_ACCENT_TOKENS = {
   hardoff: "--source-hardoff",
 };
 
+const RANDOMIZED_BAY_AREA_SOURCE_IDS = ["robotspeak", "mission-synths", "starving-musician", "bananas-at-large", "gelb-music"];
+const RANDOMIZED_BAY_AREA_SOURCE_COLORS = [
+  { solid: "#ff00ff", ink: "#ffffff", mark: "#ff00ff" },
+  { solid: "#0072ff", ink: "#ffffff", mark: "#0072ff" },
+  { solid: "#00a36c", ink: "#ffffff", mark: "#00a36c" },
+  { solid: "#ff7a00", ink: "#ffffff", mark: "#ff7a00" },
+  { solid: "#8a5cff", ink: "#ffffff", mark: "#8a5cff" },
+];
+const RANDOMIZED_BAY_AREA_SOURCE_COLOR_MAP = createRandomizedSourceColorMap(
+  RANDOMIZED_BAY_AREA_SOURCE_IDS,
+  RANDOMIZED_BAY_AREA_SOURCE_COLORS,
+);
+
 const SOURCE_METADATA_ALIASES = {
   mercari: ["Mercari", "メルカリ"],
   "yahoo-auctions": ["Yahoo Auctions", "Yahoo Auction", "ヤフオク"],
@@ -722,6 +735,7 @@ const CATEGORY_INTENTS = [
   { id: "effects-pedals", label: "Effects" },
   { id: "pro-audio", label: "Pro Audio" },
 ];
+const BROWSE_CATEGORY_INTENTS = CATEGORY_INTENTS.filter((intent) => intent.id !== "sequencers");
 const DEFAULT_CATEGORY_INTENT = "synthesizers";
 const DEFAULT_BROWSE_CATEGORY_INTENT = "all";
 const CATEGORY_INTENT_IDS = new Set(CATEGORY_INTENTS.map((intent) => intent.id));
@@ -831,6 +845,10 @@ const mobileSearchOverlay = document.querySelector("#mobileSearchOverlay");
 const mobileSearchForm = document.querySelector("#mobileSearchForm");
 const mobileSearchInput = document.querySelector("#mobileSearchInput");
 const refineTermsInput = document.querySelector("#refineTerms");
+const excludesInput = document.querySelector("#excludes");
+const excludeTagField = document.querySelector("#excludeTagField");
+const excludeTagList = document.querySelector("#excludeTagList");
+const excludeTagInput = document.querySelector("#excludeTagInput");
 const categoryIntentSelect = document.querySelector("#categoryIntent");
 const termDropdown = document.querySelector("#termDropdown");
 const quickSearchExtraTermsButton = document.querySelector("#quickSearchExtraTerms");
@@ -849,6 +867,7 @@ const alertDetail = document.querySelector("#alertDetail");
 const alertTitle = document.querySelector("#alertTitle");
 const sourceFilterList = document.querySelector("#sourceFilterList");
 const sourceQualityStatus = document.querySelector("#sourceQualityStatus");
+const openSourceQualitySettingsButton = document.querySelector("#openSourceQualitySettings");
 const sourceAssistPanel = document.querySelector("#sourceAssistPanel");
 const sourceAssistList = document.querySelector("#sourceAssistList");
 const themeToggle = document.querySelector("#themeToggle");
@@ -863,6 +882,11 @@ const quickSaveSearchButton = document.querySelector("#quickSaveSearch");
 const topWatchingFilter = document.querySelector("#topWatchingFilter");
 const refineSearchModal = document.querySelector("#refineSearchModal");
 const refineSummary = document.querySelector("#refineSummary");
+const refineSourceOptions = document.querySelector("#refineSourceOptions");
+const refineNoiseOptions = document.querySelector("#refineNoiseOptions");
+const refineSourceCount = document.querySelector("#refineSourceCount");
+const refineNoiseCount = document.querySelector("#refineNoiseCount");
+const saveRefineSearchButton = document.querySelector("#saveRefineSearch");
 const saveSearchModal = document.querySelector("#saveSearchModal");
 const saveSearchForm = document.querySelector("#saveSearchForm");
 const saveSearchName = document.querySelector("#saveSearchName");
@@ -1474,6 +1498,13 @@ function bindEvents() {
   mobileSearchInput?.addEventListener("input", handleMobileSearchInput);
   mobileSearchForm?.addEventListener("submit", handleMobileSearchSubmit);
   refineTermsInput.addEventListener("input", syncRefineTermsToPrimary);
+  window.addEventListener("resize", autoSizeRefineTermsInput);
+  excludeTagField?.addEventListener("click", handleExcludeTagFieldClick);
+  excludeTagInput?.addEventListener("keydown", handleExcludeTagInputKeydown);
+  excludeTagInput?.addEventListener("input", handleExcludeTagInput);
+  excludeTagInput?.addEventListener("paste", handleExcludeTagInputPaste);
+  excludeTagInput?.addEventListener("blur", commitExcludeTagInput);
+  excludeTagList?.addEventListener("click", handleExcludeTagRemoveClick);
   quickSearchExtraTermsButton?.addEventListener("click", openRefineSearchModal);
   quickSearchClearButton?.addEventListener("click", clearQuickSearchTerms);
   quickSearchSuggestions?.addEventListener("click", handleQuickSearchSuggestionClick);
@@ -1495,16 +1526,16 @@ function bindEvents() {
   document.querySelector("#openResultRefineSearch")?.addEventListener("click", openRefineSearchModal);
   document.querySelector("#closeRefineSearch").addEventListener("click", closeRefineSearchModal);
   document.querySelector("#cancelRefineSearch").addEventListener("click", closeRefineSearchModal);
-  document.querySelector("#applyRefineSearch").addEventListener("click", applyRefineSearchOnly);
+  saveRefineSearchButton?.addEventListener("click", saveSearchFromRefineModal);
   refineSearchModal.addEventListener("click", (event) => {
     if (event.target === refineSearchModal) closeRefineSearchModal();
   });
-  refineSearchModal.addEventListener("input", renderRefineSummary);
-  refineSearchModal.addEventListener("change", renderRefineSummary);
+  refineSearchModal.addEventListener("input", handleRefineSearchModalEdit);
+  refineSearchModal.addEventListener("change", handleRefineSearchModalEdit);
 
   openSavedSearchesButton.addEventListener("click", toggleSavedSearchPopover);
   document.addEventListener("click", handleSavedPopoverOutsideClick);
-  quickSaveSearchButton.addEventListener("click", saveCurrentSearchQuick);
+  quickSaveSearchButton?.addEventListener("click", saveCurrentSearchQuick);
   document.querySelector("#openSaveSearch").addEventListener("click", openSaveSearchModal);
   document.querySelector("#saveProfile").addEventListener("click", openSaveSearchModal);
   closeSaveConfirmationToastButton?.addEventListener("click", hideSaveConfirmationToast);
@@ -1566,6 +1597,7 @@ function bindEvents() {
   importSavedSearchesButton.addEventListener("click", () => savedSearchImportFile.click());
   savedSearchImportFile.addEventListener("change", importSavedSearchesFromFile);
   gearModeSettingsToggle?.addEventListener("change", handleSettingsGearModeToggle);
+  openSourceQualitySettingsButton?.addEventListener("click", openSearchQualitySettings);
 
   topWatchingFilter.addEventListener("click", toggleWatchingFilter);
   savedWatchingFilter?.addEventListener("click", () => {
@@ -1660,7 +1692,9 @@ function bindEvents() {
   backToTopButton.addEventListener("click", scrollPageTop);
   window.addEventListener("scroll", requestBackToTopVisibilityUpdate, { passive: true });
   window.addEventListener("scroll", requestMobileSearchOverlayUpdate, { passive: true });
+  window.addEventListener("scroll", refreshSavedSearchPopoverPosition, { passive: true });
   window.addEventListener("resize", requestMobileSearchOverlayUpdate);
+  window.addEventListener("resize", refreshSavedSearchPopoverPosition);
   window.addEventListener("popstate", handleAppViewPopState);
 
   document.addEventListener("keydown", (event) => {
@@ -1991,9 +2025,11 @@ function getCategoryIntentLabel(categoryIntent) {
 function fillForm(profile) {
   const hydratedProfile = hydrateProfile(profile);
   refineTermsInput.value = hydratedProfile.terms.join("\n");
+  autoSizeRefineTermsInput();
   renderPrimarySearchTerm();
   if (categoryIntentSelect) categoryIntentSelect.value = hydratedProfile.categoryIntent;
-  document.querySelector("#excludes").value = hydratedProfile.excludes.join("\n");
+  excludesInput.value = hydratedProfile.excludes.join("\n");
+  renderExcludeTags();
   document.querySelector("#noiseTerms").value = hydratedProfile.noiseTerms.join("\n");
   document.querySelector("#maxPrice").value = hydratedProfile.maxPrice;
   document.querySelector("#alertMode").value = hydratedProfile.alertMode;
@@ -2011,7 +2047,7 @@ function readProfileFromForm() {
     name: getFormProfileName(terms),
     regionId: appSettings.regionId,
     terms,
-    excludes: splitLines(document.querySelector("#excludes").value),
+    excludes: getExcludeTags(),
     noiseTerms: splitLines(document.querySelector("#noiseTerms").value),
     categoryIntent: sanitizeCategoryIntent(categoryIntentSelect?.value, appSettings.regionId),
     maxPrice: Number(document.querySelector("#maxPrice").value || 0),
@@ -2031,6 +2067,7 @@ function applySearchEasterEggs(profile, options = {}) {
 
   if (options.syncForm) {
     refineTermsInput.value = nextProfile.terms.join("\n");
+    autoSizeRefineTermsInput();
     renderPrimarySearchTerm();
   }
 
@@ -2189,6 +2226,7 @@ function handleQuickSearchSuggestionClick(event) {
   const extraTerms = refineTerms.slice(1);
   termsInput.value = nextTerm;
   refineTermsInput.value = [nextTerm, ...extraTerms].join("\n");
+  autoSizeRefineTermsInput();
   clearSearchSpecificExcludesForNewTerms();
   syncMobileSearchInputFromPrimary({ force: true });
   renderSearchTermsSummary();
@@ -2200,6 +2238,7 @@ function handleQuickSearchSuggestionClick(event) {
 function clearQuickSearchTerms() {
   termsInput.value = "";
   refineTermsInput.value = "";
+  autoSizeRefineTermsInput();
   if (mobileSearchInput) mobileSearchInput.value = "";
   clearSearchSpecificExcludesForNewTerms();
   renderSearchTermsSummary();
@@ -2223,10 +2262,148 @@ function clearSearchSpecificExcludesForNewTerms() {
   const nextTerms = splitLines(termsInput.value);
   if (arraysMatch(nextTerms, currentProfile?.terms || [])) return;
 
-  const excludesInput = document.querySelector("#excludes");
   if (!excludesInput.value.trim()) return;
 
-  excludesInput.value = "";
+  setExcludeTags([]);
+}
+
+function normalizeExcludeTag(value) {
+  return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+function parseExcludeTagText(value) {
+  return String(value || "")
+    .split(/[\n,]+/)
+    .map(normalizeExcludeTag)
+    .filter(Boolean);
+}
+
+function getExcludeTags() {
+  return parseExcludeTagText(excludesInput?.value || "");
+}
+
+function setExcludeTags(tags, options = {}) {
+  const { notify = true } = options;
+  const seen = new Set();
+  const nextTags = [];
+
+  tags.forEach((tag) => {
+    const normalizedTag = normalizeExcludeTag(tag);
+    if (!normalizedTag) return;
+    const key = normalizeText(normalizedTag);
+    if (seen.has(key)) return;
+    seen.add(key);
+    nextTags.push(normalizedTag);
+  });
+
+  if (excludesInput) excludesInput.value = nextTags.join("\n");
+  renderExcludeTags();
+
+  if (notify) {
+    renderRefineSummary();
+    updateRefineSaveSearchButton();
+  }
+
+  return nextTags;
+}
+
+function renderExcludeTags() {
+  if (!excludeTagList || !excludeTagInput) return;
+  const tags = getExcludeTags();
+  excludeTagList.innerHTML = "";
+  excludeTagField?.classList.toggle("has-tags", tags.length > 0);
+
+  tags.forEach((tag, index) => {
+    const chip = document.createElement("span");
+    chip.className = "exclude-tag-chip";
+
+    const label = document.createElement("span");
+    label.className = "exclude-tag-label";
+    label.textContent = tag;
+
+    const removeButton = document.createElement("button");
+    removeButton.className = "exclude-tag-remove";
+    removeButton.type = "button";
+    removeButton.dataset.excludeIndex = String(index);
+    removeButton.setAttribute("aria-label", `Remove excluded term ${tag}`);
+    removeButton.textContent = "×";
+
+    chip.append(label, removeButton);
+    excludeTagList.appendChild(chip);
+  });
+}
+
+function commitExcludeTagInput(options = {}) {
+  if (!excludeTagInput) return false;
+  const nextTags = parseExcludeTagText(excludeTagInput.value);
+  if (nextTags.length === 0) {
+    excludeTagInput.value = "";
+    return false;
+  }
+
+  setExcludeTags([...getExcludeTags(), ...nextTags]);
+  excludeTagInput.value = "";
+  if (options.focus) excludeTagInput.focus();
+  return true;
+}
+
+function removeExcludeTagAt(index, options = {}) {
+  const tags = getExcludeTags();
+  if (!Number.isInteger(index) || index < 0 || index >= tags.length) return;
+  tags.splice(index, 1);
+  setExcludeTags(tags);
+  if (options.focusInput !== false) excludeTagInput?.focus();
+}
+
+function handleExcludeTagFieldClick(event) {
+  if (event.target.closest(".exclude-tag-remove")) return;
+  excludeTagInput?.focus();
+}
+
+function handleExcludeTagInputKeydown(event) {
+  if (event.isComposing || event.keyCode === 229) return;
+
+  if (event.key === "Enter" || event.key === ",") {
+    event.preventDefault();
+    commitExcludeTagInput({ focus: true });
+    return;
+  }
+
+  if (event.key === "Backspace" && !excludeTagInput.value) {
+    event.preventDefault();
+    removeExcludeTagAt(getExcludeTags().length - 1, { focusInput: true });
+    return;
+  }
+
+  if (event.key === "Escape" && excludeTagInput.value) {
+    event.preventDefault();
+    excludeTagInput.value = "";
+  }
+}
+
+function handleExcludeTagInput(event) {
+  if (event.isComposing) return;
+  if (/[\n,]/.test(excludeTagInput.value)) {
+    commitExcludeTagInput({ focus: true });
+  }
+}
+
+function handleExcludeTagInputPaste(event) {
+  const pastedText = event.clipboardData?.getData("text") || "";
+  if (!/[\n,]/.test(pastedText)) return;
+  event.preventDefault();
+  const nextTags = parseExcludeTagText(`${excludeTagInput.value}\n${pastedText}`);
+  if (nextTags.length > 0) {
+    setExcludeTags([...getExcludeTags(), ...nextTags]);
+  }
+  excludeTagInput.value = "";
+  excludeTagInput.focus();
+}
+
+function handleExcludeTagRemoveClick(event) {
+  const button = event.target.closest(".exclude-tag-remove");
+  if (!button) return;
+  removeExcludeTagAt(Number(button.dataset.excludeIndex), { focusInput: true });
 }
 
 function openRefineSearchModal(event) {
@@ -2234,10 +2411,14 @@ function openRefineSearchModal(event) {
   if (!refineTermsInput.value.trim()) {
     syncPrimaryTermsToRefine();
   }
+  if (refineSourceOptions) refineSourceOptions.open = false;
+  if (refineNoiseOptions) refineNoiseOptions.open = false;
   renderRefineSummary();
+  updateRefineSaveSearchButton();
   refineSearchModal.hidden = false;
   document.body.classList.add("modal-open");
   updateMobileSearchOverlayVisibility();
+  autoSizeRefineTermsInput();
   refineTermsInput.focus();
 }
 
@@ -2250,24 +2431,88 @@ function closeRefineSearchModal(options = {}) {
   if (restoreFocus) refineSearchReturnFocus?.focus();
 }
 
-function applyRefineSearchOnly() {
-  syncRefineTermsToPrimary();
-  currentProfile = readProfileFromForm();
+function handleRefineSearchModalEdit() {
   renderRefineSummary();
-  closeRefineSearchModal();
+  updateRefineSaveSearchButton();
+}
+
+function getDraftProfileFromRefineModal() {
+  syncRefineTermsToPrimary();
+  return {
+    ...readProfileFromForm(),
+    regionId: appSettings.regionId,
+  };
+}
+
+function updateRefineSaveSearchButton() {
+  if (!saveRefineSearchButton) return;
+  const draftProfile = getDraftProfileFromRefineModal();
+  const hasSearchTerms = draftProfile.terms.length > 0;
+  const isSaved = hasSearchTerms && Boolean(findMatchingSavedSearchByProfile(draftProfile));
+
+  saveRefineSearchButton.disabled = !hasSearchTerms;
+  saveRefineSearchButton.classList.toggle("is-saved", isSaved);
+  saveRefineSearchButton.innerHTML = isSaved ? 'Saved <span aria-hidden="true">✓</span>' : "Save this search";
+  saveRefineSearchButton.title = isSaved ? "Current search is saved" : "Save this search";
+  saveRefineSearchButton.setAttribute("aria-label", isSaved ? "Current search is saved" : "Save this search");
+}
+
+function saveSearchFromRefineModal(event) {
+  event?.preventDefault?.();
+  if (!saveRefineSearchButton || saveRefineSearchButton.disabled) {
+    refineTermsInput.focus();
+    return;
+  }
+
+  const draftProfile = getDraftProfileFromRefineModal();
+  const existingProfile = findMatchingSavedSearchByProfile(draftProfile);
+
+  if (existingProfile) {
+    currentProfile = hydrateProfile(existingProfile);
+    updateQuickSaveSearchButton();
+    updateRefineSaveSearchButton();
+    showSaveConfirmationToast(currentProfile, { alreadySaved: true });
+    return;
+  }
+
+  currentProfile = saveProfile(draftProfile);
+  renderSavedSearches();
+  setActiveTitle(currentProfile.name);
+  queueSavedSearchAutoSync("refine-save-search");
+  updateQuickSaveSearchButton();
+  updateRefineSaveSearchButton();
+  showSaveConfirmationToast(currentProfile);
+}
+
+function autoSizeRefineTermsInput() {
+  if (!refineTermsInput) return;
+  refineTermsInput.style.height = "auto";
+  const styles = window.getComputedStyle(refineTermsInput);
+  const minHeight = Number.parseFloat(styles.minHeight) || 48;
+  const maxHeight = Number.parseFloat(styles.maxHeight) || 180;
+  const nextHeight = Math.min(Math.max(refineTermsInput.scrollHeight, minHeight), maxHeight);
+  const entry = refineTermsInput.closest(".refine-term-entry");
+  entry?.classList.toggle("is-expanded", nextHeight > minHeight + 4);
+  refineTermsInput.style.height = `${nextHeight}px`;
+  refineTermsInput.style.overflowY = refineTermsInput.scrollHeight > maxHeight ? "auto" : "hidden";
 }
 
 function syncPrimaryTermsToRefine() {
   const primaryTerms = splitLines(termsInput.value);
   const nextValue = primaryTerms.join("\n");
-  if (refineTermsInput.value === nextValue) return;
+  if (refineTermsInput.value === nextValue) {
+    autoSizeRefineTermsInput();
+    return;
+  }
   refineTermsInput.value = nextValue;
+  autoSizeRefineTermsInput();
   renderSearchTermsSummary();
   renderRefineTermDropdown();
   updateQuickSaveSearchButton();
 }
 
 function syncRefineTermsToPrimary() {
+  autoSizeRefineTermsInput();
   renderPrimarySearchTerm();
   renderSearchTermsSummary();
   renderRefineTermDropdown();
@@ -2310,6 +2555,8 @@ function renderRefineSummary() {
   const profile = readProfileFromForm();
   const sourceCount = profile.sources.length;
   const sourceText = `${sourceCount} ${sourceCount === 1 ? "source" : "sources"}`;
+  if (refineSourceCount) refineSourceCount.textContent = sourceText;
+  if (refineNoiseCount) refineNoiseCount.textContent = `${profile.noiseTerms.length} ${profile.noiseTerms.length === 1 ? "term" : "terms"}`;
   const categoryText = getCategoryIntentLabel(profile.categoryIntent);
   const priceText = profile.maxPrice > 0 ? `${formatPrice(profile.maxPrice)} max` : "No price cap";
   const excludeText = `${profile.excludes.length} excluded`;
@@ -2439,6 +2686,7 @@ function handleTermDropdownClick(event) {
 function removeRefineTermAt(removeIndex) {
   const terms = splitLines(refineTermsInput.value).filter((_, index) => index !== removeIndex);
   refineTermsInput.value = terms.join("\n");
+  autoSizeRefineTermsInput();
   syncRefineTermsToPrimary();
   renderRefineSummary();
   refineTermsInput.focus();
@@ -2455,14 +2703,33 @@ function toggleSavedSearchPopover(event) {
 
 function openSavedSearchPopover() {
   renderSavedSearches();
+  updateSavedSearchPopoverPosition();
   savedSearchPopover.hidden = false;
+  document.body.classList.add("saved-popover-open");
   openSavedSearchesButton.setAttribute("aria-expanded", "true");
 }
 
 function closeSavedSearchPopover() {
   if (savedSearchPopover.hidden) return;
   savedSearchPopover.hidden = true;
+  document.body.classList.remove("saved-popover-open");
   openSavedSearchesButton.setAttribute("aria-expanded", "false");
+}
+
+function updateSavedSearchPopoverPosition() {
+  if (!openSavedSearchesButton || !savedSearchPopover) return;
+  const anchorRect = openSavedSearchesButton.getBoundingClientRect();
+  const anchorCenterX = anchorRect.left + anchorRect.width / 2;
+  const viewportWidth = document.documentElement.clientWidth || window.innerWidth || 0;
+  const panelRightInset = 12;
+
+  savedSearchPopover.style.setProperty("--saved-popover-mobile-top", `${Math.round(anchorRect.bottom + 10)}px`);
+  savedSearchPopover.style.setProperty("--saved-popover-anchor-right", `${Math.round(viewportWidth - anchorCenterX - panelRightInset)}px`);
+}
+
+function refreshSavedSearchPopoverPosition() {
+  if (!savedSearchPopover || savedSearchPopover.hidden) return;
+  updateSavedSearchPopoverPosition();
 }
 
 function handleSavedPopoverOutsideClick(event) {
@@ -2632,6 +2899,10 @@ function openSettingsModal(event, options = {}) {
 
 function openRegionSettings(event) {
   openSettingsModal(event, { focusTarget: regionSelect });
+}
+
+function openSearchQualitySettings(event) {
+  openSettingsModal(event, { focusTarget: gearModeSettingsToggle });
 }
 
 function closeSettingsModal(options = {}) {
@@ -4491,6 +4762,7 @@ function renderQualityModeControls() {
   const isGearMode = qualityFilter === "clean";
   if (gearModeSettingsToggle) gearModeSettingsToggle.checked = isGearMode;
   if (sourceQualityStatus) sourceQualityStatus.hidden = !isGearMode;
+  openSourceQualitySettingsButton?.setAttribute("aria-pressed", String(isGearMode));
   qualityModeButtons.forEach((button) => {
     const isActive = button.dataset.quality === qualityFilter;
     button.classList.toggle("active", isActive);
@@ -4644,8 +4916,35 @@ function createSourceLoadingCard(sourceId) {
 }
 
 function getSourceAccent(sourceId) {
+  const randomizedColor = getRandomizedSourceColor(sourceId);
+  if (randomizedColor) return randomizedColor.solid;
+
   const token = SOURCE_ACCENT_TOKENS[sourceId] || "--source-default";
   return getComputedStyle(document.documentElement).getPropertyValue(token).trim() || "#4b83d8";
+}
+
+function createRandomizedSourceColorMap(sourceIds, colors) {
+  const shuffledColors = [...colors].sort(() => Math.random() - 0.5);
+  return new Map(sourceIds.map((sourceId, index) => [sourceId, shuffledColors[index % shuffledColors.length]]));
+}
+
+function getRandomizedSourceColor(sourceId) {
+  return RANDOMIZED_BAY_AREA_SOURCE_COLOR_MAP.get(sourceId) || null;
+}
+
+function applyRandomizedSourceColor(element, sourceId, options = {}) {
+  if (!element) return;
+  const color = getRandomizedSourceColor(sourceId);
+  if (!color) return;
+
+  element.style.setProperty("--source-solid", color.solid);
+  element.style.setProperty("--source-solid-ink", color.ink);
+  element.style.setProperty("--source-solid-mark", color.mark);
+
+  if (options.paintAvatar) {
+    element.style.background = color.solid;
+    element.style.color = color.ink;
+  }
 }
 
 function getVisibleResults(watching, baseResults = currentResults, options = {}) {
@@ -4701,6 +5000,7 @@ function renderSourceFilters(baseResults = currentResults, options = {}) {
     button.classList.toggle("is-error", status === "error");
     button.classList.toggle("is-zero", status === "complete" && count === 0);
     button.classList.toggle("has-single-digit-count", isSingleDigitSourceCount(count, status));
+    applyRandomizedSourceColor(button, source.id);
     button.title = getSourceFilterTitle(source, count, status);
     button.setAttribute("aria-label", getSourceFilterLabel(source, count, status));
     button.setAttribute("aria-pressed", String(activeViewSources.has(source.id)));
@@ -4725,6 +5025,7 @@ function renderSourceAssistFilters() {
     button.className = "source-assist-button";
     button.type = "button";
     button.dataset.source = source.id;
+    applyRandomizedSourceColor(button, source.id);
     button.title = `Open prepared ${source.label} search`;
     button.setAttribute("aria-label", `Open prepared ${source.label} search in a new tab`);
     button.innerHTML = `
@@ -5307,24 +5608,21 @@ function createBrowseCategoryDetailMarkup(options = {}) {
     error = "",
   } = options;
   const categoryLabel = getCategoryIntentLabel(browseCategoryIntent).toLowerCase();
+  const categoryTitle = getCategoryIntentLabel(browseCategoryIntent);
 
   if (loading) {
-    return `<span class="browse-detail-rest browse-loading-detail" role="status">Refreshing ${escapeHtml(categoryLabel)} now</span>`;
-  }
-
-  if (loading && count > 0) {
-    return `<span class="browse-category-label">${escapeHtml(categoryLabel)}</span><span class="browse-detail-rest"> has ${escapeHtml(`${count} cached ${count === 1 ? "listing" : "listings"} · Refreshing now${freshness}`)}</span>`;
-  }
-
-  if (loading) {
-    return "Checking source feeds now";
+    return `<span class="browse-detail-rest browse-loading-detail">Searching the expanse for ${escapeHtml(categoryTitle)}</span>`;
   }
 
   if (error) {
     return escapeHtml(error);
   }
 
-  return `<span class="browse-category-label">${escapeHtml(categoryLabel)}</span><span class="browse-detail-rest"> has ${escapeHtml(`${count} newest ${count === 1 ? "listing" : "listings"}${freshness}`)}</span>`;
+  return `<span class="browse-category-label">${escapeHtml(categoryLabel)}</span><span class="browse-detail-rest"> has ${escapeHtml(`${count} new ${count === 1 ? "listing" : "listings"}`)}</span>`;
+}
+
+function createBrowseHeadlineLoadingMarkup() {
+  return "";
 }
 
 function createFeaturedHomeHeader(count, options = {}) {
@@ -5342,7 +5640,7 @@ function createFeaturedHomeHeader(count, options = {}) {
   const seedLabel = starterFreshFindTerms.length > 0 ? starterFreshFindTerms.join(" + ") : "vintage synths";
   if (isBrowse) {
     header.classList.add("is-browse-header");
-    const optionsMarkup = CATEGORY_INTENTS.map((intent) => `
+    const optionsMarkup = BROWSE_CATEGORY_INTENTS.map((intent) => `
       <option value="${escapeHtml(intent.id)}" ${intent.id === browseCategoryIntent ? "selected" : ""}>${escapeHtml(intent.label)}</option>
     `).join("");
     const browseFreshness = formatBrowseFreshnessDetail(browseCacheUpdatedAt);
@@ -5352,17 +5650,20 @@ function createFeaturedHomeHeader(count, options = {}) {
       loading: browseCategoryStatus === "loading",
       error: browseCategoryStatus === "error" ? browseCategoryError || "Browse mode is warming up" : "",
     });
+    const browseHeadlineLoadingMarkup = createBrowseHeadlineLoadingMarkup();
     header.innerHTML = `
-      <div>
-        <h3><button class="feature-headline-button" type="button" data-result-action="open-browse-expanded">Gear Goggles</button></h3>
+      <div class="browse-header-copy">
+        <div class="browse-title-row">
+          <h3><button class="feature-headline-button" type="button" data-result-action="open-browse-expanded">Gear <span class="browse-title-mobile-break">Goggles</span></button>${browseHeadlineLoadingMarkup}</h3>
+          <div class="browse-header-actions">
+            <label class="browse-category-control">
+              <span>Browse</span>
+              <select id="homeBrowseCategory" aria-label="Browse category">${optionsMarkup}</select>
+            </label>
+            <button class="browse-view-all-button" type="button" data-result-action="open-browse-expanded">All</button>
+          </div>
+        </div>
         <span>${browseDetailMarkup}</span>
-      </div>
-      <div class="browse-header-actions">
-        <label class="browse-category-control">
-          <span>Browse</span>
-          <select id="homeBrowseCategory" aria-label="Browse category">${optionsMarkup}</select>
-        </label>
-        <button class="browse-view-all-button" type="button" data-result-action="open-browse-expanded">Browse All</button>
       </div>
     `;
     return header;
@@ -5391,7 +5692,7 @@ function createFeaturedHomeHeader(count, options = {}) {
 function createBrowseExpandedHeader(visibleCount, totalCount) {
   const header = document.createElement("section");
   header.className = "browse-expanded-header featured-home-header is-browse-header";
-  const optionsMarkup = CATEGORY_INTENTS.map((intent) => `
+  const optionsMarkup = BROWSE_CATEGORY_INTENTS.map((intent) => `
     <option value="${escapeHtml(intent.id)}" ${intent.id === browseCategoryIntent ? "selected" : ""}>${escapeHtml(intent.label)}</option>
   `).join("");
   const freshness = formatBrowseFreshnessDetail(getBrowseCategoryFreshness());
@@ -5401,17 +5702,20 @@ function createBrowseExpandedHeader(visibleCount, totalCount) {
     loading: browseCategoryStatus === "loading",
     error: browseCategoryStatus === "error" ? browseCategoryError || "Browse mode is warming up" : "",
   });
+  const browseHeadlineLoadingMarkup = createBrowseHeadlineLoadingMarkup();
 
   header.innerHTML = `
-    <div>
-      <h3><span class="feature-headline-button browse-expanded-headline">Gear Goggles</span></h3>
+    <div class="browse-header-copy">
+      <div class="browse-title-row">
+        <h3><span class="feature-headline-button browse-expanded-headline">Gear <span class="browse-title-mobile-break">Goggles</span></span>${browseHeadlineLoadingMarkup}</h3>
+        <div class="browse-header-actions">
+          <label class="browse-category-control">
+            <span>Browse</span>
+            <select id="expandedBrowseCategory" aria-label="Browse category">${optionsMarkup}</select>
+          </label>
+        </div>
+      </div>
       <span>${browseDetailMarkup}</span>
-    </div>
-    <div class="browse-header-actions">
-      <label class="browse-category-control">
-        <span>Browse</span>
-        <select id="expandedBrowseCategory" aria-label="Browse category">${optionsMarkup}</select>
-      </label>
     </div>
   `;
   return header;
@@ -6406,6 +6710,7 @@ function renderSourceAvatar(avatar, source, fallbackId) {
   avatar.setAttribute("aria-label", `${label} listing`);
   avatar.setAttribute("title", label);
   avatar.classList.toggle("has-logo", Boolean(source?.logo));
+  applyRandomizedSourceColor(avatar, source?.id || fallbackId, { paintAvatar: true });
 
   if (source?.logo) {
     const image = document.createElement("img");
