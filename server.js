@@ -53,6 +53,23 @@ const GUITAR_CENTER_USED_CATEGORIES = {
 };
 const SWEETWATER_USED_BASE_URL = "https://www.sweetwater.com/used/listings";
 const SWEETWATER_ASSIST_MESSAGE = "Sweetwater Used Assist is active. Brrtz is not querying Sweetwater automatically; open the prepared Sweetwater Used search instead.";
+const BAY_AREA_STORE_SOURCE_IDS = ["robotspeak", "mission-synths", "starving-musician", "bananas-at-large", "gelb-music"];
+const BAY_AREA_SHOPIFY_SOURCES = {
+  robotspeak: {
+    baseUrl: "https://robotspeak.com",
+    shop: "Robot Speak",
+  },
+  "mission-synths": {
+    baseUrl: "https://www.missionsynths.com",
+    shop: "Mission Synths",
+  },
+  "bananas-at-large": {
+    baseUrl: "https://www.bananas.com",
+    shop: "Bananas at Large",
+  },
+};
+const STARVING_MUSICIAN_BASE_URL = "https://starvingmusician.com";
+const GELB_MUSIC_BASE_URL = "https://gelbmusic.com";
 const MAIN_DRAG_BASE_URL = "https://maindragmusic.com";
 const ROGUE_MUSIC_BASE_URL = "https://www.roguemusic.com";
 const EAST_COAST_STORE_ASSIST_MESSAGE = "East Coast store assist is active. Brrtz is not querying this shop automatically; open the prepared store search instead.";
@@ -485,7 +502,7 @@ async function handleSourceHealthJob(request, url, response) {
 }
 
 const SHARED_SOURCE_HEALTH_REGION_IDS = {
-  "bay-area": ["craigslist-sfbay", "reverb-us", "ebay-us"],
+  "bay-area": ["craigslist-sfbay", "reverb-us", "ebay-us", ...BAY_AREA_STORE_SOURCE_IDS],
   "los-angeles": ["craigslist-la", "reverb-us", "ebay-us"],
   "east-coast": ["craigslist-east", "reverb-us", "ebay-us"],
 };
@@ -531,6 +548,11 @@ function getSourceHealthSearchFn(sourceId) {
     "craigslist-east": searchCraigslistEast,
     "craigslist-la": searchCraigslistLa,
     "craigslist-sfbay": searchCraigslistSfbay,
+    robotspeak: searchRobotSpeak,
+    "mission-synths": searchMissionSynths,
+    "starving-musician": searchStarvingMusician,
+    "bananas-at-large": searchBananasAtLarge,
+    "gelb-music": searchGelbMusic,
     rakuma: searchRakuma,
     reverb: searchReverb,
     "reverb-us": searchReverbUs,
@@ -1030,6 +1052,7 @@ async function handleSearch(url, response) {
   const wantsEbayUs = sources.length === 0 || sources.includes("ebay-us");
   const wantsSweetwaterUsed = sources.length === 0 || sources.includes("sweetwater-used");
   const wantsGuitarCenterUsed = sources.length === 0 || sources.includes("guitar-center-used");
+  const wantedBayAreaStoreSources = getWantedBayAreaStoreSources(sources, regionId);
   const wantsMainDrag = sources.includes("main-drag") || (sources.length === 0 && regionId === "east-coast");
   const wantsRogueMusic = sources.includes("rogue-music") || (sources.length === 0 && regionId === "east-coast");
   const wantsThreeWave = sources.includes("three-wave") || (sources.length === 0 && regionId === "east-coast");
@@ -1046,7 +1069,7 @@ async function handleSearch(url, response) {
   const wantsYahooFleamarket = sources.length === 0 || sources.includes("yahoo-fleamarket");
   const startedAt = new Date();
 
-  if ((!wantsDigimart && !wantsFiveG && !wantsImplant4 && !wantsCraigslistSfbay && !wantsCraigslistLa && !wantsCraigslistEast && !wantsEbayUs && !wantsSweetwaterUsed && !wantsGuitarCenterUsed && !wantsMainDrag && !wantsRogueMusic && !wantsThreeWave && !wantsAltoMusic && !wantsToneTweakers && wantedEastCoastStoreSources.length === 0 && !wantsJimoty && !wantsMercari && !wantsOffmall && !wantsRakuma && !wantsReverb && !wantsReverbUs && !wantsYahooAuctions && !wantsYahooFleamarket) || terms.length === 0) {
+  if ((!wantsDigimart && !wantsFiveG && !wantsImplant4 && !wantsCraigslistSfbay && !wantsCraigslistLa && !wantsCraigslistEast && !wantsEbayUs && !wantsSweetwaterUsed && !wantsGuitarCenterUsed && wantedBayAreaStoreSources.length === 0 && !wantsMainDrag && !wantsRogueMusic && !wantsThreeWave && !wantsAltoMusic && !wantsToneTweakers && wantedEastCoastStoreSources.length === 0 && !wantsJimoty && !wantsMercari && !wantsOffmall && !wantsRakuma && !wantsReverb && !wantsReverbUs && !wantsYahooAuctions && !wantsYahooFleamarket) || terms.length === 0) {
     sendJson(response, 200, { listings: [], meta: createSearchMeta(startedAt, [], [], terms, { categoryIntent }) });
     return;
   }
@@ -1114,6 +1137,13 @@ async function handleSearch(url, response) {
 
   if (wantsGuitarCenterUsed) {
     sourceTasks.push(Promise.resolve(createManualGuitarCenterSourceResult(terms, { categoryIntent })));
+  }
+
+  for (const sourceId of wantedBayAreaStoreSources) {
+    sourceTasks.push(searchSourceTerms(sourceId, terms, getBayAreaStoreSearchFn(sourceId), {
+      maxTerms: 1,
+      termDelayMs: 0,
+    }));
   }
 
   if (wantsMainDrag) {
@@ -1294,6 +1324,15 @@ async function handleBrowse(url, response) {
       }));
     } else {
       browseTasks.push(Promise.resolve(createPendingSourceResult("ebay-us", browseTerms, EBAY_PENDING_MESSAGE)));
+    }
+
+    if (regionId === "bay-area") {
+      for (const sourceId of BAY_AREA_STORE_SOURCE_IDS) {
+        browseTasks.push(searchSourceTerms(sourceId, browseTerms, getBayAreaStoreSearchFn(sourceId), {
+          maxTerms: 1,
+          termDelayMs: 0,
+        }));
+      }
     }
 
     if (regionId === "east-coast") {
@@ -1591,6 +1630,21 @@ function getWantedEastCoastStoreSources(sources = [], regionId = "") {
     .filter((sourceId) => !["main-drag", "rogue-music", "three-wave", "alto-music", "tone-tweakers"].includes(sourceId));
   if (sources.length === 0) return regionId === "east-coast" ? sourceIds : [];
   return sourceIds.filter((sourceId) => sources.includes(sourceId));
+}
+
+function getWantedBayAreaStoreSources(sources = [], regionId = "") {
+  if (sources.length === 0) return regionId === "bay-area" ? BAY_AREA_STORE_SOURCE_IDS : [];
+  return BAY_AREA_STORE_SOURCE_IDS.filter((sourceId) => sources.includes(sourceId));
+}
+
+function getBayAreaStoreSearchFn(sourceId) {
+  return {
+    robotspeak: searchRobotSpeak,
+    "mission-synths": searchMissionSynths,
+    "starving-musician": searchStarvingMusician,
+    "bananas-at-large": searchBananasAtLarge,
+    "gelb-music": searchGelbMusic,
+  }[sourceId];
 }
 
 function createManualEastCoastStoreSourceResult(source, terms) {
@@ -1987,6 +2041,77 @@ async function searchEbayUs(term) {
   }
 
   return parseEbayBrowse(await response.json());
+}
+
+async function searchRobotSpeak(term) {
+  return searchShopifySuggestStore(term, "robotspeak");
+}
+
+async function searchMissionSynths(term) {
+  return searchShopifySuggestStore(term, "mission-synths");
+}
+
+async function searchBananasAtLarge(term) {
+  return searchShopifySuggestStore(term, "bananas-at-large");
+}
+
+async function searchShopifySuggestStore(term, sourceId) {
+  const config = BAY_AREA_SHOPIFY_SOURCES[sourceId];
+  if (!config) return [];
+
+  const url = new URL("/search/suggest.json", config.baseUrl);
+  url.searchParams.set("q", term);
+  url.searchParams.set("resources[type]", "product");
+  url.searchParams.set("resources[limit]", "30");
+
+  const response = await fetch(url, {
+    headers: {
+      "user-agent": USER_AGENT,
+      "accept": "application/json,text/javascript,*/*",
+      "accept-language": "en-US,en;q=0.9",
+    },
+  });
+
+  if (!response.ok) throw new Error(`${config.shop} responded with ${response.status}`);
+  return parseShopifySuggestProducts(await response.json(), {
+    ...config,
+    sourceId,
+    region: "bay-area",
+    categoryPath: ["Bay Area Shops"],
+  }, term);
+}
+
+async function searchStarvingMusician(term) {
+  const url = new URL("/search", STARVING_MUSICIAN_BASE_URL);
+  url.searchParams.set("q", term);
+
+  const response = await fetch(url, {
+    headers: {
+      "user-agent": USER_AGENT,
+      "accept": "text/html,application/xhtml+xml",
+      "accept-language": "en-US,en;q=0.9",
+    },
+  });
+
+  if (!response.ok) throw new Error(`Starving Musician responded with ${response.status}`);
+  return parseStarvingMusician(await response.text(), term);
+}
+
+async function searchGelbMusic(term) {
+  const url = new URL("/search.php", GELB_MUSIC_BASE_URL);
+  url.searchParams.set("search_query", term);
+  url.searchParams.set("section", "product");
+
+  const response = await fetch(url, {
+    headers: {
+      "user-agent": USER_AGENT,
+      "accept": "text/html,application/xhtml+xml",
+      "accept-language": "en-US,en;q=0.9",
+    },
+  });
+
+  if (!response.ok) throw new Error(`Gelb Music responded with ${response.status}`);
+  return parseGelbMusic(await response.text(), term);
 }
 
 async function searchMainDrag(term) {
@@ -2928,6 +3053,57 @@ function parseUsdPrice(value) {
   return rawPrice ? Number(rawPrice.replace(/[^\d.]/g, "")) : 0;
 }
 
+function parseShopifyDollarPrice(value) {
+  const rawValue = String(value ?? "").trim();
+  if (/^\d+$/.test(rawValue) && Number(rawValue) >= 10000) {
+    return Number(rawValue) / 100;
+  }
+
+  if (Number.isFinite(Number(value)) && Number(value) > 0) {
+    return Number(value);
+  }
+  return parseUsdPrice(value);
+}
+
+function createBayAreaStoreCondition(value = "") {
+  const normalized = normalizeText(value);
+  if (/(pre-owned|preowned|used|vintage|consign|second hand)/i.test(normalized)) return "Used";
+  if (/(open box|demo|b-stock|b stock)/i.test(normalized)) return "Open box";
+  return "Listed";
+}
+
+function normalizeStarvingMusicianImage(value = "") {
+  const firstValue = String(value || "").split(/\s+/)[0];
+  const resolved = normalizeRelativeUrl(firstValue, STARVING_MUSICIAN_BASE_URL);
+
+  try {
+    const url = new URL(resolved);
+    const embeddedImage = url.searchParams.get("url");
+    return embeddedImage ? normalizeRelativeUrl(embeddedImage, STARVING_MUSICIAN_BASE_URL) : resolved;
+  } catch {
+    return resolved;
+  }
+}
+
+function normalizeGelbMusicImage(value = "") {
+  const image = normalizeRelativeUrl(value, GELB_MUSIC_BASE_URL);
+  return /noImage|loading\.svg/i.test(image) ? "" : image;
+}
+
+function isBayAreaStoreGearText(value = "", term = "") {
+  const searchable = normalizeText(value);
+  if (!searchable) return false;
+  if (/\b(class|classes|lesson|workshop|event|shirt|tote|mug|gift card|vinyl|cassette|cd|book|poster|sticker|hat|cap|coloring book|record store day)\b/i.test(searchable)) {
+    return false;
+  }
+
+  const gearPattern = /(synth|synthesizer|keyboard|keytar|module|eurorack|modular|drum machine|drumcomputer|sampler|sequencer|groovebox|groove box|midi|controller|effects?|pedal|processor|mixer|interface|preamp|compressor|delay|reverb|echo|filter|oscillator|vco|lfo|roland|moog|korg|akai|elektron|arturia|novation|sequential|oberheim|arp|yamaha|waldorf|teenage engineering|buchla|erica synths|make noise|instruo|mutable|intellijel|noise engineering|conductive labs|sonicware|ciat-lonbarde|mpc|mc-707|tr-\d|juno|jupiter|prophet|minimoog|odyssey|fizmo)/i;
+  if (gearPattern.test(searchable)) return true;
+
+  const variants = createSourceSearchTermVariants(term);
+  return variants.some((variant) => termMatches(searchable, variant));
+}
+
 function parseReverb(data, options = {}) {
   const sourceId = options.sourceId || "reverb";
   return (data?.listings || []).map((item) => {
@@ -2999,6 +3175,135 @@ function parseEbayBrowse(data) {
       availability: item.itemEndDate ? `Ends ${item.itemEndDate}` : "",
     };
   }).filter((listing) => listing.id !== "ebay-us-" && listing.title && listing.url && listing.price > 0);
+}
+
+function parseShopifySuggestProducts(data, options = {}, term = "") {
+  const sourceId = options.sourceId || "shopify";
+  const listedAt = new Date().toISOString();
+  const products = data?.resources?.results?.products || [];
+
+  return products.map((product) => {
+    const handle = String(product.handle || product.url?.match(/\/products\/([^/?#]+)/)?.[1] || product.id || "");
+    const title = cleanText(String(product.title || ""));
+    const description = cleanText(String(product.body || ""));
+    const productType = cleanText(String(product.type || ""));
+    const vendor = cleanText(String(product.vendor || ""));
+    const price = parseShopifyDollarPrice(product.price_min || product.price || product.price_max);
+    const url = normalizeRelativeUrl(product.url || `/products/${handle}`, options.baseUrl);
+    const image = normalizeRelativeUrl(product.image || "", options.baseUrl);
+    const availability = product.available === false ? "Sold out" : "In stock";
+    const condition = createBayAreaStoreCondition(`${title} ${description} ${productType}`);
+
+    return {
+      id: `${sourceId}-${handle || product.id || normalizeText(title)}`,
+      source: sourceId,
+      region: options.region || "bay-area",
+      currency: "USD",
+      title,
+      price,
+      priceLabel: price > 0 ? "" : "See store",
+      condition,
+      availability,
+      shop: vendor ? `${options.shop || sourceId} · ${vendor}` : options.shop || sourceId,
+      listedAt,
+      url,
+      image,
+      description,
+      categoryPath: [...(options.categoryPath || ["Bay Area Shops"]), productType].filter(Boolean),
+    };
+  }).filter((listing) => (
+    listing.id !== `${sourceId}-`
+    && listing.title
+    && listing.url
+    && listing.availability !== "Sold out"
+    && isBayAreaStoreGearText(`${listing.title} ${listing.description || ""} ${listing.condition || ""} ${listing.shop || ""}`, term)
+  ));
+}
+
+function parseStarvingMusician(html, term = "") {
+  const blocks = splitHtmlBlocks(html, /<a href="\/product\//g).slice(0, 48);
+  const listedAt = new Date().toISOString();
+
+  return blocks.map((block) => {
+    const href = readAttributeFromPattern(block, /<a[^>]+href="([^"]+)"/i);
+    const url = normalizeRelativeUrl(href, STARVING_MUSICIAN_BASE_URL);
+    const rawId = url.match(/\/product\/([^?#]+)/)?.[1]?.replace(/\//g, "-") || href;
+    const title = cleanText(matchOne(block, /<h3[^>]*>([\s\S]*?)<\/h3>/i))
+      || cleanText(readAttributeFromPattern(block, /<img[^>]+alt="([^"]+)"/i));
+    const price = parseUsdPrice(matchOne(block, /<p[^>]+class="[^"]*\btext-md\b[^"]*"[^>]*>([\s\S]*?)<\/p>/i));
+    const location = cleanText(matchOne(block, /<div[^>]+class="[^"]*\babsolute\b[^"]*\btop-2\b[^"]*"[^>]*>([\s\S]*?)<\/div>/i));
+    const image = normalizeStarvingMusicianImage(
+      readAttributeFromPattern(block, /<img[^>]+src="([^"]+)"/i)
+        || readAttributeFromPattern(block, /<img[^>]+srcSet="([^"]+)"/i),
+    );
+
+    return {
+      id: `starving-musician-${rawId}`,
+      source: "starving-musician",
+      region: "bay-area",
+      currency: "USD",
+      title,
+      price,
+      priceLabel: price > 0 ? "" : "See store",
+      condition: createBayAreaStoreCondition(title),
+      shop: location ? `The Starving Musician · ${location}` : "The Starving Musician",
+      location,
+      listedAt,
+      url,
+      image,
+      categoryPath: ["Bay Area Shops"],
+    };
+  }).filter((listing) => (
+    listing.id !== "starving-musician-"
+    && listing.title
+    && listing.url
+    && isBayAreaStoreGearText(`${listing.title} ${listing.condition || ""}`, term)
+  ));
+}
+
+function parseGelbMusic(html, term = "") {
+  const blocks = splitHtmlBlocks(html, /<li class="product"(?=[\s>])/g).slice(0, 48);
+  const listedAt = new Date().toISOString();
+
+  return blocks.map((block) => {
+    const url = normalizeRelativeUrl(readAttributeFromPattern(block, /<h4 class="card-title">[\s\S]*?<a[^>]+href="([^"]+)"/i), GELB_MUSIC_BASE_URL);
+    const rawId = matchOne(block, /data-product-id="([^"]+)"/i)
+      || matchOne(block, /compare-(\d+)/i)
+      || url.match(/\/([^/?#]+)\/?(?:\?|$)/)?.[1]
+      || "";
+    const title = cleanText(matchOne(block, /<h4 class="card-title">[\s\S]*?<a[^>]*>([\s\S]*?)<\/a>/i))
+      || cleanText(readAttributeFromPattern(block, /<img[^>]+alt="([^"]+)"/i));
+    const brand = cleanText(matchOne(block, /<div class="brandName"[^>]*>([\s\S]*?)<\/div>/i));
+    const price = parseUsdPrice(matchOne(block, /<div class="card-price"[^>]*>([\s\S]*?)<\/div>\s*<div class="card-btn">/i) || block);
+    const image = normalizeGelbMusicImage(
+      readAttributeFromPattern(block, /<img[^>]+data-src="([^"]+)"/i)
+        || readAttributeFromPattern(block, /<img[^>]+src="([^"]+)"/i),
+    );
+    const isOutOfStock = /out of stock|sold out/i.test(cleanText(block));
+
+    return {
+      id: `gelb-music-${rawId}`,
+      source: "gelb-music",
+      region: "bay-area",
+      currency: "USD",
+      title,
+      price,
+      priceLabel: price > 0 ? "" : "See store",
+      condition: isOutOfStock ? "Out of stock" : createBayAreaStoreCondition(title),
+      availability: isOutOfStock ? "Out of stock" : "In stock",
+      shop: brand ? `Gelb Music · ${brand}` : "Gelb Music",
+      listedAt,
+      url,
+      image,
+      categoryPath: ["Bay Area Shops"],
+    };
+  }).filter((listing) => (
+    listing.id !== "gelb-music-"
+    && listing.title
+    && listing.url
+    && listing.availability !== "Out of stock"
+    && isBayAreaStoreGearText(`${listing.title} ${listing.condition || ""} ${listing.shop || ""}`, term)
+  ));
 }
 
 function parseMainDrag(html) {

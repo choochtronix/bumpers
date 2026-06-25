@@ -10,6 +10,11 @@ const SOURCES = [
   { id: "sweetwater-used", label: "Sweetwater Used", icon: "SW", color: "blue" },
   { id: "guitar-center-used", label: "Guitar Center", icon: "GC", color: "black" },
   { id: "craigslist-sfbay", label: "Craigslist SF", icon: "SF", color: "purple" },
+  { id: "robotspeak", label: "Robot Speak", icon: "RS", color: "blue" },
+  { id: "mission-synths", label: "Mission Synths", icon: "MS", color: "rose" },
+  { id: "starving-musician", label: "Starving Musician", icon: "SM", color: "amber" },
+  { id: "bananas-at-large", label: "Bananas", icon: "Ba", color: "green" },
+  { id: "gelb-music", label: "Gelb Music", icon: "Gb", color: "blue" },
   { id: "craigslist-la", label: "Craigslist LA", icon: "LA", color: "purple" },
   { id: "craigslist-east", label: "Craigslist East", icon: "EC", color: "purple" },
   { id: "main-drag", label: "Main Drag", icon: "MD", color: "black" },
@@ -26,8 +31,8 @@ const SOURCES = [
 ];
 
 const LEGACY_DEFAULT_SOURCE_IDS = ["mercari", "yahoo-auctions", "yahoo-fleamarket", "rakuma", "digimart", "offmall", "five-g", "implant4", "hardoff"];
-const LIVE_SOURCE_IDS = ["mercari", "yahoo-auctions", "yahoo-fleamarket", "rakuma", "digimart", "reverb", "reverb-us", "ebay-us", "sweetwater-used", "guitar-center-used", "craigslist-sfbay", "craigslist-la", "craigslist-east", "main-drag", "rogue-music", "three-wave", "alto-music", "tone-tweakers", "pro-audio-star", "jimoty", "offmall", "five-g", "implant4", "hardoff"];
-const LIVE_SOURCE_DISPLAY_ORDER = ["craigslist-sfbay", "craigslist-la", "craigslist-east", "main-drag", "rogue-music", "three-wave", "alto-music", "tone-tweakers", "pro-audio-star", "reverb-us", "ebay-us", "sweetwater-used", "guitar-center-used", "yahoo-auctions", "yahoo-fleamarket", "digimart", "reverb", "jimoty", "offmall", "five-g", "implant4", "hardoff", "mercari", "rakuma"];
+const LIVE_SOURCE_IDS = ["mercari", "yahoo-auctions", "yahoo-fleamarket", "rakuma", "digimart", "reverb", "reverb-us", "ebay-us", "sweetwater-used", "guitar-center-used", "craigslist-sfbay", "robotspeak", "mission-synths", "starving-musician", "bananas-at-large", "gelb-music", "craigslist-la", "craigslist-east", "main-drag", "rogue-music", "three-wave", "alto-music", "tone-tweakers", "pro-audio-star", "jimoty", "offmall", "five-g", "implant4", "hardoff"];
+const LIVE_SOURCE_DISPLAY_ORDER = ["robotspeak", "mission-synths", "starving-musician", "bananas-at-large", "gelb-music", "craigslist-sfbay", "craigslist-la", "craigslist-east", "main-drag", "rogue-music", "three-wave", "alto-music", "tone-tweakers", "pro-audio-star", "reverb-us", "ebay-us", "sweetwater-used", "guitar-center-used", "yahoo-auctions", "yahoo-fleamarket", "digimart", "reverb", "jimoty", "offmall", "five-g", "implant4", "hardoff", "mercari", "rakuma"];
 const SOURCE_SEARCH_CONTEXT_TRUST_IDS = new Set(["craigslist-sfbay", "craigslist-la", "craigslist-east"]);
 const CATEGORY_SEARCH_CONTEXT_IDS = new Set(["reverb", "reverb-us"]);
 const REGION_CONFIG = typeof window !== "undefined" ? window.BRRTZ_REGION_CONFIG : null;
@@ -96,6 +101,11 @@ const SOURCE_ACCENT_TOKENS = {
   "sweetwater-used": "--source-sweetwater",
   "guitar-center-used": "--source-guitar-center",
   "craigslist-sfbay": "--source-craigslist",
+  robotspeak: "--source-reverb",
+  "mission-synths": "--source-implant4",
+  "starving-musician": "--source-five-g",
+  "bananas-at-large": "--source-offmall",
+  "gelb-music": "--source-digimart",
   "craigslist-la": "--source-craigslist",
   "craigslist-east": "--source-craigslist",
   "main-drag": "--source-guitar-center",
@@ -123,6 +133,11 @@ const SOURCE_METADATA_ALIASES = {
   "sweetwater-used": ["Sweetwater Used", "Sweetwater", "Sweetwater Gear Exchange"],
   "guitar-center-used": ["Guitar Center", "Guitar Center Used", "GC Used"],
   "craigslist-sfbay": ["Craigslist SF", "Craigslist", "SF Bay Craigslist"],
+  robotspeak: ["Robot Speak", "ROBOTSPEAk", "Robotspeak"],
+  "mission-synths": ["Mission Synths", "Mission Synths SF"],
+  "starving-musician": ["Starving Musician", "The Starving Musician"],
+  "bananas-at-large": ["Bananas", "Bananas at Large", "Bananas At Large"],
+  "gelb-music": ["Gelb Music", "Gelb"],
   "craigslist-la": ["Craigslist LA", "Craigslist Los Angeles", "LA Craigslist"],
   "craigslist-east": ["Craigslist East", "Craigslist East Coast", "NYC Craigslist", "Boston Craigslist", "Philly Craigslist", "DC Craigslist"],
   "main-drag": ["Main Drag", "Main Drag Music"],
@@ -590,7 +605,7 @@ const STARTER_FRESH_FIND_TERMS = [
 const STARTER_FRESH_FIND_SOURCE_IDS = ["yahoo-auctions", "digimart", "offmall", "mercari", "reverb"];
 const REGIONAL_FRESH_FIND_SOURCE_IDS = {
   japan: STARTER_FRESH_FIND_SOURCE_IDS,
-  "bay-area": ["craigslist-sfbay", "reverb-us", "ebay-us", "sweetwater-used", "guitar-center-used"],
+  "bay-area": ["robotspeak", "mission-synths", "starving-musician", "bananas-at-large", "gelb-music", "craigslist-sfbay", "reverb-us", "ebay-us"],
   "los-angeles": ["craigslist-la", "reverb-us", "ebay-us", "sweetwater-used", "guitar-center-used"],
   "east-coast": ["main-drag", "rogue-music", "three-wave", "alto-music", "tone-tweakers", "reverb-us", "ebay-us"],
 };
@@ -3868,7 +3883,7 @@ function createLiveSearchGroups(profile) {
     groups.push({ id: "craigslist-east", sources: ["craigslist-east"] });
   }
 
-  ["main-drag", "rogue-music", "three-wave", "alto-music", "tone-tweakers", "pro-audio-star"].forEach((sourceId) => {
+  ["robotspeak", "mission-synths", "starving-musician", "bananas-at-large", "gelb-music", "main-drag", "rogue-music", "three-wave", "alto-music", "tone-tweakers", "pro-audio-star"].forEach((sourceId) => {
     if (selectedSources.has(sourceId)) {
       groups.push({ id: sourceId, sources: [sourceId] });
     }
@@ -6099,6 +6114,11 @@ function createStarterFreshFindUrl(sourceId, term) {
   if (sourceId === "ebay-us") return `https://www.ebay.com/sch/i.html?_nkw=${encodedTerm}`;
   if (sourceId === "sweetwater-used") return `https://www.sweetwater.com/used/listings?query=${encodedTerm}`;
   if (sourceId === "guitar-center-used") return `https://www.guitarcenter.com/Used/?Ntt=${encodedTerm}`;
+  if (sourceId === "robotspeak") return `https://robotspeak.com/search?q=${encodedTerm}`;
+  if (sourceId === "mission-synths") return `https://www.missionsynths.com/search?q=${encodedTerm}`;
+  if (sourceId === "starving-musician") return `https://starvingmusician.com/search?q=${encodedTerm}`;
+  if (sourceId === "bananas-at-large") return `https://www.bananas.com/search?q=${encodedTerm}`;
+  if (sourceId === "gelb-music") return `https://gelbmusic.com/search.php?search_query=${encodedTerm}&section=product`;
   if (sourceId === "main-drag") return `https://maindragmusic.com/search?q=${encodedTerm}`;
   if (sourceId === "rogue-music") return "https://www.roguemusic.com/golink5.php";
   if (sourceId === "three-wave") return `https://threewavemusic.com/search.php?search_query=${encodedTerm}&section=product`;
