@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Brrtz Agent Connector Spec</title>
+    <meta name="description" content="Draft Brrtz agent connector spec for future MCP tools, permission boundaries, and gear search workflows." />
+    <link rel="canonical" href="https://brrtz.com/agent-connector" />
+    <meta property="og:title" content="Brrtz Agent Connector Spec" />
+    <meta property="og:description" content="Draft Brrtz connector plan for future ChatGPT, Claude, and MCP-capable gear search agents." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://brrtz.com/agent-connector" />
+    <meta property="og:image" content="https://brrtz.com/assets/social/brrtz-og.svg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" type="image/svg+xml" href="/assets/ICONS-site/b-favicon.svg" />
+    <link rel="stylesheet" href="/aeo.css" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "TechArticle",
+        "headline": "Brrtz Agent Connector Spec",
+        "description": "Draft connector plan for future Brrtz agent tools and permissions.",
+        "url": "https://brrtz.com/agent-connector",
+        "about": [
+          "Model Context Protocol",
+          "agentic gear search",
+          "used synthesizer search",
+          "saved search alerts"
+        ],
+        "publisher": {
+          "@type": "Organization",
+          "name": "Brrtz",
+          "url": "https://brrtz.com/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <div class="aeo-shell">
+      <header class="aeo-header">
+        <a class="aeo-logo" href="/" aria-label="Brrtz home"></a>
+        <nav class="aeo-nav" aria-label="Brrtz pages">
+          <a href="/for-agents">For agents</a>
+          <a href="/gear">Gear pages</a>
+          <a href="/regions">Regions</a>
+          <a href="/sources">Sources</a>
+        </nav>
+      </header>
+
+      <main class="aeo-page">
+        <section class="aeo-hero">
+          <p class="aeo-kicker">Draft connector spec</p>
+          <h1>Brrtz can become an <span class="aeo-gradient">agent-callable gear layer</span>.</h1>
+          <p class="aeo-lede">This page defines the intended connector shape before implementation: tool names, user permissions, boundaries, and the minimum useful workflows for ChatGPT, Claude, and other MCP-capable agents.</p>
+          <div class="aeo-link-list">
+            <a class="aeo-pill-link" href="/agent-tools.json">Machine-readable draft</a>
+            <a class="aeo-pill-link" href="/for-agents">Agent brief</a>
+          </div>
+        </section>
+
+        <section class="aeo-section">
+          <h2>Current status</h2>
+          <p>This is a draft planning spec. The public beta supports shareable Brrtz search URLs today. The connector tools below are not live yet and should be treated as the intended contract for a post-beta MCP server.</p>
+        </section>
+
+        <section class="aeo-section">
+          <h2>Candidate tools</h2>
+          <div class="aeo-table-wrap">
+            <table class="aeo-table">
+              <thead>
+                <tr>
+                  <th>Tool</th>
+                  <th>Purpose</th>
+                  <th>Permission Level</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>search_gear</code></td>
+                  <td>Search Brrtz by terms, region, category, source selection, max price, and exclude terms.</td>
+                  <td>Read-only</td>
+                </tr>
+                <tr>
+                  <td><code>get_regions</code></td>
+                  <td>Return supported region IDs, labels, currencies, status, and source coverage.</td>
+                  <td>Read-only</td>
+                </tr>
+                <tr>
+                  <td><code>get_sources</code></td>
+                  <td>Return source IDs, labels, regions, access posture, and whether a source is live or assist-style.</td>
+                  <td>Read-only</td>
+                </tr>
+                <tr>
+                  <td><code>save_search</code></td>
+                  <td>Create or update a saved search intent for a signed-in user.</td>
+                  <td>User-authorized write</td>
+                </tr>
+                <tr>
+                  <td><code>watch_listing</code></td>
+                  <td>Add a specific listing URL or normalized listing ID to the user's watchlist.</td>
+                  <td>User-authorized write</td>
+                </tr>
+                <tr>
+                  <td><code>get_new_matches</code></td>
+                  <td>Return new or fresh matches for a saved search since the last user-visible scan.</td>
+                  <td>User-authorized read</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="aeo-section">
+          <h2>Permission posture</h2>
+          <p>Read-only discovery should be available without modifying user data. Saved searches, watched listings, alerts, profile preferences, and notification workflows should require explicit user authorization and should never expose private saved-search data to other users.</p>
+        </section>
+
+        <section class="aeo-section">
+          <h2>Listing boundaries</h2>
+          <p>Brrtz should return normalized listing summaries and source links, not republish full marketplace databases. The connector should preserve source attribution, region, currency, original URL, and freshness context for every listing.</p>
+        </section>
+      </main>
+
+      <footer class="aeo-footer">
+        <span>Draft agent connector spec</span>
+        <span>© 2026 Brrtz</span>
+      </footer>
+    </div>
+  </body>
+</html>

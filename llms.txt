@@ -7,8 +7,11 @@
 - Home and app: https://brrtz.com/
 - About: https://brrtz.com/about
 - Agent guide: https://brrtz.com/for-agents
+- Agent connector spec: https://brrtz.com/agent-connector
+- Draft agent tools JSON: https://brrtz.com/agent-tools.json
 - Regions: https://brrtz.com/regions
 - Sources: https://brrtz.com/sources
+- Gear model pages: https://brrtz.com/gear
 
 ## Search URL Pattern
 
@@ -33,6 +36,12 @@ Supported category IDs:
 - `effects-pedals`
 - `pro-audio`
 
+## Gear Model Pages
+
+- Moog Minimoog: https://brrtz.com/gear/moog-minimoog
+- ARP 2600: https://brrtz.com/gear/arp-2600
+- Roland TR-808: https://brrtz.com/gear/roland-tr-808
+
 ## What Brrtz Does
 
 - Searches or prepares searches across multiple used gear sources.
@@ -50,3 +59,5 @@ Supported category IDs:
 ## Planned Agent Direction
 
 Brrtz is being prepared for a future Model Context Protocol connector. Candidate tools include `search_gear`, `get_regions`, `get_sources`, `save_search`, `watch_listing`, and `get_new_matches`.
+
+See the draft connector spec at https://brrtz.com/agent-connector and machine-readable draft at https://brrtz.com/agent-tools.json.

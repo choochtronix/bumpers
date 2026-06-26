@@ -4942,6 +4942,7 @@ body[data-theme="dark"] .listing-card.is-watched-home-card {
 
 .featured-home-header.is-browse-header .feature-headline-button {
   font-size: var(--browse-headline-size);
+  font-weight: 700;
   white-space: nowrap;
 }
 
@@ -6135,7 +6136,7 @@ body[data-theme="dark"] .watching-trigger:focus-visible {
 
 .search-form {
   display: grid;
-  grid-template-columns: minmax(360px, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
   gap: 10px;
   min-width: 0;
@@ -6506,16 +6507,16 @@ body[data-theme="dark"] .refine-backdrop {
   }
 
   .search-form {
-    grid-template-columns: minmax(0, 1fr) minmax(170px, 220px);
+    grid-template-columns: minmax(0, 1fr);
     align-items: start;
   }
 
   .search-terms-field {
-    grid-column: auto;
+    grid-column: 1 / -1;
   }
 
   .result-options {
-    grid-column: auto;
+    grid-column: 1 / -1;
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     align-items: center;

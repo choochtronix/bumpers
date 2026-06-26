@@ -1,0 +1,67 @@
+{
+  "name": "Brrtz Agent Tool Draft",
+  "status": "draft",
+  "isLiveConnector": false,
+  "homepage": "https://brrtz.com/",
+  "humanAgentGuide": "https://brrtz.com/for-agents",
+  "connectorSpec": "https://brrtz.com/agent-connector",
+  "currentSearchUrlPattern": "https://brrtz.com/search?q={query}&region={region}&category={category}",
+  "supportedRegions": ["japan", "bay-area", "los-angeles", "east-coast"],
+  "supportedCategories": ["all", "synthesizers", "drum-machines", "samplers", "modular", "effects-pedals", "pro-audio"],
+  "tools": [
+    {
+      "name": "search_gear",
+      "status": "planned",
+      "permission": "read",
+      "description": "Search Brrtz for used gear by terms, region, category, source selection, max price, and exclude terms.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["terms"],
+        "properties": {
+          "terms": { "type": "array", "items": { "type": "string" } },
+          "region": { "type": "string", "enum": ["japan", "bay-area", "los-angeles", "east-coast"] },
+          "category": { "type": "string", "enum": ["all", "synthesizers", "drum-machines", "samplers", "modular", "effects-pedals", "pro-audio"] },
+          "sources": { "type": "array", "items": { "type": "string" } },
+          "maxPrice": { "type": "number" },
+          "excludes": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    {
+      "name": "get_regions",
+      "status": "planned",
+      "permission": "read",
+      "description": "Return supported Brrtz regions, currency, status, and source coverage."
+    },
+    {
+      "name": "get_sources",
+      "status": "planned",
+      "permission": "read",
+      "description": "Return source IDs, labels, regions, source type, and live or assist-style access posture."
+    },
+    {
+      "name": "save_search",
+      "status": "planned",
+      "permission": "user_authorized_write",
+      "description": "Create or update a saved search intent for an authorized user."
+    },
+    {
+      "name": "watch_listing",
+      "status": "planned",
+      "permission": "user_authorized_write",
+      "description": "Add a listing URL or normalized listing ID to the user's watchlist."
+    },
+    {
+      "name": "get_new_matches",
+      "status": "planned",
+      "permission": "user_authorized_read",
+      "description": "Return new or fresh matches for a saved search since the last user-visible scan."
+    }
+  ],
+  "boundaries": [
+    "Brrtz is not the merchant of record.",
+    "Brrtz links users back to original listing sources.",
+    "The connector should not republish full source listing databases.",
+    "Saved searches and watched listings require explicit user authorization."
+  ]
+}

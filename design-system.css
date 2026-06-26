@@ -65,7 +65,7 @@
   --motion-standard: 160ms ease;
 
   /* Typography */
-  --font-ui: Helvetica, Arial, "Segoe UI", ui-sans-serif, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-ui: "Geist", Helvetica, Arial, "Segoe UI", ui-sans-serif, -apple-system, BlinkMacSystemFont, sans-serif;
 
   /* Backward-compatible semantic aliases used by the app CSS */
   --bg: var(--color-bg);

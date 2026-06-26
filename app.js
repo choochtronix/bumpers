@@ -5683,7 +5683,7 @@ function createFeaturedHomeHeader(count, options = {}) {
     header.innerHTML = `
       <div class="browse-header-copy">
         <div class="browse-title-row">
-          <h3><button class="feature-headline-button" type="button" data-result-action="open-browse-expanded">Gear <span class="browse-title-mobile-break">Goggles</span></button>${browseHeadlineLoadingMarkup}</h3>
+          <h3><button class="feature-headline-button" type="button" data-result-action="open-browse-expanded">Gear <span class="browse-title-mobile-break">Scanner</span></button>${browseHeadlineLoadingMarkup}</h3>
           <div class="browse-header-actions">
             <label class="browse-category-control">
               <span>Browse</span>
@@ -5736,7 +5736,7 @@ function createBrowseExpandedHeader(visibleCount, totalCount) {
   header.innerHTML = `
     <div class="browse-header-copy">
       <div class="browse-title-row">
-        <h3><span class="feature-headline-button browse-expanded-headline">Gear <span class="browse-title-mobile-break">Goggles</span></span>${browseHeadlineLoadingMarkup}</h3>
+        <h3><span class="feature-headline-button browse-expanded-headline">Gear <span class="browse-title-mobile-break">Scanner</span></span>${browseHeadlineLoadingMarkup}</h3>
         <div class="browse-header-actions">
           <label class="browse-category-control">
             <span>Browse</span>
@@ -5768,7 +5768,7 @@ function createFeaturedHomeSection(listings, options = {}) {
     isStarterLive ? "is-live-starter-fresh-finds" : "",
     isStarterLoading ? "is-loading-starter-fresh-finds" : "",
   ].filter(Boolean).join(" ");
-  section.setAttribute("aria-label", variant === "watched" ? "Watched Gear" : variant === "browse" ? "Gear Goggles" : "Fresh Finds");
+  section.setAttribute("aria-label", variant === "watched" ? "Watched Gear" : variant === "browse" ? "Gear Scanner" : "Fresh Finds");
   if (variant === "browse") section.appendChild(createGearBrowserScene());
   section.appendChild(createFeaturedHomeHeader(listings.length, { isStarter, isStarterLive, isStarterLoading, isCached, isBrowseCached, browseCacheUpdatedAt, variant }));
 
@@ -5783,7 +5783,7 @@ function createFeaturedHomeSection(listings, options = {}) {
   const previousButton = document.createElement("button");
   previousButton.className = "featured-carousel-control featured-carousel-control-prev";
   previousButton.type = "button";
-  previousButton.setAttribute("aria-label", variant === "watched" ? "Show previous Watched Gear" : variant === "browse" ? "Show previous Gear Goggles listings" : "Show previous Fresh Finds");
+  previousButton.setAttribute("aria-label", variant === "watched" ? "Show previous Watched Gear" : variant === "browse" ? "Show previous Gear Scanner listings" : "Show previous Fresh Finds");
 
   const rail = document.createElement("div");
   rail.className = "featured-home-rail";
@@ -5809,7 +5809,7 @@ function createFeaturedHomeSection(listings, options = {}) {
   const nextButton = document.createElement("button");
   nextButton.className = "featured-carousel-control featured-carousel-control-next";
   nextButton.type = "button";
-  nextButton.setAttribute("aria-label", variant === "watched" ? "Show more Watched Gear" : variant === "browse" ? "Show more Gear Goggles listings" : "Show more Fresh Finds");
+  nextButton.setAttribute("aria-label", variant === "watched" ? "Show more Watched Gear" : variant === "browse" ? "Show more Gear Scanner listings" : "Show more Fresh Finds");
 
   carousel.append(previousButton, rail, nextButton);
   section.appendChild(carousel);
@@ -5829,7 +5829,7 @@ function createFeaturedHomeLoadingCard(listing) {
     isBrowseLoading ? "is-browse-home-card is-browse-loading-card" : "",
   ].filter(Boolean).join(" ");
   card.style.setProperty("--loading-accent", "#0072ff");
-  card.setAttribute("aria-label", listing.title || (isBrowseLoading ? "Gear Goggles loading" : "Fresh Finds loading"));
+  card.setAttribute("aria-label", listing.title || (isBrowseLoading ? "Gear Scanner loading" : "Fresh Finds loading"));
   const loadingImageMarkup = isBrowseLoading
     ? `<img class="gear-browser-loader-svg" src="assets/animations/perspective-line-graph-loading-groundplane-wide-v01.svg" alt="" loading="eager" decoding="async" />`
     : `<span class="featured-home-loading-sweep"></span>`;

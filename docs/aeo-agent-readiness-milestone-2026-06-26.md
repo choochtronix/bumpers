@@ -52,3 +52,10 @@ Brrtz needs two kinds of optimization:
 - Homepage metadata and JSON-LD were added.
 - The server now resolves clean URLs for `/about`, `/for-agents`, `/regions`, `/sources`, and `/search`.
 - Startup URL parsing now supports search prefill for `q`, `region`, and `category`.
+
+## Follow-Up AEO Work
+
+- Added model-intent pages for Moog Minimoog, ARP 2600, and Roland TR-808.
+- Added a draft `/agent-connector` page to describe future MCP-style tools and permission boundaries.
+- Added `/agent-tools.json` as a machine-readable draft of planned agent tools.
+- Added `docs/brrtz-agent-connector-spec-2026-06-26.md` as the durable implementation planning spec.

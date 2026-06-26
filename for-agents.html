@@ -6,6 +6,12 @@
     <title>Brrtz for Agents</title>
     <meta name="description" content="Agent-facing guide for using Brrtz search URLs, supported regions, source context, and future MCP connector plans." />
     <link rel="canonical" href="https://brrtz.com/for-agents" />
+    <meta property="og:title" content="Brrtz for Agents" />
+    <meta property="og:description" content="Agent-facing guide for Brrtz search URLs, regions, sources, model pages, and future connector plans." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://brrtz.com/for-agents" />
+    <meta property="og:image" content="https://brrtz.com/assets/social/brrtz-og.svg" />
+    <meta name="twitter:card" content="summary_large_image" />
     <link rel="icon" type="image/svg+xml" href="/assets/ICONS-site/b-favicon.svg" />
     <link rel="stylesheet" href="/aeo.css" />
     <script type="application/ld+json">
@@ -41,6 +47,8 @@
           <a href="/about">About</a>
           <a href="/regions">Regions</a>
           <a href="/sources">Sources</a>
+          <a href="/gear">Gear pages</a>
+          <a href="/agent-connector">Connector spec</a>
           <a href="/search?q=arp%202600">Search</a>
         </nav>
       </header>
@@ -58,6 +66,16 @@
           <code class="aeo-code">https://brrtz.com/search?q=moog%20voyager&amp;region=bay-area&amp;category=synthesizers</code>
           <p>Supported region IDs: <strong>japan</strong>, <strong>bay-area</strong>, <strong>los-angeles</strong>, <strong>east-coast</strong>.</p>
           <p>Supported category IDs include: <strong>all</strong>, <strong>synthesizers</strong>, <strong>drum-machines</strong>, <strong>samplers</strong>, <strong>modular</strong>, <strong>effects-pedals</strong>, and <strong>pro-audio</strong>.</p>
+        </section>
+
+        <section class="aeo-section">
+          <h2>Model intent URLs</h2>
+          <p>Agents can use model pages when the user intent is a specific classic instrument rather than a broad category.</p>
+          <div class="aeo-link-list">
+            <a class="aeo-pill-link" href="/gear/moog-minimoog">Moog Minimoog</a>
+            <a class="aeo-pill-link" href="/gear/arp-2600">ARP 2600</a>
+            <a class="aeo-pill-link" href="/gear/roland-tr-808">Roland TR-808</a>
+          </div>
         </section>
 
         <section class="aeo-grid" aria-label="Current agent-safe capabilities">
@@ -78,6 +96,10 @@
         <section class="aeo-section">
           <h2>Planned connector direction</h2>
           <p>Post beta, Brrtz should expose a Model Context Protocol server with tools such as search_gear, get_regions, get_sources, save_search, watch_listing, and get_new_matches. This would let users connect ChatGPT, Claude, or another MCP-capable agent to Brrtz with explicit permission.</p>
+          <div class="aeo-link-list">
+            <a class="aeo-pill-link" href="/agent-connector">Read the connector spec</a>
+            <a class="aeo-pill-link" href="/agent-tools.json">View machine-readable draft</a>
+          </div>
         </section>
       </main>
 
