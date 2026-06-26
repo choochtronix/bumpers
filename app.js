@@ -717,12 +717,19 @@ let authState = {
   lastSyncedAt: "",
 };
 
+const DEFAULT_BRAND_GRADIENT = Object.freeze({
+  start: "#ff00ff",
+  end: "#0072ff",
+});
+const RESULT_VIEW_MODES = new Set(["grid", "list", "gallery"]);
+
 const defaultSettings = {
   regionId: ACTIVE_REGION.id || "japan",
   currency: ACTIVE_REGION.currency || "JPY",
   jpyPerUsd: 155,
   resultView: "grid",
   gearMode: true,
+  brandGradient: { ...DEFAULT_BRAND_GRADIENT },
 };
 
 const CATEGORY_INTENTS = [
@@ -907,6 +914,35 @@ const currencyToggle = document.querySelector("#currencyToggle");
 const themeSettingsToggle = document.querySelector("#themeSettingsToggle");
 const gearModeSettingsToggle = document.querySelector("#gearModeSettingsToggle");
 const jpyPerUsdInput = document.querySelector("#jpyPerUsd");
+const brandGradientStartInput = document.querySelector("#brandGradientStart");
+const brandGradientEndInput = document.querySelector("#brandGradientEnd");
+const brandGradientStartColorInput = document.querySelector("#brandGradientStartColor");
+const brandGradientEndColorInput = document.querySelector("#brandGradientEndColor");
+const brandGradientStartRgbInputs = {
+  r: document.querySelector("#brandGradientStartR"),
+  g: document.querySelector("#brandGradientStartG"),
+  b: document.querySelector("#brandGradientStartB"),
+};
+const brandGradientEndRgbInputs = {
+  r: document.querySelector("#brandGradientEndR"),
+  g: document.querySelector("#brandGradientEndG"),
+  b: document.querySelector("#brandGradientEndB"),
+};
+const brandGradientStopControls = {
+  start: {
+    hex: brandGradientStartInput,
+    color: brandGradientStartColorInput,
+    rgb: brandGradientStartRgbInputs,
+  },
+  end: {
+    hex: brandGradientEndInput,
+    color: brandGradientEndColorInput,
+    rgb: brandGradientEndRgbInputs,
+  },
+};
+const brandGradientPreview = document.querySelector("#brandGradientPreview");
+const applyBrandGradientButton = document.querySelector("#applyBrandGradient");
+const resetBrandGradientButton = document.querySelector("#resetBrandGradient");
 const regionSelect = document.querySelector("#regionSelect");
 const signedOutAccountPanel = document.querySelector("#signedOutAccountPanel");
 const signedInAccountPanel = document.querySelector("#signedInAccountPanel");
@@ -940,6 +976,8 @@ let searchChirpAudioCtx = null;
 
 function initialize() {
   isBrowseExpanded = getCurrentAppView() === APP_VIEW_SYNTH_BROWSER;
+  runStartupStep("startup brand gradient url", applyStartupBrandGradientUrlParams);
+  runStartupStep("brand gradient", () => applyBrandGradient(appSettings.brandGradient));
   bindEvents();
   const shouldRunStartupSearch = applyStartupSearchUrlParams();
   runStartupStep("quick search placeholder", initializeQuickSearchPlaceholder);
@@ -992,6 +1030,17 @@ function applyStartupSearchUrlParams() {
     categoryIntent: sanitizeCategoryIntent(categoryParam, appSettings.regionId),
     sources: getRegionSourceIds(appSettings.regionId),
   });
+  return true;
+}
+
+function applyStartupBrandGradientUrlParams() {
+  const params = new URLSearchParams(window.location.search);
+  const gradient = readBrandGradientFromUrlParams(params);
+  if (!gradient) return false;
+
+  appSettings = hydrateSettings({ ...appSettings, brandGradient: gradient });
+  localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(appSettings));
+  applyBrandGradient(appSettings.brandGradient);
   return true;
 }
 
@@ -1619,6 +1668,9 @@ function bindEvents() {
   pullCloudSavedSearchesButton.addEventListener("click", pullCloudSavedSearches);
   pushCloudSavedSearchesButton.addEventListener("click", pushCloudSavedSearches);
   themeSettingsToggle?.addEventListener("change", handleSettingsThemeToggle);
+  bindBrandGradientControlEvents();
+  applyBrandGradientButton?.addEventListener("click", applyBrandGradientFromControls);
+  resetBrandGradientButton?.addEventListener("click", resetBrandGradient);
   sendSignInLinkButton?.addEventListener("click", handleAccountSignInShell);
   syncAccountSavedSearchesButton?.addEventListener("click", syncAccountCloudData);
   signOutAccountButton?.addEventListener("click", handleAccountSignOutShell);
@@ -1716,7 +1768,7 @@ function bindEvents() {
     changePage(button.dataset.pageAction);
   });
 
-  themeToggle.addEventListener("click", toggleTheme, { capture: true });
+  themeToggle?.addEventListener("click", toggleTheme, { capture: true });
 
   backToTopButton.addEventListener("click", scrollPageTop);
   window.addEventListener("scroll", requestBackToTopVisibilityUpdate, { passive: true });
@@ -1875,6 +1927,233 @@ function handleSettingsThemeToggle(event) {
 
 function handleSettingsGearModeToggle(event) {
   setQualityMode(event.target.checked ? "clean" : "all");
+}
+
+function bindBrandGradientControlEvents() {
+  Object.entries(brandGradientStopControls).forEach(([stop, controls]) => {
+    controls.hex?.addEventListener("input", () => handleBrandGradientHexInput(stop));
+    controls.hex?.addEventListener("change", () => normalizeBrandGradientHexInput(stop));
+    controls.color?.addEventListener("input", () => handleBrandGradientColorInput(stop));
+    Object.values(controls.rgb || {}).forEach((input) => {
+      input?.addEventListener("input", () => handleBrandGradientRgbInput(stop));
+      input?.addEventListener("change", () => normalizeBrandGradientRgbInput(stop));
+    });
+  });
+}
+
+function handleBrandGradientHexInput(stop) {
+  const hex = normalizeFullHexColor(brandGradientStopControls[stop]?.hex?.value);
+  if (!hex) return;
+  syncBrandGradientStopControls(stop, hex, { skipHex: true });
+  previewBrandGradientWithStop(stop, hex);
+}
+
+function normalizeBrandGradientHexInput(stop) {
+  const hex = normalizeHexColor(brandGradientStopControls[stop]?.hex?.value);
+  if (!hex) return;
+  syncBrandGradientStopControls(stop, hex);
+  previewBrandGradientWithStop(stop, hex);
+}
+
+function handleBrandGradientColorInput(stop) {
+  const hex = normalizeHexColor(brandGradientStopControls[stop]?.color?.value);
+  if (!hex) return;
+  syncBrandGradientStopControls(stop, hex, { skipColor: true });
+  previewBrandGradientFromControls();
+}
+
+function handleBrandGradientRgbInput(stop) {
+  const hex = readBrandGradientStopFromRgbControls(stop);
+  if (!hex) return;
+  syncBrandGradientStopControls(stop, hex, { skipRgb: true });
+  previewBrandGradientFromControls();
+}
+
+function normalizeBrandGradientRgbInput(stop) {
+  const hex = readBrandGradientStopFromRgbControls(stop, { clamp: true });
+  if (!hex) return;
+  syncBrandGradientStopControls(stop, hex);
+  previewBrandGradientFromControls();
+}
+
+function previewBrandGradientWithStop(stop, hex) {
+  const gradient = normalizeBrandGradient({
+    start: stop === "start" ? hex : readBrandGradientStopFromControls("start"),
+    end: stop === "end" ? hex : readBrandGradientStopFromControls("end"),
+  });
+  if (!gradient) return;
+  applyBrandGradient(gradient);
+}
+
+function readBrandGradientFromUrlParams(params) {
+  const packed = params.get("gradient") || params.get("brandGradient") || "";
+  if (packed) {
+    const [start, end] = packed.split(/[,|:]/).map((value) => value.trim());
+    const gradient = normalizeBrandGradient({ start, end });
+    if (gradient) return gradient;
+  }
+
+  return normalizeBrandGradient({
+    start: params.get("gradientStart") || params.get("brandStart"),
+    end: params.get("gradientEnd") || params.get("brandEnd"),
+  });
+}
+
+function readBrandGradientFromControls() {
+  return normalizeBrandGradient({
+    start: readBrandGradientStopFromControls("start"),
+    end: readBrandGradientStopFromControls("end"),
+  });
+}
+
+function readBrandGradientStopFromControls(stop) {
+  const controls = brandGradientStopControls[stop] || {};
+  return normalizeHexColor(controls.hex?.value)
+    || normalizeHexColor(controls.color?.value)
+    || readBrandGradientStopFromRgbControls(stop);
+}
+
+function readBrandGradientStopFromRgbControls(stop, options = {}) {
+  const controls = brandGradientStopControls[stop]?.rgb;
+  if (!controls) return "";
+
+  const rgb = {};
+  for (const channel of ["r", "g", "b"]) {
+    const input = controls[channel];
+    const value = Number(input?.value);
+    if (!Number.isFinite(value)) return "";
+    if (!options.clamp && (value < 0 || value > 255)) return "";
+    const normalized = clampRgbChannel(value);
+    rgb[channel] = normalized;
+    if (options.clamp && input && String(normalized) !== input.value) input.value = normalized;
+  }
+
+  return rgbToHex(rgb);
+}
+
+function normalizeBrandGradient(gradient) {
+  const start = normalizeHexColor(gradient?.start);
+  const end = normalizeHexColor(gradient?.end);
+  return start && end ? { start, end } : null;
+}
+
+function normalizeHexColor(value) {
+  const text = String(value || "").trim().replace(/^#?/, "#").toLowerCase();
+  if (/^#[0-9a-f]{6}$/.test(text)) return text;
+  if (/^#[0-9a-f]{3}$/.test(text)) {
+    return `#${text.slice(1).split("").map((char) => char + char).join("")}`;
+  }
+  return "";
+}
+
+function normalizeFullHexColor(value) {
+  const text = String(value || "").trim().replace(/^#?/, "#").toLowerCase();
+  return /^#[0-9a-f]{6}$/.test(text) ? text : "";
+}
+
+function hexToRgb(hex) {
+  const normalized = normalizeHexColor(hex);
+  if (!normalized) return null;
+  return {
+    r: parseInt(normalized.slice(1, 3), 16),
+    g: parseInt(normalized.slice(3, 5), 16),
+    b: parseInt(normalized.slice(5, 7), 16),
+  };
+}
+
+function rgbToHex(rgb) {
+  const channels = ["r", "g", "b"].map((channel) => {
+    const value = clampRgbChannel(rgb?.[channel]);
+    return value.toString(16).padStart(2, "0");
+  });
+  return `#${channels.join("")}`;
+}
+
+function clampRgbChannel(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return 0;
+  return Math.min(255, Math.max(0, Math.round(number)));
+}
+
+function createBrandGradientValue(gradient) {
+  const normalized = normalizeBrandGradient(gradient) || DEFAULT_BRAND_GRADIENT;
+  return `linear-gradient(110deg, ${normalized.start} 0%, ${normalized.end} 100%)`;
+}
+
+function applyBrandGradient(gradient = appSettings.brandGradient, options = {}) {
+  const normalized = normalizeBrandGradient(gradient) || { ...DEFAULT_BRAND_GRADIENT };
+  document.documentElement.style.setProperty("--brand-gradient-start", normalized.start);
+  document.documentElement.style.setProperty("--brand-gradient-end", normalized.end);
+  document.documentElement.style.setProperty("--select-brand-chevron", createSelectBrandChevronValue(normalized.start));
+  appSettings = {
+    ...appSettings,
+    brandGradient: normalized,
+  };
+  updateBrandGradientControls(normalized);
+  if (options.persist) {
+    localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(appSettings));
+  }
+}
+
+function updateBrandGradientControls(gradient = appSettings.brandGradient) {
+  const normalized = normalizeBrandGradient(gradient) || { ...DEFAULT_BRAND_GRADIENT };
+  syncBrandGradientStopControls("start", normalized.start);
+  syncBrandGradientStopControls("end", normalized.end);
+  if (brandGradientPreview) brandGradientPreview.style.background = createBrandGradientValue(normalized);
+}
+
+function createSelectBrandChevronValue(color) {
+  const normalized = normalizeHexColor(color) || DEFAULT_BRAND_GRADIENT.start;
+  const encodedColor = encodeURIComponent(normalized);
+  return `url("data:image/svg+xml,%3Csvg width='18' height='18' viewBox='0 0 18 18' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M4.5 7L9 11.5L13.5 7' stroke='${encodedColor}' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`;
+}
+
+function syncBrandGradientStopControls(stop, hex, options = {}) {
+  const controls = brandGradientStopControls[stop];
+  const normalized = normalizeHexColor(hex);
+  const rgb = hexToRgb(normalized);
+  if (!controls || !normalized || !rgb) return;
+
+  if (!options.skipHex && controls.hex && controls.hex.value !== normalized) controls.hex.value = normalized;
+  if (!options.skipColor && controls.color && controls.color.value !== normalized) controls.color.value = normalized;
+  if (!options.skipRgb) {
+    Object.entries(rgb).forEach(([channel, value]) => {
+      const input = controls.rgb?.[channel];
+      if (input && input.value !== String(value)) input.value = value;
+    });
+  }
+}
+
+function previewBrandGradientFromControls() {
+  const gradient = readBrandGradientFromControls();
+  if (!gradient) return;
+  applyBrandGradient(gradient);
+}
+
+function applyBrandGradientFromControls() {
+  const gradient = readBrandGradientFromControls();
+  if (!gradient) {
+    showStatusToast({
+      icon: "!",
+      message: "Enter two hex colors",
+    });
+    updateBrandGradientControls(appSettings.brandGradient);
+    return;
+  }
+
+  applyBrandGradient(gradient, { persist: true });
+  showStatusToast({
+    icon: "✓",
+    message: "Gradient applied",
+  });
+}
+
+function resetBrandGradient() {
+  applyBrandGradient(DEFAULT_BRAND_GRADIENT, { persist: true });
+  showStatusToast({
+    icon: "✓",
+    message: "Gradient reset",
+  });
 }
 
 function getAvailableRegions() {
@@ -2951,6 +3230,7 @@ function fillSettingsForm() {
   if (themeSettingsToggle) themeSettingsToggle.checked = document.body.dataset.theme === "dark";
   if (gearModeSettingsToggle) gearModeSettingsToggle.checked = appSettings.gearMode;
   jpyPerUsdInput.value = appSettings.jpyPerUsd;
+  updateBrandGradientControls(appSettings.brandGradient);
   if (cloudProfileEmail) cloudProfileEmail.textContent = getCloudSyncUser().email;
   renderAccountShell(authState.user);
 }
@@ -3342,13 +3622,16 @@ async function saveSettingsFromModal() {
   const nextRegion = getRegionById(nextRegionId);
   const nextRate = Number(jpyPerUsdInput.value);
   const nextGearMode = gearModeSettingsToggle ? gearModeSettingsToggle.checked : appSettings.gearMode;
+  const nextBrandGradient = readBrandGradientFromControls() || appSettings.brandGradient;
   appSettings = {
     ...appSettings,
     regionId: nextRegionId,
     currency: regionChanged ? nextRegion.currency : (currencyToggle.checked ? "USD" : "JPY"),
     jpyPerUsd: Number.isFinite(nextRate) && nextRate > 0 ? nextRate : defaultSettings.jpyPerUsd,
     gearMode: nextGearMode,
+    brandGradient: nextBrandGradient,
   };
+  applyBrandGradient(appSettings.brandGradient);
   qualityFilter = appSettings.gearMode ? "clean" : "all";
   localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(appSettings));
 
@@ -4391,6 +4674,7 @@ function renderResults(options = {}) {
   resultGrid.innerHTML = "";
   resultGrid.classList.toggle("is-featured-home", isShowingFeaturedHome);
   resultGrid.classList.toggle("is-list-view", !isShowingFeaturedHome && appSettings.resultView === "list");
+  resultGrid.classList.toggle("is-gallery-view", !isShowingFeaturedHome && appSettings.resultView === "gallery");
   resultGrid.classList.toggle("is-browse-expanded", false);
   resultGrid.classList.toggle("is-gear-browser-frame", false);
   renderSourceFilters(resultSource, { renderContext });
@@ -4463,6 +4747,7 @@ function renderHomeView(watching, renderContext = createListingRenderContext()) 
   resultGrid.innerHTML = "";
   resultGrid.classList.toggle("is-featured-home", isShowingFeaturedHome);
   resultGrid.classList.toggle("is-list-view", false);
+  resultGrid.classList.toggle("is-gallery-view", false);
   resultGrid.classList.toggle("is-browse-expanded", false);
   resultGrid.classList.toggle("is-gear-browser-frame", false);
   renderSourceFilters(homeResults, { renderContext });
@@ -4504,6 +4789,7 @@ function renderBrowseExpandedView(watching, renderContext = createListingRenderC
   resultGrid.innerHTML = "";
   resultGrid.classList.toggle("is-featured-home", false);
   resultGrid.classList.toggle("is-list-view", appSettings.resultView === "list");
+  resultGrid.classList.toggle("is-gallery-view", appSettings.resultView === "gallery");
   resultGrid.classList.toggle("is-browse-expanded", true);
   resultGrid.classList.toggle("is-gear-browser-frame", true);
   renderSourceFilters(browseListings, { renderContext });
@@ -4801,7 +5087,7 @@ function renderQualityModeControls() {
 }
 
 function setResultView(mode = "grid") {
-  const resultView = mode === "list" ? "list" : "grid";
+  const resultView = sanitizeResultView(mode);
   if (appSettings.resultView === resultView) return;
 
   appSettings = {
@@ -4811,6 +5097,10 @@ function setResultView(mode = "grid") {
   localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(appSettings));
   renderResults();
   queueProfileAutoSync("result-view");
+}
+
+function sanitizeResultView(mode) {
+  return RESULT_VIEW_MODES.has(mode) ? mode : "grid";
 }
 
 function renderResultViewControls(isShowingFeaturedHome = false, forcedView = "") {
@@ -4995,7 +5285,11 @@ function getVisibleResults(watching, baseResults = currentResults, options = {})
 function renderSourceFilters(baseResults = currentResults, options = {}) {
   const renderContext = options.renderContext || null;
   const counts = getSourceCountsForCurrentView(baseResults, { renderContext });
-  const availableSources = getVisibleSources().filter((source) => !isManualSourceStatus(source.id) && shouldShowSourceFilter(source, counts));
+  const visibleSources = getVisibleSources();
+  const sourceOrder = new Map(visibleSources.map((source, index) => [source.id, index]));
+  const availableSources = visibleSources
+    .filter((source) => !isManualSourceStatus(source.id) && shouldShowSourceFilter(source, counts))
+    .sort((first, second) => compareSourceFilterDisplayOrder(first, second, counts, sourceOrder));
   sourceFilterList.innerHTML = "";
   sourceFilterList.classList.toggle("is-expanded", isSourceRowExpanded);
   sourceFilterList.classList.toggle("is-collapsed", !isSourceRowExpanded);
@@ -5162,6 +5456,17 @@ function shouldShowSourceFilter(source, counts) {
   return counts.get(source.id) > 0 || sourceSearchStatuses.has(source.id);
 }
 
+function compareSourceFilterDisplayOrder(first, second, counts, sourceOrder) {
+  const firstIsZero = isZeroResultSourceFilter(first.id, counts);
+  const secondIsZero = isZeroResultSourceFilter(second.id, counts);
+  if (firstIsZero !== secondIsZero) return firstIsZero ? 1 : -1;
+  return (sourceOrder.get(first.id) ?? 0) - (sourceOrder.get(second.id) ?? 0);
+}
+
+function isZeroResultSourceFilter(sourceId, counts) {
+  return sourceSearchStatuses.get(sourceId) === "complete" && (counts.get(sourceId) || 0) === 0;
+}
+
 function formatSourceFilterCount(count, status) {
   if (status === "loading") return "…";
   if (status === "manual") return "↗";
@@ -5173,7 +5478,7 @@ function formatSourceFilterCount(count, status) {
 
 function isSingleDigitSourceCount(count, status) {
   if (["loading", "manual", "parked", "pending", "error"].includes(status)) return false;
-  return Number.isFinite(count) && count >= 0 && count < 10;
+  return Number.isFinite(count) && count > 0 && count < 10;
 }
 
 function getSourceFilterTitle(source, count, status) {
@@ -5372,7 +5677,7 @@ function renderListing(listing, options = {}) {
   fragment.querySelector("h3").textContent = listing.title;
   renderShopName(fragment.querySelector(".shop-name"), listing);
   fragment.querySelector(".price-row strong").textContent = listing.priceLabel || formatPrice(listing.price);
-  fragment.querySelector(".price-row span").textContent = relativeDate(listing.listedAt);
+  fragment.querySelector(".price-row span").textContent = "";
   openLink.href = listing.url;
   imageLink.addEventListener("click", (event) => handlePrimaryListingOpen(event, listing.url));
   openLink.addEventListener("click", (event) => handlePrimaryListingOpen(event, listing.url));
@@ -7715,12 +8020,14 @@ function hydrateSettings(settings) {
   const regionId = sanitizeRegionId(settings.regionId || defaultSettings.regionId);
   const region = getRegionById(regionId);
   const requestedCurrency = settings.currency === "USD" ? "USD" : settings.currency === "JPY" ? "JPY" : "";
+  const brandGradient = normalizeBrandGradient(settings.brandGradient) || { ...DEFAULT_BRAND_GRADIENT };
   return {
     regionId,
     currency: requestedCurrency || region.currency || defaultSettings.currency,
     jpyPerUsd: Number.isFinite(rate) && rate > 0 ? rate : defaultSettings.jpyPerUsd,
-    resultView: settings.resultView === "list" ? "list" : "grid",
+    resultView: sanitizeResultView(settings.resultView),
     gearMode: settings.gearMode === false ? false : true,
+    brandGradient,
   };
 }
 

@@ -71,6 +71,21 @@
           const storedTheme = localStorage.getItem("bumpers.theme");
           const systemPrefersDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches;
           document.body.dataset.theme = storedTheme || (systemPrefersDark ? "dark" : "light");
+
+          const normalizeHex = (value) => {
+            const text = String(value || "").trim().replace(/^#?/, "#").toLowerCase();
+            if (/^#[0-9a-f]{6}$/.test(text)) return text;
+            if (/^#[0-9a-f]{3}$/.test(text)) return `#${text.slice(1).split("").map((char) => char + char).join("")}`;
+            return "";
+          };
+          const settings = JSON.parse(localStorage.getItem("bumpers.settings") || "{}");
+          const gradient = settings.brandGradient || {};
+          const start = normalizeHex(gradient.start);
+          const end = normalizeHex(gradient.end);
+          if (start && end) {
+            document.documentElement.style.setProperty("--brand-gradient-start", start);
+            document.documentElement.style.setProperty("--brand-gradient-end", end);
+          }
         } catch {
           document.body.dataset.theme = "light";
         }
@@ -82,8 +97,8 @@
           <svg class="brand-wave-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 140" preserveAspectRatio="none">
             <defs>
               <linearGradient id="brandWaveGradient" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1200" y2="0">
-                <stop offset="0%" stop-color="#0072ff" />
-                <stop offset="100%" stop-color="#ff00ff" />
+                <stop offset="0%" stop-color="var(--brand-gradient-end, #0072ff)" />
+                <stop offset="100%" stop-color="var(--brand-gradient-start, #ff00ff)" />
               </linearGradient>
             </defs>
             <path id="sinePath" class="brand-wave-path brand-wave-path-sine" />
@@ -135,9 +150,6 @@
             <svg class="header-action-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
               <path d="M12 20.5C12 20.5 3.5 15.3 3.5 9C3.5 6.1 5.6 4 8.2 4C9.85 4 11.25 4.95 12 6.35C12.75 4.95 14.15 4 15.8 4C18.4 4 20.5 6.1 20.5 9C20.5 15.3 12 20.5 12 20.5Z" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
             </svg>
-          </button>
-          <button class="theme-toggle" id="themeToggle" type="button" aria-label="Switch to dark mode" title="Switch to dark mode">
-            <span class="theme-icon" aria-hidden="true">◐</span>
           </button>
           <button class="theme-toggle" id="openSettings" type="button" aria-label="Open settings" title="Settings">
             <span class="site-icon site-icon-settings" aria-hidden="true"></span>
@@ -205,6 +217,10 @@
                 <button class="result-view-button" type="button" data-result-view="list" aria-pressed="false" title="List view">
                   <span class="result-view-icon result-view-icon-list" aria-hidden="true"></span>
                   <span class="sr-only">List view</span>
+                </button>
+                <button class="result-view-button" type="button" data-result-view="gallery" aria-pressed="false" title="Gallery view">
+                  <span class="result-view-icon result-view-icon-gallery" aria-hidden="true"></span>
+                  <span class="sr-only">Gallery view</span>
                 </button>
               </div>
               <label class="source-sort-control" aria-label="Sort results">
@@ -494,6 +510,55 @@ stand
                   <input id="themeSettingsToggle" type="checkbox" />
                   <span class="toggle-track" aria-hidden="true"></span>
                 </label>
+
+                <div class="brand-gradient-lab" aria-labelledby="brandGradientTitle">
+                  <div class="brand-gradient-lab-copy">
+                    <h4 id="brandGradientTitle">Brand gradient</h4>
+                    <span class="brand-gradient-preview" id="brandGradientPreview" aria-hidden="true"></span>
+                  </div>
+                  <div class="brand-gradient-picker-grid">
+                    <div class="brand-gradient-stop">
+                      <span class="brand-gradient-stop-title">Start color</span>
+                      <div class="brand-gradient-picker-row">
+                        <label class="brand-gradient-color-control">
+                          <span>Pick</span>
+                          <input id="brandGradientStartColor" type="color" value="#ff00ff" data-brand-gradient-color="start" aria-label="Pick start gradient color" />
+                        </label>
+                        <label class="brand-gradient-hex-control">
+                          <span>Hex</span>
+                          <input id="brandGradientStart" type="text" inputmode="text" autocomplete="off" spellcheck="false" placeholder="#ff00ff" />
+                        </label>
+                      </div>
+                      <div class="brand-gradient-rgb-fields" aria-label="Start RGB values">
+                        <label><span>R</span><input id="brandGradientStartR" type="number" inputmode="numeric" min="0" max="255" step="1" data-brand-gradient-rgb="start" data-rgb-channel="r" aria-label="Start red value" /></label>
+                        <label><span>G</span><input id="brandGradientStartG" type="number" inputmode="numeric" min="0" max="255" step="1" data-brand-gradient-rgb="start" data-rgb-channel="g" aria-label="Start green value" /></label>
+                        <label><span>B</span><input id="brandGradientStartB" type="number" inputmode="numeric" min="0" max="255" step="1" data-brand-gradient-rgb="start" data-rgb-channel="b" aria-label="Start blue value" /></label>
+                      </div>
+                    </div>
+                    <div class="brand-gradient-stop">
+                      <span class="brand-gradient-stop-title">End color</span>
+                      <div class="brand-gradient-picker-row">
+                        <label class="brand-gradient-color-control">
+                          <span>Pick</span>
+                          <input id="brandGradientEndColor" type="color" value="#0072ff" data-brand-gradient-color="end" aria-label="Pick end gradient color" />
+                        </label>
+                        <label class="brand-gradient-hex-control">
+                          <span>Hex</span>
+                          <input id="brandGradientEnd" type="text" inputmode="text" autocomplete="off" spellcheck="false" placeholder="#0072ff" />
+                        </label>
+                      </div>
+                      <div class="brand-gradient-rgb-fields" aria-label="End RGB values">
+                        <label><span>R</span><input id="brandGradientEndR" type="number" inputmode="numeric" min="0" max="255" step="1" data-brand-gradient-rgb="end" data-rgb-channel="r" aria-label="End red value" /></label>
+                        <label><span>G</span><input id="brandGradientEndG" type="number" inputmode="numeric" min="0" max="255" step="1" data-brand-gradient-rgb="end" data-rgb-channel="g" aria-label="End green value" /></label>
+                        <label><span>B</span><input id="brandGradientEndB" type="number" inputmode="numeric" min="0" max="255" step="1" data-brand-gradient-rgb="end" data-rgb-channel="b" aria-label="End blue value" /></label>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="settings-actions brand-gradient-actions">
+                    <button class="secondary-action" id="applyBrandGradient" type="button">Apply</button>
+                    <button class="secondary-action" id="resetBrandGradient" type="button" aria-label="Reset brand gradient to start #ff00ff and end #0072ff" title="Reset to #ff00ff → #0072ff">Reset Gradient</button>
+                  </div>
+                </div>
               </div>
 
               <div class="settings-section" aria-labelledby="searchQualitySettingsTitle">
@@ -633,9 +698,9 @@ stand
             <span></span>
           </div>
           <div class="card-actions">
-            <button class="feedback-button hide-similar-button" type="button" title="Hide listings with similar noise signals">Hide similar</button>
-            <button class="feedback-button gear-button" type="button" title="Train Brrtz that this is gear">This is gear</button>
-            <button class="feedback-button noise-button" type="button" title="Train Brrtz that this is noise">This is noise</button>
+            <button class="feedback-button hide-similar-button" type="button" title="Hide listings with similar noise signals" hidden>Hide similar</button>
+            <button class="feedback-button gear-button" type="button" title="Train Brrtz that this is gear" hidden>This is gear</button>
+            <button class="feedback-button noise-button" type="button" title="Train Brrtz that this is noise" hidden>This is noise</button>
             <a class="open-link" target="_blank" rel="noreferrer">Open</a>
             <div class="listing-action-menu">
               <button class="more-action-button" type="button" aria-label="More listing actions" aria-expanded="false">⋯</button>

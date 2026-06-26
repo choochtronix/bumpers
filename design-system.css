@@ -29,7 +29,9 @@
   --color-rose: #b13b57;
   --color-amber: #9f6a12;
   --color-image-bg: #d8dcd2;
-  --color-brand-gradient: linear-gradient(110deg, #ff00ff 0%, #0072ff 100%);
+  --brand-gradient-start: #ff00ff;
+  --brand-gradient-end: #0072ff;
+  --color-brand-gradient: linear-gradient(110deg, var(--brand-gradient-start) 0%, var(--brand-gradient-end) 100%);
   --color-gear-browser-frame: #151515;
 
   /* Marketplace identity tokens */
