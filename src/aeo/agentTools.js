@@ -1,4 +1,4 @@
-{
+export const agentToolsObject = {
   "schemaVersion": "0.2.0",
   "lastUpdated": "2026-06-26",
   "name": "Brrtz Agent Tool Draft",
@@ -225,4 +225,4 @@
     "save_search and watch_listing require explicit user authorization.",
     "Private saved searches and watchlists must not be exposed across users."
   ]
-}
+};

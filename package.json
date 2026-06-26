@@ -7,6 +7,7 @@
   "scripts": {
     "start": "node server.js",
     "aeo:check": "node scripts/aeo-check.mjs",
+    "aeo:check:prod": "node scripts/aeo-check.mjs https://brrtz.com",
     "jobs:source-health": "node src/jobs/runSourceHealth.js",
     "jobs:source-health:http": "node scripts/source-health-http.js",
     "qa:golden-searches": "node scripts/golden-search-check.js"

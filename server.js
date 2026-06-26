@@ -5,6 +5,7 @@ import { networkInterfaces } from "node:os";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 import { attachNormalizedListings } from "./src/agents/listingNormalizerAgent.js";
+import { agentToolsObject } from "./src/aeo/agentTools.js";
 import { runSourceHealthAgent } from "./src/agents/sourceHealthAgent.js";
 import { appendSourceHealthLogs, readSourceHealthState } from "./src/lib/sourceHealthStore.js";
 import { getCheckableSources, SOURCE_REGISTRY } from "./src/sources/sourceRegistry.js";
@@ -330,6 +331,15 @@ createServer(async (request, response) => {
         "cache-control": "no-store",
       });
       response.end(`${LLMS_TXT_LINES.join("\n")}\n`);
+      return;
+    }
+
+    if (url.pathname === "/agent-tools.json") {
+      response.writeHead(200, {
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "no-store",
+      });
+      response.end(`${JSON.stringify(agentToolsObject, null, 2)}\n`);
       return;
     }
 
