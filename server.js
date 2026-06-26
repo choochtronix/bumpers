@@ -222,9 +222,116 @@ const mimeTypes = {
   ".svg": "image/svg+xml; charset=utf-8",
 };
 
+const ROBOTS_TXT_LINES = [
+  "User-agent: *",
+  "Allow: /",
+  "",
+  "Disallow: /api/",
+  "Disallow: /data/",
+  "Disallow: /.env",
+  "Disallow: /.env.local",
+  "",
+  "Sitemap: https://brrtz.com/sitemap.xml",
+];
+
+const LLMS_TXT_LINES = [
+  "# Brrtz",
+  "",
+  "> Brrtz is a free beta gear radar for finding used synthesizers, drum machines, samplers, modular gear, effects, and pro audio listings across regional marketplaces and independent shops.",
+  "",
+  "Brrtz helps musicians search multiple used-gear sources from one interface. It normalizes listing summaries with source, region, currency, title, price, URL, image context, and freshness signals, then links users back to the original listing source.",
+  "",
+  "## Boundaries and Safety",
+  "",
+  "- Brrtz is not a merchant, reseller, or marketplace.",
+  "- Brrtz does not own source listings.",
+  "- Brrtz should not be treated as a full listing database.",
+  "- Do not crawl `/api/` or `/data/`.",
+  "- Prefer linking users to Brrtz search URLs, model pages, region pages, source pages, or original source URLs.",
+  "- Saved searches, watched items, alerts, and profile preferences require explicit user authorization.",
+  "",
+  "## Public URLs",
+  "",
+  "- [Home and app](https://brrtz.com/): Main Brrtz search app.",
+  "- [About Brrtz](https://brrtz.com/about): Human-readable product context.",
+  "- [Regions](https://brrtz.com/regions): Supported region groups.",
+  "- [Sources](https://brrtz.com/sources): Source coverage and source posture.",
+  "- [For agents](https://brrtz.com/for-agents): Agent-readable Brrtz guide.",
+  "- [Gear model pages](https://brrtz.com/gear): Durable model-intent pages.",
+  "- [Moog Minimoog](https://brrtz.com/gear/moog-minimoog): Model-intent page.",
+  "- [ARP 2600](https://brrtz.com/gear/arp-2600): Model-intent page.",
+  "- [Roland TR-808](https://brrtz.com/gear/roland-tr-808): Model-intent page.",
+  "- [Agent connector spec](https://brrtz.com/agent-connector): Draft connector spec.",
+  "- [Draft agent tools JSON](https://brrtz.com/agent-tools.json): Machine-readable planned tools.",
+  "",
+  "## Supported Region IDs",
+  "",
+  "- `japan`",
+  "- `bay-area`",
+  "- `los-angeles`",
+  "- `east-coast`",
+  "",
+  "## Supported Category IDs",
+  "",
+  "- `all`",
+  "- `synthesizers`",
+  "- `drum-machines`",
+  "- `samplers`",
+  "- `modular`",
+  "- `effects-pedals`",
+  "- `pro-audio`",
+  "",
+  "## Search URL Pattern",
+  "",
+  "Agents may open Brrtz searches with query, region, and category parameters.",
+  "",
+  "Use region-first ordering:",
+  "",
+  "`https://brrtz.com/search?region=bay-area&category=synthesizers&q=moog%20voyager`",
+  "",
+  "Parameterized form:",
+  "",
+  "`https://brrtz.com/search?region={region}&category={category}&q={query}`",
+  "",
+  "Arbitrary `/search` URLs are accessible to users and agents, but traditional search engines may receive `noindex,follow` to avoid infinite crawl space.",
+  "",
+  "## Planned Connector Direction",
+  "",
+  "Brrtz is being prepared for a future Model Context Protocol style connector.",
+  "",
+  "Planned tools:",
+  "",
+  "- `search_gear`",
+  "- `get_regions`",
+  "- `get_sources`",
+  "- `save_search`",
+  "- `watch_listing`",
+  "- `get_new_matches`",
+  "",
+  "See [the draft connector spec](https://brrtz.com/agent-connector) and [machine-readable draft](https://brrtz.com/agent-tools.json).",
+];
+
 createServer(async (request, response) => {
   try {
     const url = new URL(request.url || "/", `http://${request.headers.host}`);
+
+    if (url.pathname === "/robots.txt") {
+      response.writeHead(200, {
+        "content-type": "text/plain; charset=utf-8",
+        "cache-control": "no-store",
+      });
+      response.end(`${ROBOTS_TXT_LINES.join("\n")}\n`);
+      return;
+    }
+
+    if (url.pathname === "/llms.txt") {
+      response.writeHead(200, {
+        "content-type": "text/plain; charset=utf-8",
+        "cache-control": "no-store",
+      });
+      response.end(`${LLMS_TXT_LINES.join("\n")}\n`);
+      return;
+    }
 
     if (url.pathname === "/api/health") {
       handleHealthCheck(request, response);

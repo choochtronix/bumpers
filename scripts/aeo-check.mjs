@@ -6,8 +6,22 @@ const bannedStrings = [
   ["Mock ", "data"].join(""),
   ["alpha@bumpers", ".local"].join(""),
   ["local@bumpers", ".dev"].join(""),
+  "Brrtz Japan gear radar",
   ["Â®", "ion"].join(""),
 ];
+
+const expectedRobotsTxt = [
+  "User-agent: *",
+  "Allow: /",
+  "",
+  "Disallow: /api/",
+  "Disallow: /data/",
+  "Disallow: /.env",
+  "Disallow: /.env.local",
+  "",
+  "Sitemap: https://brrtz.com/sitemap.xml",
+  "",
+].join("\n");
 
 const requiredSitemapUrls = [
   "https://brrtz.com/",
@@ -105,13 +119,15 @@ async function fetchText(path) {
 }
 
 function assertRobotsTxt(body) {
-  assert(body.includes("User-agent: *\n"), "/robots.txt should contain line-oriented User-agent directive");
-  assert(body.includes("Allow: /\n\nDisallow: /api/"), "/robots.txt should separate Allow and Disallow directives with newlines");
-  assert(body.includes("\nSitemap: https://brrtz.com/sitemap.xml"), "/robots.txt should include sitemap on its own line");
-  assert(!body.includes("User-agent: * Allow:"), "/robots.txt should not flatten User-agent and Allow directives");
-  assert(!body.includes("Allow: / Disallow:"), "/robots.txt should not flatten Allow and Disallow directives");
-  assert(!body.includes("Disallow: /.env.local Sitemap:"), "/robots.txt should not flatten final Disallow and Sitemap directives");
-  const lines = body.split(/\r?\n/).filter(Boolean);
+  const normalizedBody = body.replace(/\r\n/g, "\n");
+  assert(normalizedBody === expectedRobotsTxt, "/robots.txt should match the exact multiline directive body");
+  assert(normalizedBody.includes("User-agent: *\n"), "/robots.txt should contain line-oriented User-agent directive");
+  assert(normalizedBody.includes("Allow: /\n\nDisallow: /api/"), "/robots.txt should separate Allow and Disallow directives with newlines");
+  assert(normalizedBody.includes("\nSitemap: https://brrtz.com/sitemap.xml"), "/robots.txt should include sitemap on its own line");
+  assert(!normalizedBody.includes("User-agent: * Allow:"), "/robots.txt should not flatten User-agent and Allow directives");
+  assert(!normalizedBody.includes("Allow: / Disallow:"), "/robots.txt should not flatten Allow and Disallow directives");
+  assert(!normalizedBody.includes("Disallow: /.env.local Sitemap:"), "/robots.txt should not flatten final Disallow and Sitemap directives");
+  const lines = normalizedBody.split("\n").filter(Boolean);
   for (const line of lines) {
     const directiveCount = ["User-agent:", "Allow:", "Disallow:", "Sitemap:"].filter((directive) => line.includes(directive)).length;
     assert(directiveCount <= 1, `/robots.txt has concatenated directives on one line: ${line}`);
@@ -121,6 +137,8 @@ function assertRobotsTxt(body) {
 function assertMarkdownLlms(body) {
   const normalizedBody = body.replace(/\r\n/g, "\n");
   assert(normalizedBody.startsWith("# Brrtz\n\n> "), "/llms.txt should start with H1 and blockquote summary");
+  assert(normalizedBody.includes("\n\n>"), "/llms.txt should preserve a blank line before the blockquote");
+  assert(!normalizedBody.includes("# Brrtz >"), "/llms.txt should not flatten H1 and blockquote onto one line");
   assert(normalizedBody.includes("- [Home and app]"), "/llms.txt should include Markdown public URL links");
   for (const section of ["## Boundaries and Safety", "## Public URLs", "## Supported Region IDs", "## Supported Category IDs", "## Search URL Pattern", "## Planned Connector Direction"]) {
     assert(normalizedBody.includes(`\n${section}\n`), `/llms.txt missing separate H2 section ${section}`);
