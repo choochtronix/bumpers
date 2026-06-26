@@ -5233,8 +5233,8 @@ body[data-theme="dark"] .browse-view-all-button:hover {
 }
 
 .featured-home-header.is-browse-header .browse-expanded-headline {
-  font-size: clamp(34px, 5.4vw, 68px);
-  font-weight: 900;
+  font-size: var(--browse-headline-size);
+  font-weight: 600;
   line-height: 1.08;
 }
 
