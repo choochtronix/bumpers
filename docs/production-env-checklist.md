@@ -47,7 +47,7 @@ These are useful for local development but should not be relied on for the publi
 | Variable | Required For Beta | Secret? | Example | Notes |
 |---|---:|---:|---|---|
 | `BUMPERS_CLOUD_USER_ID` | No | No | `alpha` | Local fallback user id when not using authenticated Supabase sessions. |
-| `BUMPERS_CLOUD_USER_EMAIL` | No | No | `alpha@bumpers.local` | Local fallback email. |
+| `BUMPERS_CLOUD_USER_EMAIL` | No | No | `beta-user@brrtz.com` | Local fallback email. |
 | `BUMPERS_CLOUD_USER_NAME` | No | No | `Brrtz Alpha User` | Local fallback display name. |
 
 ## Supabase Tables Needed

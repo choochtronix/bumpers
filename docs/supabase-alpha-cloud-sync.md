@@ -148,7 +148,7 @@ Copy `.env.example` to `.env.local` or set these variables in your host:
 ```bash
 BUMPERS_CLOUD_PROVIDER=supabase
 BUMPERS_CLOUD_USER_ID=alpha
-BUMPERS_CLOUD_USER_EMAIL=alpha@bumpers.local
+BUMPERS_CLOUD_USER_EMAIL=beta-user@brrtz.com
 BUMPERS_CLOUD_USER_NAME="Brrtz Alpha User"
 BUMPERS_REQUIRE_INVITE=false
 

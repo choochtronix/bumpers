@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
+    "aeo:check": "node scripts/aeo-check.mjs",
     "jobs:source-health": "node src/jobs/runSourceHealth.js",
     "jobs:source-health:http": "node scripts/source-health-http.js",
     "qa:golden-searches": "node scripts/golden-search-check.js"

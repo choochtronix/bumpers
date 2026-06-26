@@ -2,31 +2,39 @@
 
 > Brrtz is a free beta gear radar for finding used synthesizers, drum machines, samplers, modular gear, effects, and pro audio listings across regional marketplaces and independent shops.
 
-## Primary URLs
+Brrtz helps musicians search multiple used-gear sources from one interface. It normalizes listing summaries with source, region, currency, title, price, URL, image context, and freshness signals, then links users back to the original listing source.
 
-- Home and app: https://brrtz.com/
-- About: https://brrtz.com/about
-- Agent guide: https://brrtz.com/for-agents
-- Agent connector spec: https://brrtz.com/agent-connector
-- Draft agent tools JSON: https://brrtz.com/agent-tools.json
-- Regions: https://brrtz.com/regions
-- Sources: https://brrtz.com/sources
-- Gear model pages: https://brrtz.com/gear
+## Boundaries And Safety
 
-## Search URL Pattern
+- Brrtz is not a merchant, reseller, or marketplace.
+- Brrtz does not own source listings.
+- Brrtz should not be treated as a full listing database.
+- Do not crawl `/api/` or `/data/`.
+- Prefer linking users to Brrtz search URLs, model pages, region pages, source pages, or original source URLs.
+- Saved searches, watched items, alerts, and profile preferences require explicit user authorization.
 
-Agents may open Brrtz searches with query, region, and category parameters:
+## Public URLs
 
-`https://brrtz.com/search?q=moog%20voyager&region=bay-area&category=synthesizers`
+- [Home and app](https://brrtz.com/)
+- [About Brrtz](https://brrtz.com/about)
+- [Regions](https://brrtz.com/regions)
+- [Sources](https://brrtz.com/sources)
+- [For agents](https://brrtz.com/for-agents)
+- [Gear model pages](https://brrtz.com/gear)
+- [Moog Minimoog](https://brrtz.com/gear/moog-minimoog)
+- [ARP 2600](https://brrtz.com/gear/arp-2600)
+- [Roland TR-808](https://brrtz.com/gear/roland-tr-808)
+- [Agent connector spec](https://brrtz.com/agent-connector)
+- [Draft agent tools JSON](https://brrtz.com/agent-tools.json)
 
-Supported beta region IDs:
+## Supported Region IDs
 
 - `japan`
 - `bay-area`
 - `los-angeles`
 - `east-coast`
 
-Supported category IDs:
+## Supported Category IDs
 
 - `all`
 - `synthesizers`
@@ -36,28 +44,27 @@ Supported category IDs:
 - `effects-pedals`
 - `pro-audio`
 
-## Gear Model Pages
+## Search URL Pattern
 
-- Moog Minimoog: https://brrtz.com/gear/moog-minimoog
-- ARP 2600: https://brrtz.com/gear/arp-2600
-- Roland TR-808: https://brrtz.com/gear/roland-tr-808
+Agents may open Brrtz searches with query, region, and category parameters. Use region-first ordering in examples:
 
-## What Brrtz Does
+`https://brrtz.com/search?region=bay-area&category=synthesizers&q=moog%20voyager`
 
-- Searches or prepares searches across multiple used gear sources.
-- Normalizes gear listings with source, region, currency, title, price, URL, and image context.
-- Helps users save searches, watch items, and filter out non-gear noise.
-- Links users back to original listing sources.
+Parameterized form:
 
-## Boundaries
+`https://brrtz.com/search?region={region}&category={category}&q={query}`
 
-- Brrtz is not the merchant of record.
-- Brrtz does not own source listings.
-- Do not crawl `/api/` routes or republish source listing databases.
-- Prefer linking users to Brrtz search URLs or original source URLs.
+Arbitrary `/search` URLs are accessible to users and agents, but traditional search engines may receive `noindex,follow` to avoid infinite crawl space.
 
-## Planned Agent Direction
+## Planned Connector Direction
 
-Brrtz is being prepared for a future Model Context Protocol connector. Candidate tools include `search_gear`, `get_regions`, `get_sources`, `save_search`, `watch_listing`, and `get_new_matches`.
+Brrtz is being prepared for a future Model Context Protocol style connector. Planned tools include:
 
-See the draft connector spec at https://brrtz.com/agent-connector and machine-readable draft at https://brrtz.com/agent-tools.json.
+- `search_gear`
+- `get_regions`
+- `get_sources`
+- `save_search`
+- `watch_listing`
+- `get_new_matches`
+
+See [the draft connector spec](https://brrtz.com/agent-connector) and [machine-readable draft](https://brrtz.com/agent-tools.json).

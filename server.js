@@ -19,7 +19,7 @@ const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || "";
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 const CLOUD_PROVIDER = process.env.BUMPERS_CLOUD_PROVIDER || (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY ? "supabase" : "file");
 const CLOUD_PROFILE_USER_ID = process.env.BUMPERS_CLOUD_USER_ID || "local";
-const CLOUD_PROFILE_EMAIL = process.env.BUMPERS_CLOUD_USER_EMAIL || "local@bumpers.dev";
+const CLOUD_PROFILE_EMAIL = process.env.BUMPERS_CLOUD_USER_EMAIL || "local-user@brrtz.com";
 const CLOUD_PROFILE_NAME = process.env.BUMPERS_CLOUD_USER_NAME || "Local Brrtz User";
 const REQUIRE_INVITE = process.env.BUMPERS_REQUIRE_INVITE === "true";
 const JOB_TOKEN = process.env.BUMPERS_JOB_TOKEN || "";
@@ -278,6 +278,11 @@ createServer(async (request, response) => {
 
     if (url.pathname === "/api/rakuma-thumbnail") {
       await handleRakumaThumbnail(url, response);
+      return;
+    }
+
+    if (url.pathname === "/search") {
+      await serveSearchPage(url, response);
       return;
     }
 
@@ -3770,6 +3775,124 @@ async function serveStatic(pathname, response) {
     response.end("Not found");
   }
 }
+
+async function serveSearchPage(url, response) {
+  const indexPath = join(ROOT, "index.html");
+  const indexHtml = await readFile(indexPath, "utf8");
+  const model = createSearchPageModel(url);
+  const fallbackMarkup = createSearchFallbackMarkup(model);
+  const html = indexHtml
+    .replace(/<title>[\s\S]*?<\/title>/, `<title>${escapeHtml(model.title)}</title>`)
+    .replace(/<meta name="description" content="[^"]*" \/>/, `<meta name="description" content="${escapeHtml(model.description)}" />`)
+    .replace(/<link rel="canonical" href="[^"]*" \/>/, `<link rel="canonical" href="${escapeHtml(model.canonical)}" />\n    <meta name="robots" content="noindex,follow" />`)
+    .replace(/<meta property="og:title" content="[^"]*" \/>/, `<meta property="og:title" content="${escapeHtml(model.title)}" />`)
+    .replace(/<meta property="og:description" content="[^"]*" \/>/, `<meta property="og:description" content="${escapeHtml(model.description)}" />`)
+    .replace(/<meta property="og:url" content="[^"]*" \/>/, `<meta property="og:url" content="${escapeHtml(model.canonical)}" />`)
+    .replace("<body>", `<body>\n    ${fallbackMarkup}`);
+
+  response.writeHead(200, {
+    "content-type": "text/html; charset=utf-8",
+    "cache-control": "no-store",
+  });
+  response.end(html);
+}
+
+function createSearchPageModel(url) {
+  const query = normalizeSearchParam(url.searchParams.get("q") || url.searchParams.get("terms") || "");
+  const regionId = sanitizeSearchRegionId(url.searchParams.get("region") || url.searchParams.get("regionId") || "");
+  const categoryId = sanitizeSearchCategoryId(url.searchParams.get("category") || url.searchParams.get("categoryIntent") || "");
+  const region = SEARCH_PAGE_REGIONS[regionId] || SEARCH_PAGE_REGIONS.japan;
+  const category = SEARCH_PAGE_CATEGORIES[categoryId] || SEARCH_PAGE_CATEGORIES.synthesizers;
+  const queryTitle = query ? toTitleCase(query) : "";
+  const title = queryTitle
+    ? `${queryTitle} used ${category.singular} search in ${region.label} - Brrtz`
+    : `Used gear search in ${region.label} - Brrtz`;
+  const h1 = queryTitle
+    ? `Search Brrtz for ${queryTitle} in the ${region.label}`
+    : `Search Brrtz used gear in the ${region.label}`;
+  const intro = queryTitle
+    ? `Brrtz helps musicians search ${region.label} used gear sources for ${category.description} matching "${queryTitle}" and links back to original listing sources.`
+    : `Brrtz helps musicians search ${region.label} used gear sources for synths, drum machines, samplers, modular gear, effects, and pro audio, then links back to original listing sources.`;
+  const description = queryTitle
+    ? `Search Brrtz for ${queryTitle} used ${category.singular} listings across ${region.label} source groups and national used gear marketplaces.`
+    : `Search Brrtz for used synth, drum machine, sampler, modular, effects, and pro audio listings across ${region.label} source groups.`;
+  const canonicalParams = new URLSearchParams();
+  canonicalParams.set("region", region.id);
+  canonicalParams.set("category", category.id);
+  if (query) canonicalParams.set("q", query);
+
+  return {
+    query,
+    region,
+    category,
+    title,
+    h1,
+    intro,
+    description,
+    canonical: `https://brrtz.com/search?${canonicalParams.toString()}`,
+  };
+}
+
+function createSearchFallbackMarkup(model) {
+  return `<noscript>
+      <main class="search-fallback-page" aria-labelledby="searchFallbackTitle">
+        <h1 id="searchFallbackTitle">${escapeHtml(model.h1)}</h1>
+        <p>${escapeHtml(model.intro)}</p>
+        <p>Region: ${escapeHtml(model.region.label)}. Category: ${escapeHtml(model.category.label)}.</p>
+        <p>Brrtz is a discovery layer, not a merchant or reseller. Listings open on their original sources.</p>
+      </main>
+    </noscript>`;
+}
+
+function normalizeSearchParam(value) {
+  return String(value || "").normalize("NFKC").replace(/\s+/g, " ").trim().slice(0, 120);
+}
+
+function sanitizeSearchRegionId(regionId) {
+  const normalized = String(regionId || "").trim().toLowerCase();
+  return SEARCH_PAGE_REGIONS[normalized] ? normalized : "japan";
+}
+
+function sanitizeSearchCategoryId(categoryId) {
+  const normalized = String(categoryId || "").trim().toLowerCase();
+  return SEARCH_PAGE_CATEGORIES[normalized] ? normalized : "synthesizers";
+}
+
+function toTitleCase(value) {
+  return String(value || "")
+    .split(" ")
+    .map((part) => {
+      if (/^[A-Z0-9-]+$/.test(part)) return part;
+      return part ? `${part[0].toLocaleUpperCase("en-US")}${part.slice(1)}` : part;
+    })
+    .join(" ");
+}
+
+function escapeHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+const SEARCH_PAGE_REGIONS = {
+  japan: { id: "japan", label: "Japan" },
+  "bay-area": { id: "bay-area", label: "Bay Area" },
+  "los-angeles": { id: "los-angeles", label: "Los Angeles" },
+  "east-coast": { id: "east-coast", label: "East Coast" },
+};
+
+const SEARCH_PAGE_CATEGORIES = {
+  all: { id: "all", label: "All Gear", singular: "gear", description: "used gear listings" },
+  synthesizers: { id: "synthesizers", label: "Synthesizers", singular: "synthesizer", description: "synthesizer listings" },
+  "drum-machines": { id: "drum-machines", label: "Drum Machines", singular: "drum machine", description: "drum machine listings" },
+  samplers: { id: "samplers", label: "Samplers", singular: "sampler", description: "sampler listings" },
+  modular: { id: "modular", label: "Eurorack / Modular", singular: "modular synth", description: "modular and Eurorack listings" },
+  "effects-pedals": { id: "effects-pedals", label: "Effects", singular: "effects unit", description: "effects and processor listings" },
+  "pro-audio": { id: "pro-audio", label: "Pro Audio", singular: "pro audio item", description: "pro audio listings" },
+};
 
 function resolveStaticPathname(pathname) {
   const routeAliases = {

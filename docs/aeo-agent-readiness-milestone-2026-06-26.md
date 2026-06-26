@@ -22,7 +22,7 @@ Brrtz needs two kinds of optimization:
 - Add `/llms.txt` as a low-cost LLM-readable site guide.
 - Add `robots.txt` and `sitemap.xml`.
 - Add structured data to the homepage for Organization, WebSite, and WebApplication.
-- Add shareable search URLs such as `/search?q=moog%20voyager&region=bay-area&category=synthesizers`.
+- Add shareable search URLs such as `/search?region=bay-area&category=synthesizers&q=moog%20voyager`.
 - Keep source provenance explicit: source, region, currency, original listing URL, and freshness context should remain visible in the product.
 
 ## Post-Beta Agent Features

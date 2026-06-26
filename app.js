@@ -701,7 +701,7 @@ const SAVED_SEARCH_SCHEMA_VERSION = 1;
 const LOCAL_PROFILE_USER_ID = "local";
 const CLOUD_EMULATOR_USER = {
   id: LOCAL_PROFILE_USER_ID,
-  email: "local@bumpers.dev",
+  email: "local-user@brrtz.com",
   name: "Local Brrtz User",
 };
 const savedSearchRepository = createSavedSearchRepository({
@@ -741,7 +741,7 @@ const DEFAULT_BROWSE_CATEGORY_INTENT = "all";
 const CATEGORY_INTENT_IDS = new Set(CATEGORY_INTENTS.map((intent) => intent.id));
 // Update this list to change the cycling typed prompts in the main search field.
 const QUICK_SEARCH_PLACEHOLDER_PROMPTS = [
-  "Drum Machine, no cat pee smell",
+  "Search used synths and drum machines",
   "Ensoniq Fizmo",
   "R2-D2",
 ];
@@ -770,8 +770,8 @@ const SYNTH_MODEL_SUGGESTIONS = [
 ];
 
 const defaultProfile = {
-  name: "Waldorf",
-  terms: ["Waldorf", "ワルドルフ", "WALDORF"],
+  name: "New Search",
+  terms: [],
   excludes: ["manual", "magnet", "power cord", "doll", "Fashionist", "shirt", "CD", "Moments to Remember", "record", "shoes"],
   noiseTerms: [...ACCESSORY_TERMS],
   categoryIntent: ACTIVE_REGION.searchDefaults?.categoryIntent || DEFAULT_CATEGORY_INTENT,
@@ -5280,7 +5280,7 @@ async function fetchLiveListings(profile, sourceOverride = profile.sources) {
     return {
       listings: [],
       mode: "mock",
-      message: "Mock data",
+      message: "Ready",
       detail: location.protocol === "file:" ? "Live search needs http://127.0.0.1:5173." : "No live source selected yet.",
       errors: [],
     };

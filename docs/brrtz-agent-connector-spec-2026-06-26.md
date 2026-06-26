@@ -12,7 +12,7 @@ Define the first useful Brrtz agent connector before implementation. This should
 Brrtz currently supports shareable search URLs:
 
 ```txt
-https://brrtz.com/search?q=moog%20voyager&region=bay-area&category=synthesizers
+https://brrtz.com/search?region=bay-area&category=synthesizers&q=moog%20voyager
 ```
 
 This is the safe public bridge for agents during beta.
