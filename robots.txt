@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /data/
+Disallow: /.env
+Disallow: /.env.local
+
+Sitemap: https://brrtz.com/sitemap.xml

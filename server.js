@@ -217,6 +217,8 @@ const mimeTypes = {
   ".js": "text/javascript; charset=utf-8",
   ".json": "application/json; charset=utf-8",
   ".md": "text/markdown; charset=utf-8",
+  ".txt": "text/plain; charset=utf-8",
+  ".xml": "application/xml; charset=utf-8",
   ".svg": "image/svg+xml; charset=utf-8",
 };
 
@@ -3742,7 +3744,8 @@ function formatYahooEndDate(timestamp) {
 }
 
 async function serveStatic(pathname, response) {
-  const safePath = normalize(pathname === "/" ? "/index.html" : pathname).replace(/^(\.\.[/\\])+/, "");
+  const staticPathname = resolveStaticPathname(pathname);
+  const safePath = normalize(staticPathname).replace(/^(\.\.[/\\])+/, "");
   const filePath = join(ROOT, safePath);
 
   if (!filePath.startsWith(ROOT)) {
@@ -3751,12 +3754,45 @@ async function serveStatic(pathname, response) {
     return;
   }
 
-  const contents = await readFile(filePath);
-  response.writeHead(200, {
-    "content-type": mimeTypes[extname(filePath)] || "application/octet-stream",
-    "cache-control": "no-store",
-  });
-  response.end(contents);
+  try {
+    const contents = await readFile(filePath);
+    response.writeHead(200, {
+      "content-type": mimeTypes[extname(filePath)] || "application/octet-stream",
+      "cache-control": "no-store",
+    });
+    response.end(contents);
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+    response.writeHead(404, {
+      "content-type": "text/plain; charset=utf-8",
+      "cache-control": "no-store",
+    });
+    response.end("Not found");
+  }
+}
+
+function resolveStaticPathname(pathname) {
+  const routeAliases = {
+    "/about": "/about.html",
+    "/for-agents": "/for-agents.html",
+    "/regions": "/regions/index.html",
+    "/sources": "/sources/index.html",
+    "/search": "/index.html",
+  };
+
+  const requestedPathname = pathname === "/" ? "/index.html" : pathname;
+  if (routeAliases[requestedPathname]) return routeAliases[requestedPathname];
+  if (extname(requestedPathname)) return requestedPathname;
+
+  const htmlPathname = `${requestedPathname}.html`;
+  const htmlPath = join(ROOT, normalize(htmlPathname).replace(/^(\.\.[/\\])+/, ""));
+  if (htmlPath.startsWith(ROOT) && existsSync(htmlPath)) return htmlPathname;
+
+  const indexPathname = `${requestedPathname.replace(/\/$/, "")}/index.html`;
+  const indexPath = join(ROOT, normalize(indexPathname).replace(/^(\.\.[/\\])+/, ""));
+  if (indexPath.startsWith(ROOT) && existsSync(indexPath)) return indexPathname;
+
+  return requestedPathname;
 }
 
 function sendJson(response, status, payload) {

@@ -941,6 +941,7 @@ let searchChirpAudioCtx = null;
 function initialize() {
   isBrowseExpanded = getCurrentAppView() === APP_VIEW_SYNTH_BROWSER;
   bindEvents();
+  const shouldRunStartupSearch = applyStartupSearchUrlParams();
   runStartupStep("quick search placeholder", initializeQuickSearchPlaceholder);
   runStartupStep("stored theme", applyStoredTheme);
   runStartupStep("brand wave", initializeBrandWave);
@@ -956,14 +957,42 @@ function initialize() {
   runStartupStep("back to top", updateBackToTopVisibility);
   runStartupStep("mobile search overlay", updateMobileSearchOverlayVisibility);
   runStartupStep("auth", initializeAuth);
+  if (shouldRunStartupSearch) runStartupStep("startup search url", runSearch);
 }
 
 function runStartupStep(label, action) {
   try {
-    action();
+    return action();
   } catch (error) {
     console.error(`Brrtz startup step failed: ${label}`, error);
+    return undefined;
   }
+}
+
+function applyStartupSearchUrlParams() {
+  const params = new URLSearchParams(window.location.search);
+  const query = params.get("q") || params.get("terms") || "";
+  const terms = splitLines(query);
+  if (terms.length === 0) return false;
+
+  const regionParam = params.get("region") || params.get("regionId") || "";
+  const nextRegionId = regionParam ? sanitizeRegionId(regionParam) : appSettings.regionId;
+  if (nextRegionId !== appSettings.regionId) {
+    appSettings = hydrateSettings({ ...appSettings, regionId: nextRegionId });
+    localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(appSettings));
+    resetRegionRuntimeState();
+  }
+
+  const categoryParam = params.get("category") || params.get("categoryIntent") || "";
+  currentProfile = hydrateProfile({
+    ...createFreshProfile(),
+    name: getFormProfileName(terms),
+    regionId: appSettings.regionId,
+    terms,
+    categoryIntent: sanitizeCategoryIntent(categoryParam, appSettings.regionId),
+    sources: getRegionSourceIds(appSettings.regionId),
+  });
+  return true;
 }
 
 function initializeQuickSearchPlaceholder() {

@@ -1,0 +1,52 @@
+# Brrtz
+
+> Brrtz is a free beta gear radar for finding used synthesizers, drum machines, samplers, modular gear, effects, and pro audio listings across regional marketplaces and independent shops.
+
+## Primary URLs
+
+- Home and app: https://brrtz.com/
+- About: https://brrtz.com/about
+- Agent guide: https://brrtz.com/for-agents
+- Regions: https://brrtz.com/regions
+- Sources: https://brrtz.com/sources
+
+## Search URL Pattern
+
+Agents may open Brrtz searches with query, region, and category parameters:
+
+`https://brrtz.com/search?q=moog%20voyager&region=bay-area&category=synthesizers`
+
+Supported beta region IDs:
+
+- `japan`
+- `bay-area`
+- `los-angeles`
+- `east-coast`
+
+Supported category IDs:
+
+- `all`
+- `synthesizers`
+- `drum-machines`
+- `samplers`
+- `modular`
+- `effects-pedals`
+- `pro-audio`
+
+## What Brrtz Does
+
+- Searches or prepares searches across multiple used gear sources.
+- Normalizes gear listings with source, region, currency, title, price, URL, and image context.
+- Helps users save searches, watch items, and filter out non-gear noise.
+- Links users back to original listing sources.
+
+## Boundaries
+
+- Brrtz is not the merchant of record.
+- Brrtz does not own source listings.
+- Do not crawl `/api/` routes or republish source listing databases.
+- Prefer linking users to Brrtz search URLs or original source URLs.
+
+## Planned Agent Direction
+
+Brrtz is being prepared for a future Model Context Protocol connector. Candidate tools include `search_gear`, `get_regions`, `get_sources`, `save_search`, `watch_listing`, and `get_new_matches`.

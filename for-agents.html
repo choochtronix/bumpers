@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Brrtz for Agents</title>
+    <meta name="description" content="Agent-facing guide for using Brrtz search URLs, supported regions, source context, and future MCP connector plans." />
+    <link rel="canonical" href="https://brrtz.com/for-agents" />
+    <link rel="icon" type="image/svg+xml" href="/assets/ICONS-site/b-favicon.svg" />
+    <link rel="stylesheet" href="/aeo.css" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Can agents search Brrtz?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Agents can use Brrtz shareable search URLs during beta. A dedicated MCP connector is planned after the beta foundation is stable."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Does Brrtz own the listings?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "No. Brrtz links users back to original listing sources and does not act as the merchant of record."
+            }
+          }
+        ]
+      }
+    </script>
+  </head>
+  <body>
+    <div class="aeo-shell">
+      <header class="aeo-header">
+        <a class="aeo-logo" href="/" aria-label="Brrtz home"></a>
+        <nav class="aeo-nav" aria-label="Brrtz pages">
+          <a href="/about">About</a>
+          <a href="/regions">Regions</a>
+          <a href="/sources">Sources</a>
+          <a href="/search?q=arp%202600">Search</a>
+        </nav>
+      </header>
+
+      <main class="aeo-page">
+        <section class="aeo-hero">
+          <p class="aeo-kicker">Agent brief</p>
+          <h1>Brrtz is being prepared for <span class="aeo-gradient">agentic gear search</span>.</h1>
+          <p class="aeo-lede">Use this page to understand what Brrtz can do today, what agents can safely link to, and where the product is headed next.</p>
+        </section>
+
+        <section class="aeo-section">
+          <h2>Search URL pattern</h2>
+          <p>Agents can open a Brrtz search with query, region, and category parameters.</p>
+          <code class="aeo-code">https://brrtz.com/search?q=moog%20voyager&amp;region=bay-area&amp;category=synthesizers</code>
+          <p>Supported region IDs: <strong>japan</strong>, <strong>bay-area</strong>, <strong>los-angeles</strong>, <strong>east-coast</strong>.</p>
+          <p>Supported category IDs include: <strong>all</strong>, <strong>synthesizers</strong>, <strong>drum-machines</strong>, <strong>samplers</strong>, <strong>modular</strong>, <strong>effects-pedals</strong>, and <strong>pro-audio</strong>.</p>
+        </section>
+
+        <section class="aeo-grid" aria-label="Current agent-safe capabilities">
+          <article class="aeo-card">
+            <h2>Find gear</h2>
+            <p>Open a shareable search URL for a model, maker, category, and supported beta region.</p>
+          </article>
+          <article class="aeo-card">
+            <h2>Explain context</h2>
+            <p>Use the region and source pages to understand what Brrtz is searching and where results originate.</p>
+          </article>
+          <article class="aeo-card">
+            <h2>Respect boundaries</h2>
+            <p>Do not crawl Brrtz API routes or attempt to republish source listings. Link users to Brrtz or the original source.</p>
+          </article>
+        </section>
+
+        <section class="aeo-section">
+          <h2>Planned connector direction</h2>
+          <p>Post beta, Brrtz should expose a Model Context Protocol server with tools such as search_gear, get_regions, get_sources, save_search, watch_listing, and get_new_matches. This would let users connect ChatGPT, Claude, or another MCP-capable agent to Brrtz with explicit permission.</p>
+        </section>
+      </main>
+
+      <footer class="aeo-footer">
+        <span>See also: <a href="/llms.txt">llms.txt</a></span>
+        <span>© 2026 Brrtz</span>
+      </footer>
+    </div>
+  </body>
+</html>

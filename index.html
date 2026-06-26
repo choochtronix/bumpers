@@ -3,10 +3,56 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Brrtz</title>
+    <title>Brrtz - Used Synth and Pro Audio Gear Search</title>
+    <meta name="description" content="Brrtz is a beta gear radar for finding used synthesizers, drum machines, samplers, modular gear, effects, and pro audio listings across regional marketplaces and independent shops." />
+    <link rel="canonical" href="https://brrtz.com/" />
     <link rel="icon" type="image/svg+xml" href="assets/ICONS-site/b-favicon.svg" />
     <link rel="stylesheet" href="design-system.css" />
     <link rel="stylesheet" href="styles.css" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://brrtz.com/#organization",
+            "name": "Brrtz",
+            "url": "https://brrtz.com/",
+            "logo": "https://brrtz.com/assets/ICONS-site/brrtz_logo.svg",
+            "description": "Brrtz is a beta search layer for used synthesizers, drum machines, samplers, modular gear, effects, and pro audio listings."
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://brrtz.com/#website",
+            "name": "Brrtz",
+            "url": "https://brrtz.com/",
+            "publisher": {
+              "@id": "https://brrtz.com/#organization"
+            },
+            "potentialAction": {
+              "@type": "SearchAction",
+              "target": "https://brrtz.com/search?q={search_term_string}",
+              "query-input": "required name=search_term_string"
+            }
+          },
+          {
+            "@type": "WebApplication",
+            "@id": "https://brrtz.com/#app",
+            "name": "Brrtz",
+            "url": "https://brrtz.com/",
+            "applicationCategory": "SearchApplication",
+            "operatingSystem": "Any",
+            "isAccessibleForFree": true,
+            "description": "A free beta gear search application for finding used synth and pro-audio listings across Japan, Bay Area, Los Angeles, and East Coast sources.",
+            "offers": {
+              "@type": "Offer",
+              "price": "0",
+              "priceCurrency": "USD"
+            }
+          }
+        ]
+      }
+    </script>
   </head>
   <body>
     <script>
@@ -217,6 +263,12 @@
           <span class="sr-only">Brrtz</span>
         </a>
         <p>Beta gear radar</p>
+        <nav class="site-footer-links" aria-label="Brrtz information">
+          <a href="/about">About</a>
+          <a href="/regions">Regions</a>
+          <a href="/sources">Sources</a>
+          <a href="/for-agents">For agents</a>
+        </nav>
         <span class="site-footer-meta">© 2026 Brrtz</span>
       </div>
     </footer>

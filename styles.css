@@ -6312,6 +6312,28 @@ body[data-theme="dark"] .watching-trigger:focus-visible {
   white-space: nowrap;
 }
 
+.site-footer-links {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.site-footer-links a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.site-footer-links a:hover,
+.site-footer-links a:focus-visible {
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: #ff00ff;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+}
+
 .filter-bar {
   display: flex;
   align-items: flex-end;
