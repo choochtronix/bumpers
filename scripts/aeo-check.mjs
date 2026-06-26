@@ -119,15 +119,16 @@ function assertRobotsTxt(body) {
 }
 
 function assertMarkdownLlms(body) {
-  assert(body.startsWith("# Brrtz\n\n> "), "/llms.txt should start with H1 and blockquote summary");
-  assert(body.includes("- [Home and app]"), "/llms.txt should include Markdown public URL links");
+  const normalizedBody = body.replace(/\r\n/g, "\n");
+  assert(normalizedBody.startsWith("# Brrtz\n\n> "), "/llms.txt should start with H1 and blockquote summary");
+  assert(normalizedBody.includes("- [Home and app]"), "/llms.txt should include Markdown public URL links");
   for (const section of ["## Boundaries and Safety", "## Public URLs", "## Supported Region IDs", "## Supported Category IDs", "## Search URL Pattern", "## Planned Connector Direction"]) {
-    assert(body.includes(`\n${section}\n`), `/llms.txt missing separate H2 section ${section}`);
+    assert(normalizedBody.includes(`\n${section}\n`), `/llms.txt missing separate H2 section ${section}`);
   }
   for (const url of ["https://brrtz.com/", "https://brrtz.com/about", "https://brrtz.com/regions", "https://brrtz.com/sources", "https://brrtz.com/for-agents", "https://brrtz.com/gear", "https://brrtz.com/agent-connector", "https://brrtz.com/agent-tools.json"]) {
-    assert(body.includes(url), `/llms.txt missing ${url}`);
+    assert(normalizedBody.includes(url), `/llms.txt missing ${url}`);
   }
-  assert(!body.includes("Â®ion"), "/llms.txt should not contain malformed region text");
+  assert(!normalizedBody.includes("Â®ion"), "/llms.txt should not contain malformed region text");
 }
 
 function assertAgentTools(payload) {
