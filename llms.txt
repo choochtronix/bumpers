@@ -4,7 +4,7 @@
 
 Brrtz helps musicians search multiple used-gear sources from one interface. It normalizes listing summaries with source, region, currency, title, price, URL, image context, and freshness signals, then links users back to the original listing source.
 
-## Boundaries And Safety
+## Boundaries and Safety
 
 - Brrtz is not a merchant, reseller, or marketplace.
 - Brrtz does not own source listings.
@@ -15,17 +15,17 @@ Brrtz helps musicians search multiple used-gear sources from one interface. It n
 
 ## Public URLs
 
-- [Home and app](https://brrtz.com/)
-- [About Brrtz](https://brrtz.com/about)
-- [Regions](https://brrtz.com/regions)
-- [Sources](https://brrtz.com/sources)
-- [For agents](https://brrtz.com/for-agents)
-- [Gear model pages](https://brrtz.com/gear)
-- [Moog Minimoog](https://brrtz.com/gear/moog-minimoog)
-- [ARP 2600](https://brrtz.com/gear/arp-2600)
-- [Roland TR-808](https://brrtz.com/gear/roland-tr-808)
-- [Agent connector spec](https://brrtz.com/agent-connector)
-- [Draft agent tools JSON](https://brrtz.com/agent-tools.json)
+- [Home and app](https://brrtz.com/): Main Brrtz search app.
+- [About Brrtz](https://brrtz.com/about): Human-readable product context.
+- [Regions](https://brrtz.com/regions): Supported region groups.
+- [Sources](https://brrtz.com/sources): Source coverage and source posture.
+- [For agents](https://brrtz.com/for-agents): Agent-readable Brrtz guide.
+- [Gear model pages](https://brrtz.com/gear): Durable model-intent pages.
+- [Moog Minimoog](https://brrtz.com/gear/moog-minimoog): Model-intent page.
+- [ARP 2600](https://brrtz.com/gear/arp-2600): Model-intent page.
+- [Roland TR-808](https://brrtz.com/gear/roland-tr-808): Model-intent page.
+- [Agent connector spec](https://brrtz.com/agent-connector): Draft connector spec.
+- [Draft agent tools JSON](https://brrtz.com/agent-tools.json): Machine-readable planned tools.
 
 ## Supported Region IDs
 
@@ -46,7 +46,9 @@ Brrtz helps musicians search multiple used-gear sources from one interface. It n
 
 ## Search URL Pattern
 
-Agents may open Brrtz searches with query, region, and category parameters. Use region-first ordering in examples:
+Agents may open Brrtz searches with query, region, and category parameters.
+
+Use region-first ordering:
 
 `https://brrtz.com/search?region=bay-area&category=synthesizers&q=moog%20voyager`
 
@@ -58,7 +60,9 @@ Arbitrary `/search` URLs are accessible to users and agents, but traditional sea
 
 ## Planned Connector Direction
 
-Brrtz is being prepared for a future Model Context Protocol style connector. Planned tools include:
+Brrtz is being prepared for a future Model Context Protocol style connector.
+
+Planned tools:
 
 - `search_gear`
 - `get_regions`

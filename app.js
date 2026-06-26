@@ -5498,6 +5498,7 @@ function configureBuyeeLink(link, listing) {
 
   link.hidden = false;
   link.href = buyeeUrl;
+  link.textContent = "View via Buyee";
 }
 
 function createBuyeeUrl(listing) {

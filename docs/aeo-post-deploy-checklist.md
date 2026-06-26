@@ -53,6 +53,7 @@ curl -i https://brrtz.com/robots.txt
 curl -i https://brrtz.com/llms.txt
 curl -i https://brrtz.com/agent-tools.json
 curl -i https://brrtz.com/sitemap.xml
+curl -s https://brrtz.com/sitemap.xml | xmllint --noout -
 ```
 
 Confirm:
