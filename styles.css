@@ -4942,7 +4942,7 @@ body[data-theme="dark"] .listing-card.is-watched-home-card {
 
 .featured-home-header.is-browse-header .feature-headline-button {
   font-size: var(--browse-headline-size);
-  font-weight: 700;
+  font-weight: 600;
   white-space: nowrap;
 }
 
