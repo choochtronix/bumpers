@@ -4,15 +4,16 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Brrtz - Used Synth and Pro Audio Gear Search</title>
-    <meta name="description" content="Brrtz is a beta gear radar for finding used synthesizers, drum machines, samplers, modular gear, effects, and pro audio listings across regional marketplaces and independent shops." />
+    <meta name="description" content="A free beta radar for used synths, drum machines, and pro audio — with deep coverage of Japanese marketplaces like Yahoo Auctions and Mercari." />
     <link rel="canonical" href="https://brrtz.com/" />
     <meta property="og:title" content="Brrtz - Used Synth and Pro Audio Gear Search" />
-    <meta property="og:description" content="Search used synth, drum machine, sampler, modular, effects, and pro audio listings across Brrtz regions." />
+    <meta property="og:description" content="A free beta radar for used synths, drum machines, and pro audio — with deep coverage of Japanese marketplaces like Yahoo Auctions and Mercari." />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://brrtz.com/" />
     <meta property="og:image" content="https://brrtz.com/assets/social/brrtz-og.svg" />
     <meta property="og:site_name" content="Brrtz" />
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:description" content="A free beta radar for used synths, drum machines, and pro audio — with deep coverage of Japanese marketplaces like Yahoo Auctions and Mercari." />
     <link rel="icon" type="image/svg+xml" href="assets/ICONS-site/b-favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -28,20 +29,28 @@
             "@id": "https://brrtz.com/#organization",
             "name": "Brrtz",
             "url": "https://brrtz.com/",
-            "logo": "https://brrtz.com/assets/ICONS-site/brrtz_logo.svg",
-            "description": "Brrtz is a beta search layer for used synthesizers, drum machines, samplers, modular gear, effects, and pro audio listings."
+            "logo": {
+              "@type": "ImageObject",
+              "url": "https://brrtz.com/assets/ICONS-site/brrtz_logo.svg"
+            },
+            "description": "Brrtz is a free beta gear radar for finding used synthesizers, drum machines, samplers, modular, effects, and pro audio across regional marketplaces — with particular strength in Japanese sources like Yahoo Auctions and Mercari — always linking buyers back to the original listing.",
+            "sameAs": []
           },
           {
             "@type": "WebSite",
             "@id": "https://brrtz.com/#website",
-            "name": "Brrtz",
             "url": "https://brrtz.com/",
+            "name": "Brrtz",
+            "inLanguage": "en",
             "publisher": {
               "@id": "https://brrtz.com/#organization"
             },
             "potentialAction": {
               "@type": "SearchAction",
-              "target": "https://brrtz.com/search?region=japan&category=all&q={search_term_string}",
+              "target": {
+                "@type": "EntryPoint",
+                "urlTemplate": "https://brrtz.com/search?q={search_term_string}"
+              },
               "query-input": "required name=search_term_string"
             }
           },
@@ -50,15 +59,15 @@
             "@id": "https://brrtz.com/#app",
             "name": "Brrtz",
             "url": "https://brrtz.com/",
-            "applicationCategory": "SearchApplication",
-            "operatingSystem": "Any",
+            "applicationCategory": "MultimediaApplication",
+            "applicationSubCategory": "Used music gear search",
+            "operatingSystem": "Web",
+            "browserRequirements": "Requires JavaScript.",
             "isAccessibleForFree": true,
-            "description": "A free beta gear search application for finding used synth and pro-audio listings across Japan, Bay Area, Los Angeles, and East Coast sources.",
-            "offers": {
-              "@type": "Offer",
-              "price": "0",
-              "priceCurrency": "USD"
-            }
+            "publisher": {
+              "@id": "https://brrtz.com/#organization"
+            },
+            "description": "Brrtz searches multiple used-gear sources from one interface, normalizes listing summaries (source, region, currency, title, price, image context, freshness), and links users back to the original listing source. Brrtz is not a merchant, reseller, or marketplace."
           }
         ]
       }
@@ -117,10 +126,10 @@
                     <path d="M392.5,86.5h7.4c4,0,5.9-1.3,5.9-3.9s0-.8-.2-1.4h-26.6c-1.7-5.5-2.6-11.8-2.6-18.6s.5-12.4,1.5-16.7c4.5-2.9,10.7-7.2,18.7-13.1,2.2-5.4,5.1-14,8.7-25.7.5-1.6,1-3.1,1.7-4.6,6.2-1.6,13.2-2.4,21.2-2.4s15.7.8,23.4,2.5v29.1h20.6c4.6,7,6.9,15.2,6.9,24.6s-.6,8.7-1.8,13.2c-1.2,4.5-2.9,8.4-5.1,11.5h-17v18c0,10.2,4.2,15.2,12.7,15.2h5.1c1.7,6,2.5,11.3,2.5,15.7,0,10.9-3.4,19.3-10.3,25.2-6.9,5.8-16.8,8.7-29.9,8.7s-23.4-3.6-31.2-10.9c-7.7-7.3-11.6-17.9-11.6-32.1v-34.4Z"/>
                     <path d="M597.9,62.1c0,2.1-.3,5.3-1,9.3-.6,4.1-1.4,7.4-2.3,9.8-7.4,10.2-16.2,18.7-26.5,25.7-10.2.5-17.6,1.5-22.3,3.1-4.7,1.6-7.1,3.4-7.1,5.4s.4,2.2,1.3,2.9c3.3-1.8,7.9-3.3,13.8-4.3,5.9-1.1,11.5-1.6,16.9-1.6h23c2.1,3.6,3.7,7.6,5,12,1.3,4.4,1.9,8.3,1.9,11.6,0,9.2-2.5,16-7.5,20.5-4,3.6-9.4,5.4-16.3,5.4h-84.8c-7.1-7.4-10.6-18.9-10.6-34.5s1-12.5,3.1-20.3c7.2-8,17.4-17.1,30.7-27.2,2.6-2.1,5.6-4.5,8.8-7.3-.5-1.8-1.5-2.7-3.2-2.7s-.9,0-1.7.2c-2.3.7-7.1,4.5-14.4,11.3h-14.8c-4.7-7.7-7-15.9-7-24.7s.9-10.5,2.6-14.8c1.7-4.3,3.9-7.6,6.4-10h98.1c5.2,7.5,7.7,17.7,7.7,30.5Z"/>
                   </svg>
-                  <span class="sr-only">Brrtz</span>
+                  <span class="sr-only">Brrtz beta gear radar</span>
                 </h1>
               </div>
-              <p>Brrtz beta gear radar</p>
+              <p>Brrtz is a free beta gear radar for finding used synthesizers, drum machines, samplers, modular, effects, and pro audio across regional marketplaces — with particular strength in Japanese sources like Yahoo Auctions and Mercari — always linking buyers back to the original listing.</p>
             </div>
           </a>
           <div class="region-selector" id="regionSelector">

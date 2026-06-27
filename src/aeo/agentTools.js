@@ -2,6 +2,7 @@ export const agentToolsObject = {
   "schemaVersion": "0.2.0",
   "lastUpdated": "2026-06-26",
   "name": "Brrtz Agent Tool Draft",
+  "summary": "Brrtz is a free beta gear radar for finding used synthesizers, drum machines, samplers, modular, effects, and pro audio across regional marketplaces — with particular strength in Japanese sources like Yahoo Auctions and Mercari — always linking buyers back to the original listing.",
   "status": "draft",
   "isLiveConnector": false,
   "homepage": "https://brrtz.com/",

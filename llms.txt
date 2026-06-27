@@ -1,6 +1,6 @@
 # Brrtz
 
-> Brrtz is a free beta gear radar for finding used synthesizers, drum machines, samplers, modular gear, effects, and pro audio listings across regional marketplaces and independent shops.
+> Brrtz is a free beta gear radar for finding used synthesizers, drum machines, samplers, modular, effects, and pro audio across regional marketplaces — with particular strength in Japanese sources like Yahoo Auctions and Mercari — always linking buyers back to the original listing.
 
 Brrtz helps musicians search multiple used-gear sources from one interface. It normalizes listing summaries with source, region, currency, title, price, URL, image context, and freshness signals, then links users back to the original listing source.
 

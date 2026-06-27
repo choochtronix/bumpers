@@ -12,28 +12,75 @@
     <meta property="og:url" content="https://brrtz.com/gear/moog-minimoog" />
     <meta property="og:image" content="https://brrtz.com/assets/social/brrtz-og.svg" />
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:description" content="Search Brrtz for used Moog Minimoog listings across Japan, Bay Area, Los Angeles, and East Coast sources." />
     <link rel="icon" type="image/svg+xml" href="/assets/ICONS-site/b-favicon.svg" />
     <link rel="stylesheet" href="/aeo.css" />
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
-        "@type": "WebPage",
-        "name": "Used Moog Minimoog Search - Brrtz",
-        "url": "https://brrtz.com/gear/moog-minimoog",
-        "about": {
-          "@type": "Thing",
-          "name": "Moog Minimoog",
-          "sameAs": "https://en.wikipedia.org/wiki/Minimoog"
-        },
-        "potentialAction": {
-          "@type": "ViewAction",
-          "target": [
-            "https://brrtz.com/search?region=japan&category=synthesizers&q=moog%20minimoog",
-            "https://brrtz.com/search?region=bay-area&category=synthesizers&q=moog%20minimoog",
-            "https://brrtz.com/search?region=los-angeles&category=synthesizers&q=moog%20minimoog",
-            "https://brrtz.com/search?region=east-coast&category=synthesizers&q=moog%20minimoog"
-          ]
-        }
+        "@graph": [
+          {
+            "@type": "CollectionPage",
+            "@id": "https://brrtz.com/gear/moog-minimoog#webpage",
+            "url": "https://brrtz.com/gear/moog-minimoog",
+            "name": "Used Moog Minimoog Search - Brrtz",
+            "isPartOf": {
+              "@id": "https://brrtz.com/#website"
+            },
+            "about": {
+              "@id": "https://brrtz.com/gear/moog-minimoog#model"
+            },
+            "description": "Search Brrtz for used Moog Minimoog synthesizer listings across Japan, Bay Area, Los Angeles, and East Coast sources.",
+            "breadcrumb": {
+              "@id": "https://brrtz.com/gear/moog-minimoog#breadcrumb"
+            },
+            "potentialAction": {
+              "@type": "SearchAction",
+              "target": {
+                "@type": "EntryPoint",
+                "urlTemplate": "https://brrtz.com/search?region=japan&category=synthesizers&q={search_term_string}"
+              },
+              "query-input": "required name=search_term_string"
+            }
+          },
+          {
+            "@type": "ProductModel",
+            "@id": "https://brrtz.com/gear/moog-minimoog#model",
+            "name": "Moog Minimoog",
+            "alternateName": ["Minimoog", "Minimoog Model D", "Model D"],
+            "category": "Synthesizer",
+            "manufacturer": {
+              "@type": "Organization",
+              "name": "Moog"
+            },
+            "description": "The Moog Minimoog (Model D) is a monophonic analog synthesizer introduced in 1970, one of the most influential synthesizers ever made.",
+            "sameAs": ["https://en.wikipedia.org/wiki/Minimoog", "https://www.wikidata.org/wiki/Q734687"]
+          },
+          {
+            "@type": "BreadcrumbList",
+            "@id": "https://brrtz.com/gear/moog-minimoog#breadcrumb",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Brrtz",
+                "item": "https://brrtz.com/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Gear pages",
+                "item": "https://brrtz.com/gear"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "Moog Minimoog",
+                "item": "https://brrtz.com/gear/moog-minimoog"
+              }
+            ]
+          }
+        ]
       }
     </script>
   </head>
@@ -60,6 +107,21 @@
             <a class="aeo-pill-link" href="/search?region=los-angeles&amp;category=synthesizers&amp;q=moog%20minimoog">Search Los Angeles</a>
             <a class="aeo-pill-link" href="/search?region=east-coast&amp;category=synthesizers&amp;q=moog%20minimoog">Search East Coast</a>
           </div>
+        </section>
+
+        <section class="aeo-section">
+          <h2>What it is</h2>
+          <p>The Moog Minimoog — properly the Model D — is the monophonic analog synthesizer that defined what a synth could be. Introduced in 1970, it put three oscillators and Moog's celebrated 24 dB ladder filter into a single portable, performance-ready instrument, and its fat, vocal lead and bass tones run through five decades of records. Original units were built into the early 1980s; Moog Music reissued the Model D in 2016 and in later runs, so the name now spans both vintage and current production.</p>
+        </section>
+
+        <section class="aeo-section">
+          <h2>Buying one used — what to check</h2>
+          <p>The first question is era: an early-1970s original, a late Norlin-era unit, and a modern reissue are three different instruments at three different price points, and listings don't always make the distinction clear. Vintage units are prized but high-maintenance — expect oscillator tuning drift, scratchy potentiometers, worn keyboard bushings and contacts, and tired pitch and mod wheels; many benefit from a proper calibration and service. Later originals and the reissues are considerably more stable, and the reissue adds modern conveniences like MIDI and a CV patchbay. For any vintage unit, ask about recent servicing and how well it holds tuning once warm — that's the real tell.</p>
+        </section>
+
+        <section class="aeo-section">
+          <h2>Regional sourcing notes</h2>
+          <p>Vintage Minimoogs surface less often in Japan than Roland's home-grown gear, but they do appear on Yahoo Auctions and Mercari, and the reissues circulate domestically through the usual shops. Watch voltage in both directions: a US vintage unit is 117V, a Japanese-market unit is 100V, and neither runs happily on European mains without a transformer. In Japanese listings the instrument is written モーグ or, in older transliteration, ムーグ (Moog), alongside ミニモーグ (Minimoog) and モデルD (Model D); the same condition vocabulary applies — 動作確認済み (tested working), 整備済み (serviced), 美品 (excellent condition), against ジャンク (junk) and 未確認 (untested). Because the transliteration itself varies, a search that only looks for "Minimoog" in Latin script misses part of the market — one of the gaps Brrtz is designed to catch.</p>
         </section>
 
         <section class="aeo-section">
