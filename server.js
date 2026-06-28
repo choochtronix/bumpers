@@ -129,6 +129,7 @@ const REVERB_RESULT_LIMIT = 32;
 const REVERB_TERM_LIMIT = 3;
 const EBAY_RESULT_LIMIT = 100;
 const EBAY_TERM_LIMIT = 3;
+const BRAND_BROWSE_TERM_LIMIT = 24;
 const US_BROWSE_TERM_LIMIT = 4;
 const CRAIGSLIST_DETAIL_VERIFY_LIMIT = 12;
 const CRAIGSLIST_DETAIL_VERIFY_CONCURRENCY = 6;
@@ -1379,71 +1380,99 @@ async function handleBrowse(url, response) {
   const maxPrice = Number(url.searchParams.get("maxPrice") || 0);
   const regionId = sanitizeRegionId(url.searchParams.get("region"));
   const regionCurrency = getRegionCurrency(regionId);
+  const browseBrandTerms = createSourceSearchTerms([
+    ...splitParam(url.searchParams.get("brandTerms")),
+    ...splitParam(url.searchParams.get("brandTerm")),
+  ]);
+  const browseBrandMatchTerms = splitParam(url.searchParams.get("brandMatchTerms"));
+  const browseBrandFilterTerms = browseBrandMatchTerms.length > 0 ? browseBrandMatchTerms : browseBrandTerms;
+  const requestedBrandTermLimit = Number(url.searchParams.get("brandTermLimit") || 0);
+  const brandTermLimit = Number.isFinite(requestedBrandTermLimit) && requestedBrandTermLimit > 0
+    ? Math.min(Math.floor(requestedBrandTermLimit), BRAND_BROWSE_TERM_LIMIT)
+    : Math.min(browseBrandTerms.length || 0, BRAND_BROWSE_TERM_LIMIT);
   const sourceStats = [];
   const errors = [];
   const listingsById = new Map();
 
   if (regionId === "japan") {
-    const browseIntents = getYahooAuctionsBrowseCategoryIntents(categoryIntent);
-    const categoryIntents = browseIntents.length > 0 ? browseIntents : [categoryIntent];
-    const browseResults = await Promise.all(categoryIntents.map(async (browseIntent) => {
-      const categoryId = getYahooAuctionsBrowseCategoryId(browseIntent);
-      const browseTerms = getYahooAuctionsBrowseTerms(browseIntent);
+    if (browseBrandTerms.length > 0) {
+      const sourceResult = await searchSourceTerms("yahoo-auctions", browseBrandTerms, searchYahooAuctions, {
+        context: { categoryIntent },
+        maxTerms: brandTermLimit,
+        termDelayMs: 0,
+      });
+      sourceStats.push({
+        ...sourceResult.stats,
+        categoryIntent,
+        searchedTerms: sourceResult.stats.searchedTerms || browseBrandTerms,
+      });
+      errors.push(...sourceResult.errors);
+      collectFilteredListings(sourceResult.listings, listingsById, excludes, maxPrice, {
+        includeTerms: browseBrandFilterTerms,
+      });
+    } else {
+      const browseIntents = getYahooAuctionsBrowseCategoryIntents(categoryIntent);
+      const categoryIntents = browseIntents.length > 0 ? browseIntents : [categoryIntent];
+      const browseResults = await Promise.all(categoryIntents.map(async (browseIntent) => {
+        const categoryId = getYahooAuctionsBrowseCategoryId(browseIntent);
+        const browseTerms = getYahooAuctionsBrowseTerms(browseIntent);
 
-      try {
-        const listings = categoryId
-          ? await browseYahooAuctionsCategory(browseIntent)
-          : await browseYahooAuctionsCategoryTerms(browseIntent);
-        return {
-          listings,
-          stat: {
-            source: "yahoo-auctions",
-            status: "ok",
-            searchedTerms: browseTerms,
-            categoryIntent: browseIntent,
-            categoryId,
-            rawCount: listings.length,
-          },
-        };
-      } catch (error) {
-        return {
-          error: {
-            source: "yahoo-auctions",
-            term: "",
-            message: error instanceof Error ? error.message : "Unknown browse connector error",
-          },
-          stat: {
-            source: "yahoo-auctions",
-            status: "error",
-            searchedTerms: browseTerms,
-            categoryIntent: browseIntent,
-            categoryId,
-            rawCount: 0,
-          },
-        };
-      }
-    }));
+        try {
+          const listings = categoryId
+            ? await browseYahooAuctionsCategory(browseIntent)
+            : await browseYahooAuctionsCategoryTerms(browseIntent);
+          return {
+            listings,
+            stat: {
+              source: "yahoo-auctions",
+              status: "ok",
+              searchedTerms: browseTerms,
+              categoryIntent: browseIntent,
+              categoryId,
+              rawCount: listings.length,
+            },
+          };
+        } catch (error) {
+          return {
+            error: {
+              source: "yahoo-auctions",
+              term: "",
+              message: error instanceof Error ? error.message : "Unknown browse connector error",
+            },
+            stat: {
+              source: "yahoo-auctions",
+              status: "error",
+              searchedTerms: browseTerms,
+              categoryIntent: browseIntent,
+              categoryId,
+              rawCount: 0,
+            },
+          };
+        }
+      }));
 
-    for (const result of browseResults) {
-      sourceStats.push(result.stat);
-      if (result.error) {
-        errors.push(result.error);
-      } else {
-        collectFilteredListings(result.listings, listingsById, excludes, maxPrice);
+      for (const result of browseResults) {
+        sourceStats.push(result.stat);
+        if (result.error) {
+          errors.push(result.error);
+        } else {
+          collectFilteredListings(result.listings, listingsById, excludes, maxPrice);
+        }
       }
     }
   } else if (isUsRegion(regionId)) {
-    const browseTerms = getUsBrowseTerms(categoryIntent);
+    const browseTerms = browseBrandTerms.length > 0 ? browseBrandTerms : getUsBrowseTerms(categoryIntent);
+    const browseTermLimit = browseBrandTerms.length > 0 ? brandTermLimit : US_BROWSE_TERM_LIMIT;
     const browseTasks = [
       searchSourceTerms("reverb-us", browseTerms, searchReverbUs, {
-        maxTerms: US_BROWSE_TERM_LIMIT,
+        maxTerms: browseTermLimit,
         termDelayMs: 0,
       }),
     ];
 
     if (hasEbayCredentials()) {
       browseTasks.push(searchSourceTerms("ebay-us", browseTerms, searchEbayUs, {
-        maxTerms: US_BROWSE_TERM_LIMIT,
+        maxTerms: browseTermLimit,
         termDelayMs: 0,
       }));
     } else {
@@ -1507,7 +1536,9 @@ async function handleBrowse(url, response) {
         searchedTerms: sourceResult.stats.searchedTerms || browseTerms,
       });
       errors.push(...sourceResult.errors);
-      collectFilteredListings(sourceResult.listings, listingsById, excludes, maxPrice);
+      collectFilteredListings(sourceResult.listings, listingsById, excludes, maxPrice, {
+        includeTerms: browseBrandTerms.length > 0 ? browseBrandFilterTerms : [],
+      });
     }
   } else {
     errors.push({
@@ -1540,14 +1571,21 @@ function getSourceConfig(sourceId) {
     .find((source) => source.id === sourceId);
 }
 
-function collectFilteredListings(listings, listingsById, excludes, maxPrice) {
+function collectFilteredListings(listings, listingsById, excludes, maxPrice, options = {}) {
+  const includeTerms = Array.isArray(options.includeTerms) ? options.includeTerms : [];
   for (const listing of listings) {
-    const title = normalizeText(listing.title);
-    const excluded = excludes.some((exclude) => termMatches(title, exclude));
+    const searchable = normalizeText([
+      listing.title,
+      listing.condition,
+      listing.shop,
+      listing.description,
+    ].filter(Boolean).join(" "));
+    const excluded = excludes.some((exclude) => termMatches(searchable, exclude));
+    const included = includeTerms.length === 0 || includeTerms.some((term) => termMatches(searchable, term));
     const tooExpensive = maxPrice > 0 && listing.price > maxPrice;
     const unavailable = isUnavailableListing(listing);
 
-    if (!excluded && !tooExpensive && !unavailable) {
+    if (included && !excluded && !tooExpensive && !unavailable) {
       listingsById.set(listing.id, listing);
     }
   }

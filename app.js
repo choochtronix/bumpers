@@ -50,12 +50,1107 @@ const ACTIVE_REGION = REGION_CONFIG?.activeRegion || {
 };
 const RESULTS_PER_PAGE = 48;
 const FEATURED_HOME_LIMIT = 12;
-const BROWSE_HOME_LIMIT = 8;
+const BROWSE_HOME_LIMIT = 18;
 const BROWSE_EXPANDED_LIMIT = 240;
 const BROWSE_CARD_RENDER_CHUNK_SIZE = 6;
 const BROWSE_HOME_CURATION_CANDIDATE_LIMIT = 24;
 const APP_VIEW_PARAM = "view";
 const APP_VIEW_SYNTH_BROWSER = "synth-browser";
+const APP_VIEW_WATCHLIST = "watchlist";
+const APP_BRAND_PARAM = "brand";
+const POPULAR_BRANDS = [
+  {
+    name: "Moog",
+    slug: "moog",
+    searchTerms: [
+      "Moog",
+      "Moog Music",
+      "モーグ",
+      "ムーグ",
+      "ミニモーグ",
+      "Bob Moog",
+      "Minimoog",
+      "Mini Moog",
+      "Minimoog Model D",
+      "Moog Model D",
+      "Model D",
+      "Minimoog Voyager",
+      "Voyager XL",
+      "Voyager RME",
+      "Voyager Old School",
+      "Memorymoog",
+      "Memory Moog",
+      "Polymoog",
+      "Micromoog",
+      "Multimoog",
+      "Moog Source",
+      "\"The Source\"",
+      "Moog Prodigy",
+      "Moog Rogue",
+      "Moog Liberation",
+      "Moog Opus 3",
+      "Moog Satellite",
+      "Moog Sonic Six",
+      "Sonic Six",
+      "Sonic V",
+      "Moog Taurus",
+      "Taurus I",
+      "Taurus II",
+      "Taurus III",
+      "Moog Minitaur",
+      "Minitaur",
+      "Moog Sirin",
+      "Sirin",
+      "Little Phatty",
+      "Slim Phatty",
+      "Sub Phatty",
+      "Sub 37",
+      "Subsequent 25",
+      "Subsequent 37",
+      "Moog Grandmother",
+      "Grandmother",
+      "Moog Matriarch",
+      "Matriarch",
+      "Mother-32",
+      "DFAM",
+      "Subharmonicon",
+      "Mavis",
+      "Werkstatt-01",
+      "Werkstatt",
+      "Moog Labyrinth",
+      "Labyrinth",
+      "Moog Spectravox",
+      "Spectravox",
+      "Moog Muse",
+      "Moog One",
+      "Moog Modular",
+      "Moog Model 10",
+      "Moog Model 12",
+      "Moog Model 15",
+      "Moog System 35",
+      "Moog System 55",
+      "Moog IIIc",
+      "Moog IIIp",
+      "Moog IIc",
+      "Moog IIp",
+      "Moog Ic",
+      "Moog Ip",
+      "Realistic MG-1",
+      "Concertmate MG-1",
+    ],
+    image: "assets/brand/minimoog_brand.jpg",
+  },
+  {
+    name: "ARP",
+    slug: "arp",
+    searchTerms: [
+      "ARP",
+      "ARP 2600",
+      "ARP Odyssey",
+      "ARP Axxe",
+      "ARP Solus",
+      "ARP Omni",
+      "ARP Quadra",
+      "ARP Pro Soloist",
+      "ARP String Ensemble",
+      "Solina",
+      "Odyssey MK1",
+      "Odyssey MK2",
+      "Odyssey MK3",
+      "ARP2600",
+      "ARP-2600",
+      "KORG ARP Odyssey",
+      "KORG ARP 2600",
+      "KORG 2600M",
+      "KORG Odyssey",
+    ],
+    image: "assets/brand/arp_brand.jpg",
+  },
+  {
+    name: "Oberheim",
+    slug: "oberheim",
+    searchTerms: [
+      "Oberheim",
+      "オーバーハイム",
+      "Tom Oberheim",
+      "Oberheim SEM",
+      "Oberheim Synthesizer Expander Module",
+      "Oberheim Two Voice",
+      "Oberheim Two-Voice",
+      "Oberheim TVS",
+      "Oberheim Four Voice",
+      "Oberheim Four-Voice",
+      "Oberheim Eight Voice",
+      "Oberheim Eight-Voice",
+      "Oberheim OB-1",
+      "Oberheim OB-X",
+      "Oberheim OB-Xa",
+      "Oberheim OB-SX",
+      "Oberheim OB-8",
+      "Oberheim Xpander",
+      "Oberheim Matrix 12",
+      "Oberheim Matrix 6",
+      "Oberheim Matrix 6R",
+      "Oberheim Matrix 1000",
+      "Oberheim OB-Mx",
+      "Oberheim OB-12",
+      "Oberheim OB-6",
+      "Oberheim OB-X8",
+      "Oberheim TEO-5",
+      "Oberheim Two Voice Pro",
+      "Oberheim TVS Pro",
+      "Oberheim Son of 4 Voice",
+      "SEM Pro",
+      "SEM-PRO",
+      "SEM Patch Panel",
+      "Synthesizer Expander Module",
+      "Two Voice",
+      "Two-Voice",
+      "2 Voice",
+      "TVS",
+      "TVS-1",
+      "TVS Pro",
+      "Two Voice Pro",
+      "Four Voice",
+      "Four-Voice",
+      "4 Voice",
+      "FVS",
+      "FVS-1",
+      "Son of 4 Voice",
+      "SO4V",
+      "Eight Voice",
+      "Eight-Voice",
+      "8 Voice",
+      "OB1",
+      "OB-1",
+      "OBX",
+      "OB-X",
+      "OBXa",
+      "OB-Xa",
+      "OB SX",
+      "OB-SX",
+      "OBSX",
+      "OB8",
+      "OB-8",
+      "OB6",
+      "OB-6",
+      "OBX8",
+      "OB-X8",
+      "OB X8",
+      "TEO5",
+      "TEO-5",
+      "Xpander",
+      "X-Pander",
+      "Matrix12",
+      "Matrix 12",
+      "Matrix-12",
+      "Matrix6",
+      "Matrix 6",
+      "Matrix-6",
+      "Matrix6R",
+      "Matrix 6R",
+      "Matrix-6R",
+      "Matrix1000",
+      "Matrix 1000",
+      "Matrix-1000",
+      "OBMx",
+      "OB-Mx",
+      "OB MX",
+      "OB12",
+      "OB-12",
+    ],
+    image: "",
+  },
+  {
+    name: "Sequential Circuits",
+    slug: "sequential-circuits",
+    searchTerms: [
+      "Sequential Circuits",
+      "Sequential",
+      "Sequential LLC",
+      "Dave Smith Instruments",
+      "Dave Smith",
+      "DSI",
+      "SCI Prophet",
+      "Sequential Prophet",
+      "Sequential synthesizer",
+      "シーケンシャル",
+      "デイブスミス",
+      "プロフェット",
+      "Sequential Prophet-5",
+      "Sequential Prophet 5",
+      "Sequential Prophet-10",
+      "Sequential Prophet 10",
+      "Sequential Pro-One",
+      "Sequential Pro One",
+      "Sequential Prophet-600",
+      "Sequential Prophet 600",
+      "Sequential Prophet-T8",
+      "Sequential Prophet T8",
+      "Sequential Prophet VS",
+      "Sequential Six-Trak",
+      "Sequential Six Track",
+      "Sequential Multi-Trak",
+      "Sequential Multi Track",
+      "Sequential MAX",
+      "Sequential Split-Eight",
+      "Sequential Split 8",
+      "Sequential DrumTraks",
+      "Sequential Drum Tracks",
+      "Sequential TOM",
+      "Sequential Studio 440",
+      "Sequential Prophet 2000",
+      "Sequential Prophet 2002",
+      "Sequential Prophet 3000",
+      "Sequential Prophet 3002",
+      "DSI Evolver",
+      "Dave Smith Evolver",
+      "DSI Poly Evolver",
+      "DSI Mopho",
+      "DSI Mopho x4",
+      "DSI Tetra",
+      "DSI Tempest",
+      "Dave Smith Tempest",
+      "DSI Prophet 08",
+      "DSI Prophet '08",
+      "Dave Smith Prophet 08",
+      "Sequential Prophet Rev2",
+      "Sequential Prophet-6",
+      "Sequential Prophet 6",
+      "Sequential OB-6",
+      "Sequential OB 6",
+      "Sequential Prophet 12",
+      "Sequential Prophet X",
+      "Sequential Prophet XL",
+      "Sequential Pro 2",
+      "Sequential Pro 3",
+      "Sequential Pro 3 SE",
+      "Sequential Take 5",
+      "Sequential Trigon-6",
+      "Sequential Trigon 6",
+      "Sequential Fourm",
+      "Prophet-5",
+      "Prophet 5",
+      "Prophet5",
+      "P5",
+      "Prophet-10",
+      "Prophet 10",
+      "Prophet10",
+      "P10",
+      "Pro-One",
+      "Pro One",
+      "ProOne",
+      "Prophet-600",
+      "Prophet 600",
+      "Prophet600",
+      "P600",
+      "Prophet-T8",
+      "Prophet T8",
+      "ProphetT8",
+      "T8",
+      "Prophet VS",
+      "Prophet-VS",
+      "Six-Trak",
+      "Six Trak",
+      "Six-Track",
+      "Six Track",
+      "Multi-Trak",
+      "Multi Trak",
+      "Multi-Track",
+      "Multi Track",
+      "Split-Eight",
+      "Split 8",
+      "Split-8",
+      "DrumTraks",
+      "Drum Tracks",
+      "Studio 440",
+      "Prophet 2000",
+      "Prophet-2000",
+      "Prophet 2002",
+      "Prophet-2002",
+      "Prophet 3000",
+      "Prophet-3000",
+      "Prophet 3002",
+      "Prophet-3002",
+      "Evolver",
+      "Mono Evolver",
+      "Poly Evolver",
+      "Mopho",
+      "Mopho x4",
+      "Mopho Keyboard",
+      "Tetra",
+      "Tempest",
+      "Prophet 08",
+      "Prophet '08",
+      "Prophet-08",
+      "Prophet Rev2",
+      "Rev2",
+      "Prophet-6",
+      "Prophet 6",
+      "Prophet6",
+      "OB-6",
+      "OB 6",
+      "OB6",
+      "Prophet 12",
+      "Prophet-12",
+      "Prophet12",
+      "Prophet X",
+      "Prophet-X",
+      "Prophet XL",
+      "Prophet-XL",
+      "Pro 2",
+      "Pro-2",
+      "Pro2",
+      "Pro 3",
+      "Pro-3",
+      "Pro3",
+      "Pro 3 SE",
+      "Take 5",
+      "Take-5",
+      "Take5",
+      "Trigon-6",
+      "Trigon 6",
+      "Trigon6",
+      "Fourm",
+    ],
+    image: "",
+  },
+  { name: "Waldorf", slug: "waldorf", searchTerms: ["Waldorf"], image: "" },
+  { name: "Ensoniq", slug: "ensoniq", searchTerms: ["Ensoniq", "エンソニック"], image: "" },
+];
+const BRAND_RECIPE_TEMPLATE = {
+  source: "saved-search:moog",
+  maxPrice: 2000000,
+  excludes: [
+    "ALEMBIC",
+    "M4167",
+    "ENIX",
+    "GALLERIA",
+    "nanoloop",
+    "Behringer",
+    "Shino Shinobaz Doujinshi",
+    "Ｃ ＴＬＳ",
+    "Ｂ－Ｆ",
+    "Ｃ Ｂ－Ｆ",
+    "Piero Umiliani",
+    "C・",
+    "TAKARA",
+    "MOGLEA",
+    "腕時計女性向き　個性的なデザイン レディース 腕時計 ゴールド ブラウン ファッション小物 ブラウン",
+    "腕時計 稼働未確認",
+    "Ichiban Kuji Moguri King",
+    "Plush Toy",
+    "TAITO",
+    "未開封 一番くじ モーグリ ぬいぐるみ王様",
+    "MOGE",
+    "Mogulair",
+    "新品",
+    "MOOG COMICS",
+    "Moog C",
+    "ムーグＣ",
+    "\"Cocoon Moog\"",
+    "Zamoog",
+    "ザムーグ",
+    "モーグ３",
+    "\"MOOG COMICS\"",
+    "\"Moog C\"",
+    "\"ムーグ C\"",
+    "MOOGLE",
+    "MTG",
+    "\"SOUND OF MOOG”",
+    "\"Dick Hyman\"",
+    "腕時計",
+    "\"FINAL FANTASY\"",
+    "モーグリ",
+    "プレイボーダー",
+    "\"THE SOUND OF MOOG\"",
+    "\"ムーグコミックス フューチャーシリーズ\"",
+    "\"ムーグコミックス ピーチシリーズ\"",
+    "モーグ",
+    "ブーツ",
+    "カントリ",
+    "Mooguka",
+  ],
+  noiseTerms: [
+    "adapter",
+    "book",
+    "cable",
+    "case",
+    "cd",
+    "cover",
+    "decksaver",
+    "manual",
+    "patch book",
+    "power supply",
+    "stand",
+    "アダプター",
+    "カタログ",
+    "カバー",
+    "ケース",
+    "ケーブル",
+    "スタンド",
+    "デッキセーバー",
+    "マニュアル",
+    "取扱説明書",
+    "教則",
+  ],
+  sources: [
+    "mercari",
+    "yahoo-auctions",
+    "yahoo-fleamarket",
+    "rakuma",
+    "digimart",
+    "reverb",
+    "offmall",
+    "five-g",
+    "implant4",
+    "hardoff",
+    "jimoty",
+  ],
+};
+const BRAND_RECIPES = {
+  moog: {
+    source: "brand-search:moog",
+    maxPrice: 0,
+    termLimit: 28,
+    sourceTerms: [
+      "Moog",
+      "モーグ",
+      "ムーグ",
+      "Minimoog",
+      "Moog Model D",
+      "Moog Voyager",
+      "Memorymoog",
+      "Polymoog",
+      "Micromoog",
+      "Multimoog",
+      "Moog Source",
+      "Moog Prodigy",
+      "Moog Rogue",
+      "Moog Liberation",
+      "Moog Taurus",
+      "Moog One",
+      "Moog Muse",
+      "Moog Grandmother",
+      "Moog Matriarch",
+      "Moog Mother-32",
+      "Moog Sub 37",
+      "Moog Subsequent",
+      "Moog Little Phatty",
+      "Moog Slim Phatty",
+      "Moog DFAM",
+      "Moog Minitaur",
+      "Moog Subharmonicon",
+      "Moog Modular",
+      "Realistic MG-1",
+    ],
+    excludes: [
+      "ALEMBIC",
+      "M4167",
+      "ENIX",
+      "GALLERIA",
+      "nanoloop",
+      "Behringer",
+      "Shino Shinobaz Doujinshi",
+      "Ｃ ＴＬＳ",
+      "Ｂ－Ｆ",
+      "Ｃ Ｂ－Ｆ",
+      "Piero Umiliani",
+      "C・",
+      "TAKARA",
+      "MOGLEA",
+      "腕時計女性向き　個性的なデザイン レディース 腕時計 ゴールド ブラウン ファッション小物 ブラウン",
+      "腕時計 稼働未確認",
+      "Ichiban Kuji Moguri King",
+      "Plush Toy",
+      "TAITO",
+      "未開封 一番くじ モーグリ ぬいぐるみ王様",
+      "MOGE",
+      "Mogulair",
+      "MOOG COMICS",
+      "Moog C",
+      "ムーグＣ",
+      "\"Cocoon Moog\"",
+      "Zamoog",
+      "ザムーグ",
+      "モーグ３",
+      "\"MOOG COMICS\"",
+      "\"Moog C\"",
+      "\"ムーグ C\"",
+      "MOOGLE",
+      "Moogle",
+      "Moguri",
+      "MTG",
+      "\"SOUND OF MOOG\"",
+      "\"THE SOUND OF MOOG\"",
+      "\"Dick Hyman\"",
+      "腕時計",
+      "\"FINAL FANTASY\"",
+      "Final Fantasy",
+      "モーグリ",
+      "プレイボーダー",
+      "\"ムーグコミックス フューチャーシリーズ\"",
+      "\"ムーグコミックス ピーチシリーズ\"",
+      "ブーツ",
+      "カントリ",
+      "Mooguka",
+      "moog.79",
+      "moog．",
+      "Moogah",
+      "Doepfer",
+      "A-120",
+      "A-120V",
+      "Snow Peak",
+      "スノーピーク",
+      "MORG Pro",
+      "モーグpro.air",
+      "Pro.air",
+      "シューズ",
+      "シャークソール",
+      "靴",
+      "スニーカー",
+      "MOOGEE",
+      "GEL-MOOGEE",
+      "asics",
+      "アシックス",
+      "モーグル",
+      "mogul",
+      "ski",
+      "スキー",
+      "K2 244",
+      "スタジャン",
+      "ワッペン",
+      "ナイロンスタジャン",
+      "デュエルマスターズ",
+      "地底探検モーグ",
+      "DM24RP",
+      "\"Bach to Moog\"",
+      "バッハ・トゥ・モーグ",
+      "HANS WURMAN",
+      "ハンス・ウールマン",
+      "digireco",
+      "追悼モーグ博士",
+      "DVD",
+      "Blu-ray",
+      "movie",
+      "映画",
+      "デラックスDVD",
+      "くみたてモルカー",
+      "モルカー",
+      "MODEROID",
+      "模型",
+      "モックアップ",
+      "MOOK",
+      "HOBBYJAPAN",
+      "ホビージャパン",
+      "戦車模型",
+      "MAP-01",
+      "Mode Machines",
+      "error instruments",
+      "Animoog",
+      "software",
+      "plugin",
+      "plug-in",
+      "preset",
+      "sample pack",
+      "book",
+      "magazine",
+      "comic",
+      "poster",
+      "shirt",
+      "sticker",
+      "toy",
+      "miniature",
+      "manual only",
+      "patch book",
+      "catalog only",
+      "cd",
+      "lp",
+      "record",
+      "vinyl",
+    ],
+    noiseTerms: [
+      "adapter",
+      "AC adapter",
+      "power supply",
+      "power cord",
+      "book",
+      "brochure",
+      "button cap",
+      "cable",
+      "case",
+      "catalog",
+      "cover",
+      "decksaver",
+      "dust cover",
+      "gig bag",
+      "key only",
+      "keybed only",
+      "knob only",
+      "manual",
+      "overlay",
+      "panel overlay",
+      "parts only",
+      "patch book",
+      "rack ears",
+      "schematic",
+      "service manual",
+      "spares",
+      "stand",
+      "voice card only",
+      "アダプター",
+      "カタログ",
+      "カバー",
+      "ケース",
+      "ケーブル",
+      "スタンド",
+      "デッキセーバー",
+      "ハードケース",
+      "マニュアル",
+      "取扱説明書",
+      "説明書",
+      "教則",
+      "電源",
+      "電源アダプター",
+      "部品",
+    ],
+    sources: [...BRAND_RECIPE_TEMPLATE.sources],
+  },
+  arp: {
+    source: "brand-search:arp",
+    maxPrice: 0,
+    termLimit: 12,
+    sourceTerms: [
+      "ARP",
+      "KORG 2600M",
+      "KORG Odyssey",
+      "Solina String Ensemble",
+      "ARP 2600",
+      "ARP Odyssey",
+      "ARP Axxe",
+      "ARP Solus",
+      "ARP Omni",
+      "ARP Quadra",
+      "ARP Pro Soloist",
+      "ARP String Ensemble",
+    ],
+    excludes: [
+      "\"Arp Alive\"",
+      "ARP: ALIVE",
+      "\"mini アクリルスタンド\"",
+      "\"AR performers\"",
+      "\"ＡＲＰ：Ａ’ＬＩＶＥ\"",
+      "\"Ｂｕｒｎ　ｉｔ　ｕｐ\"",
+      "\"人気商品\"",
+      "\"ARP-02\"",
+      "\"ARP-0\"",
+      "\"ARP-03\"",
+      "\"Jean Arp\"",
+      "\"All of You\"",
+      "\"Ａ’ＬＩＶＥ\"",
+      "\"A'Live\"",
+      "\"ARP-1\"",
+      "\"ARP-2B\"",
+      "\"Kiss My Arp\"",
+      "\"サヴァレス\"",
+      "\"SAVAREZ\"",
+      "\"フレグランス ダイヤ\"",
+      "\"KICK A’LIVE\"",
+      "\"レイジ アクリルスタンド アクスタ\"",
+      "\"SHIKIZAKURA’\"",
+      "\"SIERRA DESIGNS\"",
+      "\"G&G\"",
+      "ARMAMENT",
+      "A’LIVE3",
+      "A’LIVE2",
+      "A'Live2",
+      "REWINDⅣ",
+      "ローバーミニ",
+      "ワッシャー",
+      "ヘッドボルト",
+      "ドットサイト",
+      "Headway",
+      "歯槽堤保存",
+      "ARTY PRO",
+      "M-LOK",
+      "\"Backstage Pass\"",
+      "ぬいぐるみ",
+      "肌掛け布団",
+      "アスファ",
+      "スカート",
+      "POLABOSS",
+      "2hp",
+      "HONDA",
+      "ホンダ",
+      "MUGEN",
+      "無限",
+      "LAILE",
+      "レイル",
+      "ヤリス",
+      "ランサー",
+      "GR86",
+      "ARP-87",
+      "DC-2",
+      "Electric Circus",
+      "Ian Gillan",
+      "KURZWEIL MEI-1",
+      "J.J.ジョンソン",
+      "Mobile Suit Gundam",
+      "POODLE",
+      "PCM 3348",
+      "Richard Franecki",
+      "SONY ARP-2",
+      "SPV - 355",
+      "SUNSHINE CLUB",
+      "Sunshine Avenue",
+      "TRANCER-2600",
+      "WALRUS AUDIO",
+      "Yoshiaki Masuo",
+      "スマイルキッズ",
+      "アナログ●",
+      "ガンダム",
+      "イアン・ギラン",
+      "オープナー",
+      "サンシャイン",
+      "ソノシート",
+      "チャー",
+      "ルーペ付",
+      "レコード",
+      "効果音集",
+      "増尾好秋",
+      "廉価盤",
+      "紙ジャケット",
+      "sharp",
+      "carp",
+      "harp",
+      "arpeggio",
+      "guitar pedal",
+      "book",
+      "manual only",
+      "patch book",
+      "poster",
+      "shirt",
+      "sticker",
+      "toy",
+      "miniature",
+    ],
+    noiseTerms: [
+      "case",
+      "cover",
+      "power cord",
+      "stand",
+      "power supply",
+      "adapter",
+      "manual",
+      "brochure",
+      "AC power cord",
+      "ACアダプター",
+      "アダプター",
+      "カバー",
+      "ケース",
+      "ケーブル",
+      "スタンド",
+      "ハードケース",
+      "マニュアル",
+      "取扱説明書",
+      "純正ケース",
+    ],
+    sources: [...BRAND_RECIPE_TEMPLATE.sources],
+  },
+  oberheim: {
+    source: "brand-search:oberheim",
+    maxPrice: 0,
+    termLimit: 14,
+    sourceTerms: [
+      "Oberheim",
+      "オーバーハイム",
+      "Tom Oberheim",
+      "Oberheim SEM",
+      "Oberheim OB-X",
+      "Oberheim OB-Xa",
+      "Oberheim OB-8",
+      "Oberheim Xpander",
+      "Oberheim Matrix",
+      "Oberheim Matrix 1000",
+      "Oberheim OB-6",
+      "Oberheim OB-X8",
+      "Oberheim TEO-5",
+      "Oberheim Two Voice",
+    ],
+    excludes: [
+      "\"The Matrix\"",
+      "\"Matrix Reloaded\"",
+      "\"Matrix Revolutions\"",
+      "\"Matrix Resurrections\"",
+      "\"Matrix printer\"",
+      "\"matrix switch\"",
+      "\"matrix mixer\"",
+      "OBD",
+      "OBD2",
+      "OBD-II",
+      "OB-GYN",
+      "obstetrics",
+      "OB会",
+      "OB訪問",
+      "\"search engine marketing\"",
+      "\"SEM marketing\"",
+      "\"SEM book\"",
+      "\"SEM textbook\"",
+      "\"scanning electron microscope\"",
+      "\"SEM image\"",
+      "SEM写真",
+      "\"Xpander rack\"",
+      "\"Xpander luggage\"",
+      "\"Xpander bag\"",
+      "\"Matrix hair\"",
+      "\"Matrix shampoo\"",
+      "\"Matrix color\"",
+      "\"Matrix Biolage\"",
+      "Doepfer",
+      "A-106-6",
+      "manual only",
+      "service manual",
+      "schematic",
+      "poster",
+      "shirt",
+      "sticker",
+      "toy",
+      "miniature",
+      "book",
+      "magazine",
+      "catalog only",
+    ],
+    noiseTerms: [
+      "case",
+      "cover",
+      "dust cover",
+      "stand",
+      "power supply",
+      "adapter",
+      "AC adapter",
+      "power cord",
+      "AC power cord",
+      "manual",
+      "service manual",
+      "schematic",
+      "brochure",
+      "catalog",
+      "patch book",
+      "rack ears",
+      "button cap",
+      "knob only",
+      "voice card only",
+      "parts only",
+      "ジャンク基板",
+      "アダプター",
+      "カタログ",
+      "カバー",
+      "ケース",
+      "ケーブル",
+      "スタンド",
+      "マニュアル",
+      "説明書",
+      "取扱説明書",
+      "雑誌",
+      "楽譜",
+    ],
+    sources: [...BRAND_RECIPE_TEMPLATE.sources],
+  },
+  "sequential-circuits": {
+    source: "brand-search:sequential-circuits",
+    maxPrice: 0,
+    termLimit: 24,
+    sourceTerms: [
+      "Sequential",
+      "Sequential Prophet",
+      "Dave Smith",
+      "DSI Prophet",
+      "Sequential Circuits",
+      "Prophet-5",
+      "Prophet 5",
+      "Prophet-10",
+      "Pro-One",
+      "Prophet-600",
+      "Prophet VS",
+      "Six-Trak",
+      "Multi-Trak",
+      "Prophet T8",
+      "Prophet Rev2",
+      "Prophet-6",
+      "Prophet 12",
+      "Pro 2",
+      "Pro 3",
+      "Take 5",
+      "Trigon-6",
+      "Fourm",
+      "Mopho",
+      "Evolver",
+      "Tempest",
+      "Tetra",
+      "Studio 440",
+      "DrumTraks",
+    ],
+    excludes: [
+      "\"Kahlil Gibran\"",
+      "\"The Prophet book\"",
+      "\"Prophet Muhammad\"",
+      "\"Prophet Mohammed\"",
+      "Islam",
+      "Islamic",
+      "Quran",
+      "Koran",
+      "Bible",
+      "Biblical",
+      "prophecy",
+      "religion",
+      "\"Joseph Smith\"",
+      "\"sequential logic\"",
+      "\"digital logic\"",
+      "\"logic circuit\"",
+      "\"logic circuits\"",
+      "\"electronic circuits textbook\"",
+      "\"circuit analysis\"",
+      "\"sequential turn signal\"",
+      "\"sequential indicator\"",
+      "\"sequential LED\"",
+      "シーケンシャル LED",
+      "シーケンシャルLED",
+      "シーケンシャル ウィンカー",
+      "シーケンシャルウィンカー",
+      "シーケンシャル ウインカー",
+      "シーケンシャルウインカー",
+      "ウインカー",
+      "LEDテール",
+      "LED テール",
+      "テールランプ",
+      "流れるウィンカー",
+      "ミラーウィンカー",
+      "ヘッドライト",
+      "ブルーミラー",
+      "シルクブレイズ",
+      "加工テール",
+      "ハイエース",
+      "プリウス",
+      "カローラ",
+      "モコ",
+      "MG22S",
+      "RAV4",
+      "BMW",
+      "Dazz Fellows",
+      "ふそう",
+      "スーパーグレート",
+      "トラック 24v",
+      "\"sequential tail light\"",
+      "\"sequential shifter\"",
+      "\"sequential gearbox\"",
+      "\"sequential transmission\"",
+      "\"Sequential Voltage Source\"",
+      "\"Sequential Switch\"",
+      "A-151V",
+      "Buchla & Tiptop",
+      "Buchla | 251e",
+      "Doepfer",
+      "VALENTi",
+      "スーパーキャリー",
+      "\"Take Five\"",
+      "\"Dave Brubeck\"",
+      "\"Take 5 candy\"",
+      "\"Take5 candy\"",
+      "\"Take 5 magazine\"",
+      "\"Tetra aquarium\"",
+      "\"Tetra fish\"",
+      "\"Tetra filter\"",
+      "\"Tetra food\"",
+      "\"Tetra Pak\"",
+      "\"Tempest Shakespeare\"",
+      "\"The Tempest\"",
+      "\"Atari Tempest\"",
+      "\"Tempest arcade\"",
+      "\"Tempest game\"",
+      "\"weather tempest\"",
+      "\"Pokemon Evolver\"",
+      "\"Evolver game\"",
+      "\"Mighty Prophet\"",
+      "\"Michael Prophet\"",
+      "\"90s アンビエント\"",
+      "\"Praise You Jah Jah\"",
+      "\"Praising Jah\"",
+      "\"Jah Jah People\"",
+      "\"Universal Skank\"",
+      "\"Dave Smith, The Astronauts\"",
+      "\"Dave Smith & The Astronauts\"",
+      "\"Androidプログラミング\"",
+      "\"プログラミングレシピ\"",
+      "\"Jeff Friesen\"",
+      "\"吉川 邦夫\"",
+      "\"Prophet manual only\"",
+      "\"Sequential manual only\"",
+      "\"Dave Smith manual only\"",
+      "overlay only",
+      "panel overlay",
+      "poster",
+      "shirt",
+      "sticker",
+      "toy",
+      "miniature",
+      "book",
+      "magazine",
+      "catalog only",
+    ],
+    noiseTerms: [
+      "case",
+      "cover",
+      "dust cover",
+      "gig bag",
+      "stand",
+      "power supply",
+      "adapter",
+      "AC adapter",
+      "power cord",
+      "AC power cord",
+      "manual",
+      "service manual",
+      "schematic",
+      "brochure",
+      "catalog",
+      "patch book",
+      "7”",
+      "10”",
+      "12”",
+      "7 inch",
+      "10 inch",
+      "12 inch",
+      "vinyl",
+      "record",
+      "レコード",
+      "アナログ●",
+      "overlay",
+      "panel overlay",
+      "rack ears",
+      "button cap",
+      "knob only",
+      "key only",
+      "keybed only",
+      "voice card only",
+      "CEM chip only",
+      "parts only",
+      "spares",
+      "ジャンク基板",
+      "アダプター",
+      "カタログ",
+      "カバー",
+      "ケース",
+      "ケーブル",
+      "スタンド",
+      "マニュアル",
+      "取扱説明書",
+      "説明書",
+      "雑誌",
+      "楽譜",
+    ],
+    sources: [...BRAND_RECIPE_TEMPLATE.sources],
+  },
+};
 const FEATURED_HOME_ALERT_LIMIT = 6;
 const FRESH_FIND_LOADING_CARD_COUNT = 6;
 const SHOW_FRESH_FINDS_HOME_SECTION = false;
@@ -746,16 +1841,7 @@ const BROWSE_CATEGORY_INTENTS = CATEGORY_INTENTS.filter((intent) => intent.id !=
 const DEFAULT_CATEGORY_INTENT = "synthesizers";
 const DEFAULT_BROWSE_CATEGORY_INTENT = "all";
 const CATEGORY_INTENT_IDS = new Set(CATEGORY_INTENTS.map((intent) => intent.id));
-// Update this list to change the cycling typed prompts in the main search field.
-const QUICK_SEARCH_PLACEHOLDER_PROMPTS = [
-  "Search used synths and drum machines",
-  "Ensoniq Fizmo",
-  "R2-D2",
-];
 const R2D2_SEARCH_TARGET = "Arp 2600";
-const QUICK_SEARCH_PLACEHOLDER_TIMING = {
-  cycleMs: 3600,
-};
 // Add more makers here to expand quick model autosuggest.
 const SYNTH_MODEL_SUGGESTIONS = [
   {
@@ -828,9 +1914,12 @@ let browseCategoryAbortController = null;
 let browseCategoryPostLoadTaskId = 0;
 let browseCardRenderId = 0;
 let browsePreparedListingsCache = null;
+let browseCategoryBrandSlug = "";
+let browseBrandResultView = "gallery";
 let gearBrowserScenePreviousStatus = browseCategoryStatus;
 let gearBrowserSceneFadeUntil = 0;
 let isBrowseExpanded = false;
+let activeBrowseBrandSlug = "";
 let isSourceRowExpanded = true;
 const rakumaClientThumbnailCache = new Map();
 let searchState = {
@@ -847,7 +1936,6 @@ const brandHomeLink = document.querySelector("#brandHomeLink");
 const regionQuickSelect = document.querySelector("#regionQuickSelect");
 const regionSelector = document.querySelector("#regionSelector");
 const termsInput = document.querySelector("#terms");
-const quickSearchPlaceholder = document.querySelector("#quickSearchPlaceholder");
 const mobileSearchOverlay = document.querySelector("#mobileSearchOverlay");
 const mobileSearchForm = document.querySelector("#mobileSearchForm");
 const mobileSearchInput = document.querySelector("#mobileSearchInput");
@@ -887,6 +1975,8 @@ const savedSearchPopover = document.querySelector("#savedSearchPopover");
 const savedWatchingFilter = document.querySelector("#savedWatchingFilter");
 const quickSaveSearchButton = document.querySelector("#quickSaveSearch");
 const topWatchingFilter = document.querySelector("#topWatchingFilter");
+const mobileBottomNav = document.querySelector("#mobileBottomNav");
+const mobileBottomNavItems = [...document.querySelectorAll("[data-mobile-nav]")];
 const refineSearchModal = document.querySelector("#refineSearchModal");
 const refineSummary = document.querySelector("#refineSummary");
 const refineSourceOptions = document.querySelector("#refineSourceOptions");
@@ -966,6 +2056,8 @@ let saveSearchReturnFocus = null;
 let savedRegionChoiceReturnFocus = null;
 let pendingSavedRegionProfile = null;
 let settingsReturnFocus = null;
+let savedPopoverAnchorElement = null;
+let savedPopoverAnchorMode = "header";
 let savedSearchAutoSyncTimer = 0;
 let profileAutoSyncTimer = 0;
 let saveConfirmationTimer = 0;
@@ -975,12 +2067,14 @@ let eventsBound = false;
 let searchChirpAudioCtx = null;
 
 function initialize() {
-  isBrowseExpanded = getCurrentAppView() === APP_VIEW_SYNTH_BROWSER;
+  const startupAppView = getCurrentAppView();
+  isBrowseExpanded = startupAppView === APP_VIEW_SYNTH_BROWSER;
+  if (startupAppView === APP_VIEW_WATCHLIST) filterMode = "watching";
+  activeBrowseBrandSlug = getCurrentBrowseBrandSlug();
   runStartupStep("startup brand gradient url", applyStartupBrandGradientUrlParams);
   runStartupStep("brand gradient", () => applyBrandGradient(appSettings.brandGradient));
   bindEvents();
   const shouldRunStartupSearch = applyStartupSearchUrlParams();
-  runStartupStep("quick search placeholder", initializeQuickSearchPlaceholder);
   runStartupStep("stored theme", applyStoredTheme);
   runStartupStep("brand wave", initializeBrandWave);
   runStartupStep("sources", renderSources);
@@ -1042,44 +2136,6 @@ function applyStartupBrandGradientUrlParams() {
   localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(appSettings));
   applyBrandGradient(appSettings.brandGradient);
   return true;
-}
-
-function initializeQuickSearchPlaceholder() {
-  if (!quickSearchPlaceholder) return;
-  const prompts = QUICK_SEARCH_PLACEHOLDER_PROMPTS
-    .map((prompt) => String(prompt || "").trim())
-    .filter(Boolean);
-  if (prompts.length === 0) return;
-
-  const placeholderStyles = window.getComputedStyle(quickSearchPlaceholder);
-  const widthCanvas = document.createElement("canvas");
-  const widthContext = widthCanvas.getContext("2d");
-  if (widthContext) {
-    widthContext.font = placeholderStyles.font || `${placeholderStyles.fontWeight} ${placeholderStyles.fontSize} ${placeholderStyles.fontFamily}`;
-  }
-  const measurePromptWidth = (prompt) => Math.ceil(widthContext?.measureText(prompt).width || prompt.length * 9) + 2;
-
-  const terms = document.createElement("span");
-  terms.className = "quick-search-placeholder-terms";
-  terms.style.setProperty("--quick-search-placeholder-duration", `${prompts.length * QUICK_SEARCH_PLACEHOLDER_TIMING.cycleMs}ms`);
-
-  const longestPrompt = prompts.reduce((longest, prompt) => prompt.length > longest.length ? prompt : longest, "");
-  const sizer = document.createElement("span");
-  sizer.className = "quick-search-placeholder-sizer";
-  sizer.textContent = longestPrompt;
-  terms.appendChild(sizer);
-
-  prompts.forEach((prompt, index) => {
-    const text = document.createElement("span");
-    text.className = "quick-search-placeholder-text";
-    if (index === 0) text.classList.add("is-first");
-    text.textContent = prompt;
-    text.style.setProperty("--quick-search-placeholder-delay", `${index * QUICK_SEARCH_PLACEHOLDER_TIMING.cycleMs}ms`);
-    text.style.setProperty("--quick-search-placeholder-width", `${measurePromptWidth(prompt)}px`);
-    terms.appendChild(text);
-  });
-
-  quickSearchPlaceholder.replaceChildren(terms);
 }
 
 function initializeBrandWave() {
@@ -1680,7 +2736,8 @@ function bindEvents() {
   gearModeSettingsToggle?.addEventListener("change", handleSettingsGearModeToggle);
   openSourceQualitySettingsButton?.addEventListener("click", openSearchQualitySettings);
 
-  topWatchingFilter.addEventListener("click", toggleWatchingFilter);
+  topWatchingFilter.addEventListener("click", openWatchlistView);
+  mobileBottomNav?.addEventListener("click", handleMobileBottomNavClick);
   savedWatchingFilter?.addEventListener("click", () => {
     toggleWatchingFilter();
     closeSavedSearchPopover();
@@ -1699,9 +2756,14 @@ function bindEvents() {
   document.querySelector("#urgencyFilter").addEventListener("click", (event) => {
     const button = event.target.closest("button");
     if (!button) return;
+    if (button.dataset.filter === "watching") {
+      openWatchlistView();
+      return;
+    }
     filterMode = button.dataset.filter;
+    if (getCurrentAppView() === APP_VIEW_WATCHLIST) setAppView(null);
     resetPagination();
-    document.querySelectorAll("#urgencyFilter button").forEach((item) => item.classList.toggle("active", item === button));
+    syncFilterModeButtons();
     renderResults();
   });
 
@@ -1868,6 +2930,7 @@ function resetHomeView(event) {
   selectInteractionActive = false;
   clearScheduledSearchResultApply();
   deferredResultsRender = false;
+  activeBrowseBrandSlug = "";
   setAppView(null);
   isBrowseExpanded = false;
   searchRunId += 1;
@@ -1875,7 +2938,7 @@ function resetHomeView(event) {
   fillForm(currentProfile);
   activeViewSources.clear();
   filterMode = "all";
-  document.querySelectorAll("#urgencyFilter button").forEach((item) => item.classList.toggle("active", item.dataset.filter === filterMode));
+  syncFilterModeButtons();
   currentResults = [];
   currentDiscoveryIds = new Set();
   currentNewForSearchIds = new Set();
@@ -1892,12 +2955,28 @@ function getCurrentAppView() {
   return params.get(APP_VIEW_PARAM) || "";
 }
 
+function getCurrentBrowseBrandSlug() {
+  if (getCurrentAppView() !== APP_VIEW_SYNTH_BROWSER) return "";
+  const params = new URLSearchParams(window.location.search);
+  return sanitizePopularBrandSlug(params.get(APP_BRAND_PARAM));
+}
+
 function setAppView(view, options = {}) {
   const url = new URL(window.location.href);
   if (view) {
     url.searchParams.set(APP_VIEW_PARAM, view);
+    if (view !== APP_VIEW_SYNTH_BROWSER) url.searchParams.delete(APP_BRAND_PARAM);
   } else {
     url.searchParams.delete(APP_VIEW_PARAM);
+    url.searchParams.delete(APP_BRAND_PARAM);
+  }
+  if (view && Object.prototype.hasOwnProperty.call(options, "brandSlug")) {
+    const brandSlug = sanitizePopularBrandSlug(options.brandSlug);
+    if (brandSlug) {
+      url.searchParams.set(APP_BRAND_PARAM, brandSlug);
+    } else {
+      url.searchParams.delete(APP_BRAND_PARAM);
+    }
   }
   const nextUrl = `${url.pathname}${url.search}${url.hash}`;
   if (nextUrl === `${window.location.pathname}${window.location.search}${window.location.hash}`) return;
@@ -1906,7 +2985,15 @@ function setAppView(view, options = {}) {
 }
 
 function handleAppViewPopState() {
-  isBrowseExpanded = getCurrentAppView() === APP_VIEW_SYNTH_BROWSER;
+  const nextView = getCurrentAppView();
+  isBrowseExpanded = nextView === APP_VIEW_SYNTH_BROWSER;
+  activeBrowseBrandSlug = nextView === APP_VIEW_SYNTH_BROWSER ? getCurrentBrowseBrandSlug() : "";
+  if (nextView === APP_VIEW_WATCHLIST) {
+    filterMode = "watching";
+  } else if (filterMode === "watching") {
+    filterMode = "all";
+  }
+  syncFilterModeButtons();
   resetPagination();
   renderResults();
   scrollResultsTop();
@@ -2328,6 +3415,162 @@ function sanitizeCategoryIntent(categoryIntent, regionId = appSettings?.regionId
 
 function getCategoryIntentLabel(categoryIntent) {
   return CATEGORY_INTENTS.find((intent) => intent.id === categoryIntent)?.label || "Synthesizers";
+}
+
+function sanitizePopularBrandSlug(slug) {
+  const normalizedSlug = String(slug || "").trim().toLowerCase();
+  return POPULAR_BRANDS.some((brand) => brand.slug === normalizedSlug) ? normalizedSlug : "";
+}
+
+function getPopularBrandBySlug(slug) {
+  const normalizedSlug = sanitizePopularBrandSlug(slug);
+  return POPULAR_BRANDS.find((brand) => brand.slug === normalizedSlug) || null;
+}
+
+function getActiveBrowseBrand() {
+  return getPopularBrandBySlug(activeBrowseBrandSlug);
+}
+
+function getPopularBrandInitials(brand) {
+  return brand.name
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => word.charAt(0))
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
+
+function getPopularBrandSearchTerms(brand) {
+  if (!brand) return [];
+  const terms = Array.isArray(brand.searchTerms) ? brand.searchTerms : [brand.searchTerm];
+  return terms
+    .map((term) => String(term || "").trim())
+    .filter(Boolean);
+}
+
+function getPopularBrandRecipe(brand) {
+  if (!brand) return null;
+  const customRecipe = BRAND_RECIPES[brand.slug];
+  if (customRecipe) {
+    return {
+      source: customRecipe.source || `brand-search:${brand.slug}`,
+      maxPrice: Number(customRecipe.maxPrice || 0),
+      searchTerms: uniqueTerms([
+        ...getPopularBrandSearchTerms(brand),
+        ...(customRecipe.searchTerms || []),
+      ]),
+      sourceTerms: uniqueTerms(customRecipe.sourceTerms || getPopularBrandSearchTerms(brand)),
+      termLimit: Number(customRecipe.termLimit || 0),
+      excludes: getSafeBrandRecipeExcludes(brand, customRecipe.excludes || []),
+      noiseTerms: [...(customRecipe.noiseTerms || [])],
+      sources: [...(customRecipe.sources || BRAND_RECIPE_TEMPLATE.sources)],
+    };
+  }
+
+  return {
+    source: BRAND_RECIPE_TEMPLATE.source,
+    maxPrice: BRAND_RECIPE_TEMPLATE.maxPrice,
+    searchTerms: getPopularBrandSearchTerms(brand),
+    sourceTerms: getPopularBrandSearchTerms(brand),
+    termLimit: 0,
+    excludes: getSafeBrandRecipeExcludes(brand),
+    noiseTerms: [...BRAND_RECIPE_TEMPLATE.noiseTerms],
+    sources: [...BRAND_RECIPE_TEMPLATE.sources],
+  };
+}
+
+function getSafeBrandRecipeExcludes(brand, excludes = BRAND_RECIPE_TEMPLATE.excludes) {
+  const brandTermSet = new Set(getPopularBrandSearchTerms(brand).map((term) => normalizeText(parseMatchTerm(term).value)));
+  return excludes.filter((exclude) => {
+    const normalizedExclude = normalizeText(parseMatchTerm(exclude).value);
+    return normalizedExclude && !brandTermSet.has(normalizedExclude);
+  });
+}
+
+function createBrandRecipeRequestExcludes(brand) {
+  const recipe = getPopularBrandRecipe(brand);
+  if (!recipe) return STARTER_FRESH_FIND_EXCLUDES;
+  return uniqueTerms([
+    ...STARTER_FRESH_FIND_EXCLUDES,
+    ...recipe.excludes,
+    ...(qualityFilter === "clean" ? recipe.noiseTerms : []),
+  ]);
+}
+
+function createBrandBrowseHref(slug) {
+  const url = new URL(window.location.href);
+  url.searchParams.set(APP_VIEW_PARAM, APP_VIEW_SYNTH_BROWSER);
+  url.searchParams.set(APP_BRAND_PARAM, sanitizePopularBrandSlug(slug));
+  return `${url.pathname}${url.search}${url.hash}`;
+}
+
+function resetBrowseCategoryForBrandView(brandSlug) {
+  const nextBrandSlug = sanitizePopularBrandSlug(brandSlug || activeBrowseBrandSlug);
+  if (
+    browseCategoryIntent === DEFAULT_BROWSE_CATEGORY_INTENT
+    && browseCategoryStatus !== "error"
+    && browseCategoryBrandSlug === nextBrandSlug
+  ) return;
+
+  cancelBrowseCategoryLoad();
+  browseCategoryIntent = DEFAULT_BROWSE_CATEGORY_INTENT;
+  browseCategoryListings = [];
+  clearBrowsePreparedListingsCache();
+  browseCategoryStatus = "idle";
+  browseCategoryError = "";
+  browseCategoryBrandSlug = nextBrandSlug;
+}
+
+function resetBrowseCategoryBrandView() {
+  if (!browseCategoryBrandSlug) return;
+  cancelBrowseCategoryLoad();
+  browseCategoryListings = [];
+  clearBrowsePreparedListingsCache();
+  browseCategoryStatus = "idle";
+  browseCategoryError = "";
+  browseCategoryBrandSlug = "";
+}
+
+function syncBrowseCategoryBrandView() {
+  const nextBrandSlug = activeBrowseBrandSlug ? sanitizePopularBrandSlug(activeBrowseBrandSlug) : "";
+  if (browseCategoryBrandSlug === nextBrandSlug) return;
+  cancelBrowseCategoryLoad();
+  browseCategoryListings = [];
+  clearBrowsePreparedListingsCache();
+  browseCategoryStatus = "idle";
+  browseCategoryError = "";
+  browseCategoryBrandSlug = nextBrandSlug;
+}
+
+function openBrandBrowseView(slug, options = {}) {
+  const brand = getPopularBrandBySlug(slug);
+  if (!brand) return;
+  activeBrowseBrandSlug = brand.slug;
+  if (options.resetCategory || options.defaultGallery !== false) browseBrandResultView = "gallery";
+  resetBrowseCategoryForBrandView(brand.slug);
+  isBrowseExpanded = true;
+  resetPagination();
+  setAppView(APP_VIEW_SYNTH_BROWSER, { brandSlug: brand.slug, replace: Boolean(options.replace) });
+  renderResults();
+  scrollResultsTop();
+}
+
+function matchesPopularBrandListing(listing, brand) {
+  if (!brand) return true;
+  const searchable = normalizeText([
+    listing.title,
+    listing.condition,
+    listing.shop,
+    listing.description,
+  ].filter(Boolean).join(" "));
+  return getPopularBrandSearchTerms(brand).some((term) => termMatches(searchable, term));
+}
+
+function getBrandFilteredBrowseListings(listings) {
+  const brand = getActiveBrowseBrand();
+  if (!brand) return listings;
+  return listings.filter((listing) => matchesPopularBrandListing(listing, brand));
 }
 
 function fillForm(profile) {
@@ -3009,29 +4252,40 @@ function toggleSavedSearchPopover(event) {
   }
 }
 
-function openSavedSearchPopover() {
+function openSavedSearchPopover(options = {}) {
+  savedPopoverAnchorElement = options.anchorElement || openSavedSearchesButton;
+  savedPopoverAnchorMode = options.anchorMode === "bottom" ? "bottom" : "header";
   renderSavedSearches();
   updateSavedSearchPopoverPosition();
   savedSearchPopover.hidden = false;
   document.body.classList.add("saved-popover-open");
+  document.body.classList.toggle("saved-popover-bottom-anchor", savedPopoverAnchorMode === "bottom");
   openSavedSearchesButton.setAttribute("aria-expanded", "true");
+  updateMobileBottomNavState();
 }
 
 function closeSavedSearchPopover() {
   if (savedSearchPopover.hidden) return;
   savedSearchPopover.hidden = true;
   document.body.classList.remove("saved-popover-open");
+  document.body.classList.remove("saved-popover-bottom-anchor");
   openSavedSearchesButton.setAttribute("aria-expanded", "false");
+  savedPopoverAnchorElement = null;
+  savedPopoverAnchorMode = "header";
+  updateMobileBottomNavState();
 }
 
 function updateSavedSearchPopoverPosition() {
   if (!openSavedSearchesButton || !savedSearchPopover) return;
-  const anchorRect = openSavedSearchesButton.getBoundingClientRect();
+  const anchorElement = savedPopoverAnchorElement || openSavedSearchesButton;
+  const anchorRect = anchorElement.getBoundingClientRect();
   const anchorCenterX = anchorRect.left + anchorRect.width / 2;
   const viewportWidth = document.documentElement.clientWidth || window.innerWidth || 0;
+  const viewportHeight = document.documentElement.clientHeight || window.innerHeight || 0;
   const panelRightInset = 12;
 
   savedSearchPopover.style.setProperty("--saved-popover-mobile-top", `${Math.round(anchorRect.bottom + 10)}px`);
+  savedSearchPopover.style.setProperty("--saved-popover-mobile-bottom", `${Math.max(12, Math.round(viewportHeight - anchorRect.top + 12))}px`);
   savedSearchPopover.style.setProperty("--saved-popover-anchor-right", `${Math.round(viewportWidth - anchorCenterX - panelRightInset)}px`);
 }
 
@@ -3194,6 +4448,65 @@ function viewSavedSearchFromToast() {
   openSavedSearchesButton?.focus();
 }
 
+function handleMobileBottomNavClick(event) {
+  const button = event.target.closest("[data-mobile-nav]");
+  if (!button) return;
+
+  event.preventDefault();
+  event.stopPropagation();
+
+  const navTarget = button.dataset.mobileNav;
+  if (navTarget === "home") {
+    resetHomeView(event);
+    updateMobileBottomNavState();
+    return;
+  }
+
+  if (navTarget === "saved") {
+    if (!settingsModal.hidden) closeSettingsModal({ restoreFocus: false });
+    if (!savedSearchPopover.hidden && savedPopoverAnchorMode === "bottom") {
+      closeSavedSearchPopover();
+    } else {
+      openSavedSearchPopover({ anchorElement: button, anchorMode: "bottom" });
+    }
+    return;
+  }
+
+  if (navTarget === "watchlist") {
+    closeSavedSearchPopover();
+    if (!settingsModal.hidden) closeSettingsModal({ restoreFocus: false });
+    openWatchlistView({ focusTarget: button });
+    return;
+  }
+
+  if (navTarget === "settings") {
+    closeSavedSearchPopover();
+    if (!settingsModal.hidden) {
+      closeSettingsModal({ restoreFocus: false });
+    } else {
+      openSettingsModal({ currentTarget: button }, { focusTarget: currencyToggle });
+    }
+  }
+}
+
+function updateMobileBottomNavState() {
+  if (!mobileBottomNavItems.length) return;
+
+  const activeTarget = !settingsModal.hidden
+    ? "settings"
+    : !savedSearchPopover.hidden
+      ? "saved"
+      : filterMode === "watching"
+        ? "watchlist"
+        : "home";
+
+  mobileBottomNavItems.forEach((item) => {
+    const isActive = item.dataset.mobileNav === activeTarget;
+    item.classList.toggle("is-active", isActive);
+    item.setAttribute("aria-pressed", String(isActive));
+  });
+}
+
 function openSettingsModal(event, options = {}) {
   settingsReturnFocus = event?.currentTarget || document.activeElement;
   fillSettingsForm();
@@ -3201,8 +4514,10 @@ function openSettingsModal(event, options = {}) {
   setActiveSettingsTab("general", { focus: false });
   settingsModal.hidden = false;
   document.body.classList.add("modal-open");
+  document.body.classList.add("settings-modal-open");
   updateMobileSearchOverlayVisibility();
   (options.focusTarget || currencyToggle)?.focus?.();
+  updateMobileBottomNavState();
 }
 
 function openRegionSettings(event) {
@@ -3218,9 +4533,11 @@ function closeSettingsModal(options = {}) {
   if (settingsModal.hidden) return;
   settingsModal.hidden = true;
   document.body.classList.remove("modal-open");
+  document.body.classList.remove("settings-modal-open");
   updateMobileSearchOverlayVisibility();
   if (restoreFocus) settingsReturnFocus?.focus?.();
   settingsReturnFocus = null;
+  updateMobileBottomNavState();
 }
 
 function fillSettingsForm() {
@@ -4653,6 +5970,10 @@ function renderResults(options = {}) {
   browseCardRenderId += 1;
   const renderContext = options.renderContext || createListingRenderContext();
   const watching = renderContext.watching;
+  if (filterMode === "watching") {
+    renderWatchlistResultsView(watching, renderContext);
+    return;
+  }
   if (searchState.mode === "idle") {
     if (SHOW_FRESH_FINDS_HOME_SECTION) ensureStarterFreshFindListings();
     if (isBrowseExpanded) {
@@ -4707,6 +6028,67 @@ function renderResults(options = {}) {
   renderTopWatchingControl();
 }
 
+function renderWatchlistResultsView(watching, renderContext = createListingRenderContext()) {
+  const watchedListings = getWatchedResultListings(watching, { renderContext });
+  const visibleListings = getWatchlistVisibleListings(watchedListings);
+  const totalPages = getTotalPages(visibleListings.length);
+  currentPage = Math.min(currentPage, totalPages);
+  const pageListings = paginateResults(visibleListings);
+
+  resultGrid.innerHTML = "";
+  resultGrid.classList.toggle("is-featured-home", false);
+  resultGrid.classList.toggle("is-list-view", appSettings.resultView === "list");
+  resultGrid.classList.toggle("is-gallery-view", appSettings.resultView === "gallery");
+  resultGrid.classList.toggle("is-browse-expanded", false);
+  resultGrid.classList.toggle("is-gear-browser-frame", false);
+  renderSourceFilters(watchedListings, { renderContext, ignoreQuality: true });
+  renderAlertPanel([], { renderContext });
+
+  resultGrid.appendChild(createWatchlistResultsHeader(visibleListings.length, watchedListings.length));
+
+  if (visibleListings.length > 0) {
+    pageListings.forEach((listing) => resultGrid.appendChild(renderListing(listing, { renderContext })));
+  } else if (watchedListings.length > 0) {
+    resultGrid.insertAdjacentHTML("beforeend", `
+      <div class="empty-state">
+        <strong>Watchlist hidden by source filters.</strong>
+        <span>${watchedListings.length} watched ${watchedListings.length === 1 ? "listing is" : "listings are"} saved. Clear the source filter to see the full watchlist.</span>
+        <button class="bumpers-secondary-button empty-state-action" type="button" data-result-action="clear-watchlist-source-filters">Show all watched gear</button>
+      </div>
+    `);
+  } else {
+    resultGrid.innerHTML = `
+      <div class="empty-state">
+        <strong>No watched gear yet.</strong>
+        <span>Tap a heart on any listing to save it here.</span>
+      </div>
+    `;
+  }
+
+  renderPagination(visibleListings.length, totalPages);
+  renderQualityModeControls();
+  renderResultViewControls(false);
+  renderTopWatchingControl();
+}
+
+function createWatchlistResultsHeader(visibleCount, totalCount) {
+  const header = document.createElement("section");
+  header.className = "browse-expanded-header featured-home-header is-watchlist-header";
+  const hiddenCount = Math.max(0, totalCount - visibleCount);
+  const detail = hiddenCount > 0
+    ? `${visibleCount} of ${totalCount} watched ${totalCount === 1 ? "listing" : "listings"} visible`
+    : `${totalCount} watched ${totalCount === 1 ? "listing" : "listings"}`;
+  header.innerHTML = `
+    <div class="browse-header-copy">
+      <div class="browse-title-row">
+        <h3><span class="feature-headline-button browse-expanded-headline">Watchlist</span></h3>
+      </div>
+      <span><span class="browse-category-label">saved gear</span><span class="browse-detail-rest"> has ${escapeHtml(detail)}</span></span>
+    </div>
+  `;
+  return header;
+}
+
 function createListingRenderContext() {
   return {
     watching: new Set(loadSet(STORAGE_KEYS.watching)),
@@ -4737,6 +6119,7 @@ function collectionHas(collection, value) {
 
 function renderHomeView(watching, renderContext = createListingRenderContext()) {
   isBrowseExpanded = false;
+  resetBrowseCategoryBrandView();
   const freshFindResults = SHOW_FRESH_FINDS_HOME_SECTION && filterMode !== "watching" ? getFreshFindHomeListings() : [];
   const browseResults = filterMode === "watching" ? [] : getBrowseCategoryHomeListings({ renderContext });
   const watchedHomeResults = getWatchedHomeListings(watching, { renderContext });
@@ -4755,6 +6138,7 @@ function renderHomeView(watching, renderContext = createListingRenderContext()) 
 
   if (browseResults.length > 0 || browseCategoryStatus === "loading" || browseCategoryStatus === "error") {
     resultGrid.appendChild(createFeaturedHomeSection(browseResults, { variant: "browse", renderContext }));
+    if (filterMode !== "watching") resultGrid.appendChild(createBrandBrowserSection());
   }
 
   if (SHOW_FRESH_FINDS_HOME_SECTION && freshFindResults.length > 0) {
@@ -4777,19 +6161,52 @@ function renderHomeView(watching, renderContext = createListingRenderContext()) 
   renderTopWatchingControl();
 }
 
+function createBrandBrowserSection() {
+  const section = document.createElement("section");
+  section.className = "brand-browser-section";
+  section.setAttribute("aria-labelledby", "brandBrowserTitle");
+
+  const cardsMarkup = POPULAR_BRANDS.map((brand) => {
+    const imageMarkup = brand.image
+      ? `<img src="${escapeHtml(brand.image)}" alt="" loading="lazy" decoding="async" />`
+      : `<span>${escapeHtml(getPopularBrandInitials(brand))}</span>`;
+    return `
+      <a class="brand-browser-card" href="${escapeHtml(createBrandBrowseHref(brand.slug))}" data-result-action="open-brand-browser" data-brand-slug="${escapeHtml(brand.slug)}">
+        <span class="brand-browser-avatar" aria-hidden="true">${imageMarkup}</span>
+        <span class="brand-browser-name">${escapeHtml(brand.name)}</span>
+      </a>
+    `;
+  }).join("");
+
+  section.innerHTML = `
+    <div class="brand-browser-header">
+      <h3 id="brandBrowserTitle">Browse by Brand</h3>
+      <p>Jump straight into legendary synth makers.</p>
+    </div>
+    <div class="brand-browser-grid">
+      ${cardsMarkup}
+    </div>
+  `;
+  return section;
+}
+
 function renderBrowseExpandedView(watching, renderContext = createListingRenderContext()) {
+  syncBrowseCategoryBrandView();
   ensureBrowseCategoryListings();
-  const browseListings = getBrowseCategoryExpandedListings({ renderContext });
+  const allBrowseListings = getBrowseCategoryExpandedListings({ renderContext });
+  const activeBrand = getActiveBrowseBrand();
+  const browseListings = getBrandFilteredBrowseListings(allBrowseListings);
   const visibleListings = getVisibleResults(watching, browseListings, { renderContext });
   const totalPages = getTotalPages(visibleListings.length);
   currentPage = Math.min(currentPage, totalPages);
   const pageListings = paginateResults(visibleListings);
   const renderId = ++browseCardRenderId;
+  const effectiveResultView = activeBrand ? sanitizeResultView(browseBrandResultView) : appSettings.resultView;
 
   resultGrid.innerHTML = "";
   resultGrid.classList.toggle("is-featured-home", false);
-  resultGrid.classList.toggle("is-list-view", appSettings.resultView === "list");
-  resultGrid.classList.toggle("is-gallery-view", appSettings.resultView === "gallery");
+  resultGrid.classList.toggle("is-list-view", effectiveResultView === "list");
+  resultGrid.classList.toggle("is-gallery-view", effectiveResultView === "gallery");
   resultGrid.classList.toggle("is-browse-expanded", true);
   resultGrid.classList.toggle("is-gear-browser-frame", true);
   renderSourceFilters(browseListings, { renderContext });
@@ -4808,6 +6225,13 @@ function renderBrowseExpandedView(watching, renderContext = createListingRenderC
       : createBrowseExpandedLoadingState({ compact: true, detail: "Preparing latest cards." });
     if (preparingLoader) resultGrid.appendChild(preparingLoader);
     appendBrowseListingCardsInChunks(pageListings, renderId, { loaderToRemove: preparingLoader, renderContext });
+  } else if (browseCategoryStatus !== "loading" && activeBrand) {
+    resultGrid.insertAdjacentHTML("beforeend", `
+      <div class="empty-state browse-expanded-empty">
+        <strong>No listings found for this brand right now.</strong>
+        <span>Brrtz is still scanning.</span>
+      </div>
+    `);
   } else if (browseCategoryStatus !== "loading" && browseListings.length > 0) {
     resultGrid.insertAdjacentHTML("beforeend", createNoResultsMessage(browseListings));
   } else if (browseCategoryStatus !== "loading") {
@@ -4821,7 +6245,7 @@ function renderBrowseExpandedView(watching, renderContext = createListingRenderC
 
   renderPagination(visibleListings.length, totalPages);
   renderQualityModeControls();
-  renderResultViewControls(false);
+  renderResultViewControls(false, activeBrand ? effectiveResultView : "");
   renderTopWatchingControl();
 }
 
@@ -4871,6 +6295,8 @@ function updateGearBrowserSceneAnimationState() {
 }
 
 function createBrowseCategoryLoadingLabel() {
+  const activeBrand = getActiveBrowseBrand();
+  if (activeBrand) return `Loading ${activeBrand.name}`;
   return `Loading ${getCategoryIntentLabel(browseCategoryIntent)}`;
 }
 
@@ -4922,6 +6348,10 @@ function handleResultGridAction(event) {
     if (expandedBrowseSelect) {
       scheduleHomeBrowseCategoryChange(expandedBrowseSelect.value, { expanded: true });
     }
+    const expandedBrandSelect = event.target.closest("#expandedBrowseBrand");
+    if (expandedBrandSelect) {
+      openBrandBrowseView(expandedBrandSelect.value);
+    }
     return;
   }
 
@@ -4932,15 +6362,32 @@ function handleResultGridAction(event) {
     clearResultViewFilters();
   }
 
+  if (button.dataset.resultAction === "clear-watchlist-source-filters") {
+    activeViewSources.clear();
+    resetPagination();
+    renderResults({ force: true });
+  }
+
   if (button.dataset.resultAction === "open-browse-expanded") {
+    activeBrowseBrandSlug = "";
+    browseBrandResultView = "gallery";
+    resetBrowseCategoryBrandView();
     isBrowseExpanded = true;
-    setAppView(APP_VIEW_SYNTH_BROWSER);
+    setAppView(APP_VIEW_SYNTH_BROWSER, { brandSlug: "" });
     resetPagination();
     renderResults();
     scrollResultsTop();
   }
 
+  if (button.dataset.resultAction === "open-brand-browser") {
+    event.preventDefault?.();
+    openBrandBrowseView(button.dataset.brandSlug, { resetCategory: true });
+  }
+
   if (button.dataset.resultAction === "close-browse-expanded") {
+    activeBrowseBrandSlug = "";
+    browseBrandResultView = "gallery";
+    resetBrowseCategoryBrandView();
     isBrowseExpanded = false;
     setAppView(null);
     resetPagination();
@@ -4954,7 +6401,8 @@ function clearResultViewFilters() {
   qualityFilter = appSettings.gearMode ? "clean" : "all";
   activeViewSources.clear();
   resetPagination();
-  document.querySelectorAll("#urgencyFilter button").forEach((item) => item.classList.toggle("active", item.dataset.filter === filterMode));
+  if (getCurrentAppView() === APP_VIEW_WATCHLIST) setAppView(null);
+  syncFilterModeButtons();
   renderResults();
 }
 
@@ -5032,17 +6480,57 @@ function getResultFilterLabel(mode) {
   }[mode] || capitalize(mode);
 }
 
-function toggleWatchingFilter() {
-  filterMode = filterMode === "watching" ? "all" : "watching";
+function syncFilterModeButtons() {
+  document.querySelectorAll("#urgencyFilter button").forEach((item) => {
+    item.classList.toggle("active", item.dataset.filter === filterMode);
+  });
+}
+
+function openWatchlistView(eventOrOptions = {}) {
+  const options = eventOrOptions?.currentTarget ? {} : eventOrOptions;
+  eventOrOptions?.preventDefault?.();
+  eventOrOptions?.stopPropagation?.();
+  selectInteractionActive = false;
+  clearScheduledSearchResultApply();
+  deferredResultsRender = false;
+  pendingSourceIds.clear();
+  sourceSearchStatuses.clear();
+  sourceSearchMeta.clear();
+  activeBrowseBrandSlug = "";
+  cancelBrowseCategoryLoad();
+  resetBrowseCategoryBrandView();
+  isBrowseExpanded = false;
+  activeViewSources.clear();
+  filterMode = "watching";
   resetPagination();
-  document.querySelectorAll("#urgencyFilter button").forEach((item) => item.classList.toggle("active", item.dataset.filter === filterMode));
-  renderResults();
-  if (filterMode === "watching" && !hasWatchedListings()) {
+  syncFilterModeButtons();
+  setAppView(APP_VIEW_WATCHLIST, { replace: Boolean(options.replace) });
+  renderResults({ force: true });
+  scrollResultsTop();
+  if (!hasWatchedListings()) {
     showStatusToast({
       icon: "♡",
       message: "Tap a heart on any listing to save it to Watching.",
     });
   }
+  options.focusTarget?.focus?.();
+}
+
+function closeWatchlistView() {
+  if (filterMode !== "watching") return;
+  filterMode = "all";
+  resetPagination();
+  syncFilterModeButtons();
+  if (getCurrentAppView() === APP_VIEW_WATCHLIST) setAppView(null);
+  renderResults();
+}
+
+function toggleWatchingFilter() {
+  if (filterMode === "watching") {
+    closeWatchlistView();
+    return;
+  }
+  openWatchlistView();
 }
 
 function renderTopWatchingControl() {
@@ -5054,6 +6542,7 @@ function renderTopWatchingControl() {
     savedWatchingFilter.setAttribute("aria-pressed", String(isWatching));
     savedWatchingFilter.textContent = isWatching ? "Show all gear" : "Show watched gear";
   }
+  updateMobileBottomNavState();
 }
 
 function setQualityMode(mode) {
@@ -5088,6 +6577,13 @@ function renderQualityModeControls() {
 
 function setResultView(mode = "grid") {
   const resultView = sanitizeResultView(mode);
+  if (isBrowseExpanded && getActiveBrowseBrand()) {
+    if (browseBrandResultView === resultView) return;
+    browseBrandResultView = resultView;
+    renderResults();
+    return;
+  }
+
   if (appSettings.resultView === resultView) return;
 
   appSettings = {
@@ -5154,8 +6650,11 @@ function changePage(action) {
 }
 
 function getPaginationResults(watching = loadSet(STORAGE_KEYS.watching), options = {}) {
+  if (filterMode === "watching") {
+    return getWatchlistVisibleListings(getWatchedResultListings(watching, options));
+  }
   if (searchState.mode === "idle" && isBrowseExpanded) {
-    return getVisibleResults(watching, getBrowseCategoryExpandedListings(), options);
+    return getVisibleResults(watching, getBrandFilteredBrowseListings(getBrowseCategoryExpandedListings()), options);
   }
   return getVisibleResults(watching, currentResults, options);
 }
@@ -5541,6 +7040,7 @@ function isSafeManualSourceUrl(value) {
 function getSourceFilteredBaseResults(baseResults = currentResults, options = {}) {
   const renderContext = options.renderContext || null;
   const watching = renderContext?.watching || loadSet(STORAGE_KEYS.watching);
+  const ignoreQuality = options.ignoreQuality === true;
   return baseResults
     .filter((listing) => {
       if (filterMode === "new") return isListingMarkedNew(listing, renderContext);
@@ -5550,7 +7050,7 @@ function getSourceFilteredBaseResults(baseResults = currentResults, options = {}
       return true;
     })
     .filter((listing) => !isUnavailableListing(listing))
-    .filter((listing) => qualityFilter === "all" || isCleanGearListing(listing, renderContext));
+    .filter((listing) => ignoreQuality || qualityFilter === "all" || isCleanGearListing(listing, renderContext));
 }
 
 function toggleViewSource(sourceId) {
@@ -5995,7 +7495,7 @@ function createFeaturedHomeHeader(count, options = {}) {
               <span>Browse</span>
               <select id="homeBrowseCategory" aria-label="Browse category">${optionsMarkup}</select>
             </label>
-            <button class="browse-view-all-button" type="button" data-result-action="open-browse-expanded">All</button>
+            <button class="browse-view-all-button" type="button" data-result-action="open-browse-expanded">See All</button>
           </div>
         </div>
         <span>${browseDetailMarkup}</span>
@@ -6027,6 +7527,35 @@ function createFeaturedHomeHeader(count, options = {}) {
 function createBrowseExpandedHeader(visibleCount, totalCount) {
   const header = document.createElement("section");
   header.className = "browse-expanded-header featured-home-header is-browse-header";
+  const activeBrand = getActiveBrowseBrand();
+  if (activeBrand) {
+    header.classList.add("is-brand-browse-header");
+    const brandOptionsMarkup = POPULAR_BRANDS.map((brand) => `
+      <option value="${escapeHtml(brand.slug)}" ${brand.slug === activeBrand.slug ? "selected" : ""}>${escapeHtml(brand.name)}</option>
+    `).join("");
+    const brandDetailMarkup = browseCategoryStatus === "loading"
+      ? `<span class="browse-detail-rest browse-loading-detail">Searching the expanse for ${escapeHtml(activeBrand.name)}</span>`
+      : browseCategoryStatus === "error"
+        ? escapeHtml(browseCategoryError || "Brand browser is warming up")
+        : `<span class="browse-category-label">${escapeHtml(activeBrand.name)}</span><span class="browse-detail-rest"> has ${escapeHtml(`${visibleCount} curated ${visibleCount === 1 ? "listing" : "listings"}`)}</span>`;
+
+    header.innerHTML = `
+      <div class="browse-header-copy">
+        <div class="browse-title-row">
+          <h3><span class="feature-headline-button browse-expanded-headline">${escapeHtml(activeBrand.name)}</span></h3>
+          <div class="browse-header-actions">
+            <label class="browse-category-control browse-brand-control">
+              <span>Brand</span>
+              <select id="expandedBrowseBrand" aria-label="Browse brand">${brandOptionsMarkup}</select>
+            </label>
+          </div>
+        </div>
+        <span>${brandDetailMarkup}</span>
+      </div>
+    `;
+    return header;
+  }
+
   const optionsMarkup = BROWSE_CATEGORY_INTENTS.map((intent) => `
     <option value="${escapeHtml(intent.id)}" ${intent.id === browseCategoryIntent ? "selected" : ""}>${escapeHtml(intent.label)}</option>
   `).join("");
@@ -6083,9 +7612,53 @@ function createFeaturedHomeSection(listings, options = {}) {
     if (listings.length === 0) return section;
   }
 
+  if (variant === "browse") {
+    const preview = document.createElement("div");
+    preview.className = "gear-browser-preview";
+
+    const carousel = document.createElement("div");
+    carousel.className = "featured-home-carousel gear-browser-double-carousel";
+
+    const previousButton = document.createElement("button");
+    previousButton.className = "featured-carousel-control featured-carousel-control-prev";
+    previousButton.type = "button";
+    previousButton.setAttribute("aria-label", "Show previous Gear Scanner listings");
+
+    const rail = document.createElement("div");
+    rail.className = "featured-home-rail gear-browser-double-rail";
+    listings.slice(0, BROWSE_HOME_LIMIT).forEach((listing) => {
+      if (listing.isFreshFindLoading) {
+        rail.appendChild(createFeaturedHomeLoadingCard(listing));
+        return;
+      }
+
+      const listingFragment = renderListing(listing, { isFeaturedHome: false, renderContext });
+      const card = listingFragment.querySelector(".listing-card");
+      card?.classList.add("is-browse-home-card");
+      rail.appendChild(listingFragment);
+    });
+
+    const nextButton = document.createElement("button");
+    nextButton.className = "featured-carousel-control featured-carousel-control-next";
+    nextButton.type = "button";
+    nextButton.setAttribute("aria-label", "Show more Gear Scanner listings");
+
+    carousel.append(previousButton, rail, nextButton);
+
+    const seeAllLink = document.createElement("button");
+    seeAllLink.className = "gear-browser-see-all-link";
+    seeAllLink.type = "button";
+    seeAllLink.dataset.resultAction = "open-browse-expanded";
+    seeAllLink.textContent = "See All";
+
+    preview.append(carousel, seeAllLink);
+    section.appendChild(preview);
+    setupFeaturedHomeCarousel(rail, previousButton, nextButton);
+    return section;
+  }
+
   const carousel = document.createElement("div");
   carousel.className = "featured-home-carousel";
-
   const previousButton = document.createElement("button");
   previousButton.className = "featured-carousel-control featured-carousel-control-prev";
   previousButton.type = "button";
@@ -6203,11 +7776,13 @@ function getBrowseCategoryHomeListings(options = {}) {
   if (browseCategoryListings.length > 0) {
     const preparedCache = getBrowsePreparedListingsCache(browseCategoryListings, renderContext);
     if (!preparedCache.home) {
-      preparedCache.home = curateFreshFindListings(browseCategoryListings, {
-        limit: BROWSE_HOME_LIMIT,
-        candidateLimit: BROWSE_HOME_CURATION_CANDIDATE_LIMIT,
-        renderContext,
-      });
+      preparedCache.home = getActiveBrowseBrand()
+        ? prepareBrandBrowseListings(browseCategoryListings, { limit: BROWSE_HOME_LIMIT, renderContext })
+        : curateFreshFindListings(browseCategoryListings, {
+          limit: BROWSE_HOME_LIMIT,
+          candidateLimit: BROWSE_HOME_CURATION_CANDIDATE_LIMIT,
+          renderContext,
+        });
     }
     return preparedCache.home;
   }
@@ -6222,7 +7797,9 @@ function getBrowseCategoryExpandedListings(options = {}) {
   if (browseCategoryListings.length > 0) {
     const preparedCache = getBrowsePreparedListingsCache(browseCategoryListings, renderContext);
     if (!preparedCache.expanded) {
-      preparedCache.expanded = prepareLatestBrowseListings(browseCategoryListings, { limit: BROWSE_EXPANDED_LIMIT, renderContext });
+      preparedCache.expanded = getActiveBrowseBrand()
+        ? prepareBrandBrowseListings(browseCategoryListings, { limit: BROWSE_EXPANDED_LIMIT, renderContext })
+        : prepareLatestBrowseListings(browseCategoryListings, { limit: BROWSE_EXPANDED_LIMIT, renderContext });
     }
     return preparedCache.expanded;
   }
@@ -6236,6 +7813,7 @@ function getBrowsePreparedListingsCache(listings, renderContext = null) {
   const signature = [
     appSettings.regionId,
     browseCategoryIntent,
+    browseCategoryBrandSlug,
     qualityFilter,
     listings.length,
     listings[0]?.id || listings[0]?.url || "",
@@ -6270,6 +7848,7 @@ function ensureBrowseCategoryListings() {
   browseCategoryRequestId = requestId;
   browseCategoryStatus = "loading";
   browseCategoryError = "";
+  browseCategoryBrandSlug = activeBrowseBrandSlug ? sanitizePopularBrandSlug(activeBrowseBrandSlug) : "";
 
   fetchBrowseCategoryListings(requestedCategoryIntent, { signal: abortController.signal })
     .then((listings) => {
@@ -6303,6 +7882,12 @@ function ensureBrowseCategoryListings() {
 }
 
 async function fetchBrowseCategoryListings(categoryIntent, options = {}) {
+  const activeBrand = getActiveBrowseBrand();
+  const brandRecipe = getPopularBrandRecipe(activeBrand);
+  if (activeBrand && brandRecipe) {
+    return fetchBrandBrowseListings(activeBrand, brandRecipe, categoryIntent, options);
+  }
+
   const params = new URLSearchParams({
     categoryIntent: sanitizeCategoryIntent(categoryIntent, appSettings.regionId),
     region: getActiveRegion().id,
@@ -6323,6 +7908,43 @@ async function fetchBrowseCategoryListings(categoryIntent, options = {}) {
       ...listing,
       isBrowseCategoryListing: true,
     }));
+}
+
+async function fetchBrandBrowseListings(brand, brandRecipe, categoryIntent, options = {}) {
+  const region = getActiveRegion();
+  const sourceTerms = brandRecipe.sourceTerms || brandRecipe.searchTerms;
+  const params = new URLSearchParams({
+    terms: createSourceSearchTerms(sourceTerms).join("|"),
+    excludes: createBrandRecipeRequestExcludes(brand).join("|"),
+    categoryIntent: sanitizeCategoryIntent(categoryIntent, appSettings.regionId),
+    maxPrice: String(brandRecipe.maxPrice || 0),
+    sources: getBrandRecipeSourcesForRegion(brandRecipe, region.id).join("|"),
+    region: region.id,
+  });
+  const response = await fetch(`/api/search?${params.toString()}`, { cache: "no-store", signal: options.signal });
+  if (!response.ok) throw new Error(`Brand browse failed with ${response.status}`);
+
+  const payload = await response.json();
+  const listings = Array.isArray(payload.listings) ? payload.listings : [];
+  const qualityContext = createGearQualityContext();
+  return listings
+    .filter((listing) => !isUnavailableListing(listing))
+    .filter((listing) => matchesPopularBrandListing(listing, brand))
+    .filter((listing) => qualityFilter === "all" || isCleanGearListing(listing, qualityContext))
+    .filter((listing) => !hasStarterFreshFindNoise(listing))
+    .map((listing) => ({
+      ...listing,
+      isBrowseCategoryListing: true,
+      isBrandBrowseListing: true,
+    }));
+}
+
+function getBrandRecipeSourcesForRegion(brandRecipe, regionId = appSettings.regionId) {
+  const regionSourceIds = getRegionSourceIds(regionId);
+  const regionSourceSet = new Set(regionSourceIds);
+  const recipeSources = Array.isArray(brandRecipe?.sources) ? brandRecipe.sources : [];
+  const matchedSources = recipeSources.filter((sourceId) => regionSourceSet.has(sourceId));
+  return matchedSources.length > 0 ? matchedSources : regionSourceIds;
 }
 
 function createBrowseCategoryLoadingPlaceholders() {
@@ -6348,6 +7970,7 @@ function cancelBrowseCategoryLoad() {
 
 function scheduleBrowseCategoryPostLoadWork(categoryIntent, listings) {
   if (!Array.isArray(listings) || listings.length === 0) return;
+  if (browseCategoryBrandSlug) return;
   const normalizedCategoryIntent = sanitizeCategoryIntent(categoryIntent, appSettings.regionId);
   const taskId = ++browseCategoryPostLoadTaskId;
   const runDiscoveryUpdate = () => {
@@ -6394,11 +8017,13 @@ function scheduleHomeBrowseCategoryChange(categoryIntent, options = {}) {
   clearBrowsePreparedListingsCache();
   browseCategoryStatus = "idle";
   browseCategoryError = "";
+  browseCategoryBrandSlug = "";
   resetPagination();
 
   if (options.expanded) {
+    activeBrowseBrandSlug = "";
     isBrowseExpanded = true;
-    setAppView(APP_VIEW_SYNTH_BROWSER, { replace: true });
+    setAppView(APP_VIEW_SYNTH_BROWSER, { brandSlug: "", replace: true });
   }
 
   const selectionRequestId = browseCategoryRequestId;
@@ -6425,10 +8050,12 @@ function setHomeBrowseCategory(categoryIntent, options = {}) {
   clearBrowsePreparedListingsCache();
   browseCategoryStatus = "idle";
   browseCategoryError = "";
+  browseCategoryBrandSlug = "";
   if (searchState.mode === "idle") renderResults({ force: Boolean(options.forceRender) });
 }
 
 function getCachedBrowseCategoryListings(categoryIntent = browseCategoryIntent, options = {}) {
+  if (browseCategoryBrandSlug) return [];
   const cache = loadFreshFindCache();
   const regionCache = cache[getActiveRegion().id];
   const categoryCache = regionCache?.browseCategories?.[sanitizeCategoryIntent(categoryIntent, appSettings.regionId)];
@@ -6454,6 +8081,24 @@ function getBrowseCategoryFreshness(categoryIntent = browseCategoryIntent) {
   const regionCache = cache[getActiveRegion().id];
   const categoryCache = regionCache?.browseCategories?.[sanitizeCategoryIntent(categoryIntent, appSettings.regionId)];
   return browseCategoryUpdatedAt || categoryCache?.generatedAt || "";
+}
+
+function prepareBrandBrowseListings(listings, options = {}) {
+  const limit = options.limit || BROWSE_EXPANDED_LIMIT;
+  const ledger = options.ledger || options.renderContext?.ledger || loadLedger();
+  const qualityContext = options.renderContext || createGearQualityContext();
+  const seenIds = new Set();
+  return listings
+    .filter((listing) => {
+      if (!listing?.id || seenIds.has(listing.id)) return false;
+      seenIds.add(listing.id);
+      return true;
+    })
+    .filter((listing) => !isUnavailableListing(listing))
+    .filter((listing) => qualityFilter === "all" || isCleanGearListing(listing, qualityContext))
+    .sort(compareListings)
+    .slice(0, limit)
+    .map((listing) => decorateFreshFindListing(listing, ledger, qualityContext));
 }
 
 function prepareLatestBrowseListings(listings, options = {}) {
@@ -6651,6 +8296,25 @@ function getWatchedHomeListings(watchingIds = loadSet(STORAGE_KEYS.watching), op
     .sort((a, b) => scoreFreshFindListing(b, ledger, qualityContext) - scoreFreshFindListing(a, ledger, qualityContext))
     .slice(0, FEATURED_HOME_LIMIT)
     .map((listing) => decorateFreshFindListing(listing, ledger, qualityContext));
+}
+
+function getWatchedResultListings(watchingIds = loadSet(STORAGE_KEYS.watching), options = {}) {
+  const ledger = options.renderContext?.ledger || loadLedger();
+  return normalizeStoredList(watchingIds)
+    .map((id, index) => ({ id, index, entry: ledger[id] }))
+    .filter((item) => item.entry)
+    .map((item) => ({
+      ...createListingFromLedgerEntry(item.entry),
+      watchlistIndex: item.index,
+      isWatchlistListing: true,
+    }))
+    .filter((listing) => listing.title && listing.url)
+    .filter((listing) => !isUnavailableListing(listing))
+    .sort((first, second) => second.watchlistIndex - first.watchlistIndex);
+}
+
+function getWatchlistVisibleListings(listings) {
+  return listings.filter((listing) => activeViewSources.size === 0 || activeViewSources.has(listing.source));
 }
 
 function createFreshFindLoadingPlaceholders() {
