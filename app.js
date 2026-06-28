@@ -259,7 +259,7 @@ const POPULAR_BRANDS = [
       "OB12",
       "OB-12",
     ],
-    image: "",
+    image: "assets/brand/oberheim_brand.jpg",
   },
   {
     name: "Sequential Circuits",

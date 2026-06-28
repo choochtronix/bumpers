@@ -5625,6 +5625,11 @@ body[data-theme="dark"] .browse-view-all-button:hover {
 .listing-card.is-browse-home-card {
   border-radius: 22px;
   min-width: 0;
+  transition:
+    background 180ms ease,
+    box-shadow 180ms ease,
+    color 180ms ease,
+    transform 180ms ease;
 }
 
 .gear-browser-preview-grid .listing-card.is-browse-home-card,
@@ -5659,14 +5664,48 @@ body[data-theme="dark"] .browse-view-all-button:hover {
   margin-top: 0;
 }
 
+.listing-card.is-browse-home-card h3 {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.listing-card.is-browse-home-card .price-row strong {
+  font-size: 18px;
+}
+
 .listing-card.is-browse-home-card .price-row span,
 .listing-card.is-browse-home-card .feedback-button {
   display: none;
 }
 
+.listing-card.is-browse-home-card .open-link {
+  display: none;
+}
+
 .listing-card.is-browse-home-card .card-actions {
-  grid-template-columns: minmax(0, 1fr) 36px;
+  display: flex;
+  justify-content: flex-end;
   margin-top: auto;
+}
+
+.gear-browser-preview-grid .listing-card.is-browse-home-card:hover,
+.gear-browser-preview-grid .listing-card.is-browse-home-card:focus-within,
+.gear-browser-double-rail .listing-card.is-browse-home-card:hover,
+.gear-browser-double-rail .listing-card.is-browse-home-card:focus-within {
+  background: var(--brand-gradient, linear-gradient(110deg, #ff00ff 0%, #0072ff 100%));
+  box-shadow: 0 22px 48px rgba(0, 114, 255, 0.18), 0 18px 42px rgba(255, 0, 255, 0.14);
+}
+
+.gear-browser-preview-grid .listing-card.is-browse-home-card:hover h3,
+.gear-browser-preview-grid .listing-card.is-browse-home-card:focus-within h3,
+.gear-browser-preview-grid .listing-card.is-browse-home-card:hover .price-row strong,
+.gear-browser-preview-grid .listing-card.is-browse-home-card:focus-within .price-row strong,
+.gear-browser-double-rail .listing-card.is-browse-home-card:hover h3,
+.gear-browser-double-rail .listing-card.is-browse-home-card:focus-within h3,
+.gear-browser-double-rail .listing-card.is-browse-home-card:hover .price-row strong,
+.gear-browser-double-rail .listing-card.is-browse-home-card:focus-within .price-row strong {
+  color: #ffffff;
 }
 
 .featured-home-rail .listing-card.is-browse-home-card .watch-button {
@@ -5695,6 +5734,45 @@ body[data-theme="dark"] .browse-view-all-button:hover {
 
 .result-grid.is-browse-expanded.is-gear-browser-frame:not(.is-list-view):not(.is-gallery-view) {
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
+.result-grid.is-browse-expanded.is-gear-browser-frame .listing-card {
+  transition:
+    background 180ms ease,
+    box-shadow 180ms ease,
+    color 180ms ease,
+    transform 180ms ease;
+}
+
+.result-grid.is-browse-expanded.is-gear-browser-frame .listing-card:hover,
+.result-grid.is-browse-expanded.is-gear-browser-frame .listing-card:focus-within {
+  background: var(--brand-gradient, linear-gradient(110deg, #ff00ff 0%, #0072ff 100%));
+  box-shadow: 0 22px 48px rgba(0, 114, 255, 0.18), 0 18px 42px rgba(255, 0, 255, 0.14);
+}
+
+.result-grid.is-browse-expanded.is-gear-browser-frame .listing-card:hover h3,
+.result-grid.is-browse-expanded.is-gear-browser-frame .listing-card:focus-within h3,
+.result-grid.is-browse-expanded.is-gear-browser-frame .listing-card:hover .price-row strong,
+.result-grid.is-browse-expanded.is-gear-browser-frame .listing-card:focus-within .price-row strong {
+  color: #ffffff;
+}
+
+.result-grid.is-browse-expanded.is-gear-browser-frame .open-link {
+  display: none;
+}
+
+.result-grid.is-browse-expanded.is-gear-browser-frame .card-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.result-grid.is-browse-expanded.is-gear-browser-frame:not(.is-list-view):not(.is-gallery-view) .listing-card h3 {
+  font-size: 15px;
+  line-height: 1.2;
+}
+
+.result-grid.is-browse-expanded.is-gear-browser-frame:not(.is-list-view):not(.is-gallery-view) .price-row strong {
+  font-size: 21px;
 }
 
 .result-grid.is-browse-expanded.is-list-view {
@@ -5965,7 +6043,7 @@ body[data-theme="dark"] .browse-expanded-loader-copy {
     padding: 0 36px 0 14px;
     background-position: right 14px center;
     background-size: 16px 16px;
-    font-size: 13px;
+    font-size: 12px;
   }
 
   .browse-category-control.browse-brand-control select {
@@ -5976,7 +6054,7 @@ body[data-theme="dark"] .browse-expanded-loader-copy {
     min-height: 42px;
     min-width: 74px;
     padding-inline: 12px;
-    font-size: 13px;
+    font-size: 12px;
   }
 
   .browse-headline-loading {
@@ -6100,7 +6178,7 @@ body[data-theme="dark"] .browse-expanded-loader-copy {
 
   .brand-browser-name {
     min-height: 2.2em;
-    font-size: 13px;
+    font-size: 12px;
   }
 
   .gear-browser-preview-grid .listing-card.is-browse-home-card,
@@ -6289,7 +6367,7 @@ body[data-theme="dark"] .browse-expanded-loader-copy {
 
   .result-grid.is-browse-expanded.is-gear-browser-frame:not(.is-list-view):not(.is-gallery-view) .listing-card h3 {
     min-height: 0;
-    font-size: 14px;
+    font-size: 13px;
     line-height: 1.18;
   }
 
@@ -6298,7 +6376,7 @@ body[data-theme="dark"] .browse-expanded-loader-copy {
   }
 
   .result-grid.is-browse-expanded.is-gear-browser-frame:not(.is-list-view):not(.is-gallery-view) .price-row strong {
-    font-size: 18px;
+    font-size: 16px;
   }
 
   .result-grid.is-browse-expanded.is-gear-browser-frame:not(.is-list-view):not(.is-gallery-view) .price-row span {
@@ -8277,11 +8355,11 @@ body[data-theme="dark"] .refine-backdrop {
     display: inline-flex;
     min-height: 32px;
     align-items: center;
-    padding: 0 12px;
+    padding: 0 10px;
     border-radius: var(--radius-pill);
     background: color-mix(in srgb, #111418 78%, transparent);
     color: #fff;
-    font-size: 15px;
+    font-size: 12px;
     font-weight: 900;
     line-height: 1;
     box-shadow: 0 10px 22px rgba(0, 0, 0, 0.24);
@@ -8300,16 +8378,6 @@ body[data-theme="dark"] .refine-backdrop {
   body[data-theme="dark"] .listing-card.is-browse-home-card .price-row strong {
     background: color-mix(in srgb, #f7f8f4 92%, transparent);
     color: #111418;
-  }
-}
-
-@media (max-width: 980px) {
-  .featured-home-section.is-gear-browser-frame .featured-carousel-control {
-    display: none;
-  }
-
-  .featured-home-section.is-gear-browser-frame .featured-carousel-control[hidden] {
-    display: none;
   }
 }
 
