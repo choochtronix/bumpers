@@ -413,9 +413,9 @@ const POPULAR_BRANDS = [
       "Trigon6",
       "Fourm",
     ],
-    image: "",
+    image: "assets/brand/sequential_brand.jpg",
   },
-  { name: "Waldorf", slug: "waldorf", searchTerms: ["Waldorf"], image: "" },
+  { name: "Waldorf", slug: "waldorf", searchTerms: ["Waldorf"], image: "assets/brand/waldorf_brand.jpg" },
   { name: "Ensoniq", slug: "ensoniq", searchTerms: ["Ensoniq", "エンソニック"], image: "" },
 ];
 const BRAND_RECIPE_TEMPLATE = {
@@ -7137,6 +7137,7 @@ async function fetchLiveListings(profile, sourceOverride = profile.sources) {
 function renderListing(listing, options = {}) {
   const fragment = template.content.cloneNode(true);
   const card = fragment.querySelector(".listing-card");
+  const imageStage = fragment.querySelector(".image-stage");
   const imageLink = fragment.querySelector(".image-link");
   const image = fragment.querySelector("img");
   const source = SOURCES.find((item) => item.id === listing.source);
@@ -7156,6 +7157,10 @@ function renderListing(listing, options = {}) {
   const feedbackStatus = getListingFeedbackStatus(listing, feedback);
   const isFeaturedHome = Boolean(options.isFeaturedHome);
   const newness = getListingNewness(listing, renderContext);
+
+  if (imageStage && moreActionButton?.parentElement) {
+    imageStage.appendChild(moreActionButton.parentElement);
+  }
 
   card.classList.toggle("is-featured-home-card", isFeaturedHome);
   card.classList.toggle("is-new", newness.isNewToUser || newness.isNewForSearch);
