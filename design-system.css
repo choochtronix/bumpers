@@ -7,6 +7,7 @@
   --color-panel-soft: rgba(255, 255, 255, 0.82);
   --color-panel-glass: rgba(255, 255, 255, 0.74);
   --color-ink: #151515;
+  --color-listing-title: #111416;
   --color-muted: #6f746d;
   --color-line: #d9ddd5;
   --color-field: rgba(255, 255, 255, 0.9);
@@ -76,6 +77,7 @@
   --panel-soft: var(--color-panel-soft);
   --panel-glass: var(--color-panel-glass);
   --ink: var(--color-ink);
+  --listing-title: var(--color-listing-title);
   --muted: var(--color-muted);
   --line: var(--color-line);
   --field: var(--color-field);
@@ -113,6 +115,7 @@ body[data-theme="dark"] {
   --color-panel-soft: rgba(24, 27, 31, 0.86);
   --color-panel-glass: rgba(24, 27, 31, 0.78);
   --color-ink: #f2f4f4;
+  --color-listing-title: #d7dcdf;
   --color-muted: #9da5a7;
   --color-line: #30363a;
   --color-field: rgba(19, 22, 25, 0.95);
@@ -146,6 +149,7 @@ body[data-theme="dark"] {
   --panel-soft: var(--color-panel-soft);
   --panel-glass: var(--color-panel-glass);
   --ink: var(--color-ink);
+  --listing-title: var(--color-listing-title);
   --muted: var(--color-muted);
   --line: var(--color-line);
   --field: var(--color-field);

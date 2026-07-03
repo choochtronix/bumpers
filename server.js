@@ -3866,6 +3866,8 @@ function parseYahooAuctions(html) {
     const categoryPath = splitCategoryPath(readAttribute(block, "data-auction-categoryidpath"));
     const startTime = Number(matchOne(block, /st:(\d+)/)) || Number(matchOne(block, /stm=(\d+)/));
     const endTime = Number(matchOne(block, /data-auction-endtime="(\d+)"/)) || Number(matchOne(block, /end:(\d+)/)) || Number(matchOne(block, /etm=(\d+)/));
+    const buyoutPrice = Number(readAttribute(block, "data-auction-buynowprice") || "0");
+    const startPrice = Number(readAttribute(block, "data-auction-startprice") || "0");
     const bidCount = cleanText(matchOne(block, /<dd class="Product__bid">([\s\S]*?)<\/dd>/));
     const remainingTime = cleanText(matchOne(block, /<dd class="Product__time[^"]*"[^>]*>([\s\S]*?)<\/dd>/));
 
@@ -3881,6 +3883,14 @@ function parseYahooAuctions(html) {
       image,
       categoryId,
       categoryPath,
+      auction: {
+        currentPrice: price,
+        buyoutPrice,
+        startPrice,
+        bidCount: Number(bidCount.replace(/[^\d]/g, "")) || 0,
+        remainingTime,
+        endAt: unixTimestampToIso(endTime) || "",
+      },
     };
   }).filter((listing) => listing.id !== "yahoo-auctions-" && listing.title && listing.url);
 }

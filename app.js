@@ -3460,8 +3460,8 @@ function handleQuickSearchKeydown(event) {
 }
 
 function handlePrimaryTermsInput() {
-  clearSearchSpecificExcludesForNewTerms();
   syncPrimaryTermsToRefine();
+  clearSearchSpecificExcludesForNewTerms();
   syncMobileSearchInputFromPrimary();
 }
 
@@ -3780,7 +3780,8 @@ function syncPrimaryTermsToRefine() {
   updateQuickSaveSearchButton();
 }
 
-function syncRefineTermsToPrimary() {
+function syncRefineTermsToPrimary(event) {
+  if (event && event.target !== refineTermsInput) return;
   autoSizeRefineTermsInput();
   renderPrimarySearchTerm();
   renderSearchTermsSummary();
@@ -6867,6 +6868,8 @@ function renderListing(listing, options = {}) {
   const imageStage = fragment.querySelector(".image-stage");
   const imageLink = fragment.querySelector(".image-link");
   const image = fragment.querySelector("img");
+  const listingBody = fragment.querySelector(".listing-body");
+  const priceRow = fragment.querySelector(".price-row");
   const source = SOURCES.find((item) => item.id === listing.source);
   const watchButton = fragment.querySelector(".watch-button");
   const hideSimilarButton = fragment.querySelector(".hide-similar-button");
@@ -6874,10 +6877,12 @@ function renderListing(listing, options = {}) {
   const noiseButton = fragment.querySelector(".noise-button");
   const openLink = fragment.querySelector(".open-link");
   const moreActionButton = fragment.querySelector(".more-action-button");
+  const listingActionMenu = moreActionButton?.parentElement || null;
   const openMenu = fragment.querySelector(".open-menu");
   const sourceOpenLink = fragment.querySelector(".source-open-link");
   const buyeeOpenLink = fragment.querySelector(".buyee-open-link");
   const copyListingLink = fragment.querySelector(".copy-listing-link");
+  const noiseMenuAction = fragment.querySelector(".noise-menu-action");
   const renderContext = options.renderContext || createListingRenderContext();
   const watching = renderContext.watching;
   const feedback = renderContext.feedback;
@@ -6889,8 +6894,8 @@ function renderListing(listing, options = {}) {
   listSourceAvatar.className = "source-avatar list-source-avatar";
   card.appendChild(listSourceAvatar);
 
-  if (imageStage && moreActionButton?.parentElement) {
-    imageStage.appendChild(moreActionButton.parentElement);
+  if (listingBody && priceRow && listingActionMenu) {
+    listingBody.insertBefore(listingActionMenu, priceRow.nextSibling);
   }
 
   card.classList.toggle("is-featured-home-card", isFeaturedHome);
@@ -6916,6 +6921,7 @@ function renderListing(listing, options = {}) {
   renderShopName(fragment.querySelector(".shop-name"), listing);
   fragment.querySelector(".price-row strong").textContent = listing.priceLabel || formatPrice(listing.price);
   fragment.querySelector(".price-row span").textContent = "";
+  renderAuctionDetails(fragment.querySelector(".auction-detail-row"), listing);
   openLink.href = listing.url;
   imageLink.addEventListener("click", (event) => handlePrimaryListingOpen(event, listing.url));
   openLink.addEventListener("click", (event) => handlePrimaryListingOpen(event, listing.url));
@@ -6950,6 +6956,15 @@ function renderListing(listing, options = {}) {
     setTimeout(() => {
       copyListingLink.textContent = "Copy URL";
     }, 1200);
+  });
+
+  noiseMenuAction?.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    closeListingActionMenu(openMenu);
+    saveListingFeedback(listing, "noise");
+    acknowledgeListings([listing], { dismissed: true });
+    renderResults();
   });
 
   watchButton.addEventListener("click", (event) => {
@@ -7074,6 +7089,76 @@ function renderListingNewnessBadges(fragment, newness) {
     newPill.textContent = "New";
     newPill.title = getListingNewnessTitle(newness);
   }
+}
+
+function renderAuctionDetails(container, listing) {
+  if (!container) return;
+
+  const auction = listing?.source === "yahoo-auctions" && listing.auction && typeof listing.auction === "object"
+    ? listing.auction
+    : null;
+  const details = auction ? getYahooAuctionDetailItems(auction) : [];
+  container.replaceChildren();
+  container.hidden = details.length === 0;
+
+  details.forEach((detail) => {
+    const item = document.createElement("span");
+    item.className = `auction-detail auction-detail-${detail.type}`;
+    const label = document.createElement("span");
+    label.className = "auction-detail-label";
+    label.textContent = detail.label;
+    const value = document.createElement("strong");
+    value.textContent = detail.value;
+    item.append(label, value);
+    container.appendChild(item);
+  });
+}
+
+function getYahooAuctionDetailItems(auction) {
+  const details = [];
+  const buyoutPrice = Number(auction.buyoutPrice || 0);
+  const currentPrice = Number(auction.currentPrice || 0);
+  const bidCount = Number(auction.bidCount || 0);
+  const remainingTime = String(auction.remainingTime || "").trim();
+  const endAt = String(auction.endAt || "").trim();
+
+  if (buyoutPrice > 0 && buyoutPrice !== currentPrice) {
+    details.push({ type: "buyout", label: "Buyout", value: formatPrice(buyoutPrice, "JPY") });
+  } else if (buyoutPrice > 0) {
+    details.push({ type: "buyout", label: "Buyout", value: "same" });
+  }
+
+  details.push({ type: "bids", label: "Bids", value: String(bidCount) });
+
+  if (remainingTime) {
+    details.push({ type: "time", label: "Left", value: formatYahooRemainingTime(remainingTime) });
+  } else if (endAt) {
+    details.push({ type: "time", label: "Ends", value: formatAuctionEndTime(endAt) });
+  }
+
+  return details;
+}
+
+function formatYahooRemainingTime(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+
+  return text
+    .replace(/(\d+)\s*日/g, (_, amount) => `${amount} ${amount === "1" ? "day" : "days"}`)
+    .replace(/(\d+)\s*時間/g, (_, amount) => `${amount} ${amount === "1" ? "hour" : "hours"}`)
+    .replace(/(\d+)\s*分/g, (_, amount) => `${amount} ${amount === "1" ? "min" : "mins"}`)
+    .replace(/(\d+)\s*秒/g, (_, amount) => `${amount} ${amount === "1" ? "sec" : "secs"}`);
+}
+
+function formatAuctionEndTime(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date);
 }
 
 function configureBuyeeLink(link, listing) {
