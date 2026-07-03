@@ -8,7 +8,7 @@ A free public search tool for finding used synthesizers, electronic music instru
 
 ## Stack
 
-- **Frontend**: Vanilla HTML/CSS/JS — `index.html`, `app.js`, `styles.css`, `design-system.css`
+- **Frontend**: Vanilla HTML/CSS/JS — `index.html`, `app.js`, `gear-scanner-curation.js`, `styles.css`, `design-system.css`
 - **Server**: Node (`server.js`) — search aggregation, connector routing, image proxying, Supabase auth routes
 - **Backend**: Supabase — `saved_searches`, `user_profiles`, `alpha_invites` tables
 - **Browser automation**: Playwright (Mercari connector only)
@@ -23,6 +23,17 @@ npm start
 Open: `http://127.0.0.1:5173`
 
 For iPhone/mobile preview on the same Wi-Fi, use the LAN URL printed by the server.
+
+## Gear Scanner Curation
+
+Classification logic (term lists, hard-exclude rules, scoring) lives in `gear-scanner-curation.js`, shared by the browser and Node:
+
+- In the browser it loads as a classic `<script>` **before** `app.js` in `index.html` — its declarations are globals that `app.js` uses directly. Never redeclare them in `app.js`.
+- Keep the file free of DOM/localStorage access. Browser-only globals (`loadLedger`, `createGearQualityContext`, `getProfileFeedback`, `getActiveNoiseTerms`) are reached through `resolve*` typeof guards that fall back to neutral defaults in Node.
+- Fixtures: `test/fixtures/gear-scanner-curation.json`. When a bad listing slips through, add it to fixtures **first** (confirm it fails), then generalize the rule.
+- `npm test` — fast Node fixture check (~0.2s, no server). **Run this before any commit or tool handoff that touches curation.**
+- `npm run qa:gear-scanner-curation` — same fixtures through the real page via Playwright (needs `npm start` running); validates browser wiring.
+- `npm run qa:gear-scanner-report` — decision report against live feed data, for tuning passes.
 
 ## Architecture
 

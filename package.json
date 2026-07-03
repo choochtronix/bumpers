@@ -10,6 +10,7 @@
     "aeo:check:prod": "node scripts/aeo-check.mjs https://brrtz.com",
     "jobs:source-health": "node src/jobs/runSourceHealth.js",
     "jobs:source-health:http": "node scripts/source-health-http.js",
+    "test": "node --test \"test/*.test.js\"",
     "qa:golden-searches": "node scripts/golden-search-check.js",
     "qa:gear-scanner-curation": "node scripts/gear-scanner-curation-check.js",
     "qa:gear-scanner-report": "node scripts/gear-scanner-curation-report.js"
