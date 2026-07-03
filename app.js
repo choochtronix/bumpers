@@ -1859,17 +1859,10 @@ const GEAR_SCANNER_HARD_EXCLUDE_TERMS = [
   "keyboard case",
   "mouse case",
   "computer keyboard",
-  "keyboard stand",
-  "sustain pedal",
-  "damper pedal",
   "piano sticker",
   "keyboard sticker",
   "note sticker",
   "finger guard",
-  "soft case",
-  "carry bag",
-  "carrying bag",
-  "keyboard cover",
   "monsgeek",
   "kitcut",
   "cable only",
@@ -1878,7 +1871,6 @@ const GEAR_SCANNER_HARD_EXCLUDE_TERMS = [
   "power supply only",
   "液晶パネル",
   "有機el",
-  "ディスプレイ",
   "譜面ファイル",
   "吹奏楽",
   "野外演奏",
@@ -1888,23 +1880,18 @@ const GEAR_SCANNER_HARD_EXCLUDE_TERMS = [
   "創刊号",
   "音符シール",
   "五線譜",
-  "ステッカー",
   "鍵盤シール",
   "ピアノシール",
   "フィンガーガード",
   "交換用",
   "キーボードケース",
   "マウスケース",
-  "キーボードスタンド",
-  "ソフトケース",
-  "キャリーバッグ",
-  "キーボードカバー",
-  "リュック",
-  "サステインペダル",
-  "サスティーンペダル",
-  "ダンパーペダル",
-  "コンピューター",
 ];
+const GEAR_SCANNER_MIN_INCLUDE_SCORE = 70;
+// Below-threshold listings may only backfill up to this many cards, and never
+// below the fallback floor — fewer strong cards beats filling with junk.
+const GEAR_SCANNER_MIN_FALLBACK_CARDS = 3;
+const GEAR_SCANNER_FALLBACK_MIN_SCORE = 40;
 const GEAR_SCANNER_POSITIVE_TERMS = [
   "synth",
   "synthesizer",
@@ -8921,8 +8908,16 @@ function getCuratedGearScannerListings(listings, options = {}) {
       return getFreshFindTime(b.listing, ledger) - getFreshFindTime(a.listing, ledger);
     });
 
-  return [...curated, ...fallback]
-    .slice(0, limit)
+  const minCount = Number.isFinite(options.minCount) ? options.minCount : Math.min(GEAR_SCANNER_MIN_FALLBACK_CARDS, limit);
+  const results = curated.slice(0, limit);
+  if (results.length < minCount) {
+    const fill = fallback
+      .filter((item) => item.classification.score >= GEAR_SCANNER_FALLBACK_MIN_SCORE)
+      .slice(0, minCount - results.length);
+    results.push(...fill);
+  }
+
+  return results
     .map(({ listing, classification }) => decorateGearScannerListing(listing, ledger, qualityContext, classification));
 }
 
@@ -8974,7 +8969,7 @@ function classifyGearScannerListing(listing, options = {}) {
 
   const hardExcluded = hardExcludeReasons.length > 0;
   const category = getGearScannerClassificationCategory({ searchable, hardExcluded, hardExcludeReasons, positiveTerms, brandMatches, modelMatches });
-  const include = !hardExcluded && score >= 70;
+  const include = !hardExcluded && score >= GEAR_SCANNER_MIN_INCLUDE_SCORE;
   const classification = { include, hardExcluded, score, category, reasons };
   logGearScannerCurationDecision(listing, classification);
   return classification;
@@ -9008,12 +9003,17 @@ function getGearScannerSearchableText(listing) {
 function getGearScannerHardExcludeReasons(searchable) {
   const reasons = [];
   const hasStrongInstrumentSignal = countMatchingTerms(searchable, GEAR_SCANNER_POSITIVE_TERMS) >= 2 || countMatchingTerms(searchable, GEAR_SCANNER_KNOWN_MODELS) > 0;
-  const hasSynthSpecificSignal = /(synth|synthesizer|シンセ|シンセサイザー|アナログシンセ|drum machine|ドラムマシン|sampler|サンプラー|sequencer|シーケンサー|modular|モジュラー|eurorack|ユーロラック)/i.test(searchable) || countMatchingTerms(searchable, GEAR_SCANNER_KNOWN_MODELS) > 0;
-  const accessoryForPattern = /(?:dx7|juno|jupiter|motif|montage|kross|ms-20|tr-808|tr-909|tb-303|rx5|r-8|qy70|qy300|yamaha|roland|korg|akai|casio|moog|キーボード|ピアノ|鍵盤)[\\w\\s\\-]*用.*(oled|lcd|led|rom|eprom|firmware|chip|display|screen|panel|case|cover|sticker|seal|cable|adapter|有機el|液晶|ディスプレイ|スクリーン|画面|パネル|ケース|カバー|シール|ステッカー|ケーブル|アダプター|機能アップ|簡単装着)/i.test(searchable);
+  // Instrument-category words only — model/brand names are deliberately not
+  // counted here because accessories cite them constantly ("DX7用...").
+  const hasInstrumentWord = /(synth|synthesizer|synthesiser|シンセ|シンセサイザー|アナログシンセ|drum machine|ドラムマシン|sampler|サンプラー|sequencer|シーケンサー|modular|モジュラー|eurorack|ユーロラック|groovebox|グルーヴボックス|音源モジュール)/i.test(searchable);
+  const hasSynthSpecificSignal = hasInstrumentWord || countMatchingTerms(searchable, GEAR_SCANNER_KNOWN_MODELS) > 0;
+  const accessoryForPattern = /(?:dx7|juno|jupiter|motif|montage|kross|ms-20|tr-808|tr-909|tb-303|rx5|r-8|qy70|qy300|yamaha|roland|korg|akai|casio|moog|シンセサイザー|シンセ|キーボード|ピアノ|鍵盤)[\w\s/-]{0,12}用.*(oled|lcd|led|rom|eprom|firmware|chip|display|screen|panel|case|cover|sticker|seal|cable|adapter|有機el|液晶|ディスプレイ|スクリーン|画面|パネル|ケース|カバー|シール|ステッカー|ケーブル|アダプター|機能アップ|簡単装着)/i.test(searchable);
   const electronicPartPattern = /(^|[^a-z0-9])(lcd|oled|led screen|display|screen|rom|eprom|firmware|chip|ser-7)([^a-z0-9]|$)/i.test(searchable);
-  const computerAccessoryPattern = /(hard travel case|keyboard case|mouse case|computer keyboard|60% keyboard|monsgeek|kitcut|キーボードケース|マウスケース|コンピューター)/i.test(searchable);
-  const caseOnlyPattern = /(case only|hard case$|travel case$|soft case$|carry bag|carrying bag|keyboard cover|^キーボードハードケース|^ハードケース|^ケース|ケースのみ|ハードケースのみ|トラベルケースのみ|ソフトケース|キャリーバッグ|キーボードカバー|収納 バッグ|リュック)/i.test(searchable);
-  const sheetMusicPattern = /(sheet music|music stand|piano sticker|keyboard sticker|note sticker|譜面|譜面ファイル|吹奏楽|野外演奏|野外ライブ|風対策|音符シール|五線譜|ステッカー|鍵盤シール|ピアノシール|ドレミ|音階|初心者|練習用)/i.test(searchable);
+  const computerAccessoryPattern = /(hard travel case|keyboard case|mouse case|computer keyboard|60% keyboard|monsgeek|kitcut|キーボードケース|マウスケース)/i.test(searchable);
+  const computerContextPattern = /コンピューター/i.test(searchable);
+  const caseOnlyPattern = /(case only|hard case|travel case|soft case|carry bag|carrying bag|keyboard cover|^キーボードハードケース|^ハードケース|^ケース|ケースのみ|ハードケースのみ|トラベルケースのみ|ソフトケース|キャリーバッグ|キーボードカバー|収納 バッグ|リュック)/i.test(searchable);
+  const sheetMusicPattern = /(sheet music|music stand|piano sticker|keyboard sticker|note sticker|譜面|譜面ファイル|吹奏楽|野外演奏|野外ライブ|風対策|音符シール|五線譜|鍵盤シール|ピアノシール)/i.test(searchable);
+  const weakSheetMusicPattern = /(ステッカー|ドレミ|音階|初心者|練習用)/i.test(searchable);
   const repairPartPattern = /(^|[^a-z0-9])(replacement|spare parts?|parts only|manual only|cable only|adapter only|power supply only|knobs? only|buttons? only|sliders? only|panel only)([^a-z0-9]|$)|交換用|修理|部品|パーツ/i.test(searchable);
   const utilityAccessoryPattern = /(keyboard stand|sustain pedal|damper pedal|finger guard|キーボードスタンド|サステインペダル|サスティーンペダル|ダンパーペダル|フィンガーガード)/i.test(searchable);
   const mediaAccessoryPattern = /(newspaper|新聞|創刊号|book only|manual only|取扱説明書のみ)/i.test(searchable);
@@ -9021,12 +9021,14 @@ function getGearScannerHardExcludeReasons(searchable) {
 
   getMatchingTerms(searchable, GEAR_SCANNER_HARD_EXCLUDE_TERMS).forEach((term) => reasons.push(term));
   if (accessoryForPattern) reasons.push("Japanese 用 accessory grammar");
-  if (electronicPartPattern) reasons.push("electronic part/display/ROM");
+  if (electronicPartPattern && !hasInstrumentWord) reasons.push("electronic part/display/ROM");
   if (computerAccessoryPattern) reasons.push("computer keyboard accessory");
+  if (computerContextPattern && !hasInstrumentWord) reasons.push("computer accessory context");
   if (caseOnlyPattern && !hasStrongInstrumentSignal) reasons.push("case-only accessory");
   if (sheetMusicPattern) reasons.push("sheet music or band accessory");
+  if (weakSheetMusicPattern && !hasInstrumentWord) reasons.push("sticker or lesson accessory");
   if (repairPartPattern && !hasStrongInstrumentSignal) reasons.push("repair part or accessory-only phrase");
-  if (utilityAccessoryPattern) reasons.push("utility accessory");
+  if (utilityAccessoryPattern && !hasInstrumentWord) reasons.push("utility accessory");
   if (mediaAccessoryPattern) reasons.push("media accessory");
   if (digitalPianoOnlyPattern) reasons.push("digital piano / lesson keyboard");
 
