@@ -1751,6 +1751,280 @@ const STARTER_FRESH_FIND_EXCLUDES = [
   "ミニチュア",
   "取扱説明書",
 ];
+const GEAR_SCANNER_EXCLUDE_TERMS = [
+  "replacement",
+  "spare part",
+  "spare parts",
+  "repair part",
+  "parts only",
+  "case only",
+  "manual only",
+  "cable only",
+  "power supply only",
+  "screen",
+  "display",
+  "lcd",
+  "oled",
+  "led screen",
+  "rom",
+  "eprom",
+  "firmware",
+  "chip",
+  "panel",
+  "sheet music",
+  "music stand",
+  "newspaper",
+  "piano sticker",
+  "keyboard sticker",
+  "note sticker",
+  "finger guard",
+  "sustain pedal",
+  "damper pedal",
+  "keyboard stand",
+  "soft case",
+  "carry bag",
+  "carrying bag",
+  "keyboard cover",
+  "hard case",
+  "travel case",
+  "keyboard case",
+  "mouse case",
+  "computer keyboard",
+  "monsgeek",
+  "kitcut",
+  "吹奏楽",
+  "野外演奏",
+  "野外ライブ",
+  "風対策",
+  "新聞",
+  "創刊号",
+  "音符シール",
+  "五線譜",
+  "ステッカー",
+  "鍵盤シール",
+  "ピアノシール",
+  "ドレミ",
+  "音階",
+  "初心者",
+  "練習用",
+  "フィンガーガード",
+  "譜面",
+  "譜面ファイル",
+  "液晶",
+  "液晶パネル",
+  "有機el",
+  "ディスプレイ",
+  "パネル",
+  "交換",
+  "交換用",
+  "修理",
+  "部品",
+  "パーツ",
+  "ケース",
+  "ハードケース",
+  "トラベルケース",
+  "キーボードケース",
+  "マウスケース",
+  "キーボードスタンド",
+  "ソフトケース",
+  "キャリーバッグ",
+  "キーボードカバー",
+  "収納",
+  "バッグ",
+  "リュック",
+  "サステインペダル",
+  "サスティーンペダル",
+  "ダンパーペダル",
+  "コンピューター",
+  "ケーブル",
+  "コード",
+  "アダプター",
+  "電源のみ",
+];
+const GEAR_SCANNER_HARD_EXCLUDE_TERMS = [
+  "replacement lcd",
+  "replacement oled",
+  "replacement screen",
+  "lcd panel",
+  "oled display",
+  "display module",
+  "display replacement",
+  "firmware chip",
+  "expansion rom",
+  "special edition rom",
+  "upgrade rom",
+  "rom chip",
+  "ser-7",
+  "hard travel case",
+  "keyboard case",
+  "mouse case",
+  "computer keyboard",
+  "keyboard stand",
+  "sustain pedal",
+  "damper pedal",
+  "piano sticker",
+  "keyboard sticker",
+  "note sticker",
+  "finger guard",
+  "soft case",
+  "carry bag",
+  "carrying bag",
+  "keyboard cover",
+  "monsgeek",
+  "kitcut",
+  "cable only",
+  "manual only",
+  "case only",
+  "power supply only",
+  "液晶パネル",
+  "有機el",
+  "ディスプレイ",
+  "譜面ファイル",
+  "吹奏楽",
+  "野外演奏",
+  "野外ライブ",
+  "風対策",
+  "新聞",
+  "創刊号",
+  "音符シール",
+  "五線譜",
+  "ステッカー",
+  "鍵盤シール",
+  "ピアノシール",
+  "フィンガーガード",
+  "交換用",
+  "キーボードケース",
+  "マウスケース",
+  "キーボードスタンド",
+  "ソフトケース",
+  "キャリーバッグ",
+  "キーボードカバー",
+  "リュック",
+  "サステインペダル",
+  "サスティーンペダル",
+  "ダンパーペダル",
+  "コンピューター",
+];
+const GEAR_SCANNER_POSITIVE_TERMS = [
+  "synth",
+  "synthesizer",
+  "synthesiser",
+  "analog synth",
+  "analogue synth",
+  "keyboard",
+  "module",
+  "desktop module",
+  "sound module",
+  "rack",
+  "rackmount",
+  "drum machine",
+  "groovebox",
+  "sampler",
+  "sequencer",
+  "eurorack",
+  "modular",
+  "semi-modular",
+  "vco",
+  "vcf",
+  "vca",
+  "moog",
+  "arp",
+  "oberheim",
+  "sequential",
+  "sequential circuits",
+  "roland",
+  "yamaha",
+  "waldorf",
+  "ensoniq",
+  "korg",
+  "akai",
+  "elektron",
+  "novation",
+  "behringer",
+  "arturia",
+  "dave smith",
+  "prophet",
+  "juno",
+  "jupiter",
+  "sh-101",
+  "tb-303",
+  "tr-808",
+  "tr-909",
+  "volca",
+  "volca sample",
+  "volca bass",
+  "volca fm",
+  "dx7",
+  "minimoog",
+  "odyssey",
+  "シンセ",
+  "シンセサイザー",
+  "アナログシンセ",
+  "キーボード",
+  "音源モジュール",
+  "ドラムマシン",
+  "サンプラー",
+  "シーケンサー",
+  "モジュラー",
+  "ユーロラック",
+];
+const GEAR_SCANNER_KNOWN_BRANDS = [
+  "moog",
+  "arp",
+  "oberheim",
+  "sequential circuits",
+  "sequential",
+  "roland",
+  "yamaha",
+  "waldorf",
+  "ensoniq",
+  "korg",
+  "akai",
+  "elektron",
+  "arturia",
+  "novation",
+  "behringer",
+  "dave smith",
+  "dsi",
+  "alesis",
+  "casio",
+  "teenage engineering",
+  "make noise",
+  "mutable instruments",
+  "erica synths",
+  "doepfer",
+  "intellijel",
+];
+const GEAR_SCANNER_KNOWN_MODELS = [
+  "dx7",
+  "juno",
+  "juno-106",
+  "jupiter",
+  "sh-101",
+  "tb-303",
+  "tr-808",
+  "tr-909",
+  "minimoog",
+  "grandmother",
+  "matriarch",
+  "odyssey",
+  "prophet",
+  "ob-x",
+  "ob-xa",
+  "sem",
+  "microwave",
+  "sq-80",
+  "mirage",
+  "volca",
+  "ms-20",
+  "monologue",
+  "minilogue",
+  "mpc",
+  "octatrack",
+  "digitakt",
+  "digitone",
+  "op-1",
+];
 
 function createStarterSynthArtwork(label, background, panel) {
   const safeLabel = String(label).replace(/[<>&"]/g, "");
@@ -5906,7 +6180,16 @@ function cloneProfile(profile) {
 }
 
 function scrollResultsTop() {
-  document.querySelector(".content").scrollIntoView({ block: "start" });
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
+      const target = resultGrid || document.querySelector(".content");
+      const targetTop = target.getBoundingClientRect().top + window.scrollY - 12;
+      window.scrollTo({
+        top: Math.max(0, targetTop),
+        behavior: "auto",
+      });
+    });
+  });
 }
 
 function scrollPageTop() {
@@ -7173,7 +7456,8 @@ function renderListing(listing, options = {}) {
     card.setAttribute("aria-label", `Open ${listing.title}`);
   }
   imageLink.href = listing.url;
-  image.src = listing.image;
+  prepareBrandFallbackImage(image, listing, getActiveBrowseBrand());
+  image.src = getDisplayListingImage(listing);
   image.alt = listing.title;
   hydrateRenderedRakumaImage(listing, image);
   renderSourceAvatar(fragment.querySelector(".source-avatar"), source, listing.source);
@@ -7200,8 +7484,11 @@ function renderListing(listing, options = {}) {
     event.stopPropagation();
     const isOpening = openMenu.hidden;
     closeListingActionMenus();
-    openMenu.hidden = !isOpening;
-    moreActionButton.setAttribute("aria-expanded", String(isOpening));
+    if (isOpening) {
+      openListingActionMenu(openMenu, moreActionButton);
+    } else {
+      closeListingActionMenu(openMenu);
+    }
   });
 
   openMenu.addEventListener("click", (event) => {
@@ -7275,6 +7562,48 @@ function renderListing(listing, options = {}) {
   return fragment;
 }
 
+function getDisplayListingImage(listing) {
+  return normalizeImageFluxListingImage(listing?.image) || listing?.image || "";
+}
+
+function prepareBrandFallbackImage(image, listing, brand) {
+  if (!image || !brand?.image) return;
+
+  image.addEventListener("load", () => {
+    if (image.dataset.brandFallbackApplied === "true") return;
+    if (!isWeakListingThumbnail(image)) return;
+
+    image.dataset.brandFallbackApplied = "true";
+    image.src = brand.image;
+    image.alt = `${brand.name} reference image for ${listing?.title || "listing"}`;
+  });
+}
+
+function isWeakListingThumbnail(image) {
+  const width = image?.naturalWidth || 0;
+  const height = image?.naturalHeight || 0;
+  if (!width || !height) return false;
+
+  const shortestSide = Math.min(width, height);
+  const aspectRatio = width / height;
+  return shortestSide < 180 || aspectRatio > 1.75 || aspectRatio < 0.62;
+}
+
+function normalizeImageFluxListingImage(imageUrl = "") {
+  const url = String(imageUrl || "").trim();
+  if (!url.includes(".imageflux.jp/c!/")) return "";
+
+  try {
+    const parsed = new URL(url);
+    const normalizedPath = parsed.pathname.replace(/^\/c!\/[^/]+/, "");
+    return normalizedPath && normalizedPath !== parsed.pathname
+      ? `${parsed.origin}${normalizedPath}`
+      : "";
+  } catch {
+    return "";
+  }
+}
+
 function openExternalListing(url) {
   const openedWindow = window.open(url, "_blank", "noopener,noreferrer");
   if (openedWindow) openedWindow.opener = null;
@@ -7322,9 +7651,52 @@ function createBuyeeUrl(listing) {
 
 function closeListingActionMenus() {
   document.querySelectorAll(".open-menu:not([hidden])").forEach((menu) => {
-    menu.hidden = true;
-    menu.closest(".listing-action-menu")?.querySelector(".more-action-button")?.setAttribute("aria-expanded", "false");
+    closeListingActionMenu(menu);
   });
+}
+
+function openListingActionMenu(menu, trigger) {
+  const host = trigger.closest(".listing-action-menu");
+  if (!host) return;
+
+  menu.__brrtzMenuHost = host;
+  menu.__brrtzMenuTrigger = trigger;
+  document.body.appendChild(menu);
+  menu.classList.add("is-floating");
+  menu.hidden = false;
+  trigger.setAttribute("aria-expanded", "true");
+  positionListingActionMenu(menu, trigger);
+}
+
+function closeListingActionMenu(menu) {
+  menu.hidden = true;
+  menu.classList.remove("is-floating");
+  menu.style.removeProperty("top");
+  menu.style.removeProperty("right");
+  menu.style.removeProperty("bottom");
+  menu.style.removeProperty("left");
+  menu.__brrtzMenuTrigger?.setAttribute("aria-expanded", "false");
+  if (menu.__brrtzMenuHost && menu.parentElement !== menu.__brrtzMenuHost) {
+    menu.__brrtzMenuHost.appendChild(menu);
+  }
+}
+
+function positionListingActionMenu(menu, trigger) {
+  const spacing = 8;
+  const viewportPadding = 12;
+  const triggerRect = trigger.getBoundingClientRect();
+  const menuRect = menu.getBoundingClientRect();
+  const maxLeft = window.innerWidth - menuRect.width - viewportPadding;
+  const preferredLeft = triggerRect.left;
+  const left = Math.max(viewportPadding, Math.min(preferredLeft, maxLeft));
+  const preferredTop = triggerRect.top - menuRect.height - spacing;
+  const fallbackTop = triggerRect.bottom + spacing;
+  const top = preferredTop >= viewportPadding
+    ? preferredTop
+    : Math.min(fallbackTop, window.innerHeight - menuRect.height - viewportPadding);
+
+  menu.style.left = `${Math.round(left)}px`;
+  menu.style.top = `${Math.round(Math.max(viewportPadding, top))}px`;
 }
 
 async function hydrateRenderedRakumaImage(listing, imageElement) {
@@ -7783,7 +8155,7 @@ function getBrowseCategoryHomeListings(options = {}) {
     if (!preparedCache.home) {
       preparedCache.home = getActiveBrowseBrand()
         ? prepareBrandBrowseListings(browseCategoryListings, { limit: BROWSE_HOME_LIMIT, renderContext })
-        : curateFreshFindListings(browseCategoryListings, {
+        : getCuratedGearScannerListings(browseCategoryListings, {
           limit: BROWSE_HOME_LIMIT,
           candidateLimit: BROWSE_HOME_CURATION_CANDIDATE_LIMIT,
           renderContext,
@@ -7981,7 +8353,7 @@ function scheduleBrowseCategoryPostLoadWork(categoryIntent, listings) {
   const runDiscoveryUpdate = () => {
     if (taskId !== browseCategoryPostLoadTaskId || normalizedCategoryIntent !== browseCategoryIntent) return;
     const renderContext = createListingRenderContext();
-    const curatedListings = curateFreshFindListings(listings, {
+    const curatedListings = getCuratedGearScannerListings(listings, {
       limit: BROWSE_HOME_LIMIT,
       candidateLimit: BROWSE_HOME_CURATION_CANDIDATE_LIMIT,
       renderContext,
@@ -8068,7 +8440,7 @@ function getCachedBrowseCategoryListings(categoryIntent = browseCategoryIntent, 
   const limit = options.limit || FEATURED_HOME_LIMIT;
   const preparedListings = options.latest
     ? prepareLatestBrowseListings(listings, { limit, renderContext: options.renderContext })
-    : curateFreshFindListings(listings, {
+    : getCuratedGearScannerListings(listings, {
       limit,
       candidateLimit: limit <= BROWSE_HOME_LIMIT ? BROWSE_HOME_CURATION_CANDIDATE_LIMIT : 0,
       renderContext: options.renderContext,
@@ -8502,6 +8874,197 @@ function curateFreshFindListings(listings, options = {}) {
     })
     .slice(0, limit)
     .map((listing) => decorateFreshFindListing(listing, ledger, qualityContext));
+}
+
+function getCuratedGearScannerListings(listings, options = {}) {
+  const limit = options.limit || BROWSE_HOME_LIMIT;
+  const candidateLimit = Number(options.candidateLimit || 0);
+  const ledger = options.ledger || options.renderContext?.ledger || loadLedger();
+  const qualityContext = options.renderContext || createGearQualityContext();
+  const seenIds = new Set();
+
+  let candidates = listings
+    .filter((listing) => {
+      if (!listing?.id || seenIds.has(listing.id)) return false;
+      seenIds.add(listing.id);
+      return true;
+    })
+    .filter((listing) => !isUnavailableListing(listing))
+    .filter((listing) => !isStaleFreshFind(listing, ledger))
+    .filter((listing) => qualityFilter === "all" || isCleanGearListing(listing, qualityContext));
+
+  if (candidateLimit > 0) {
+    candidates = candidates.slice(0, Math.max(candidateLimit, limit));
+  }
+
+  // Gear Scanner is a discovery surface, so obvious parts/accessories are removed
+  // before freshness sorting can promote them above complete instruments.
+  const classifiedCandidates = candidates
+    .map((listing) => ({
+      listing,
+      classification: classifyGearScannerListing(listing, { ledger, renderContext: qualityContext }),
+    }))
+    .filter((item) => item.classification.include || !item.classification.hardExcluded);
+  const curated = classifiedCandidates
+    .filter((item) => item.classification.include)
+    .sort((a, b) => {
+      const scoreDelta = b.classification.score - a.classification.score;
+      if (scoreDelta !== 0) return scoreDelta;
+      return getFreshFindTime(b.listing, ledger) - getFreshFindTime(a.listing, ledger);
+    });
+
+  const fallback = classifiedCandidates
+    .filter((item) => !item.classification.include)
+    .sort((a, b) => {
+      const scoreDelta = b.classification.score - a.classification.score;
+      if (scoreDelta !== 0) return scoreDelta;
+      return getFreshFindTime(b.listing, ledger) - getFreshFindTime(a.listing, ledger);
+    });
+
+  return [...curated, ...fallback]
+    .slice(0, limit)
+    .map(({ listing, classification }) => decorateGearScannerListing(listing, ledger, qualityContext, classification));
+}
+
+function decorateGearScannerListing(listing, ledger = loadLedger(), context = null, classification = null) {
+  const gearScannerClassification = classification || classifyGearScannerListing(listing, { ledger, renderContext: context });
+  return {
+    ...decorateFreshFindListing(listing, ledger, context),
+    gearScannerScore: gearScannerClassification.score,
+    gearScannerCategory: gearScannerClassification.category,
+    gearScannerReasons: gearScannerClassification.reasons,
+  };
+}
+
+function scoreGearScannerListing(listing, ledger = loadLedger(), context = null) {
+  return classifyGearScannerListing(listing, { ledger, renderContext: context }).score;
+}
+
+function classifyGearScannerListing(listing, options = {}) {
+  const ledger = options.ledger || options.renderContext?.ledger || loadLedger();
+  const qualityContext = options.renderContext || createGearQualityContext();
+  const searchable = normalizeListingText(listing);
+  const confidence = scoreGearConfidence(listing, qualityContext);
+  const reasons = [];
+  const hardExcludeReasons = getGearScannerHardExcludeReasons(searchable);
+  const positiveTerms = getMatchingTerms(searchable, GEAR_SCANNER_POSITIVE_TERMS);
+  const brandMatches = getMatchingTerms(searchable, GEAR_SCANNER_KNOWN_BRANDS);
+  const modelMatches = getMatchingTerms(searchable, GEAR_SCANNER_KNOWN_MODELS);
+  const accessoryTerms = getMatchingTerms(searchable, GEAR_SCANNER_EXCLUDE_TERMS);
+  let score = scoreFreshFindListing(listing, ledger, qualityContext);
+
+  positiveTerms.forEach((term) => reasons.push(`positive term: ${term}`));
+  brandMatches.forEach((term) => reasons.push(`brand match: ${term}`));
+  modelMatches.forEach((term) => reasons.push(`model match: ${term}`));
+  accessoryTerms.forEach((term) => reasons.push(`accessory term: ${term}`));
+  hardExcludeReasons.forEach((reason) => reasons.push(`hard exclude: ${reason}`));
+
+  score += Math.min(positiveTerms.length * 6, 48);
+  score += Math.min(brandMatches.length * 5, 24);
+  score += Math.min(modelMatches.length * 14, 42);
+  score += Math.min(countBrandModelSignals(searchable) * 8, 32);
+  score -= accessoryTerms.length * 10;
+  if (confidence.level === "likely-gear") score += 18;
+  if (confidence.level === "maybe-gear") score += 4;
+  if (confidence.level === "likely-noise") score -= 50;
+  if (listing.image) score += 4;
+
+  if (confidence.level) reasons.push(`gear confidence: ${confidence.level}`);
+  if (listing.image) reasons.push("has image");
+
+  const hardExcluded = hardExcludeReasons.length > 0;
+  const category = getGearScannerClassificationCategory({ searchable, hardExcluded, hardExcludeReasons, positiveTerms, brandMatches, modelMatches });
+  const include = !hardExcluded && score >= 70;
+  const classification = { include, hardExcluded, score, category, reasons };
+  logGearScannerCurationDecision(listing, classification);
+  return classification;
+}
+
+function isLikelyAccessoryOrPartOnly(listing) {
+  return classifyGearScannerListing(listing).hardExcluded;
+}
+
+function isHardExcludedGearScannerListing(listing) {
+  return classifyGearScannerListing(listing).hardExcluded;
+}
+
+function normalizeListingText(listing) {
+  return normalizeText([
+    listing?.title,
+    listing?.description,
+    listing?.brand,
+    listing?.category,
+    listing?.condition,
+    listing?.shop,
+    listing?.source,
+    Array.isArray(listing?.categoryPath) ? listing.categoryPath.join(" ") : "",
+  ].filter(Boolean).join(" "));
+}
+
+function getGearScannerSearchableText(listing) {
+  return normalizeListingText(listing);
+}
+
+function getGearScannerHardExcludeReasons(searchable) {
+  const reasons = [];
+  const hasStrongInstrumentSignal = countMatchingTerms(searchable, GEAR_SCANNER_POSITIVE_TERMS) >= 2 || countMatchingTerms(searchable, GEAR_SCANNER_KNOWN_MODELS) > 0;
+  const hasSynthSpecificSignal = /(synth|synthesizer|シンセ|シンセサイザー|アナログシンセ|drum machine|ドラムマシン|sampler|サンプラー|sequencer|シーケンサー|modular|モジュラー|eurorack|ユーロラック)/i.test(searchable) || countMatchingTerms(searchable, GEAR_SCANNER_KNOWN_MODELS) > 0;
+  const accessoryForPattern = /(?:dx7|juno|jupiter|motif|montage|kross|ms-20|tr-808|tr-909|tb-303|rx5|r-8|qy70|qy300|yamaha|roland|korg|akai|casio|moog|キーボード|ピアノ|鍵盤)[\\w\\s\\-]*用.*(oled|lcd|led|rom|eprom|firmware|chip|display|screen|panel|case|cover|sticker|seal|cable|adapter|有機el|液晶|ディスプレイ|スクリーン|画面|パネル|ケース|カバー|シール|ステッカー|ケーブル|アダプター|機能アップ|簡単装着)/i.test(searchable);
+  const electronicPartPattern = /(^|[^a-z0-9])(lcd|oled|led screen|display|screen|rom|eprom|firmware|chip|ser-7)([^a-z0-9]|$)/i.test(searchable);
+  const computerAccessoryPattern = /(hard travel case|keyboard case|mouse case|computer keyboard|60% keyboard|monsgeek|kitcut|キーボードケース|マウスケース|コンピューター)/i.test(searchable);
+  const caseOnlyPattern = /(case only|hard case$|travel case$|soft case$|carry bag|carrying bag|keyboard cover|^キーボードハードケース|^ハードケース|^ケース|ケースのみ|ハードケースのみ|トラベルケースのみ|ソフトケース|キャリーバッグ|キーボードカバー|収納 バッグ|リュック)/i.test(searchable);
+  const sheetMusicPattern = /(sheet music|music stand|piano sticker|keyboard sticker|note sticker|譜面|譜面ファイル|吹奏楽|野外演奏|野外ライブ|風対策|音符シール|五線譜|ステッカー|鍵盤シール|ピアノシール|ドレミ|音階|初心者|練習用)/i.test(searchable);
+  const repairPartPattern = /(^|[^a-z0-9])(replacement|spare parts?|parts only|manual only|cable only|adapter only|power supply only|knobs? only|buttons? only|sliders? only|panel only)([^a-z0-9]|$)|交換用|修理|部品|パーツ/i.test(searchable);
+  const utilityAccessoryPattern = /(keyboard stand|sustain pedal|damper pedal|finger guard|キーボードスタンド|サステインペダル|サスティーンペダル|ダンパーペダル|フィンガーガード)/i.test(searchable);
+  const mediaAccessoryPattern = /(newspaper|新聞|創刊号|book only|manual only|取扱説明書のみ)/i.test(searchable);
+  const digitalPianoOnlyPattern = /(digital piano|デジタルピアノ|電子ピアノ|ピアノタッチ)/i.test(searchable) && !hasSynthSpecificSignal;
+
+  getMatchingTerms(searchable, GEAR_SCANNER_HARD_EXCLUDE_TERMS).forEach((term) => reasons.push(term));
+  if (accessoryForPattern) reasons.push("Japanese 用 accessory grammar");
+  if (electronicPartPattern) reasons.push("electronic part/display/ROM");
+  if (computerAccessoryPattern) reasons.push("computer keyboard accessory");
+  if (caseOnlyPattern && !hasStrongInstrumentSignal) reasons.push("case-only accessory");
+  if (sheetMusicPattern) reasons.push("sheet music or band accessory");
+  if (repairPartPattern && !hasStrongInstrumentSignal) reasons.push("repair part or accessory-only phrase");
+  if (utilityAccessoryPattern) reasons.push("utility accessory");
+  if (mediaAccessoryPattern) reasons.push("media accessory");
+  if (digitalPianoOnlyPattern) reasons.push("digital piano / lesson keyboard");
+
+  return [...new Set(reasons)];
+}
+
+function getGearScannerClassificationCategory(details) {
+  const searchable = details.searchable || "";
+  if (details.hardExcluded) {
+    const reasonText = details.hardExcludeReasons.join(" ");
+    if (/computer keyboard|case/.test(reasonText)) return "computer-accessory";
+    if (/sheet music|band/.test(reasonText)) return "sheet-music-accessory";
+    if (/display|rom|part|repair|utility|media/.test(reasonText)) return "replacement-part";
+    return "accessory-only";
+  }
+
+  if (/drum machine|ドラムマシン|tr-808|tr-909|drumatix|rhythm machine|リズムマシン/.test(searchable)) return "drum-machine";
+  if (/sampler|サンプラー|mpc|digitakt|mirage|sk-8/.test(searchable)) return "sampler";
+  if (/sequencer|シーケンサー|qy100|qy70|qy300/.test(searchable)) return "sequencer";
+  if (/modular|eurorack|ユーロラック|モジュラー|vco|vcf|vca/.test(searchable)) return "modular";
+  if (/sound module|音源モジュール|rack|rackmount/.test(searchable)) return "sound-module";
+  if (details.positiveTerms.length > 0 || details.brandMatches.length > 0 || details.modelMatches.length > 0) return "hardware-synth";
+  return "unknown-low-confidence";
+}
+
+function getMatchingTerms(searchable, terms) {
+  return terms.filter((term) => termMatches(searchable, term));
+}
+
+function logGearScannerCurationDecision(listing, classification) {
+  if (!window.BRRTZ_DEBUG_GEAR_SCANNER) return;
+  console.debug("[Gear Scanner curation]", {
+    title: listing?.title || "",
+    include: classification.include,
+    score: classification.score,
+    category: classification.category,
+    reasons: classification.reasons,
+  });
 }
 
 function scoreFreshFindListing(listing, ledger = loadLedger(), context = null) {
