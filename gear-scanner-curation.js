@@ -153,6 +153,7 @@ const GEAR_SIGNAL_TERMS = [
   "rack",
   "rhythm composer",
   "rhythm machine",
+  "rhythmtrak",
   "sampler",
   "samplers",
   "sequencer",
@@ -172,8 +173,10 @@ const GEAR_SIGNAL_TERMS = [
   "シンセ",
   "シンセサイザー",
   "ドラムマシン",
+  "ドラムマシーン",
   "リズムボックス",
   "リズムマシン",
+  "リズムマシーン",
   "ミキサー",
   "ミキシング",
   "モジュール",
@@ -391,6 +394,11 @@ const GEAR_SCANNER_EXCLUDE_TERMS = [
   "コード",
   "アダプター",
   "電源のみ",
+  "電子キーボード",
+  "エレクトーン",
+  "玩具",
+  "おもちゃ",
+  "光ナビゲーション",
 ];
 
 const GEAR_SCANNER_HARD_EXCLUDE_TERMS = [
@@ -440,13 +448,15 @@ const GEAR_SCANNER_HARD_EXCLUDE_TERMS = [
   "マウスケース",
 ];
 
-const GEAR_SCANNER_MIN_INCLUDE_SCORE = 70;
+// Thresholds are calibrated for the freshness-free quality score (see
+// classifyGearScannerListing) — retune if the scoring weights change.
+const GEAR_SCANNER_MIN_INCLUDE_SCORE = 55;
 
 // Below-threshold listings may only backfill up to this many cards, and never
 // below the fallback floor — fewer strong cards beats filling with junk.
 const GEAR_SCANNER_MIN_FALLBACK_CARDS = 3;
 
-const GEAR_SCANNER_FALLBACK_MIN_SCORE = 40;
+const GEAR_SCANNER_FALLBACK_MIN_SCORE = 30;
 
 const GEAR_SCANNER_POSITIVE_TERMS = [
   "synth",
@@ -506,6 +516,10 @@ const GEAR_SCANNER_POSITIVE_TERMS = [
   "キーボード",
   "音源モジュール",
   "ドラムマシン",
+  "ドラムマシーン",
+  "リズムマシン",
+  "リズムマシーン",
+  "リズムボックス",
   "サンプラー",
   "シーケンサー",
   "モジュラー",
@@ -538,6 +552,18 @@ const GEAR_SCANNER_KNOWN_BRANDS = [
   "erica synths",
   "doepfer",
   "intellijel",
+  "boss",
+  "zoom",
+  "hammond",
+  "kawai",
+  "nord",
+  "clavia",
+  "buchla",
+  "e-mu",
+  "kurzweil",
+  "rhodes",
+  "wurlitzer",
+  "access",
 ];
 
 const GEAR_SCANNER_KNOWN_MODELS = [
@@ -569,6 +595,43 @@ const GEAR_SCANNER_KNOWN_MODELS = [
   "digitakt",
   "digitone",
   "op-1",
+  "tr-606",
+  "tr-707",
+  "tr-626",
+  "mc-202",
+  "mc-303",
+  "sh-09",
+  "sh-201",
+  "system-100",
+  "jx-3p",
+  "jx-8p",
+  "jd-800",
+  "d-50",
+  "juno-6",
+  "juno-60",
+  "dx21",
+  "dx100",
+  "cs-80",
+  "an1x",
+  "motif",
+  "montage",
+  "fantom",
+  "m1",
+  "triton",
+  "trinity",
+  "wavestation",
+  "polysix",
+  "ms2000",
+  "microkorg",
+  "electribe",
+  "kaossilator",
+  "monotron",
+  "monotribe",
+  "esq-1",
+  "k5000",
+  "nord lead",
+  "sp-404",
+  "sp-1200",
 ];
 
 function normalizeText(value) {
@@ -797,7 +860,7 @@ function getFreshFindAgeHours(listing, entry = {}) {
   return (Date.now() - firstSeenTime) / (60 * 60 * 1000);
 }
 
-function scoreFreshFindListing(listing, ledger = resolveLedger(), context = null) {
+function scoreFreshFindListing(listing, ledger = resolveLedger(), context = null, options = {}) {
   if (listing.isStarterFreshFind) return 0;
 
   const searchable = normalizeText(`${listing.title || ""} ${listing.condition || ""} ${listing.shop || ""}`);
@@ -814,9 +877,11 @@ function scoreFreshFindListing(listing, ledger = resolveLedger(), context = null
   score -= countMatchingTerms(searchable, STARTER_FRESH_FIND_EXCLUDES) * 8;
   if (listing.price > 0) score += 3;
 
-  const ageHours = getFreshFindAgeHours(listing, entry);
-  if (Number.isFinite(ageHours)) {
-    score += Math.max(0, 18 - ageHours / 2);
+  if (options.includeFreshness !== false) {
+    const ageHours = getFreshFindAgeHours(listing, entry);
+    if (Number.isFinite(ageHours)) {
+      score += Math.max(0, 18 - ageHours / 2);
+    }
   }
 
   return score;
@@ -833,7 +898,10 @@ function classifyGearScannerListing(listing, options = {}) {
   const brandMatches = getMatchingTerms(searchable, GEAR_SCANNER_KNOWN_BRANDS);
   const modelMatches = getMatchingTerms(searchable, GEAR_SCANNER_KNOWN_MODELS);
   const accessoryTerms = getMatchingTerms(searchable, GEAR_SCANNER_EXCLUDE_TERMS);
-  let score = scoreFreshFindListing(listing, ledger, qualityContext);
+  // Quality only — freshness stays out of the classification score so recent
+  // boring items cannot outrank stale grails; it is used as the sort
+  // tiebreaker in getCuratedGearScannerListings instead.
+  let score = scoreFreshFindListing(listing, ledger, qualityContext, { includeFreshness: false });
 
   positiveTerms.forEach((term) => reasons.push(`positive term: ${term}`));
   brandMatches.forEach((term) => reasons.push(`brand match: ${term}`));
@@ -867,7 +935,7 @@ function getGearScannerHardExcludeReasons(searchable) {
   const hasStrongInstrumentSignal = countMatchingTerms(searchable, GEAR_SCANNER_POSITIVE_TERMS) >= 2 || countMatchingTerms(searchable, GEAR_SCANNER_KNOWN_MODELS) > 0;
   // Instrument-category words only — model/brand names are deliberately not
   // counted here because accessories cite them constantly ("DX7用...").
-  const hasInstrumentWord = /(synth|synthesizer|synthesiser|シンセ|シンセサイザー|アナログシンセ|drum machine|ドラムマシン|sampler|サンプラー|sequencer|シーケンサー|modular|モジュラー|eurorack|ユーロラック|groovebox|グルーヴボックス|音源モジュール)/i.test(searchable);
+  const hasInstrumentWord = /(synth|synthesizer|synthesiser|シンセ|シンセサイザー|アナログシンセ|drum machine|ドラムマシン|ドラムマシーン|リズムマシン|リズムマシーン|リズムボックス|rhythm machine|sampler|サンプラー|sequencer|シーケンサー|modular|モジュラー|eurorack|ユーロラック|groovebox|グルーヴボックス|音源モジュール)/i.test(searchable);
   const hasSynthSpecificSignal = hasInstrumentWord || countMatchingTerms(searchable, GEAR_SCANNER_KNOWN_MODELS) > 0;
   const accessoryForPattern = /(?:dx7|juno|jupiter|motif|montage|kross|ms-20|tr-808|tr-909|tb-303|rx5|r-8|qy70|qy300|yamaha|roland|korg|akai|casio|moog|シンセサイザー|シンセ|キーボード|ピアノ|鍵盤)[\w\s/-]{0,12}用.*(oled|lcd|led|rom|eprom|firmware|chip|display|screen|panel|case|cover|sticker|seal|cable|adapter|有機el|液晶|ディスプレイ|スクリーン|画面|パネル|ケース|カバー|シール|ステッカー|ケーブル|アダプター|機能アップ|簡単装着)/i.test(searchable);
   const electronicPartPattern = /(^|[^a-z0-9])(lcd|oled|led screen|display|screen|rom|eprom|firmware|chip|ser-7)([^a-z0-9]|$)/i.test(searchable);
@@ -880,6 +948,7 @@ function getGearScannerHardExcludeReasons(searchable) {
   const utilityAccessoryPattern = /(keyboard stand|sustain pedal|damper pedal|finger guard|キーボードスタンド|サステインペダル|サスティーンペダル|ダンパーペダル|フィンガーガード)/i.test(searchable);
   const mediaAccessoryPattern = /(newspaper|新聞|創刊号|book only|manual only|取扱説明書のみ)/i.test(searchable);
   const digitalPianoOnlyPattern = /(digital piano|デジタルピアノ|電子ピアノ|ピアノタッチ)/i.test(searchable) && !hasSynthSpecificSignal;
+  const toyLessonKeyboardPattern = /(玩具|おもちゃ|toy keyboard|子供|キッズ|kids keyboard|光ナビゲーション|光ナビ|エレクトーン|electone)/i.test(searchable);
 
   getMatchingTerms(searchable, GEAR_SCANNER_HARD_EXCLUDE_TERMS).forEach((term) => reasons.push(term));
   if (accessoryForPattern) reasons.push("Japanese 用 accessory grammar");
@@ -893,6 +962,7 @@ function getGearScannerHardExcludeReasons(searchable) {
   if (utilityAccessoryPattern && !hasInstrumentWord) reasons.push("utility accessory");
   if (mediaAccessoryPattern) reasons.push("media accessory");
   if (digitalPianoOnlyPattern) reasons.push("digital piano / lesson keyboard");
+  if (toyLessonKeyboardPattern && !hasInstrumentWord) reasons.push("toy or lesson keyboard");
 
   return [...new Set(reasons)];
 }
@@ -907,7 +977,7 @@ function getGearScannerClassificationCategory(details) {
     return "accessory-only";
   }
 
-  if (/drum machine|ドラムマシン|tr-808|tr-909|drumatix|rhythm machine|リズムマシン/.test(searchable)) return "drum-machine";
+  if (/drum machine|ドラムマシン|ドラムマシーン|tr-808|tr-909|tr-606|drumatix|rhythm machine|リズムマシン|リズムマシーン|リズムボックス/.test(searchable)) return "drum-machine";
   if (/sampler|サンプラー|mpc|digitakt|mirage|sk-8/.test(searchable)) return "sampler";
   if (/sequencer|シーケンサー|qy100|qy70|qy300/.test(searchable)) return "sequencer";
   if (/modular|eurorack|ユーロラック|モジュラー|vco|vcf|vca/.test(searchable)) return "modular";
