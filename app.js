@@ -7427,6 +7427,10 @@ function renderListing(listing, options = {}) {
   const feedbackStatus = getListingFeedbackStatus(listing, feedback);
   const isFeaturedHome = Boolean(options.isFeaturedHome);
   const newness = getListingNewness(listing, renderContext);
+  const sourceAvatar = fragment.querySelector(".source-avatar");
+  const listSourceAvatar = document.createElement("span");
+  listSourceAvatar.className = "source-avatar list-source-avatar";
+  card.appendChild(listSourceAvatar);
 
   if (imageStage && moreActionButton?.parentElement) {
     imageStage.appendChild(moreActionButton.parentElement);
@@ -7447,7 +7451,8 @@ function renderListing(listing, options = {}) {
   image.src = getDisplayListingImage(listing);
   image.alt = listing.title;
   hydrateRenderedRakumaImage(listing, image);
-  renderSourceAvatar(fragment.querySelector(".source-avatar"), source, listing.source);
+  renderSourceAvatar(sourceAvatar, source, listing.source);
+  renderSourceAvatar(listSourceAvatar, source, listing.source);
   renderListingNewnessBadges(fragment, newness);
   fragment.querySelector(".source-chip").textContent = source?.label || listing.source;
   fragment.querySelector("h3").textContent = listing.title;
