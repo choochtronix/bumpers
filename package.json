@@ -13,7 +13,8 @@
     "test": "node --test \"test/*.test.js\"",
     "qa:golden-searches": "node scripts/golden-search-check.js",
     "qa:gear-scanner-curation": "node scripts/gear-scanner-curation-check.js",
-    "qa:gear-scanner-report": "node scripts/gear-scanner-curation-report.js"
+    "qa:gear-scanner-report": "node scripts/gear-scanner-curation-report.js",
+    "curation:noise-inbox": "node scripts/curation-noise-inbox-report.js"
   },
   "dependencies": {
     "playwright": "^1.60.0"

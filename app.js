@@ -2554,8 +2554,11 @@ function bindEvents() {
   window.addEventListener("scroll", requestBackToTopVisibilityUpdate, { passive: true });
   window.addEventListener("scroll", requestMobileSearchOverlayUpdate, { passive: true });
   window.addEventListener("scroll", refreshSavedSearchPopoverPosition, { passive: true });
+  document.addEventListener("scroll", closeListingActionMenusOnScroll, { passive: true, capture: true });
+  document.addEventListener("touchmove", closeListingActionMenusOnScroll, { passive: true, capture: true });
   window.addEventListener("resize", requestMobileSearchOverlayUpdate);
   window.addEventListener("resize", refreshSavedSearchPopoverPosition);
+  window.addEventListener("resize", closeListingActionMenus);
   window.addEventListener("popstate", handleAppViewPopState);
 
   document.addEventListener("keydown", (event) => {
@@ -6881,6 +6884,8 @@ function renderListing(listing, options = {}) {
   const openMenu = fragment.querySelector(".open-menu");
   const sourceOpenLink = fragment.querySelector(".source-open-link");
   const buyeeOpenLink = fragment.querySelector(".buyee-open-link");
+  const sourceOpenIcon = fragment.querySelector(".source-open-link .menu-source-avatar");
+  const sourceOpenLabel = fragment.querySelector(".source-open-link .menu-action-label");
   const copyListingLink = fragment.querySelector(".copy-listing-link");
   const noiseMenuAction = fragment.querySelector(".noise-menu-action");
   const renderContext = options.renderContext || createListingRenderContext();
@@ -6926,7 +6931,8 @@ function renderListing(listing, options = {}) {
   imageLink.addEventListener("click", (event) => handlePrimaryListingOpen(event, listing.url));
   openLink.addEventListener("click", (event) => handlePrimaryListingOpen(event, listing.url));
   sourceOpenLink.href = listing.url;
-  sourceOpenLink.textContent = `Open ${source?.label || "listing"}`;
+  renderSourceAvatar(sourceOpenIcon, source, listing.source);
+  if (sourceOpenLabel) sourceOpenLabel.textContent = source?.label || "Listing";
   configureBuyeeLink(buyeeOpenLink, listing);
   watchButton.classList.toggle("is-watching", watching.has(listing.id));
   watchButton.textContent = watching.has(listing.id) ? "♥" : "♡";
@@ -6938,9 +6944,10 @@ function renderListing(listing, options = {}) {
   moreActionButton.addEventListener("click", (event) => {
     event.stopPropagation();
     const isOpening = openMenu.hidden;
+    const triggerRect = moreActionButton.getBoundingClientRect();
     closeListingActionMenus();
     if (isOpening) {
-      openListingActionMenu(openMenu, moreActionButton);
+      openListingActionMenu(openMenu, moreActionButton, triggerRect);
     } else {
       closeListingActionMenu(openMenu);
     }
@@ -7171,7 +7178,12 @@ function configureBuyeeLink(link, listing) {
 
   link.hidden = false;
   link.href = buyeeUrl;
-  link.textContent = "View via Buyee";
+  const label = link.querySelector(".menu-action-label");
+  if (label) {
+    label.textContent = "View via Buyee";
+  } else {
+    link.textContent = "View via Buyee";
+  }
 }
 
 function createBuyeeUrl(listing) {
@@ -7189,22 +7201,56 @@ function closeListingActionMenus() {
   });
 }
 
-function openListingActionMenu(menu, trigger) {
+function closeListingActionMenusOnScroll(event) {
+  if (event?.target instanceof Node && event.target.closest?.(".open-menu")) return;
+  closeListingActionMenus();
+}
+
+function openListingActionMenu(menu, trigger, triggerRect = null) {
   const host = trigger.closest(".listing-action-menu");
   if (!host) return;
 
   menu.__brrtzMenuHost = host;
   menu.__brrtzMenuTrigger = trigger;
+  if (shouldAttachListingActionMenuToHost()) {
+    document.body.appendChild(menu);
+    menu.classList.remove("is-floating", "is-anchor-left", "is-anchor-right", "is-open-above", "is-open-below");
+    menu.classList.add("is-mobile-sheet");
+    menu.hidden = false;
+    trigger.setAttribute("aria-expanded", "true");
+    return;
+  }
+
   document.body.appendChild(menu);
   menu.classList.add("is-floating");
   menu.hidden = false;
   trigger.setAttribute("aria-expanded", "true");
-  positionListingActionMenu(menu, trigger);
+  positionListingActionMenu(menu, triggerRect || trigger.getBoundingClientRect());
+}
+
+function shouldAttachListingActionMenuToHost() {
+  return window.matchMedia("(max-width: 760px), (pointer: coarse)").matches;
+}
+
+function setAttachedListingActionMenuPlacement(menu, triggerRect) {
+  const viewport = window.visualViewport || null;
+  const viewportLeft = viewport?.offsetLeft || 0;
+  const viewportTop = viewport?.offsetTop || 0;
+  const viewportWidth = viewport?.width || window.innerWidth;
+  const triggerCenter = triggerRect.left + triggerRect.width / 2;
+  const openTowardLeft = triggerCenter >= viewportLeft + viewportWidth / 2;
+  const openAbove = triggerRect.top > viewportTop + 220;
+
+  menu.classList.toggle("is-anchor-right", openTowardLeft);
+  menu.classList.toggle("is-anchor-left", !openTowardLeft);
+  menu.classList.toggle("is-open-above", openAbove);
+  menu.classList.toggle("is-open-below", !openAbove);
 }
 
 function closeListingActionMenu(menu) {
   menu.hidden = true;
-  menu.classList.remove("is-floating");
+  menu.classList.remove("is-floating", "is-mobile-sheet");
+  menu.classList.remove("is-anchor-left", "is-anchor-right", "is-open-above", "is-open-below");
   menu.style.removeProperty("top");
   menu.style.removeProperty("right");
   menu.style.removeProperty("bottom");
@@ -7215,22 +7261,31 @@ function closeListingActionMenu(menu) {
   }
 }
 
-function positionListingActionMenu(menu, trigger) {
+function positionListingActionMenu(menu, triggerRect) {
   const spacing = 8;
   const viewportPadding = 12;
-  const triggerRect = trigger.getBoundingClientRect();
   const menuRect = menu.getBoundingClientRect();
-  const maxLeft = window.innerWidth - menuRect.width - viewportPadding;
-  const preferredLeft = triggerRect.left;
-  const left = Math.max(viewportPadding, Math.min(preferredLeft, maxLeft));
+  const viewport = window.visualViewport || null;
+  const viewportLeft = viewport?.offsetLeft || 0;
+  const viewportTop = viewport?.offsetTop || 0;
+  const viewportWidth = viewport?.width || window.innerWidth;
+  const viewportHeight = viewport?.height || window.innerHeight;
+  const minLeft = viewportLeft + viewportPadding;
+  const maxLeft = viewportLeft + viewportWidth - menuRect.width - viewportPadding;
+  const triggerCenter = triggerRect.left + triggerRect.width / 2;
+  const preferredLeft = triggerCenter < viewportLeft + viewportWidth / 2
+    ? triggerRect.left
+    : triggerRect.right - menuRect.width;
+  const left = Math.max(minLeft, Math.min(preferredLeft, maxLeft));
   const preferredTop = triggerRect.top - menuRect.height - spacing;
   const fallbackTop = triggerRect.bottom + spacing;
-  const top = preferredTop >= viewportPadding
+  const maxTop = viewportTop + viewportHeight - menuRect.height - viewportPadding;
+  const top = preferredTop >= viewportTop + viewportPadding
     ? preferredTop
-    : Math.min(fallbackTop, window.innerHeight - menuRect.height - viewportPadding);
+    : Math.min(fallbackTop, maxTop);
 
   menu.style.left = `${Math.round(left)}px`;
-  menu.style.top = `${Math.round(Math.max(viewportPadding, top))}px`;
+  menu.style.top = `${Math.round(Math.max(viewportTop + viewportPadding, top))}px`;
 }
 
 async function hydrateRenderedRakumaImage(listing, imageElement) {
@@ -8743,6 +8798,7 @@ function saveListingFeedback(listing, action) {
   if (action === "noise") {
     addUnique(feedback.noiseListingIds, listing.id);
     removeValue(feedback.gearListingIds, listing.id);
+    captureNoiseExample(listing);
   }
 
   if (action === "hide-similar") {
@@ -8753,6 +8809,55 @@ function saveListingFeedback(listing, action) {
 
   allFeedback[key] = feedback;
   saveFeedbackRules(allFeedback);
+}
+
+function captureNoiseExample(listing) {
+  if (!listing || typeof fetch !== "function") return;
+
+  const payload = {
+    listing: createCurationListingSnapshot(listing),
+    context: createCurationFeedbackContext(),
+  };
+
+  fetch("/api/curation/noise", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+    },
+    body: JSON.stringify(payload),
+    keepalive: true,
+  }).catch((error) => {
+    console.info("Brrtz curation feedback was saved locally but not captured by the server.", error);
+  });
+}
+
+function createCurationListingSnapshot(listing) {
+  return {
+    id: listing.id || "",
+    source: listing.source || "",
+    region: listing.region || appSettings.regionId || "",
+    currency: listing.currency || appSettings.currency || "",
+    title: listing.title || "",
+    price: Number.isFinite(Number(listing.price)) ? Number(listing.price) : null,
+    condition: listing.condition || "",
+    listedAt: listing.listedAt || "",
+    url: listing.url || "",
+    image: listing.image || "",
+    shop: listing.shop || "",
+    categoryId: listing.categoryId || "",
+    categoryPath: Array.isArray(listing.categoryPath) ? listing.categoryPath : [],
+  };
+}
+
+function createCurationFeedbackContext() {
+  return {
+    page: getCurrentAppView() || (isBrowseExpanded ? APP_VIEW_SYNTH_BROWSER : "home"),
+    viewMode: appSettings.resultView || "grid",
+    categoryIntent: browseCategoryIntent || currentProfile.categoryIntent || "",
+    regionId: appSettings.regionId || currentProfile.regionId || "",
+    searchTerms: Array.isArray(currentProfile.terms) ? currentProfile.terms : [],
+    sourceFilter: Array.from(activeViewSources.size ? activeViewSources : new Set(currentProfile.sources || [])),
+  };
 }
 
 function addHideSimilarSignals(feedback, listing) {

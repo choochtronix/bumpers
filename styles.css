@@ -4239,8 +4239,8 @@ body[data-theme="dark"] .gear-browser-see-all-link:focus-visible {
 
 .brand-browser-grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: clamp(12px, 1.4vw, 18px);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(18px, 2vw, 28px);
 }
 
 .brand-browser-card {
@@ -4259,7 +4259,7 @@ body[data-theme="dark"] .gear-browser-see-all-link:focus-visible {
 
 .brand-browser-avatar {
   display: grid;
-  width: clamp(66px, 6.5vw, 96px);
+  width: clamp(132px, 13vw, 192px);
   aspect-ratio: 1 / 1;
   place-items: center;
   border: 2px solid color-mix(in srgb, #ffffff 28%, transparent);
@@ -4271,7 +4271,7 @@ body[data-theme="dark"] .gear-browser-see-all-link:focus-visible {
     0 16px 34px rgba(0, 0, 0, 0.26),
     inset 0 1px 0 rgba(255, 255, 255, 0.12);
   color: #ffffff;
-  font-size: clamp(18px, 2vw, 28px);
+  font-size: clamp(36px, 4vw, 56px);
   font-weight: 900;
   line-height: 1;
   overflow: hidden;
@@ -4315,7 +4315,7 @@ body[data-theme="dark"] .gear-browser-see-all-link:focus-visible {
 
 @media (max-width: 1120px) {
   .brand-browser-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
@@ -5338,6 +5338,15 @@ body[data-theme="dark"] .open-link:focus-visible {
   grid-column: -2 / -1;
 }
 
+.listing-card:has(.open-menu:not([hidden])) {
+  overflow: visible;
+  z-index: 80;
+}
+
+.listing-action-menu:has(.open-menu:not([hidden])) {
+  z-index: 1100;
+}
+
 .image-stage .listing-action-menu {
   position: absolute;
   bottom: 10px;
@@ -5592,7 +5601,9 @@ body[data-theme="dark"] .open-link:focus-visible {
   z-index: 8;
   display: grid;
   min-width: 180px;
+  max-width: calc(100vw - 24px);
   overflow: hidden;
+  pointer-events: auto;
   border: 1px solid var(--line);
   border-radius: var(--radius-card);
   background: var(--panel);
@@ -5604,6 +5615,61 @@ body[data-theme="dark"] .open-link:focus-visible {
   right: auto;
   bottom: auto;
   z-index: 1000;
+  width: max-content;
+}
+
+.open-menu.is-mobile-sheet {
+  position: fixed;
+  z-index: 1300;
+  top: auto;
+  right: max(12px, env(safe-area-inset-right));
+  bottom: calc(var(--mobile-bottom-nav-space, 88px) + 12px);
+  left: max(12px, env(safe-area-inset-left));
+  display: grid;
+  width: auto;
+  min-width: 0;
+  max-width: none;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, #ffffff 18%, var(--line));
+  border-radius: 22px;
+  background:
+    linear-gradient(var(--panel), var(--panel)) padding-box,
+    var(--brand-gradient, linear-gradient(110deg, #ff00ff 0%, #0072ff 100%)) border-box;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 24px 70px rgba(0, 0, 0, 0.46),
+    0 0 34px color-mix(in srgb, var(--brand-gradient-start, #ff00ff) 18%, transparent);
+}
+
+.open-menu.is-mobile-sheet a,
+.open-menu.is-mobile-sheet button {
+  min-height: 72px;
+  gap: 14px;
+  padding: 0 18px;
+  font-size: 16px;
+  border-top-color: color-mix(in srgb, var(--line) 72%, #ffffff 10%);
+}
+
+.open-menu.is-mobile-sheet .menu-source-avatar {
+  width: 30px !important;
+  min-width: 30px;
+  max-width: 30px;
+  height: 30px !important;
+  min-height: 30px !important;
+  max-height: 30px;
+  flex-basis: 30px;
+  font-size: 12px;
+}
+
+.open-menu.is-mobile-sheet .noise-menu-icon {
+  width: 28px;
+  height: 28px;
+  flex-basis: 28px;
+}
+
+.open-menu.is-mobile-sheet .noise-menu-icon::after {
+  height: 31px;
+  width: 3px;
 }
 
 .open-menu[hidden] {
@@ -5632,6 +5698,55 @@ body[data-theme="dark"] .open-link:focus-visible {
   text-decoration: none;
 }
 
+.open-menu .menu-source-avatar {
+  position: static;
+  right: auto;
+  bottom: auto;
+  left: auto;
+  display: inline-grid;
+  box-sizing: border-box;
+  width: 22px !important;
+  min-width: 22px;
+  max-width: 22px;
+  height: 22px !important;
+  min-height: 22px !important;
+  max-height: 22px;
+  flex: 0 0 22px;
+  align-self: center;
+  border-width: 2px;
+  border-radius: 50%;
+  box-shadow: none;
+  font-size: 9px;
+  line-height: 1;
+  aspect-ratio: 1 / 1;
+}
+
+.open-menu .menu-source-avatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.open-menu .buyee-menu-avatar {
+  border: 0;
+  background: #d9a321;
+  color: #111418;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 950;
+  line-height: 1;
+  text-align: center;
+}
+
+.open-menu .menu-action-label {
+  min-width: 0;
+}
+
 .open-menu a:first-child,
 .open-menu button:first-child {
   border-top: 0;
@@ -5655,9 +5770,6 @@ body[data-theme="dark"] .open-link:focus-visible {
   border: 2px solid currentColor;
   border-radius: 999px;
   color: #ff00ff;
-  font-size: 16px;
-  font-weight: 900;
-  line-height: 1;
 }
 
 .noise-menu-icon::after {
@@ -6626,7 +6738,7 @@ body[data-theme="dark"] .browse-expanded-loader-copy {
 
   .brand-browser-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 16px 12px;
+    gap: 22px 14px;
   }
 
   .brand-browser-card {
@@ -6634,7 +6746,7 @@ body[data-theme="dark"] .browse-expanded-loader-copy {
   }
 
   .brand-browser-avatar {
-    width: clamp(70px, 22vw, 92px);
+    width: clamp(112px, 38vw, 184px);
   }
 
   .brand-browser-name {
@@ -8422,7 +8534,7 @@ body[data-theme="dark"] .refine-backdrop {
   }
 
   .result-grid.is-gallery-view .image-link img {
-    object-fit: contain;
+    object-fit: cover;
     object-position: center center;
   }
 
@@ -8549,10 +8661,34 @@ body[data-theme="dark"] .refine-backdrop {
   }
 
   .open-menu {
-    right: 0;
+    right: auto;
     bottom: calc(100% + 10px);
+    left: 0;
     min-width: min(220px, calc(100vw - 48px));
+    max-width: calc(100vw - 24px);
     border-radius: 18px;
+  }
+
+  .open-menu.is-anchor-right {
+    right: 0;
+    left: auto;
+  }
+
+  .open-menu.is-anchor-left {
+    top: auto;
+    right: auto;
+    bottom: calc(100% + 10px);
+    left: 0;
+  }
+
+  .open-menu.is-open-below {
+    top: calc(100% + 10px);
+    bottom: auto;
+  }
+
+  .open-menu.is-open-above {
+    top: auto;
+    bottom: calc(100% + 10px);
   }
 
   .pagination {
@@ -8844,12 +8980,18 @@ body[data-theme="dark"] .refine-backdrop {
   .listing-card.is-browse-home-card .image-link {
     position: absolute;
     inset: 0;
+    display: block;
+    width: 100%;
     height: 100%;
+    min-height: 100%;
     aspect-ratio: auto;
   }
 
+  .listing-card.is-browse-home-card .image-link img,
   .gear-browser-double-rail .listing-card.is-browse-home-card .image-link img {
-    object-fit: contain;
+    width: 100%;
+    height: 100%;
+    object-fit: cover !important;
     object-position: center center;
   }
 

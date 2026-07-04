@@ -25,6 +25,7 @@ Supabase/
 *.db
 data/cloud-saved-searches.json
 data/agent-source-health.json
+ops/curation/*.jsonl
 bumpers-saved-searches-*.json
 cache/
 screenshots/

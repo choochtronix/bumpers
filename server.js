@@ -1,6 +1,6 @@
 import { createServer } from "node:http";
 import { existsSync, readFileSync } from "node:fs";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { networkInterfaces } from "node:os";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -25,6 +25,7 @@ const CLOUD_PROFILE_NAME = process.env.BUMPERS_CLOUD_USER_NAME || "Local Brrtz U
 const REQUIRE_INVITE = process.env.BUMPERS_REQUIRE_INVITE === "true";
 const JOB_TOKEN = process.env.BUMPERS_JOB_TOKEN || "";
 const SOURCE_HEALTH_FILE = join(ROOT, "data", "agent-source-health.json");
+const CURATION_NOISE_INBOX_FILE = join(ROOT, "ops", "curation", "noise-inbox.jsonl");
 const DIGIMART_BASE_URL = "https://www.digimart.net";
 const FIVE_G_BASE_URL = "https://fiveg.net";
 const IMPLANT4_BASE_URL = "https://shop.implant4.com";
@@ -384,6 +385,11 @@ createServer(async (request, response) => {
       return;
     }
 
+    if (url.pathname === "/api/curation/noise") {
+      await handleCurationNoise(request, response);
+      return;
+    }
+
     if (url.pathname === "/api/jobs/source-health") {
       await handleSourceHealthJob(request, url, response);
       return;
@@ -600,6 +606,38 @@ async function handleAdminSourceHealth(request, response) {
   sendJson(response, 200, await readSourceHealthState(SOURCE_HEALTH_FILE));
 }
 
+async function handleCurationNoise(request, response) {
+  if (request.method !== "POST") {
+    response.writeHead(405, {
+      "allow": "POST",
+      "content-type": "application/json; charset=utf-8",
+    });
+    response.end(JSON.stringify({ error: "method_not_allowed" }));
+    return;
+  }
+
+  const payload = await readJsonBody(request, {
+    maxBytes: 128_000,
+    tooLargeMessage: "Curation feedback payload is too large.",
+  });
+  const record = createCurationNoiseRecord(payload);
+
+  if (!record.listing.title && !record.listing.url) {
+    sendJson(response, 400, {
+      error: "invalid_noise_feedback",
+      message: "Noise feedback needs at least a listing title or URL.",
+    });
+    return;
+  }
+
+  await appendCurationNoiseRecord(record);
+  sendJson(response, 201, {
+    ok: true,
+    capturedAt: record.capturedAt,
+    dedupeKey: record.dedupeKey,
+  });
+}
+
 async function handleSourceHealthJob(request, url, response) {
   if (!isAuthorizedOpsRequest(request)) {
     sendJson(response, 403, { error: "forbidden" });
@@ -762,18 +800,120 @@ async function writeCloudSavedSearches(payload, cloudUser = getCloudUser()) {
   return payload;
 }
 
-async function readJsonBody(request) {
+async function readJsonBody(request, options = {}) {
+  const maxBytes = Number(options.maxBytes) || 1_000_000;
+  const tooLargeMessage = options.tooLargeMessage || "Cloud saved-search payload is too large.";
   let body = "";
 
   for await (const chunk of request) {
     body += chunk;
-    if (body.length > 1_000_000) {
-      throw new Error("Cloud saved-search payload is too large.");
+    if (body.length > maxBytes) {
+      throw new Error(tooLargeMessage);
     }
   }
 
   if (!body.trim()) return {};
   return JSON.parse(body);
+}
+
+function createCurationNoiseRecord(payload = {}) {
+  const now = new Date().toISOString();
+  const listing = normalizeCurationListingSnapshot(payload.listing || payload);
+  const context = normalizeCurationContext(payload.context);
+
+  return {
+    type: "gear-scanner-noise-feedback",
+    schemaVersion: 1,
+    capturedAt: now,
+    dedupeKey: createCurationDedupeKey(listing),
+    listing,
+    context,
+    review: {
+      status: "pending",
+      reason: "",
+      notes: "",
+    },
+  };
+}
+
+function normalizeCurationListingSnapshot(value = {}) {
+  const listing = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+
+  return {
+    id: trimCurationString(listing.id, 180),
+    source: trimCurationString(listing.source, 80),
+    region: trimCurationString(listing.region, 80),
+    currency: trimCurationString(listing.currency, 12),
+    title: trimCurationString(listing.title, 600),
+    price: normalizeNullableNumber(listing.price),
+    condition: trimCurationString(listing.condition, 120),
+    listedAt: trimCurationString(listing.listedAt, 80),
+    url: normalizeCurationUrl(listing.url),
+    image: normalizeCurationUrl(listing.image),
+    shop: trimCurationString(listing.shop, 180),
+    categoryId: trimCurationString(listing.categoryId, 120),
+    categoryPath: Array.isArray(listing.categoryPath)
+      ? listing.categoryPath.map((item) => trimCurationString(item, 120)).filter(Boolean).slice(0, 8)
+      : [],
+  };
+}
+
+function normalizeCurationContext(value = {}) {
+  const context = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+
+  return {
+    page: trimCurationString(context.page, 80),
+    viewMode: trimCurationString(context.viewMode, 40),
+    categoryIntent: trimCurationString(context.categoryIntent, 80),
+    regionId: trimCurationString(context.regionId, 80),
+    searchTerms: Array.isArray(context.searchTerms)
+      ? context.searchTerms.map((item) => trimCurationString(item, 120)).filter(Boolean).slice(0, 12)
+      : [],
+    sourceFilter: Array.isArray(context.sourceFilter)
+      ? context.sourceFilter.map((item) => trimCurationString(item, 80)).filter(Boolean).slice(0, 24)
+      : [],
+  };
+}
+
+function trimCurationString(value, maxLength) {
+  return typeof value === "string" ? value.trim().slice(0, maxLength) : "";
+}
+
+function normalizeNullableNumber(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function normalizeCurationUrl(value) {
+  const url = trimCurationString(value, 1200);
+  if (!url) return "";
+
+  try {
+    const parsed = new URL(url);
+    return ["http:", "https:"].includes(parsed.protocol) ? parsed.toString() : "";
+  } catch {
+    return "";
+  }
+}
+
+function createCurationDedupeKey(listing) {
+  const stableSourceKey = [listing.source, listing.id || listing.url]
+    .filter(Boolean)
+    .join(":")
+    .toLowerCase();
+  if (stableSourceKey) return stableSourceKey;
+
+  return [listing.source, listing.title]
+    .filter(Boolean)
+    .join(":")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .slice(0, 240);
+}
+
+async function appendCurationNoiseRecord(record) {
+  await mkdir(join(ROOT, "ops", "curation"), { recursive: true });
+  await appendFile(CURATION_NOISE_INBOX_FILE, `${JSON.stringify(record)}\n`, "utf8");
 }
 
 function createCloudSavedSearchState(payload = {}, cloudUser = getCloudUser()) {
