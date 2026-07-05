@@ -7091,8 +7091,10 @@ function animateListingDismiss(card, onComplete) {
 
   card.addEventListener("transitionend", finish);
   window.requestAnimationFrame(() => {
-    card.classList.add("is-dismissing-noise");
-    window.setTimeout(finish, 340);
+    window.requestAnimationFrame(() => {
+      card.classList.add("is-dismissing-noise");
+      window.setTimeout(finish, 520);
+    });
   });
 }
 
