@@ -1,0 +1,107 @@
+{
+  "$schema": "https://design-tokens.github.io/community-group/format/",
+  "$description": "Brrtz design tokens v1.0.0 — machine-readable mirror of tokens/brrtz-tokens.css. Source of truth for agents. Modes: light (default) / dark (app default theme).",
+  "brand": {
+    "magenta": { "$type": "color", "$value": "#ff00ff" },
+    "blue": { "$type": "color", "$value": "#0072ff" },
+    "ink": { "$type": "color", "$value": "#151515" },
+    "paper": { "$type": "color", "$value": "#eef1f0" },
+    "carbon": { "$type": "color", "$value": "#0f1113" },
+    "gradient": { "$type": "gradient", "$value": "linear-gradient(110deg, {brand.magenta} 0%, {brand.blue} 100%)" },
+    "font": { "$type": "fontFamily", "$value": ["Geist", "Helvetica", "Arial", "Segoe UI", "sans-serif"] }
+  },
+  "color": {
+    "bg": { "$type": "color", "$value": { "light": "{brand.paper}", "dark": "{brand.carbon}" } },
+    "panel": { "$type": "color", "$value": { "light": "#ffffff", "dark": "#181b1f" } },
+    "panelSoft": { "$type": "color", "$value": { "light": "rgba(255,255,255,0.82)", "dark": "rgba(24,27,31,0.86)" } },
+    "panelGlass": { "$type": "color", "$value": { "light": "rgba(255,255,255,0.74)", "dark": "rgba(24,27,31,0.78)" } },
+    "ink": { "$type": "color", "$value": { "light": "{brand.ink}", "dark": "#f2f4f4" } },
+    "listingTitle": { "$type": "color", "$value": { "light": "#111416", "dark": "#d7dcdf" } },
+    "muted": { "$type": "color", "$value": { "light": "#6f746d", "dark": "#9da5a7" } },
+    "line": { "$type": "color", "$value": { "light": "#d9ddd5", "dark": "#30363a" } },
+    "field": { "$type": "color", "$value": { "light": "rgba(255,255,255,0.9)", "dark": "rgba(19,22,25,0.95)" } },
+    "imageBg": { "$type": "color", "$value": { "light": "#d8dcd2", "dark": "#22272b" } },
+    "buttonBg": { "$type": "color", "$value": { "light": "#ffffff", "dark": "#202428" } },
+    "selectBg": { "$type": "color", "$value": { "light": "#e7ebe3", "dark": "#222725" } },
+    "selectHoverBg": { "$type": "color", "$value": { "light": "#dde4d8", "dark": "#2a302e" } },
+    "primary": { "$type": "color", "$value": { "light": "#171a1d", "dark": "#f2f4f4" } },
+    "primaryInk": { "$type": "color", "$value": { "light": "#ffffff", "dark": "#101214" } },
+    "secondaryButtonStroke": { "$type": "color", "$value": { "light": "#cfd4cc", "dark": "#f2f4f4" } },
+    "accent": { "$type": "color", "$value": { "light": "#0a84ff", "dark": "#5aa7ff" } },
+    "accentSoft": { "$type": "color", "$value": { "light": "rgba(10,132,255,0.12)", "dark": "rgba(90,167,255,0.17)" } },
+    "accentInk": { "$type": "color", "$value": { "light": "#075fb6", "dark": "#a8d0ff" } },
+    "green": { "$type": "color", "$value": { "light": "#2f7d58", "dark": "#55b982" } },
+    "rose": { "$type": "color", "$value": { "light": "#b13b57", "dark": "#e85d7f" } },
+    "amber": { "$type": "color", "$value": { "light": "#9f6a12", "dark": "#e6a746" } },
+    "brandHot": { "$type": "color", "$value": "{brand.magenta}", "$description": "Watch-active, hover borders, loading copy. Theme-invariant." }
+  },
+  "source": {
+    "$description": "Marketplace identity colors. Theme-invariant.",
+    "default": { "$type": "color", "$value": "#4b83d8" },
+    "mercari": { "$type": "color", "$value": "#e53935" },
+    "yahooAuctions": { "$type": "color", "$value": "#d60000" },
+    "yahooFleamarket": { "$type": "color", "$value": "#1f73e8" },
+    "rakuma": { "$type": "color", "$value": "#12a05c" },
+    "digimart": { "$type": "color", "$value": "#0a62b7" },
+    "reverb": { "$type": "color", "$value": "#f47a20" },
+    "ebay": { "$type": "color", "$value": "#0064d2" },
+    "sweetwater": { "$type": "color", "$value": "#1f75bc" },
+    "guitarCenter": { "$type": "color", "$value": "#111416" },
+    "craigslist": { "$type": "color", "$value": "#6b3fa0" },
+    "jimoty": { "$type": "color", "$value": "#f15a24" },
+    "offmall": { "$type": "color", "$value": "#f2a900" },
+    "hardoff": { "$type": "color", "$value": "#f2a900" },
+    "fiveG": { "$type": "color", "$value": "#151515" },
+    "implant4": { "$type": "color", "$value": "#b13b57" },
+    "inkOnColor": { "$type": "color", "$value": "#ffffff" },
+    "inkOnYellow": { "$type": "color", "$value": "#1a1a1a" }
+  },
+  "radius": {
+    "control": { "$type": "dimension", "$value": "8px" },
+    "card": { "$type": "dimension", "$value": "8px" },
+    "cardLarge": { "$type": "dimension", "$value": "22px", "$description": "Listing cards" },
+    "cardList": { "$type": "dimension", "$value": "16px", "$description": "List-view rows" },
+    "modal": { "$type": "dimension", "$value": "8px" },
+    "sheet": { "$type": "dimension", "$value": "24px" },
+    "pill": { "$type": "dimension", "$value": "999px" }
+  },
+  "shadow": {
+    "elevated": { "$type": "shadow", "$value": { "light": "0 18px 50px rgba(20,24,28,0.12)", "dark": "0 18px 50px rgba(0,0,0,0.42)" } },
+    "card": { "$type": "shadow", "$value": { "light": "0 22px 54px rgba(25,30,35,0.16), 0 5px 16px rgba(25,30,35,0.08)", "dark": "0 24px 58px rgba(0,0,0,0.54), 0 5px 18px rgba(0,0,0,0.34)" } },
+    "float": { "$type": "shadow", "$value": { "light": "0 8px 18px rgba(0,0,0,0.28)", "dark": "0 8px 18px rgba(0,0,0,0.5)" } },
+    "focusRing": { "$type": "shadow", "$value": { "light": "0 0 0 4px rgba(10,132,255,0.14)", "dark": "0 0 0 4px rgba(90,167,255,0.18)" } }
+  },
+  "motion": {
+    "fast": { "$type": "duration", "$value": "140ms", "$description": "easing: ease" },
+    "standard": { "$type": "duration", "$value": "160ms", "$description": "easing: ease" }
+  },
+  "typography": {
+    "family": { "$type": "fontFamily", "$value": "{brand.font}" },
+    "weight": {
+      "medium": { "$type": "fontWeight", "$value": 650 },
+      "bold": { "$type": "fontWeight", "$value": 800 },
+      "heavy": { "$type": "fontWeight", "$value": 850 },
+      "black": { "$type": "fontWeight", "$value": 900 },
+      "display": { "$type": "fontWeight", "$value": 950 }
+    },
+    "size": {
+      "micro": { "$type": "dimension", "$value": "11px" },
+      "caption": { "$type": "dimension", "$value": "13px" },
+      "body": { "$type": "dimension", "$value": "15px" },
+      "emphasis": { "$type": "dimension", "$value": "18px" },
+      "title": { "$type": "dimension", "$value": "24px" },
+      "headline": { "$type": "dimension", "$value": "clamp(28px, 4vw, 52px)" },
+      "display": { "$type": "dimension", "$value": "clamp(44px, 6vw, 76px)" },
+      "hero": { "$type": "dimension", "$value": "clamp(42px, 8vw, 92px)" }
+    }
+  },
+  "space": {
+    "1": { "$type": "dimension", "$value": "4px" },
+    "2": { "$type": "dimension", "$value": "8px" },
+    "3": { "$type": "dimension", "$value": "12px" },
+    "4": { "$type": "dimension", "$value": "16px" },
+    "5": { "$type": "dimension", "$value": "24px" },
+    "6": { "$type": "dimension", "$value": "32px" },
+    "7": { "$type": "dimension", "$value": "48px" }
+  }
+}

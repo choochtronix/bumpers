@@ -64,7 +64,7 @@ body {
 .aeo-nav a:focus-visible,
 .aeo-pill-link:hover,
 .aeo-pill-link:focus-visible {
-  border-color: #ff00ff;
+  border-color: var(--color-brand-hot);
   outline: none;
 }
 
@@ -92,7 +92,7 @@ body {
 }
 
 .aeo-gradient {
-  background: linear-gradient(110deg, #ff00ff 0%, #0072ff 100%);
+  background: var(--brand-gradient);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
