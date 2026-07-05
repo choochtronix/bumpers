@@ -1299,6 +1299,10 @@ function createServerSearchId(name = "search") {
   return `search_${slug}_${Date.now().toString(36)}`;
 }
 
+function shouldSuppressRakumaForSearchTerms(terms = []) {
+  return terms.some((term) => String(term || "").normalize("NFKC").toLocaleLowerCase("ja-JP").includes("moog"));
+}
+
 async function handleSearch(url, response) {
   const terms = createSourceSearchTerms(splitParam(url.searchParams.get("terms")));
   const excludes = splitParam(url.searchParams.get("excludes"));
@@ -1327,7 +1331,7 @@ async function handleSearch(url, response) {
   const wantsJimoty = sources.length === 0 || sources.includes("jimoty");
   const wantsMercari = sources.length === 0 || sources.includes("mercari");
   const wantsOffmall = sources.length === 0 || sources.includes("offmall") || sources.includes("hardoff");
-  const wantsRakuma = sources.length === 0 || sources.includes("rakuma");
+  const wantsRakuma = (sources.length === 0 || sources.includes("rakuma")) && !shouldSuppressRakumaForSearchTerms(terms);
   const wantsReverb = sources.length === 0 || sources.includes("reverb");
   const wantsReverbUs = sources.length === 0 || sources.includes("reverb-us");
   const wantsYahooAuctions = sources.length === 0 || sources.includes("yahoo-auctions");

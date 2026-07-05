@@ -3523,6 +3523,7 @@ function handleMobileSearchSubmit(event) {
 function handleQuickSearchSuggestionClick(event) {
   const button = event.target.closest("[data-suggested-maker][data-suggested-model]");
   if (!button) return;
+  event.preventDefault();
 
   const maker = button.dataset.suggestedMaker || "";
   const model = button.dataset.suggestedModel || "";
@@ -3539,7 +3540,17 @@ function handleQuickSearchSuggestionClick(event) {
   renderSearchTermsSummary();
   renderRefineTermDropdown();
   updateQuickSaveSearchButton();
-  termsInput.focus();
+  quickSearchSuggestions.hidden = true;
+  submitSearchForm();
+}
+
+function submitSearchForm() {
+  if (typeof searchForm.requestSubmit === "function") {
+    searchForm.requestSubmit();
+    return;
+  }
+
+  searchForm.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
 }
 
 function clearQuickSearchTerms() {
@@ -6971,10 +6982,7 @@ function renderListing(listing, options = {}) {
   renderSourceAvatar(sourceOpenIcon, source, listing.source);
   if (sourceOpenLabel) sourceOpenLabel.textContent = source?.label || "Listing";
   configureBuyeeLink(buyeeOpenLink, listing);
-  watchButton.classList.toggle("is-watching", watching.has(listing.id));
-  watchButton.textContent = watching.has(listing.id) ? "♥" : "♡";
-  watchButton.setAttribute("aria-label", watching.has(listing.id) ? "Remove from watching" : "Watch listing");
-  watchButton.title = watching.has(listing.id) ? "Remove from watching" : "Watch listing";
+  renderWatchButtonState(watchButton, watching.has(listing.id));
   gearButton.classList.toggle("is-active", feedbackStatus === "gear");
   noiseButton.classList.toggle("is-active", feedbackStatus === "noise");
 
@@ -7013,16 +7021,22 @@ function renderListing(listing, options = {}) {
     event.preventDefault();
     event.stopPropagation();
     const next = new Set(loadSet(STORAGE_KEYS.watching));
+    let isWatching;
     if (next.has(listing.id)) {
       next.delete(listing.id);
+      isWatching = false;
     } else {
       next.add(listing.id);
+      isWatching = true;
       recordListingSnapshot(listing);
       acknowledgeListings([listing], { watched: true });
     }
     saveSet(STORAGE_KEYS.watching, next);
     queueProfileAutoSync("watch-listing");
-    renderResults();
+    renderWatchButtonState(watchButton, isWatching);
+    if (filterMode === "watching" && !isWatching) {
+      renderResults();
+    }
   });
 
   hideSimilarButton.addEventListener("click", (event) => {
@@ -7102,6 +7116,37 @@ function shouldReduceMotion() {
   return typeof window !== "undefined"
     && typeof window.matchMedia === "function"
     && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function renderWatchButtonState(button, isWatching) {
+  if (!button) return;
+  button.classList.add("has-watch-svg");
+  button.classList.toggle("is-watching", isWatching);
+  button.replaceChildren(createWatchIconSvg(isWatching));
+  button.setAttribute("aria-label", isWatching ? "Remove from watching" : "Watch listing");
+  button.title = isWatching ? "Remove from watching" : "Watch listing";
+}
+
+function createWatchIconSvg(isWatching) {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.classList.add("watch-button-svg");
+  svg.setAttribute("width", "22");
+  svg.setAttribute("height", "22");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("fill", "none");
+  svg.setAttribute("aria-hidden", "true");
+  svg.setAttribute("focusable", "false");
+
+  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  path.setAttribute("d", "M12 20.5C12 20.5 3.5 15.3 3.5 9C3.5 6.1 5.6 4 8.2 4C9.85 4 11.25 4.95 12 6.35C12.75 4.95 14.15 4 15.8 4C18.4 4 20.5 6.1 20.5 9C20.5 15.3 12 20.5 12 20.5Z");
+  path.setAttribute("fill", isWatching ? "#ff00ff" : "none");
+  path.setAttribute("stroke", isWatching ? "#ff00ff" : "#111418");
+  path.setAttribute("stroke-width", "2.4");
+  path.setAttribute("stroke-linecap", "round");
+  path.setAttribute("stroke-linejoin", "round");
+  svg.appendChild(path);
+
+  return svg;
 }
 
 function getDisplayListingImage(listing) {
