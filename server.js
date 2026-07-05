@@ -406,11 +406,11 @@ createServer(async (request, response) => {
     }
 
     if (url.pathname === "/search") {
-      await serveSearchPage(url, response);
+      await serveSearchPage(request, url, response);
       return;
     }
 
-    await serveStatic(url.pathname, response);
+    await serveStatic(request, url.pathname, response);
   } catch (error) {
     sendJson(response, 500, {
       error: "server_error",
@@ -4053,7 +4053,7 @@ function formatYahooEndDate(timestamp) {
   }).format(new Date(timestamp * 1000));
 }
 
-async function serveStatic(pathname, response) {
+async function serveStatic(request, pathname, response) {
   const staticPathname = resolveStaticPathname(pathname);
   const safePath = normalize(staticPathname).replace(/^(\.\.[/\\])+/, "");
   const filePath = join(ROOT, safePath);
@@ -4065,7 +4065,10 @@ async function serveStatic(pathname, response) {
   }
 
   try {
-    const contents = await readFile(filePath);
+    const isHtml = extname(filePath) === ".html";
+    const contents = isHtml
+      ? applyLocalBetaFavicon(await readFile(filePath, "utf8"), request)
+      : await readFile(filePath);
     response.writeHead(200, {
       "content-type": mimeTypes[extname(filePath)] || "application/octet-stream",
       "cache-control": "no-store",
@@ -4081,12 +4084,12 @@ async function serveStatic(pathname, response) {
   }
 }
 
-async function serveSearchPage(url, response) {
+async function serveSearchPage(request, url, response) {
   const indexPath = join(ROOT, "index.html");
   const indexHtml = await readFile(indexPath, "utf8");
   const model = createSearchPageModel(url);
   const fallbackMarkup = createSearchFallbackMarkup(model);
-  const html = indexHtml
+  const html = applyLocalBetaFavicon(indexHtml, request)
     .replace(/<title>[\s\S]*?<\/title>/, `<title>${escapeHtml(model.title)}</title>`)
     .replace(/<meta name="description" content="[^"]*" \/>/, `<meta name="description" content="${escapeHtml(model.description)}" />`)
     .replace(/<link rel="canonical" href="[^"]*" \/>/, `<link rel="canonical" href="${escapeHtml(model.canonical)}" />\n    <meta name="robots" content="noindex,follow" />`)
@@ -4221,6 +4224,31 @@ function resolveStaticPathname(pathname) {
   if (indexPath.startsWith(ROOT) && existsSync(indexPath)) return indexPathname;
 
   return requestedPathname;
+}
+
+function applyLocalBetaFavicon(html, request) {
+  if (!isLocalBetaRequest(request)) return html;
+
+  return html.replaceAll(
+    /href="(\/?assets\/ICONS-site\/)b-favicon\.svg"/g,
+    'href="$1b-favicon-local-beta.svg?v=orange-purple"'
+  );
+}
+
+function isLocalBetaRequest(request) {
+  const host = String(request.headers["x-forwarded-host"] || request.headers.host || "")
+    .split(",")[0]
+    .trim()
+    .replace(/:\d+$/, "")
+    .replace(/^\[|\]$/g, "")
+    .toLowerCase();
+
+  if (!host) return false;
+  if (host === "localhost" || host === "127.0.0.1" || host === "::1") return true;
+  if (host.startsWith("192.168.") || host.startsWith("10.")) return true;
+
+  const private172 = host.match(/^172\.(\d{1,2})\./);
+  return Boolean(private172 && Number(private172[1]) >= 16 && Number(private172[1]) <= 31);
 }
 
 function sendJson(response, status, payload) {

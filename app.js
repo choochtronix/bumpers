@@ -1555,10 +1555,11 @@ const CATEGORY_INTENTS = [
   { id: "effects-pedals", label: "Effects" },
   { id: "pro-audio", label: "Pro Audio" },
 ];
-const BROWSE_CATEGORY_INTENTS = CATEGORY_INTENTS.filter((intent) => intent.id !== "sequencers");
+const BROWSE_CATEGORY_INTENTS = CATEGORY_INTENTS.filter((intent) => !["all", "sequencers"].includes(intent.id));
 const DEFAULT_CATEGORY_INTENT = "synthesizers";
-const DEFAULT_BROWSE_CATEGORY_INTENT = "all";
+const DEFAULT_BROWSE_CATEGORY_INTENT = DEFAULT_CATEGORY_INTENT;
 const CATEGORY_INTENT_IDS = new Set(CATEGORY_INTENTS.map((intent) => intent.id));
+const BROWSE_CATEGORY_INTENT_IDS = new Set(BROWSE_CATEGORY_INTENTS.map((intent) => intent.id));
 const R2D2_SEARCH_TARGET = "Arp 2600";
 // Add more makers here to expand quick model autosuggest.
 const SYNTH_MODEL_SUGGESTIONS = [
@@ -3132,6 +3133,13 @@ function sanitizeCategoryIntent(categoryIntent, regionId = appSettings?.regionId
   return CATEGORY_INTENT_IDS.has(normalizedCategoryIntent)
     ? normalizedCategoryIntent
     : getRegionDefaultCategoryIntent(regionId);
+}
+
+function sanitizeBrowseCategoryIntent(categoryIntent, regionId = appSettings?.regionId || ACTIVE_REGION.id) {
+  const normalizedCategoryIntent = sanitizeCategoryIntent(categoryIntent, regionId);
+  return BROWSE_CATEGORY_INTENT_IDS.has(normalizedCategoryIntent)
+    ? normalizedCategoryIntent
+    : DEFAULT_BROWSE_CATEGORY_INTENT;
 }
 
 function getCategoryIntentLabel(categoryIntent) {
@@ -6499,6 +6507,7 @@ function applyRandomizedSourceColor(element, sourceId, options = {}) {
 function getVisibleResults(watching, baseResults = currentResults, options = {}) {
   const renderContext = options.renderContext || null;
   return baseResults
+    .filter((listing) => !isListingHiddenByFeedback(listing, renderContext))
     .filter((listing) => {
       if (filterMode === "new") return isListingMarkedNew(listing, renderContext);
       if (filterMode === "fresh") return isListingFresh(listing, renderContext);
@@ -6773,6 +6782,7 @@ function getSourceFilteredBaseResults(baseResults = currentResults, options = {}
   const watching = renderContext?.watching || loadSet(STORAGE_KEYS.watching);
   const ignoreQuality = options.ignoreQuality === true;
   return baseResults
+    .filter((listing) => !isListingHiddenByFeedback(listing, renderContext))
     .filter((listing) => {
       if (filterMode === "new") return isListingMarkedNew(listing, renderContext);
       if (filterMode === "fresh") return isListingFresh(listing, renderContext);
@@ -6969,9 +6979,7 @@ function renderListing(listing, options = {}) {
     event.preventDefault();
     event.stopPropagation();
     closeListingActionMenu(openMenu);
-    saveListingFeedback(listing, "noise");
-    acknowledgeListings([listing], { dismissed: true });
-    renderResults();
+    dismissListingAsNoise(card, listing);
   });
 
   watchButton.addEventListener("click", (event) => {
@@ -7009,9 +7017,7 @@ function renderListing(listing, options = {}) {
   noiseButton.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
-    saveListingFeedback(listing, "noise");
-    acknowledgeListings([listing], { dismissed: true });
-    renderResults();
+    dismissListingAsNoise(card, listing);
   });
 
   if (isFeaturedHome) {
@@ -7031,6 +7037,42 @@ function renderListing(listing, options = {}) {
   }
 
   return fragment;
+}
+
+function dismissListingAsNoise(card, listing) {
+  if (card?.classList.contains("is-dismissing-noise")) return;
+  saveListingFeedback(listing, "noise");
+  acknowledgeListings([listing], { dismissed: true });
+  animateListingDismiss(card, () => {
+    card?.remove();
+  });
+}
+
+function animateListingDismiss(card, onComplete) {
+  if (!card || shouldReduceMotion()) {
+    onComplete();
+    return;
+  }
+
+  let completed = false;
+  const finish = () => {
+    if (completed) return;
+    completed = true;
+    card.removeEventListener("transitionend", finish);
+    onComplete();
+  };
+
+  card.addEventListener("transitionend", finish);
+  window.requestAnimationFrame(() => {
+    card.classList.add("is-dismissing-noise");
+    window.setTimeout(finish, 340);
+  });
+}
+
+function shouldReduceMotion() {
+  return typeof window !== "undefined"
+    && typeof window.matchMedia === "function"
+    && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
 function getDisplayListingImage(listing) {
@@ -7855,7 +7897,7 @@ async function fetchBrowseCategoryListings(categoryIntent, options = {}) {
   }
 
   const params = new URLSearchParams({
-    categoryIntent: sanitizeCategoryIntent(categoryIntent, appSettings.regionId),
+    categoryIntent: sanitizeBrowseCategoryIntent(categoryIntent, appSettings.regionId),
     region: getActiveRegion().id,
     excludes: STARTER_FRESH_FIND_EXCLUDES.join("|"),
     maxPrice: "0",
@@ -7882,7 +7924,7 @@ async function fetchBrandBrowseListings(brand, brandRecipe, categoryIntent, opti
   const params = new URLSearchParams({
     terms: createSourceSearchTerms(sourceTerms).join("|"),
     excludes: createBrandRecipeRequestExcludes(brand).join("|"),
-    categoryIntent: sanitizeCategoryIntent(categoryIntent, appSettings.regionId),
+    categoryIntent: sanitizeBrowseCategoryIntent(categoryIntent, appSettings.regionId),
     maxPrice: String(brandRecipe.maxPrice || 0),
     sources: getBrandRecipeSourcesForRegion(brandRecipe, region.id).join("|"),
     region: region.id,
@@ -7937,7 +7979,7 @@ function cancelBrowseCategoryLoad() {
 function scheduleBrowseCategoryPostLoadWork(categoryIntent, listings) {
   if (!Array.isArray(listings) || listings.length === 0) return;
   if (browseCategoryBrandSlug) return;
-  const normalizedCategoryIntent = sanitizeCategoryIntent(categoryIntent, appSettings.regionId);
+  const normalizedCategoryIntent = sanitizeBrowseCategoryIntent(categoryIntent, appSettings.regionId);
   const taskId = ++browseCategoryPostLoadTaskId;
   const runDiscoveryUpdate = () => {
     if (taskId !== browseCategoryPostLoadTaskId || normalizedCategoryIntent !== browseCategoryIntent) return;
@@ -7974,7 +8016,7 @@ function scheduleBrowseCategoryPostLoadWork(categoryIntent, listings) {
 }
 
 function scheduleHomeBrowseCategoryChange(categoryIntent, options = {}) {
-  const nextCategoryIntent = sanitizeCategoryIntent(categoryIntent, appSettings.regionId);
+  const nextCategoryIntent = sanitizeBrowseCategoryIntent(categoryIntent, appSettings.regionId);
   if (browseCategorySelectionTimer) window.clearTimeout(browseCategorySelectionTimer);
 
   cancelBrowseCategoryLoad();
@@ -8008,7 +8050,7 @@ function scheduleHomeBrowseCategoryChange(categoryIntent, options = {}) {
 }
 
 function setHomeBrowseCategory(categoryIntent, options = {}) {
-  const nextCategoryIntent = sanitizeCategoryIntent(categoryIntent, appSettings.regionId);
+  const nextCategoryIntent = sanitizeBrowseCategoryIntent(categoryIntent, appSettings.regionId);
   if (nextCategoryIntent === browseCategoryIntent && browseCategoryStatus !== "error") return;
   cancelBrowseCategoryLoad();
   browseCategoryIntent = nextCategoryIntent;
@@ -8024,7 +8066,7 @@ function getCachedBrowseCategoryListings(categoryIntent = browseCategoryIntent, 
   if (browseCategoryBrandSlug) return [];
   const cache = loadFreshFindCache();
   const regionCache = cache[getActiveRegion().id];
-  const categoryCache = regionCache?.browseCategories?.[sanitizeCategoryIntent(categoryIntent, appSettings.regionId)];
+  const categoryCache = regionCache?.browseCategories?.[sanitizeBrowseCategoryIntent(categoryIntent, appSettings.regionId)];
   const listings = Array.isArray(categoryCache?.listings) ? categoryCache.listings : [];
   const limit = options.limit || FEATURED_HOME_LIMIT;
   const preparedListings = options.latest
@@ -8045,7 +8087,7 @@ function getCachedBrowseCategoryListings(categoryIntent = browseCategoryIntent, 
 function getBrowseCategoryFreshness(categoryIntent = browseCategoryIntent) {
   const cache = loadFreshFindCache();
   const regionCache = cache[getActiveRegion().id];
-  const categoryCache = regionCache?.browseCategories?.[sanitizeCategoryIntent(categoryIntent, appSettings.regionId)];
+  const categoryCache = regionCache?.browseCategories?.[sanitizeBrowseCategoryIntent(categoryIntent, appSettings.regionId)];
   return browseCategoryUpdatedAt || categoryCache?.generatedAt || "";
 }
 
@@ -8060,6 +8102,7 @@ function prepareBrandBrowseListings(listings, options = {}) {
       seenIds.add(listing.id);
       return true;
     })
+    .filter((listing) => !isListingHiddenByFeedback(listing, qualityContext))
     .filter((listing) => !isUnavailableListing(listing))
     .filter((listing) => qualityFilter === "all" || isCleanGearListing(listing, qualityContext))
     .sort(compareListings)
@@ -8078,6 +8121,7 @@ function prepareLatestBrowseListings(listings, options = {}) {
       seenIds.add(listing.id);
       return true;
     })
+    .filter((listing) => !isListingHiddenByFeedback(listing, qualityContext))
     .filter((listing) => !isUnavailableListing(listing))
     .filter((listing) => !isStaleFreshFind(listing, ledger))
     .filter((listing) => qualityFilter === "all" || isCleanGearListing(listing, qualityContext))
@@ -8175,7 +8219,7 @@ function saveBrowseCategoryCache(categoryIntent, listings, options = {}) {
 
   const cache = loadFreshFindCache();
   const regionId = getActiveRegion().id;
-  const normalizedCategoryIntent = sanitizeCategoryIntent(categoryIntent, appSettings.regionId);
+  const normalizedCategoryIntent = sanitizeBrowseCategoryIntent(categoryIntent, appSettings.regionId);
   const regionCache = cache[regionId] || { regionId };
   const generatedAt = new Date().toISOString();
   const renderContext = options.renderContext || createGearQualityContext();
@@ -8213,7 +8257,7 @@ function saveBrowseCategoryCache(categoryIntent, listings, options = {}) {
 
 function maybeSaveBrowseCategoryCache(categoryIntent, listings, options = {}) {
   if (!Array.isArray(listings) || listings.length === 0) return;
-  const normalizedCategoryIntent = sanitizeCategoryIntent(categoryIntent, appSettings.regionId);
+  const normalizedCategoryIntent = sanitizeBrowseCategoryIntent(categoryIntent, appSettings.regionId);
   const signature = [
     getActiveRegion().id,
     normalizedCategoryIntent,
@@ -8478,6 +8522,7 @@ function getCuratedGearScannerListings(listings, options = {}) {
       seenIds.add(listing.id);
       return true;
     })
+    .filter((listing) => !isListingHiddenByFeedback(listing, qualityContext))
     .filter((listing) => !isUnavailableListing(listing))
     .filter((listing) => !isStaleFreshFind(listing, ledger))
     .filter((listing) => qualityFilter === "all" || isCleanGearListing(listing, qualityContext));
@@ -8734,6 +8779,11 @@ function isCleanGearListing(listing, context = null) {
   return formatGearConfidence(listing, context).level !== "likely-noise";
 }
 
+function isListingHiddenByFeedback(listing, context = null) {
+  const feedback = context?.feedback || getProfileFeedback();
+  return collectionHas(feedback?.noiseListingIds, listing?.id);
+}
+
 function isUnavailableListing(listing) {
   const status = normalizeText([
     listing.condition,
@@ -8809,6 +8859,7 @@ function saveListingFeedback(listing, action) {
 
   allFeedback[key] = feedback;
   saveFeedbackRules(allFeedback);
+  clearBrowsePreparedListingsCache();
 }
 
 function captureNoiseExample(listing) {
@@ -9118,7 +9169,7 @@ function resetBrowseCategoryRegionState() {
     browseCategorySelectionTimer = 0;
   }
   cancelBrowseCategoryLoad();
-  browseCategoryIntent = sanitizeCategoryIntent(browseCategoryIntent, appSettings.regionId);
+  browseCategoryIntent = sanitizeBrowseCategoryIntent(browseCategoryIntent, appSettings.regionId);
   browseCategoryListings = [];
   browseCategoryStatus = "idle";
   browseCategoryError = "";
