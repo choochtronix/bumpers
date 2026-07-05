@@ -1194,8 +1194,8 @@ const SOURCE_ACCENT_TOKENS = {
 
 const RANDOMIZED_BAY_AREA_SOURCE_IDS = ["robotspeak", "mission-synths", "starving-musician", "bananas-at-large", "gelb-music"];
 const RANDOMIZED_BAY_AREA_SOURCE_COLORS = [
-  { solid: "#ff00ff", ink: "#ffffff", mark: "#ff00ff" },
-  { solid: "#0072ff", ink: "#ffffff", mark: "#0072ff" },
+  { solid: "var(--color-brand-hot)", ink: "#ffffff", mark: "var(--color-brand-hot)" },
+  { solid: "var(--brand-gradient-end)", ink: "#ffffff", mark: "var(--brand-gradient-end)" },
   { solid: "#00a36c", ink: "#ffffff", mark: "#00a36c" },
   { solid: "#ff7a00", ink: "#ffffff", mark: "#ff7a00" },
   { solid: "#8a5cff", ink: "#ffffff", mark: "#8a5cff" },
@@ -1530,10 +1530,7 @@ let authState = {
   lastSyncedAt: "",
 };
 
-const DEFAULT_BRAND_GRADIENT = Object.freeze({
-  start: "#ff00ff",
-  end: "#0072ff",
-});
+const DEFAULT_BRAND_GRADIENT = Object.freeze(readDefaultBrandGradientTokens());
 const RESULT_VIEW_MODES = new Set(["grid", "list", "gallery"]);
 
 const defaultSettings = {
@@ -2844,6 +2841,36 @@ function normalizeBrandGradient(gradient) {
   const start = normalizeHexColor(gradient?.start);
   const end = normalizeHexColor(gradient?.end);
   return start && end ? { start, end } : null;
+}
+
+function readDefaultBrandGradientTokens() {
+  return {
+    start: readCssColorTokenHex("--brand-gradient-start"),
+    end: readCssColorTokenHex("--brand-gradient-end"),
+  };
+}
+
+function readCssColorTokenHex(name) {
+  if (typeof document === "undefined") return "";
+  const probe = document.createElement("span");
+  probe.style.color = `var(${name})`;
+  probe.style.position = "absolute";
+  probe.style.visibility = "hidden";
+  probe.style.pointerEvents = "none";
+  document.documentElement.appendChild(probe);
+  const color = getComputedStyle(probe).color;
+  probe.remove();
+  return cssRgbColorToHex(color);
+}
+
+function cssRgbColorToHex(color) {
+  const match = String(color || "").match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+  if (!match) return "";
+  return rgbToHex({
+    r: Number(match[1]),
+    g: Number(match[2]),
+    b: Number(match[3]),
+  });
 }
 
 function normalizeHexColor(value) {
@@ -7715,7 +7742,7 @@ function createFeaturedHomeLoadingCard(listing) {
     "is-featured-home-card",
     isBrowseLoading ? "is-browse-home-card is-browse-loading-card" : "",
   ].filter(Boolean).join(" ");
-  card.style.setProperty("--loading-accent", "#0072ff");
+  card.style.setProperty("--loading-accent", "var(--brand-gradient-end)");
   card.setAttribute("aria-label", listing.title || (isBrowseLoading ? "Gear Scanner loading" : "Fresh Finds loading"));
   const loadingImageMarkup = isBrowseLoading
     ? `<img class="gear-browser-loader-svg" src="assets/animations/perspective-line-graph-loading-groundplane-wide-v01.svg" alt="" loading="eager" decoding="async" />`
