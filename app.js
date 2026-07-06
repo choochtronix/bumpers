@@ -1677,6 +1677,8 @@ const alertList = document.querySelector("#alertList");
 const alertCount = document.querySelector("#alertCount");
 const alertDetail = document.querySelector("#alertDetail");
 const alertTitle = document.querySelector("#alertTitle");
+const searchMasthead = document.querySelector(".search-masthead");
+const topbar = document.querySelector(".topbar");
 const filterBar = document.querySelector(".filter-bar");
 const sourceFilterList = document.querySelector("#sourceFilterList");
 const sourceQualityStatus = document.querySelector("#sourceQualityStatus");
@@ -2157,7 +2159,7 @@ function initializeBrandWave() {
     const dt = now - lastTime;
     lastTime = now;
 
-    if (!waveAnimationActive || controlInteractionActive) {
+    if (!waveAnimationActive) {
       waveAnimationFrame = 0;
       return;
     }
@@ -2271,7 +2273,6 @@ function initializeBrandWave() {
     pointerActive = false;
     hoverStart = null;
     audioArmed = false;
-    stopWaveAnimation();
     if (audioHoverTimer) {
       window.clearTimeout(audioHoverTimer);
       audioHoverTimer = 0;
@@ -2285,6 +2286,7 @@ function initializeBrandWave() {
 
   const interactionSurface = waveSurface || svg;
   renderStaticWave();
+  startWaveAnimation();
   interactionSurface.addEventListener("pointerenter", wake, { passive: true });
   interactionSurface.addEventListener("pointermove", wake, { passive: true });
   interactionSurface.addEventListener("pointerdown", wake, { passive: true });
@@ -2562,6 +2564,7 @@ function bindEvents() {
   window.addEventListener("popstate", handleAppViewPopState);
 
   document.addEventListener("keydown", (event) => {
+    handleMyPageAlphabetJump(event);
     if (event.key !== "Escape") return;
     closeRegionPopover();
     closeSavedSearchPopover();
@@ -5712,6 +5715,11 @@ function requestMobileSearchOverlayUpdate() {
 function updateMobileSearchOverlayVisibility() {
   if (!mobileSearchOverlay) return;
 
+  if (getCurrentAppView() === APP_VIEW_MY_PAGE || document.body.classList.contains("my-page-active")) {
+    mobileSearchOverlay.hidden = true;
+    return;
+  }
+
   const isMobile = window.matchMedia?.("(max-width: 720px)").matches ?? window.innerWidth <= 720;
   const searchField = termsInput.closest(".search-terms-field");
   const searchFieldBottom = searchField?.getBoundingClientRect().bottom ?? 0;
@@ -5809,6 +5817,9 @@ function renderResults(options = {}) {
 }
 
 function setSearchChromeVisible(visible) {
+  document.body.classList.toggle("my-page-active", !visible);
+  if (searchMasthead) searchMasthead.hidden = !visible;
+  if (topbar) topbar.hidden = !visible;
   if (filterBar) filterBar.hidden = !visible;
   if (visible) return;
 
@@ -5860,10 +5871,11 @@ function renderMyPageView() {
   resultGrid.classList.toggle("is-gear-browser-frame", false);
   resultGrid.classList.toggle("is-my-page", true);
 
-  const profiles = loadProfiles().map(hydrateProfile);
+  const profiles = loadProfiles()
+    .map(hydrateProfile)
+    .sort((first, second) => first.name.localeCompare(second.name, undefined, { sensitivity: "base" }));
   const savedCount = profiles.length;
   const totalNew = profiles.reduce((sum, profile) => sum + Number(profile.lastNewCount || 0), 0);
-  const accountLabel = authState.user?.email || "Local beta mode";
   const savedRows = profiles.length
     ? profiles.map(createMyPageSavedSearchRow).join("")
     : `
@@ -5877,23 +5889,13 @@ function renderMyPageView() {
   resultGrid.innerHTML = `
     <section class="my-page-view" aria-labelledby="myPageTitle">
       <header class="my-page-hero">
-        <p class="my-page-eyebrow">Account radar</p>
-        <h2 id="myPageTitle">My Page</h2>
-        <p>Saved searches, fresh matches, and watchlist shortcuts in one clean place.</p>
-        <div class="my-page-meta" aria-label="My Page summary">
-          <span>Signed in: ${escapeHtml(accountLabel)}</span>
-          <span>${savedCount} saved ${savedCount === 1 ? "search" : "searches"}</span>
-          <span>${totalNew} new ${totalNew === 1 ? "listing" : "listings"}</span>
-        </div>
+        <h2 id="myPageTitle">Saved Searches</h2>
+        <p class="my-page-summary">${savedCount} saved ${savedCount === 1 ? "search" : "searches"} · ${totalNew} new ${totalNew === 1 ? "listing" : "listings"}</p>
       </header>
 
       <section class="my-page-section" aria-labelledby="myPageSavedTitle">
-        <div class="my-page-section-heading">
-          <div>
-            <p class="my-page-eyebrow">Saved Searches</p>
-            <h3 id="myPageSavedTitle">New listing radar</h3>
-          </div>
-          <button class="my-page-primary-action" type="button" data-result-action="open-save-search">Save current search</button>
+        <div class="my-page-toolbar">
+          <h3 id="myPageSavedTitle" class="sr-only">Saved search list</h3>
         </div>
         <div class="my-page-saved-list">
           ${savedRows}
@@ -5908,29 +5910,34 @@ function renderMyPageView() {
 function createMyPageSavedSearchRow(profile) {
   const profileId = escapeHtml(profile.id || profile.name);
   const newCount = Number(profile.lastNewCount || 0);
-  const matchCount = Number(profile.lastMatchCount || 0);
   const terms = formatSavedSearchTerms(profile);
   const sourceSummary = formatSavedSearchSources(profile);
   const regionLabel = getRegionById(getProfileHomeRegionId(profile)).label;
   const checkedAt = formatSavedSearchCheckedAt(profile);
   const status = profile.lastScanStatus ? capitalize(profile.lastScanStatus) : "Ready";
+  const searchLetter = normalizeText(profile.name).charAt(0) || "#";
   return `
-    <article class="my-page-saved-row${newCount > 0 ? " has-new" : ""}">
+    <article class="my-page-saved-row${newCount > 0 ? " has-new" : ""}" data-saved-search-letter="${escapeHtml(searchLetter)}" data-saved-search-name="${escapeHtml(profile.name)}">
       <div class="my-page-saved-copy">
         <button class="my-page-saved-title" type="button" data-result-action="run-saved-search" data-saved-search-id="${profileId}">
           ${escapeHtml(profile.name)}
         </button>
-        <p class="my-page-saved-terms">${escapeHtml(terms)}</p>
-        <p class="my-page-saved-detail">${escapeHtml(regionLabel)} · ${escapeHtml(sourceSummary)} · Gear Mode ${profile.gearMode === false ? "Off" : "On"}</p>
-        <p class="my-page-saved-detail">${escapeHtml(checkedAt)} · ${escapeHtml(status)}</p>
+        <details class="my-page-saved-details">
+          <summary>Details</summary>
+          <p>${escapeHtml(terms)}</p>
+          <p>${escapeHtml(regionLabel)} · ${escapeHtml(sourceSummary)} · Gear Mode ${profile.gearMode === false ? "Off" : "On"}</p>
+          <p>${escapeHtml(checkedAt)} · ${escapeHtml(status)}</p>
+        </details>
       </div>
       <div class="my-page-saved-stats">
-        <span class="my-page-new-pill${newCount > 0 ? "" : " is-empty"}">${newCount > 0 ? `${newCount} New` : "No new listings"}</span>
-        <span>${matchCount} ${matchCount === 1 ? "match" : "matches"}</span>
+        <button class="my-page-new-pill${newCount > 0 ? "" : " is-empty"}" type="button" data-result-action="run-saved-search" data-saved-search-id="${profileId}" aria-label="View results for ${escapeHtml(profile.name)}">${newCount > 0 ? `${newCount} New` : "No new listings"}</button>
       </div>
       <div class="my-page-saved-actions">
+        <button class="my-page-text-action my-page-refine-action" type="button" data-result-action="refine-saved-search" data-saved-search-id="${profileId}">
+          <span class="refine-icon" aria-hidden="true"></span>
+          <span>Refine</span>
+        </button>
         <button class="my-page-text-action" type="button" data-result-action="run-saved-search" data-saved-search-id="${profileId}">View results</button>
-        <button class="my-page-text-action" type="button" data-result-action="refine-saved-search" data-saved-search-id="${profileId}">Refine</button>
         <button class="my-page-text-action is-danger" type="button" data-result-action="delete-saved-search" data-saved-search-id="${profileId}">Delete</button>
       </div>
     </article>
@@ -5976,6 +5983,31 @@ function handleSavedSearchRefine(profile, returnFocus = null) {
   fillForm(currentProfile);
   setActiveTitle(currentProfile.name);
   openRefineSearchModal({ currentTarget: returnFocus || document.activeElement });
+}
+
+function handleMyPageAlphabetJump(event) {
+  if (getCurrentAppView() !== APP_VIEW_MY_PAGE) return;
+  if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return;
+  if (event.key.length !== 1 || !/^[a-z0-9]$/i.test(event.key)) return;
+  if (isEditableKeyboardTarget(event.target)) return;
+
+  const key = normalizeText(event.key).charAt(0);
+  const targetRow = Array.from(document.querySelectorAll(".my-page-saved-row"))
+    .find((row) => row.dataset.savedSearchLetter === key);
+  if (!targetRow) return;
+
+  event.preventDefault();
+  targetRow.scrollIntoView({ block: "center", behavior: "smooth" });
+  targetRow.classList.remove("is-key-jump-target");
+  window.requestAnimationFrame(() => {
+    targetRow.classList.add("is-key-jump-target");
+    targetRow.querySelector(".my-page-saved-title")?.focus({ preventScroll: true });
+  });
+}
+
+function isEditableKeyboardTarget(target) {
+  if (!(target instanceof Element)) return false;
+  return Boolean(target.closest("input, textarea, select, [contenteditable='true'], [role='textbox']"));
 }
 
 function renderWatchlistResultsView(watching, renderContext = createListingRenderContext()) {
@@ -8016,10 +8048,58 @@ function createFeaturedHomeLoadingCard(listing) {
   return card;
 }
 
+const carouselScrollAnimations = new WeakMap();
+
+function easeInOutCubic(progress) {
+  return progress < 0.5
+    ? 4 * progress * progress * progress
+    : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+}
+
+function animateCarouselScroll(rail, targetLeft, options = {}) {
+  const prefersReducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  const startLeft = rail.scrollLeft;
+  const maxLeft = Math.max(0, rail.scrollWidth - rail.clientWidth);
+  const endLeft = Math.max(0, Math.min(targetLeft, maxLeft));
+  const delta = endLeft - startLeft;
+
+  carouselScrollAnimations.get(rail)?.cancel?.();
+  if (prefersReducedMotion || Math.abs(delta) < 1) {
+    rail.scrollLeft = endLeft;
+    return;
+  }
+
+  const duration = options.duration || 520;
+  const startTime = performance.now();
+  let frameId = 0;
+  const animation = {
+    cancel() {
+      if (frameId) window.cancelAnimationFrame(frameId);
+      frameId = 0;
+    },
+  };
+  carouselScrollAnimations.set(rail, animation);
+
+  const step = (now) => {
+    const progress = Math.min(1, (now - startTime) / duration);
+    rail.scrollLeft = startLeft + delta * easeInOutCubic(progress);
+
+    if (progress < 1) {
+      frameId = window.requestAnimationFrame(step);
+      return;
+    }
+
+    rail.scrollLeft = endLeft;
+    carouselScrollAnimations.delete(rail);
+  };
+
+  frameId = window.requestAnimationFrame(step);
+}
+
 function setupFeaturedHomeCarousel(rail, previousButton, nextButton) {
   const scrollByPage = (direction) => {
     const distance = Math.max(rail.clientWidth * 0.82, 260);
-    rail.scrollBy({ left: direction * distance, behavior: "smooth" });
+    animateCarouselScroll(rail, rail.scrollLeft + direction * distance);
   };
 
   const updateControls = () => {
