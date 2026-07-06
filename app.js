@@ -1783,6 +1783,8 @@ let profileAutoSyncTimer = 0;
 let saveConfirmationTimer = 0;
 let isSavedSearchAutoSyncing = false;
 let isProfileAutoSyncing = false;
+let myPageFilterText = "";
+let myPageSortMode = "az";
 let eventsBound = false;
 let searchChirpAudioCtx = null;
 
@@ -1903,6 +1905,7 @@ function initializeBrandWave() {
   let lastTime = performance.now();
   let pointerX = W / 2;
   let pointerActive = false;
+  let visualPointerActive = false;
   let hoverMix = 0;
   let hoverStart = null;
   let hasRolledOut = false;
@@ -2166,7 +2169,7 @@ function initializeBrandWave() {
 
     phase += dt * 0.16;
     wt += 0.025;
-    hoverMix += ((pointerActive ? 1 : 0) - hoverMix) * 0.085;
+    hoverMix += ((visualPointerActive ? 1 : 0) - hoverMix) * 0.085;
 
     const p1 = Math.pow(Math.abs(Math.sin(wt * 2.1)), 1.6);
     const p2 = Math.pow(Math.abs(Math.sin(wt * 0.75 + 1.1)), 1.6);
@@ -2257,6 +2260,8 @@ function initializeBrandWave() {
 
     if (clientX !== null) {
       pointerX = svgX(event);
+      visualPointerActive = true;
+      startWaveAnimation();
       if (hoverStart === null) {
         hoverStart = performance.now();
         audioArmed = false;
@@ -2270,6 +2275,7 @@ function initializeBrandWave() {
   }
 
   function sleep() {
+    visualPointerActive = false;
     pointerActive = false;
     hoverStart = null;
     audioArmed = false;
@@ -4082,9 +4088,9 @@ function updateQuickSaveSearchButton() {
 
   quickSaveSearchButton.disabled = !hasSearchTerms;
   quickSaveSearchButton.classList.toggle("is-saved", isSaved);
-  quickSaveSearchButton.textContent = isSaved ? "★" : "☆";
-  quickSaveSearchButton.title = isSaved ? "Current search is saved" : "Save current search";
-  quickSaveSearchButton.setAttribute("aria-label", isSaved ? "Current search is saved" : "Save current search");
+  quickSaveSearchButton.textContent = isSaved ? "Saved ✓" : "Save this search";
+  quickSaveSearchButton.title = isSaved ? "Current search is saved" : "Save this search";
+  quickSaveSearchButton.setAttribute("aria-label", isSaved ? "Current search is saved" : "Save this search");
 }
 
 function profilesMatchSearch(firstProfile, secondProfile) {
@@ -5861,7 +5867,7 @@ function openMyPageView(eventOrOptions = {}) {
   options?.focusTarget?.focus?.();
 }
 
-function renderMyPageView() {
+function renderMyPageView(options = {}) {
   setSearchChromeVisible(false);
   resultGrid.innerHTML = "";
   resultGrid.classList.toggle("is-featured-home", false);
@@ -5871,13 +5877,19 @@ function renderMyPageView() {
   resultGrid.classList.toggle("is-gear-browser-frame", false);
   resultGrid.classList.toggle("is-my-page", true);
 
-  const profiles = loadProfiles()
-    .map(hydrateProfile)
-    .sort((first, second) => first.name.localeCompare(second.name, undefined, { sensitivity: "base" }));
+  const profiles = loadProfiles().map(hydrateProfile);
+  const visibleProfiles = sortMyPageProfiles(filterMyPageProfiles(profiles));
   const savedCount = profiles.length;
   const totalNew = profiles.reduce((sum, profile) => sum + Number(profile.lastNewCount || 0), 0);
-  const savedRows = profiles.length
-    ? profiles.map(createMyPageSavedSearchRow).join("")
+  const savedRows = visibleProfiles.length
+    ? visibleProfiles.map(createMyPageSavedSearchRow).join("")
+    : myPageFilterText.trim()
+      ? `
+      <div class="my-page-empty">
+        <strong>No matching saved searches.</strong>
+        <span>Try a shorter filter or clear it to show everything.</span>
+      </div>
+    `
     : `
       <div class="my-page-empty">
         <strong>No saved searches yet.</strong>
@@ -5891,11 +5903,30 @@ function renderMyPageView() {
       <header class="my-page-hero">
         <h2 id="myPageTitle">Saved Searches</h2>
         <p class="my-page-summary">${savedCount} saved ${savedCount === 1 ? "search" : "searches"} · ${totalNew} new ${totalNew === 1 ? "listing" : "listings"}</p>
+        <div class="my-page-hero-actions">
+          <button class="my-page-primary-action" type="button" data-result-action="open-save-search">Save current search</button>
+        </div>
       </header>
 
       <section class="my-page-section" aria-labelledby="myPageSavedTitle">
         <div class="my-page-toolbar">
           <h3 id="myPageSavedTitle" class="sr-only">Saved search list</h3>
+        </div>
+        <div class="my-page-tools" aria-label="Filter and sort saved searches">
+          <label class="my-page-filter-field">
+            <span>Filter saved searches</span>
+            <input type="search" value="${escapeHtml(myPageFilterText)}" placeholder="Filter saved searches" data-my-page-filter autocomplete="off" autocapitalize="off" spellcheck="false">
+          </label>
+          <label class="my-page-sort-field">
+            <span>Sort</span>
+            <select data-my-page-sort>
+              ${createMyPageSortOption("az", "A-Z")}
+              ${createMyPageSortOption("newest", "Newest saved")}
+              ${createMyPageSortOption("oldest", "Oldest saved")}
+              ${createMyPageSortOption("most-new", "Most new")}
+              ${createMyPageSortOption("recently-checked", "Recently checked")}
+            </select>
+          </label>
         </div>
         <div class="my-page-saved-list">
           ${savedRows}
@@ -5904,7 +5935,63 @@ function renderMyPageView() {
     </section>
   `;
   renderPagination(0);
+  restoreMyPageControlFocus(options);
   updateMobileBottomNavState();
+}
+
+function createMyPageSortOption(value, label) {
+  return `<option value="${escapeHtml(value)}"${myPageSortMode === value ? " selected" : ""}>${escapeHtml(label)}</option>`;
+}
+
+function filterMyPageProfiles(profiles) {
+  const query = normalizeText(myPageFilterText);
+  if (!query) return profiles;
+  return profiles.filter((profile) => getMyPageProfileSearchText(profile).includes(query));
+}
+
+function getMyPageProfileSearchText(profile) {
+  const terms = Array.isArray(profile.terms) ? profile.terms : [];
+  return normalizeText([profile.name, ...terms].filter(Boolean).join(" "));
+}
+
+function sortMyPageProfiles(profiles) {
+  const sortedProfiles = [...profiles];
+  const compareByName = (first, second) => first.name.localeCompare(second.name, undefined, { sensitivity: "base" });
+  const toTime = (value) => {
+    const time = Date.parse(value || "");
+    return Number.isFinite(time) ? time : 0;
+  };
+
+  sortedProfiles.sort((first, second) => {
+    if (myPageSortMode === "newest") {
+      return (toTime(second.createdAt || second.updatedAt) - toTime(first.createdAt || first.updatedAt)) || compareByName(first, second);
+    }
+    if (myPageSortMode === "oldest") {
+      return (toTime(first.createdAt || first.updatedAt) - toTime(second.createdAt || second.updatedAt)) || compareByName(first, second);
+    }
+    if (myPageSortMode === "most-new") {
+      return (Number(second.lastNewCount || 0) - Number(first.lastNewCount || 0)) || compareByName(first, second);
+    }
+    if (myPageSortMode === "recently-checked") {
+      return (toTime(second.lastScannedAt) - toTime(first.lastScannedAt)) || compareByName(first, second);
+    }
+    return compareByName(first, second);
+  });
+  return sortedProfiles;
+}
+
+function restoreMyPageControlFocus(options = {}) {
+  if (options.focusControl === "filter") {
+    const filterInput = resultGrid.querySelector("[data-my-page-filter]");
+    if (!filterInput) return;
+    filterInput.focus({ preventScroll: true });
+    const caretPosition = Math.min(Number(options.selectionStart ?? filterInput.value.length), filterInput.value.length);
+    filterInput.setSelectionRange(caretPosition, caretPosition);
+    return;
+  }
+  if (options.focusControl === "sort") {
+    resultGrid.querySelector("[data-my-page-sort]")?.focus({ preventScroll: true });
+  }
 }
 
 function createMyPageSavedSearchRow(profile) {
@@ -5938,7 +6025,10 @@ function createMyPageSavedSearchRow(profile) {
           <span>Refine</span>
         </button>
         <button class="my-page-text-action" type="button" data-result-action="run-saved-search" data-saved-search-id="${profileId}">View results</button>
-        <button class="my-page-text-action is-danger" type="button" data-result-action="delete-saved-search" data-saved-search-id="${profileId}">Delete</button>
+        <button class="my-page-text-action is-danger" type="button" data-result-action="delete-saved-search" data-saved-search-id="${profileId}">
+          <span class="my-page-delete-icon" aria-hidden="true">×</span>
+          <span>Delete</span>
+        </button>
       </div>
     </article>
   `;
@@ -5997,8 +6087,9 @@ function handleMyPageAlphabetJump(event) {
   if (!targetRow) return;
 
   event.preventDefault();
+  document.querySelectorAll(".my-page-saved-row.is-key-jump-target")
+    .forEach((row) => row.classList.remove("is-key-jump-target"));
   targetRow.scrollIntoView({ block: "center", behavior: "smooth" });
-  targetRow.classList.remove("is-key-jump-target");
   window.requestAnimationFrame(() => {
     targetRow.classList.add("is-key-jump-target");
     targetRow.querySelector(".my-page-saved-title")?.focus({ preventScroll: true });
@@ -6323,6 +6414,23 @@ function createBrowseHomeRefreshLoadingState() {
 
 function handleResultGridAction(event) {
   if (event.type === "change" || event.type === "input") {
+    const myPageFilter = event.target.closest("[data-my-page-filter]");
+    if (myPageFilter) {
+      myPageFilterText = myPageFilter.value || "";
+      renderMyPageView({
+        focusControl: "filter",
+        selectionStart: myPageFilter.selectionStart ?? myPageFilter.value.length,
+      });
+      return;
+    }
+
+    const myPageSort = event.target.closest("[data-my-page-sort]");
+    if (myPageSort) {
+      myPageSortMode = myPageSort.value || "az";
+      renderMyPageView({ focusControl: "sort" });
+      return;
+    }
+
     if (event.type === "input" && event.target.closest("select")) return;
 
     const browseSelect = event.target.closest("#homeBrowseCategory");
