@@ -57,6 +57,7 @@ const BROWSE_HOME_CURATION_CANDIDATE_LIMIT = 24;
 const APP_VIEW_PARAM = "view";
 const APP_VIEW_SYNTH_BROWSER = "synth-browser";
 const APP_VIEW_WATCHLIST = "watchlist";
+const APP_VIEW_MY_PAGE = "my-page";
 const APP_BRAND_PARAM = "brand";
 const POPULAR_BRANDS = [
   {
@@ -1676,6 +1677,7 @@ const alertList = document.querySelector("#alertList");
 const alertCount = document.querySelector("#alertCount");
 const alertDetail = document.querySelector("#alertDetail");
 const alertTitle = document.querySelector("#alertTitle");
+const filterBar = document.querySelector(".filter-bar");
 const sourceFilterList = document.querySelector("#sourceFilterList");
 const sourceQualityStatus = document.querySelector("#sourceQualityStatus");
 const openSourceQualitySettingsButton = document.querySelector("#openSourceQualitySettings");
@@ -2383,7 +2385,7 @@ function bindEvents() {
   refineSearchModal.addEventListener("input", handleRefineSearchModalEdit);
   refineSearchModal.addEventListener("change", handleRefineSearchModalEdit);
 
-  openSavedSearchesButton.addEventListener("click", toggleSavedSearchPopover);
+  openSavedSearchesButton.addEventListener("click", openMyPageView);
   document.addEventListener("click", handleSavedPopoverOutsideClick);
   quickSaveSearchButton?.addEventListener("click", saveCurrentSearchQuick);
   document.querySelector("#openSaveSearch").addEventListener("click", openSaveSearchModal);
@@ -4212,8 +4214,7 @@ function hideSaveConfirmationToast() {
 
 function viewSavedSearchFromToast() {
   hideSaveConfirmationToast();
-  openSavedSearchPopover();
-  openSavedSearchesButton?.focus();
+  openMyPageView({ focusTarget: openSavedSearchesButton });
 }
 
 function handleMobileBottomNavClick(event) {
@@ -4232,11 +4233,7 @@ function handleMobileBottomNavClick(event) {
 
   if (navTarget === "saved") {
     if (!settingsModal.hidden) closeSettingsModal({ restoreFocus: false });
-    if (!savedSearchPopover.hidden && savedPopoverAnchorMode === "bottom") {
-      closeSavedSearchPopover();
-    } else {
-      openSavedSearchPopover({ anchorElement: button, anchorMode: "bottom" });
-    }
+    openMyPageView({ currentTarget: button });
     return;
   }
 
@@ -4262,7 +4259,7 @@ function updateMobileBottomNavState() {
 
   const activeTarget = !settingsModal.hidden
     ? "settings"
-    : !savedSearchPopover.hidden
+    : getCurrentAppView() === APP_VIEW_MY_PAGE || !savedSearchPopover.hidden
       ? "saved"
       : filterMode === "watching"
         ? "watchlist"
@@ -5747,6 +5744,11 @@ function renderResults(options = {}) {
   browseCardRenderId += 1;
   const renderContext = options.renderContext || createListingRenderContext();
   const watching = renderContext.watching;
+  if (getCurrentAppView() === APP_VIEW_MY_PAGE) {
+    renderMyPageView();
+    return;
+  }
+  setSearchChromeVisible(true);
   if (filterMode === "watching") {
     renderWatchlistResultsView(watching, renderContext);
     return;
@@ -5775,6 +5777,7 @@ function renderResults(options = {}) {
   resultGrid.classList.toggle("is-gallery-view", !isShowingFeaturedHome && appSettings.resultView === "gallery");
   resultGrid.classList.toggle("is-browse-expanded", false);
   resultGrid.classList.toggle("is-gear-browser-frame", false);
+  resultGrid.classList.toggle("is-my-page", false);
   renderSourceFilters(resultSource, { renderContext });
   renderAlertPanel(featuredHomeResults, { renderContext });
 
@@ -5805,6 +5808,176 @@ function renderResults(options = {}) {
   renderTopWatchingControl();
 }
 
+function setSearchChromeVisible(visible) {
+  if (filterBar) filterBar.hidden = !visible;
+  if (visible) return;
+
+  sourceFilterList.innerHTML = "";
+  sourceAssistPanel.hidden = true;
+  alertPanel.hidden = true;
+  alertPanel.classList.remove("is-featured-home");
+  alertList.innerHTML = "";
+  paginationControls.hidden = true;
+  paginationSummary.textContent = "";
+  paginationPage.textContent = "";
+  backToTopButton.classList.remove("is-above-pagination");
+}
+
+function openMyPageView(eventOrOptions = {}) {
+  eventOrOptions?.preventDefault?.();
+  eventOrOptions?.stopPropagation?.();
+  const options = eventOrOptions?.currentTarget ? { focusTarget: eventOrOptions.currentTarget } : eventOrOptions;
+
+  selectInteractionActive = false;
+  clearScheduledSearchResultApply();
+  deferredResultsRender = false;
+  pendingSourceIds.clear();
+  sourceSearchStatuses.clear();
+  sourceSearchMeta.clear();
+  activeBrowseBrandSlug = "";
+  cancelBrowseCategoryLoad();
+  resetBrowseCategoryBrandView();
+  isBrowseExpanded = false;
+  activeViewSources.clear();
+  if (filterMode === "watching") filterMode = "all";
+  resetPagination();
+  syncFilterModeButtons();
+  closeSavedSearchPopover();
+  closeSettingsModal({ restoreFocus: false });
+  setAppView(APP_VIEW_MY_PAGE, { replace: Boolean(options?.replace) });
+  renderResults({ force: true });
+  scrollResultsTop();
+  options?.focusTarget?.focus?.();
+}
+
+function renderMyPageView() {
+  setSearchChromeVisible(false);
+  resultGrid.innerHTML = "";
+  resultGrid.classList.toggle("is-featured-home", false);
+  resultGrid.classList.toggle("is-list-view", false);
+  resultGrid.classList.toggle("is-gallery-view", false);
+  resultGrid.classList.toggle("is-browse-expanded", false);
+  resultGrid.classList.toggle("is-gear-browser-frame", false);
+  resultGrid.classList.toggle("is-my-page", true);
+
+  const profiles = loadProfiles().map(hydrateProfile);
+  const savedCount = profiles.length;
+  const totalNew = profiles.reduce((sum, profile) => sum + Number(profile.lastNewCount || 0), 0);
+  const accountLabel = authState.user?.email || "Local beta mode";
+  const savedRows = profiles.length
+    ? profiles.map(createMyPageSavedSearchRow).join("")
+    : `
+      <div class="my-page-empty">
+        <strong>No saved searches yet.</strong>
+        <span>Save a search to start tracking new listings here.</span>
+        <button class="my-page-primary-action" type="button" data-result-action="open-save-search">Save current search</button>
+      </div>
+    `;
+
+  resultGrid.innerHTML = `
+    <section class="my-page-view" aria-labelledby="myPageTitle">
+      <header class="my-page-hero">
+        <p class="my-page-eyebrow">Account radar</p>
+        <h2 id="myPageTitle">My Page</h2>
+        <p>Saved searches, fresh matches, and watchlist shortcuts in one clean place.</p>
+        <div class="my-page-meta" aria-label="My Page summary">
+          <span>Signed in: ${escapeHtml(accountLabel)}</span>
+          <span>${savedCount} saved ${savedCount === 1 ? "search" : "searches"}</span>
+          <span>${totalNew} new ${totalNew === 1 ? "listing" : "listings"}</span>
+        </div>
+      </header>
+
+      <section class="my-page-section" aria-labelledby="myPageSavedTitle">
+        <div class="my-page-section-heading">
+          <div>
+            <p class="my-page-eyebrow">Saved Searches</p>
+            <h3 id="myPageSavedTitle">New listing radar</h3>
+          </div>
+          <button class="my-page-primary-action" type="button" data-result-action="open-save-search">Save current search</button>
+        </div>
+        <div class="my-page-saved-list">
+          ${savedRows}
+        </div>
+      </section>
+    </section>
+  `;
+  renderPagination(0);
+  updateMobileBottomNavState();
+}
+
+function createMyPageSavedSearchRow(profile) {
+  const profileId = escapeHtml(profile.id || profile.name);
+  const newCount = Number(profile.lastNewCount || 0);
+  const matchCount = Number(profile.lastMatchCount || 0);
+  const terms = formatSavedSearchTerms(profile);
+  const sourceSummary = formatSavedSearchSources(profile);
+  const regionLabel = getRegionById(getProfileHomeRegionId(profile)).label;
+  const checkedAt = formatSavedSearchCheckedAt(profile);
+  const status = profile.lastScanStatus ? capitalize(profile.lastScanStatus) : "Ready";
+  return `
+    <article class="my-page-saved-row${newCount > 0 ? " has-new" : ""}">
+      <div class="my-page-saved-copy">
+        <button class="my-page-saved-title" type="button" data-result-action="run-saved-search" data-saved-search-id="${profileId}">
+          ${escapeHtml(profile.name)}
+        </button>
+        <p class="my-page-saved-terms">${escapeHtml(terms)}</p>
+        <p class="my-page-saved-detail">${escapeHtml(regionLabel)} · ${escapeHtml(sourceSummary)} · Gear Mode ${profile.gearMode === false ? "Off" : "On"}</p>
+        <p class="my-page-saved-detail">${escapeHtml(checkedAt)} · ${escapeHtml(status)}</p>
+      </div>
+      <div class="my-page-saved-stats">
+        <span class="my-page-new-pill${newCount > 0 ? "" : " is-empty"}">${newCount > 0 ? `${newCount} New` : "No new listings"}</span>
+        <span>${matchCount} ${matchCount === 1 ? "match" : "matches"}</span>
+      </div>
+      <div class="my-page-saved-actions">
+        <button class="my-page-text-action" type="button" data-result-action="run-saved-search" data-saved-search-id="${profileId}">View results</button>
+        <button class="my-page-text-action" type="button" data-result-action="refine-saved-search" data-saved-search-id="${profileId}">Refine</button>
+        <button class="my-page-text-action is-danger" type="button" data-result-action="delete-saved-search" data-saved-search-id="${profileId}">Delete</button>
+      </div>
+    </article>
+  `;
+}
+
+function formatSavedSearchTerms(profile) {
+  const terms = Array.isArray(profile.terms) ? profile.terms.filter(Boolean) : [];
+  return terms.length > 0 ? terms.join(", ") : "Any terms";
+}
+
+function formatSavedSearchSources(profile) {
+  const sources = Array.isArray(profile.sources) ? profile.sources.filter(Boolean) : [];
+  if (sources.length === 0 || sources.length >= SOURCES.length) return "All sources";
+  const labels = sources.slice(0, 3).map(labelForSource);
+  return sources.length > labels.length ? `${labels.join(", ")} +${sources.length - labels.length}` : labels.join(", ");
+}
+
+function formatSavedSearchCheckedAt(profile) {
+  if (!profile.lastScannedAt) return "Not checked yet";
+  return `Checked ${formatSyncTimestamp(profile.lastScannedAt)}`;
+}
+
+function getSavedSearchById(searchId) {
+  const normalizedId = String(searchId || "");
+  return loadProfiles()
+    .map(hydrateProfile)
+    .find((profile) => String(profile.id || profile.name) === normalizedId);
+}
+
+function getSavedSearchActionProfile(button) {
+  return getSavedSearchById(button.dataset.savedSearchId);
+}
+
+function handleSavedSearchRefine(profile, returnFocus = null) {
+  const hydratedProfile = hydrateProfile(profile);
+  const targetRegionId = getProfileHomeRegionId(hydratedProfile);
+  if (targetRegionId !== appSettings.regionId) {
+    applyActiveRegion(targetRegionId);
+  }
+
+  currentProfile = createProfileForRegion(hydratedProfile, targetRegionId);
+  fillForm(currentProfile);
+  setActiveTitle(currentProfile.name);
+  openRefineSearchModal({ currentTarget: returnFocus || document.activeElement });
+}
+
 function renderWatchlistResultsView(watching, renderContext = createListingRenderContext()) {
   const watchedListings = getWatchedResultListings(watching, { renderContext });
   const visibleListings = getWatchlistVisibleListings(watchedListings);
@@ -5818,6 +5991,7 @@ function renderWatchlistResultsView(watching, renderContext = createListingRende
   resultGrid.classList.toggle("is-gallery-view", appSettings.resultView === "gallery");
   resultGrid.classList.toggle("is-browse-expanded", false);
   resultGrid.classList.toggle("is-gear-browser-frame", false);
+  resultGrid.classList.toggle("is-my-page", false);
   renderSourceFilters(watchedListings, { renderContext, ignoreQuality: true });
   renderAlertPanel([], { renderContext });
 
@@ -5910,6 +6084,7 @@ function renderHomeView(watching, renderContext = createListingRenderContext()) 
   resultGrid.classList.toggle("is-gallery-view", false);
   resultGrid.classList.toggle("is-browse-expanded", false);
   resultGrid.classList.toggle("is-gear-browser-frame", false);
+  resultGrid.classList.toggle("is-my-page", false);
   renderSourceFilters(homeResults, { renderContext });
   renderAlertPanel([], { renderContext });
 
@@ -5986,6 +6161,7 @@ function renderBrowseExpandedView(watching, renderContext = createListingRenderC
   resultGrid.classList.toggle("is-gallery-view", effectiveResultView === "gallery");
   resultGrid.classList.toggle("is-browse-expanded", true);
   resultGrid.classList.toggle("is-gear-browser-frame", true);
+  resultGrid.classList.toggle("is-my-page", false);
   renderSourceFilters(browseListings, { renderContext });
   renderAlertPanel([], { renderContext });
 
@@ -6170,6 +6346,28 @@ function handleResultGridAction(event) {
     resetPagination();
     renderResults();
     scrollResultsTop();
+  }
+
+  if (button.dataset.resultAction === "run-saved-search") {
+    const profile = getSavedSearchActionProfile(button);
+    if (!profile) return;
+    handleSavedSearchClick(profile, button);
+  }
+
+  if (button.dataset.resultAction === "refine-saved-search") {
+    const profile = getSavedSearchActionProfile(button);
+    if (!profile) return;
+    handleSavedSearchRefine(profile, button);
+  }
+
+  if (button.dataset.resultAction === "delete-saved-search") {
+    const profile = getSavedSearchActionProfile(button);
+    if (!profile) return;
+    deleteSavedSearch(profile.name);
+  }
+
+  if (button.dataset.resultAction === "open-save-search") {
+    openSaveSearchModal({ currentTarget: button });
   }
 }
 
@@ -9106,6 +9304,7 @@ function renderSavedSearches() {
   if (profiles.length === 0) {
     savedSearches.innerHTML = `<div class="empty-state">Save your current search to pin it here.</div>`;
     updateQuickSaveSearchButton();
+    if (getCurrentAppView() === APP_VIEW_MY_PAGE) renderMyPageView();
     return;
   }
 
@@ -9146,6 +9345,7 @@ function renderSavedSearches() {
     savedSearches.appendChild(item);
   });
   updateQuickSaveSearchButton();
+  if (getCurrentAppView() === APP_VIEW_MY_PAGE) renderMyPageView();
 }
 
 function handleSavedSearchClick(profile, returnFocus = null) {
@@ -9206,6 +9406,7 @@ function activateSavedSearch(profile, options = {}) {
   fillForm(currentProfile);
   setActiveTitle(currentProfile.name);
   closeSavedRegionChoiceModal({ restoreFocus: false });
+  setAppView(null);
   runSearch();
 }
 
