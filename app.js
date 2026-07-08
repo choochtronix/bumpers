@@ -4,6 +4,7 @@ const SOURCES = [
   { id: "yahoo-fleamarket", label: "Yahoo Fleamarket", icon: "Yf", color: "blue", logo: "assets/logos/ICONS/yahoo_flea_ic.svg" },
   { id: "rakuma", label: "Rakuma", icon: "Ra", color: "green", logo: "assets/logos/ICONS/rakuma_ic.svg" },
   { id: "digimart", label: "Digimart", icon: "D", color: "blue" },
+  { id: "qsic", label: "Qsic", icon: "Qs", color: "blue" },
   { id: "reverb", label: "Reverb", icon: "Rv", color: "orange" },
   { id: "reverb-us", label: "Reverb US", icon: "Rv", color: "orange" },
   { id: "ebay-us", label: "eBay US", icon: "eB", color: "blue" },
@@ -30,9 +31,9 @@ const SOURCES = [
   { id: "hardoff", label: "Hard Off", icon: "H", color: "green", logo: "assets/logos/ICONS/hardoff-ic.svg" },
 ];
 
-const LEGACY_DEFAULT_SOURCE_IDS = ["mercari", "yahoo-auctions", "yahoo-fleamarket", "rakuma", "digimart", "offmall", "five-g", "implant4", "hardoff"];
-const LIVE_SOURCE_IDS = ["mercari", "yahoo-auctions", "yahoo-fleamarket", "rakuma", "digimart", "reverb", "reverb-us", "ebay-us", "sweetwater-used", "guitar-center-used", "craigslist-sfbay", "robotspeak", "mission-synths", "starving-musician", "bananas-at-large", "gelb-music", "craigslist-la", "craigslist-east", "main-drag", "rogue-music", "three-wave", "alto-music", "tone-tweakers", "pro-audio-star", "jimoty", "offmall", "five-g", "implant4", "hardoff"];
-const LIVE_SOURCE_DISPLAY_ORDER = ["robotspeak", "mission-synths", "starving-musician", "bananas-at-large", "gelb-music", "craigslist-sfbay", "craigslist-la", "craigslist-east", "main-drag", "rogue-music", "three-wave", "alto-music", "tone-tweakers", "pro-audio-star", "reverb-us", "ebay-us", "sweetwater-used", "guitar-center-used", "yahoo-auctions", "yahoo-fleamarket", "digimart", "reverb", "jimoty", "offmall", "five-g", "implant4", "hardoff", "mercari", "rakuma"];
+const LEGACY_DEFAULT_SOURCE_IDS = ["mercari", "yahoo-auctions", "yahoo-fleamarket", "rakuma", "digimart", "qsic", "offmall", "five-g", "implant4", "hardoff"];
+const LIVE_SOURCE_IDS = ["mercari", "yahoo-auctions", "yahoo-fleamarket", "rakuma", "digimart", "qsic", "reverb", "reverb-us", "ebay-us", "sweetwater-used", "guitar-center-used", "craigslist-sfbay", "robotspeak", "mission-synths", "starving-musician", "bananas-at-large", "gelb-music", "craigslist-la", "craigslist-east", "main-drag", "rogue-music", "three-wave", "alto-music", "tone-tweakers", "pro-audio-star", "jimoty", "offmall", "five-g", "implant4", "hardoff"];
+const LIVE_SOURCE_DISPLAY_ORDER = ["robotspeak", "mission-synths", "starving-musician", "bananas-at-large", "gelb-music", "craigslist-sfbay", "craigslist-la", "craigslist-east", "main-drag", "rogue-music", "three-wave", "alto-music", "tone-tweakers", "pro-audio-star", "reverb-us", "ebay-us", "sweetwater-used", "guitar-center-used", "yahoo-auctions", "yahoo-fleamarket", "digimart", "qsic", "reverb", "jimoty", "offmall", "five-g", "implant4", "hardoff", "mercari", "rakuma"];
 const SOURCE_SEARCH_CONTEXT_TRUST_IDS = new Set(["craigslist-sfbay", "craigslist-la", "craigslist-east"]);
 const CATEGORY_SEARCH_CONTEXT_IDS = new Set(["reverb", "reverb-us"]);
 const REGION_CONFIG = typeof window !== "undefined" ? window.BRRTZ_REGION_CONFIG : null;
@@ -501,6 +502,7 @@ const BRAND_RECIPE_TEMPLATE = {
     "yahoo-fleamarket",
     "rakuma",
     "digimart",
+    "qsic",
     "reverb",
     "offmall",
     "five-g",
@@ -1167,6 +1169,7 @@ const SOURCE_ACCENT_TOKENS = {
   "yahoo-fleamarket": "--source-yahoo-fleamarket",
   rakuma: "--source-rakuma",
   digimart: "--source-digimart",
+  qsic: "--source-digimart",
   reverb: "--source-reverb",
   "reverb-us": "--source-reverb",
   "ebay-us": "--source-ebay",
@@ -1212,6 +1215,7 @@ const SOURCE_METADATA_ALIASES = {
   "yahoo-fleamarket": ["Yahoo Fleamarket", "Yahooフリマ", "PayPayフリマ"],
   rakuma: ["Rakuma", "ラクマ"],
   digimart: ["Digimart", "デジマート"],
+  qsic: ["Qsic", "Qsic.jp", "キュージック"],
   reverb: ["Reverb", "Reverb.com"],
   "reverb-us": ["Reverb US", "Reverb", "Reverb.com"],
   "ebay-us": ["eBay US", "eBay", "ebay.com"],
@@ -1511,7 +1515,7 @@ const STORAGE_KEYS = {
   feedbackRules: "bumpers.feedbackRules",
 };
 
-const SAVED_SEARCH_SCHEMA_VERSION = 1;
+const SAVED_SEARCH_SCHEMA_VERSION = 2;
 const LOCAL_PROFILE_USER_ID = "local";
 const CLOUD_EMULATOR_USER = {
   id: LOCAL_PROFILE_USER_ID,
@@ -1587,6 +1591,7 @@ const defaultProfile = {
   categoryIntent: ACTIVE_REGION.searchDefaults?.categoryIntent || DEFAULT_CATEGORY_INTENT,
   maxPrice: ACTIVE_REGION.searchDefaults?.maxPrice || 2000000,
   alertMode: "immediate",
+  alertsEnabled: false,
   sources: hydrateRegionSources(ACTIVE_REGION.sources),
 };
 
@@ -1657,12 +1662,14 @@ const mobileSearchOverlay = document.querySelector("#mobileSearchOverlay");
 const mobileSearchForm = document.querySelector("#mobileSearchForm");
 const mobileSearchInput = document.querySelector("#mobileSearchInput");
 const refineTermsInput = document.querySelector("#refineTerms");
+const refineTermField = document.querySelector("#refineTermField");
+const refineTermInput = document.querySelector("#refineTermInput");
+const refineTermChipList = document.querySelector("#refineTermChipList");
 const excludesInput = document.querySelector("#excludes");
 const excludeTagField = document.querySelector("#excludeTagField");
 const excludeTagList = document.querySelector("#excludeTagList");
 const excludeTagInput = document.querySelector("#excludeTagInput");
 const categoryIntentSelect = document.querySelector("#categoryIntent");
-const termDropdown = document.querySelector("#termDropdown");
 const quickSearchExtraTermsButton = document.querySelector("#quickSearchExtraTerms");
 const quickSearchClearButton = document.querySelector("#quickSearchClear");
 const quickSearchSuggestions = document.querySelector("#quickSearchSuggestions");
@@ -1698,6 +1705,9 @@ const topWatchingFilter = document.querySelector("#topWatchingFilter");
 const mobileBottomNav = document.querySelector("#mobileBottomNav");
 const mobileBottomNavItems = [...document.querySelectorAll("[data-mobile-nav]")];
 const refineSearchModal = document.querySelector("#refineSearchModal");
+const refineSearchTitle = document.querySelector("#refineSearchTitle");
+const refineSearchTitleSeparator = document.querySelector("#refineSearchTitleSeparator");
+const refineSearchTermTitle = document.querySelector("#refineSearchTermTitle");
 const refineSummary = document.querySelector("#refineSummary");
 const refineSourceOptions = document.querySelector("#refineSourceOptions");
 const refineNoiseOptions = document.querySelector("#refineNoiseOptions");
@@ -1708,6 +1718,7 @@ const saveSearchModal = document.querySelector("#saveSearchModal");
 const saveSearchForm = document.querySelector("#saveSearchForm");
 const saveSearchName = document.querySelector("#saveSearchName");
 const saveSearchAlert = document.querySelector("#saveSearchAlert");
+const saveSearchAlertsEnabled = document.querySelector("#saveSearchAlertsEnabled");
 const saveConfirmationToast = document.querySelector("#saveConfirmationToast");
 const closeSaveConfirmationToastButton = document.querySelector("#closeSaveConfirmationToast");
 const viewSavedSearchToastButton = document.querySelector("#viewSavedSearchToast");
@@ -2358,6 +2369,12 @@ function bindEvents() {
   mobileSearchInput?.addEventListener("input", handleMobileSearchInput);
   mobileSearchForm?.addEventListener("submit", handleMobileSearchSubmit);
   refineTermsInput.addEventListener("input", syncRefineTermsToPrimary);
+  refineTermField?.addEventListener("click", handleRefineTermFieldClick);
+  refineTermInput?.addEventListener("input", handleRefineTermInput);
+  refineTermInput?.addEventListener("keydown", handleRefineTermInputKeydown);
+  refineTermInput?.addEventListener("paste", handleRefineTermInputPaste);
+  refineTermInput?.addEventListener("blur", commitRefineTermInputParts);
+  refineTermChipList?.addEventListener("click", handleRefineTermChipRemoveClick);
   window.addEventListener("resize", autoSizeRefineTermsInput);
   excludeTagField?.addEventListener("click", handleExcludeTagFieldClick);
   excludeTagInput?.addEventListener("keydown", handleExcludeTagInputKeydown);
@@ -2368,7 +2385,6 @@ function bindEvents() {
   quickSearchExtraTermsButton?.addEventListener("click", openRefineSearchModal);
   quickSearchClearButton?.addEventListener("click", clearQuickSearchTerms);
   quickSearchSuggestions?.addEventListener("click", handleQuickSearchSuggestionClick);
-  termDropdown.addEventListener("click", handleTermDropdownClick);
   document.addEventListener("pointerover", handleSelectInteractionStart, { capture: true, passive: true });
   document.addEventListener("mouseover", handleSelectInteractionStart, { capture: true, passive: true });
   document.addEventListener("pointerdown", handleSelectInteractionStart, { capture: true, passive: true });
@@ -3343,6 +3359,7 @@ function getBrandFilteredBrowseListings(listings) {
 function fillForm(profile) {
   const hydratedProfile = hydrateProfile(profile);
   refineTermsInput.value = hydratedProfile.terms.join("\n");
+  if (refineTermInput) refineTermInput.value = "";
   autoSizeRefineTermsInput();
   renderPrimarySearchTerm();
   if (categoryIntentSelect) categoryIntentSelect.value = hydratedProfile.categoryIntent;
@@ -3607,6 +3624,151 @@ function parseExcludeTagText(value) {
     .filter(Boolean);
 }
 
+function normalizeSearchTermChip(value) {
+  return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+function parseSearchTermChipText(value) {
+  return String(value || "")
+    .split(/[\n,]+/)
+    .map(normalizeSearchTermChip)
+    .filter(Boolean);
+}
+
+function getRefineTerms() {
+  return splitLines(refineTermsInput?.value || "");
+}
+
+function setRefineTerms(terms, options = {}) {
+  const { notify = true } = options;
+  const nextTerms = uniqueTerms((terms || []).map(normalizeSearchTermChip).filter(Boolean));
+  if (refineTermsInput) refineTermsInput.value = nextTerms.join("\n");
+  renderRefineTermChips();
+
+  if (notify) {
+    syncRefineTermsToPrimary({ target: refineTermsInput });
+  }
+
+  return nextTerms;
+}
+
+function renderRefineTermChips() {
+  if (!refineTermChipList || !refineTermInput) return;
+  const terms = getRefineTerms();
+
+  refineTermChipList.innerHTML = "";
+  refineTermField?.classList.toggle("has-tags", terms.length > 0);
+  updateRefineSearchTitle();
+
+  terms.forEach((term, index) => {
+    const chip = document.createElement("span");
+    chip.className = `refine-term-chip${index === 0 ? " is-primary" : ""}`;
+
+    const label = document.createElement("span");
+    label.className = "refine-term-chip-label";
+    label.textContent = term;
+
+    const removeButton = document.createElement("button");
+    removeButton.className = "refine-term-chip-remove";
+    removeButton.type = "button";
+    removeButton.dataset.termIndex = String(index);
+    removeButton.setAttribute("aria-label", `Remove search term ${term}`);
+    removeButton.textContent = "×";
+
+    chip.append(label, removeButton);
+    refineTermChipList.appendChild(chip);
+  });
+}
+
+function updateRefineSearchTitle() {
+  if (!refineSearchTermTitle) return;
+  const titleTerm = getRefineTerms()[0] || normalizeSearchTermChip(refineTermInput?.value || "");
+  refineSearchTitle?.classList.toggle("has-term", Boolean(titleTerm));
+  if (refineSearchTitleSeparator) refineSearchTitleSeparator.hidden = !titleTerm;
+  refineSearchTermTitle.textContent = titleTerm || "";
+}
+
+function handleRefineTermFieldClick(event) {
+  if (event.target.closest(".refine-term-chip-remove")) return;
+  refineTermInput?.focus();
+}
+
+function handleRefineTermInput(event) {
+  if (event.isComposing) return;
+  if (/[\n,]/.test(refineTermInput.value)) {
+    commitRefineTermInputParts({ focus: true });
+    updateRefineSearchTitle();
+    return;
+  }
+  updateRefineSearchTitle();
+}
+
+function handleRefineTermInputKeydown(event) {
+  if (event.isComposing || event.keyCode === 229) return;
+
+  if (event.key === "Enter" || event.key === ",") {
+    event.preventDefault();
+    commitRefineTermInputParts({ focus: true });
+    return;
+  }
+
+  if (event.key === "Backspace" && !refineTermInput.value) {
+    const terms = getRefineTerms();
+    if (terms.length === 0) return;
+    event.preventDefault();
+    terms.pop();
+    setRefineTerms(terms);
+    return;
+  }
+
+  if (event.key === "Escape" && refineTermInput.value) {
+    event.preventDefault();
+    refineTermInput.value = "";
+    updateRefineSearchTitle();
+    renderRefineSummary();
+    updateRefineSaveSearchButton();
+  }
+}
+
+function handleRefineTermInputPaste(event) {
+  const pastedText = event.clipboardData?.getData("text") || "";
+  if (!/[\n,]/.test(pastedText)) return;
+  event.preventDefault();
+  const parts = parseSearchTermChipText(`${refineTermInput.value}\n${pastedText}`);
+  if (parts.length === 0) return;
+  refineTermInput.value = "";
+  setRefineTerms([...getRefineTerms(), ...parts]);
+  refineTermInput.focus();
+}
+
+function commitRefineTermInputParts(options = {}) {
+  if (!refineTermInput) return false;
+  const parts = parseSearchTermChipText(refineTermInput.value);
+  if (parts.length === 0) {
+    refineTermInput.value = "";
+    return false;
+  }
+
+  refineTermInput.value = "";
+  setRefineTerms([...getRefineTerms(), ...parts]);
+  if (options.focus) refineTermInput.focus();
+  return true;
+}
+
+function removeRefineTermChipAt(index, options = {}) {
+  const terms = getRefineTerms();
+  if (!Number.isInteger(index) || index < 0 || index >= terms.length) return;
+  terms.splice(index, 1);
+  setRefineTerms(terms);
+  if (options.focusInput !== false) refineTermInput?.focus();
+}
+
+function handleRefineTermChipRemoveClick(event) {
+  const button = event.target.closest(".refine-term-chip-remove");
+  if (!button) return;
+  removeRefineTermChipAt(Number(button.dataset.termIndex), { focusInput: true });
+}
+
 function getExcludeTags() {
   return parseExcludeTagText(excludesInput?.value || "");
 }
@@ -3743,12 +3905,13 @@ function openRefineSearchModal(event) {
   if (refineSourceOptions) refineSourceOptions.open = false;
   if (refineNoiseOptions) refineNoiseOptions.open = false;
   renderRefineSummary();
+  updateRefineSearchTitle();
   updateRefineSaveSearchButton();
   refineSearchModal.hidden = false;
   document.body.classList.add("modal-open");
   updateMobileSearchOverlayVisibility();
   autoSizeRefineTermsInput();
-  refineTermsInput.focus();
+  refineTermInput?.focus();
 }
 
 function closeRefineSearchModal(options = {}) {
@@ -3767,10 +3930,14 @@ function handleRefineSearchModalEdit() {
 
 function getDraftProfileFromRefineModal() {
   syncRefineTermsToPrimary();
-  return {
+  const draftProfile = {
     ...readProfileFromForm(),
     regionId: appSettings.regionId,
   };
+  const draftTerm = normalizeSearchTermChip(refineTermInput?.value || "");
+  return draftTerm
+    ? { ...draftProfile, terms: uniqueTerms([...draftProfile.terms, draftTerm]) }
+    : draftProfile;
 }
 
 function updateRefineSaveSearchButton() {
@@ -3788,8 +3955,9 @@ function updateRefineSaveSearchButton() {
 
 function saveSearchFromRefineModal(event) {
   event?.preventDefault?.();
+  commitRefineTermInputParts();
   if (!saveRefineSearchButton || saveRefineSearchButton.disabled) {
-    refineTermsInput.focus();
+    refineTermInput?.focus();
     return;
   }
 
@@ -3815,20 +3983,15 @@ function saveSearchFromRefineModal(event) {
 
 function autoSizeRefineTermsInput() {
   if (!refineTermsInput) return;
-  refineTermsInput.style.height = "auto";
-  const styles = window.getComputedStyle(refineTermsInput);
-  const minHeight = Number.parseFloat(styles.minHeight) || 48;
-  const maxHeight = Number.parseFloat(styles.maxHeight) || 180;
-  const nextHeight = Math.min(Math.max(refineTermsInput.scrollHeight, minHeight), maxHeight);
+  renderRefineTermChips();
   const entry = refineTermsInput.closest(".refine-term-entry");
-  entry?.classList.toggle("is-expanded", nextHeight > minHeight + 4);
-  refineTermsInput.style.height = `${nextHeight}px`;
-  refineTermsInput.style.overflowY = refineTermsInput.scrollHeight > maxHeight ? "auto" : "hidden";
+  entry?.classList.toggle("is-expanded", getRefineTerms().length > 3);
 }
 
 function syncPrimaryTermsToRefine() {
   const primaryTerms = splitLines(termsInput.value);
   const nextValue = primaryTerms.join("\n");
+  if (refineTermInput && document.activeElement !== refineTermInput) refineTermInput.value = "";
   if (refineTermsInput.value === nextValue) {
     autoSizeRefineTermsInput();
     return;
@@ -3971,46 +4134,7 @@ function getQuickSearchSuggestionGroup(value) {
 }
 
 function renderRefineTermDropdown() {
-  const terms = getSearchTermsFromForm();
-  termDropdown.hidden = terms.length < 2;
-  termDropdown.innerHTML = "";
-
-  if (termDropdown.hidden) return;
-
-  terms.forEach((term, index) => {
-    const row = document.createElement("div");
-    row.className = "term-dropdown-row";
-
-    const icon = document.createElement("span");
-    icon.className = "term-row-icon";
-    icon.setAttribute("aria-hidden", "true");
-    icon.textContent = "◷";
-
-    const label = document.createElement("span");
-    label.className = "term-row-label";
-    label.textContent = term;
-
-    const removeButton = document.createElement("button");
-    removeButton.className = "term-remove-button";
-    removeButton.type = "button";
-    removeButton.dataset.termIndex = String(index);
-    removeButton.setAttribute("aria-label", `Remove ${term}`);
-    removeButton.textContent = "×";
-    removeButton.addEventListener("click", (event) => {
-      event.stopPropagation();
-      removeRefineTermAt(index);
-    });
-
-    row.append(icon, label, removeButton);
-    termDropdown.appendChild(row);
-  });
-}
-
-function handleTermDropdownClick(event) {
-  const button = event.target.closest(".term-remove-button");
-  if (!button) return;
-
-  removeRefineTermAt(Number(button.dataset.termIndex));
+  renderRefineTermChips();
 }
 
 function removeRefineTermAt(removeIndex) {
@@ -4019,7 +4143,7 @@ function removeRefineTermAt(removeIndex) {
   autoSizeRefineTermsInput();
   syncRefineTermsToPrimary();
   renderRefineSummary();
-  refineTermsInput.focus();
+  refineTermInput?.focus();
 }
 
 function toggleSavedSearchPopover(event) {
@@ -4149,6 +4273,7 @@ function openSaveSearchModal(event) {
   const draftProfile = readProfileFromForm();
   saveSearchName.value = draftProfile.name;
   saveSearchAlert.value = draftProfile.alertMode;
+  if (saveSearchAlertsEnabled) saveSearchAlertsEnabled.checked = Boolean(draftProfile.alertsEnabled);
   saveSearchModal.hidden = false;
   document.body.classList.add("modal-open");
   updateMobileSearchOverlayVisibility();
@@ -4172,6 +4297,7 @@ function saveCurrentSearchFromModal() {
     name: savedName,
     regionId: appSettings.regionId,
     alertMode: saveSearchAlert.value,
+    alertsEnabled: Boolean(saveSearchAlertsEnabled?.checked),
   };
   document.querySelector("#alertMode").value = currentProfile.alertMode;
   currentProfile = saveProfile(currentProfile);
@@ -5517,6 +5643,10 @@ function createLiveSearchGroups(profile) {
     groups.push({ id: "digimart", sources: ["digimart"] });
   }
 
+  if (selectedSources.has("qsic")) {
+    groups.push({ id: "qsic", sources: ["qsic"] });
+  }
+
   if (selectedSources.has("five-g")) {
     groups.push({ id: "five-g", sources: ["five-g"] });
   }
@@ -6213,18 +6343,18 @@ function renderHomeView(watching, renderContext = createListingRenderContext()) 
 
   if (browseResults.length > 0 || browseCategoryStatus === "loading" || browseCategoryStatus === "error") {
     resultGrid.appendChild(createFeaturedHomeSection(browseResults, { variant: "browse", renderContext }));
-    if (filterMode !== "watching") resultGrid.appendChild(createBrandBrowserSection());
+  }
+
+  if (filterMode !== "watching") {
+    resultGrid.appendChild(createFeaturedHomeSection(watchedHomeResults, { variant: "watched", renderContext }));
+    resultGrid.appendChild(createBrandBrowserSection());
   }
 
   if (SHOW_FRESH_FINDS_HOME_SECTION && freshFindResults.length > 0) {
     resultGrid.appendChild(createFeaturedHomeSection(freshFindResults, { variant: "fresh", renderContext }));
   }
 
-  if (watchedHomeResults.length > 0) {
-    resultGrid.appendChild(createFeaturedHomeSection(watchedHomeResults, { variant: "watched", renderContext }));
-  }
-
-  if (homeResults.length === 0 && !isBrowseLoading) {
+  if (homeResults.length === 0 && !isBrowseLoading && filterMode === "watching") {
     resultGrid.innerHTML = filterMode === "watching"
       ? `<div class="empty-state"><strong>No watched gear yet.</strong><span>Tap a heart on any listing to save it here.</span></div>`
       : `<div class="empty-state"><strong>Start a fresh search.</strong><span>${searchState.detail}</span></div>`;
@@ -6470,6 +6600,11 @@ function handleResultGridAction(event) {
     resetPagination();
     renderResults();
     scrollResultsTop();
+  }
+
+  if (button.dataset.resultAction === "rescan-gear-scanner") {
+    event.preventDefault?.();
+    rescanGearScannerSearch({ expanded: button.dataset.rescanExpanded === "true" });
   }
 
   if (button.dataset.resultAction === "open-brand-browser") {
@@ -7915,6 +8050,7 @@ function createFeaturedHomeHeader(count, options = {}) {
               <span>Browse</span>
               <select id="homeBrowseCategory" aria-label="Browse category">${optionsMarkup}</select>
             </label>
+            ${createGearScannerRescanButton()}
             <button class="browse-view-all-button" type="button" data-result-action="open-browse-expanded">See All</button>
           </div>
         </div>
@@ -7927,7 +8063,9 @@ function createFeaturedHomeHeader(count, options = {}) {
   header.innerHTML = `
     <h3>${isWatched ? "Watched Gear" : "Fresh Finds"}</h3>
     <span>${isWatched
-      ? `${count} watched ${count === 1 ? "listing" : "listings"} saved to your profile`
+      ? count > 0
+        ? `${count} watched ${count === 1 ? "listing" : "listings"} saved to your profile`
+        : "Save listings with the heart icon and they will collect here"
       : isCached && starterFreshFindStatus === "loading"
         ? "Fresh picks are updating now"
       : isCached
@@ -7968,6 +8106,7 @@ function createBrowseExpandedHeader(visibleCount, totalCount) {
               <span>Brand</span>
               <select id="expandedBrowseBrand" aria-label="Browse brand">${brandOptionsMarkup}</select>
             </label>
+            ${createGearScannerRescanButton({ expanded: true })}
           </div>
         </div>
         <span>${brandDetailMarkup}</span>
@@ -7997,12 +8136,35 @@ function createBrowseExpandedHeader(visibleCount, totalCount) {
             <span>Browse</span>
             <select id="expandedBrowseCategory" aria-label="Browse category">${optionsMarkup}</select>
           </label>
+          ${createGearScannerRescanButton({ expanded: true })}
         </div>
       </div>
       <span>${browseDetailMarkup}</span>
     </div>
   `;
   return header;
+}
+
+function createGearScannerRescanButton(options = {}) {
+  const isLoading = browseCategoryStatus === "loading";
+  return `
+    <button
+      class="browse-rescan-button${isLoading ? " is-loading" : ""}"
+      type="button"
+      data-result-action="rescan-gear-scanner"
+      ${options.expanded ? 'data-rescan-expanded="true"' : ""}
+      aria-label="${isLoading ? "Gear Scanner is rescanning" : "Rescan Gear Scanner"}"
+      title="${isLoading ? "Rescanning Gear Scanner" : "Rescan Gear Scanner"}"
+    >
+      <svg class="browse-rescan-icon" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M20 11A8 8 0 0 0 6.1 5.7L4 7.8" fill="none" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M4 4.4v3.4h3.4" fill="none" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M4 13a8 8 0 0 0 13.9 5.3L20 16.2" fill="none" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M20 19.6v-3.4h-3.4" fill="none" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="sr-only">${isLoading ? "Gear Scanner is rescanning" : "Rescan Gear Scanner"}</span>
+    </button>
+  `;
 }
 
 function createFeaturedHomeSection(listings, options = {}) {
@@ -8077,6 +8239,11 @@ function createFeaturedHomeSection(listings, options = {}) {
     return section;
   }
 
+  if (variant === "watched" && listings.length === 0) {
+    section.appendChild(createWatchedGearPlaceholder());
+    return section;
+  }
+
   const carousel = document.createElement("div");
   carousel.className = "featured-home-carousel";
   const previousButton = document.createElement("button");
@@ -8115,6 +8282,25 @@ function createFeaturedHomeSection(listings, options = {}) {
   setupFeaturedHomeCarousel(rail, previousButton, nextButton);
 
   return section;
+}
+
+function createWatchedGearPlaceholder() {
+  const placeholder = document.createElement("div");
+  placeholder.className = "watched-gear-placeholder";
+  placeholder.innerHTML = `
+    <div class="watched-placeholder-art" aria-hidden="true">
+      <span class="watched-placeholder-heart"></span>
+      <span class="watched-placeholder-card"></span>
+      <span class="watched-placeholder-card"></span>
+      <span class="watched-placeholder-card"></span>
+    </div>
+    <div class="watched-placeholder-copy">
+      <strong>Your watchlist lives here.</strong>
+      <span>Tap the heart on any listing to build a quick-read shelf of gear you want to track.</span>
+    </div>
+    <button class="bumpers-secondary-button watched-placeholder-action" type="button" data-result-action="open-browse-expanded">Start scanning gear</button>
+  `;
+  return placeholder;
 }
 
 function createFeaturedHomeLoadingCard(listing) {
@@ -8347,6 +8533,27 @@ function ensureBrowseCategoryListings() {
         browseCategoryAbortController = null;
       }
     });
+}
+
+function rescanGearScannerSearch(options = {}) {
+  if (location.protocol === "file:") return;
+
+  cancelBrowseCategoryLoad();
+  browseCategoryListings = [];
+  browseCategoryStatus = "idle";
+  browseCategoryError = "";
+  browseCategoryCacheSignature = "";
+  browseCategoryUpdatedAt = "";
+  clearBrowsePreparedListingsCache();
+  if (options.expanded) {
+    isBrowseExpanded = true;
+    setAppView(APP_VIEW_SYNTH_BROWSER, {
+      brandSlug: activeBrowseBrandSlug ? sanitizePopularBrandSlug(activeBrowseBrandSlug) : "",
+      replace: true,
+    });
+  }
+  resetPagination();
+  if (searchState.mode === "idle") renderResults({ force: true });
 }
 
 async function fetchBrowseCategoryListings(categoryIntent, options = {}) {
@@ -9877,6 +10084,7 @@ function shouldMigrateStoredProfiles(profiles) {
     || !profile.schemaVersion
     || !profile.userId
     || !profile.regionId
+    || typeof profile.alertsEnabled !== "boolean"
     || !profile.createdAt
     || !profile.updatedAt
     || !profile.sync);
@@ -9959,6 +10167,7 @@ function hydrateProfile(profile = {}) {
     categoryIntent: sanitizeCategoryIntent(profile.categoryIntent, regionId),
     maxPrice: sanitizePriceCap(profile.maxPrice, defaultProfile.maxPrice),
     alertMode: ["immediate", "hourly", "daily"].includes(profile.alertMode) ? profile.alertMode : defaultProfile.alertMode,
+    alertsEnabled: Boolean(profile.alertsEnabled),
     sources: hydrateSourceSelection(profile.sources, regionId),
     createdAt,
     updatedAt,

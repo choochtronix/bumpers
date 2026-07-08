@@ -1,4 +1,5 @@
 import { createServer } from "node:http";
+import { get as httpsGet } from "node:https";
 import { existsSync, readFileSync } from "node:fs";
 import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { networkInterfaces } from "node:os";
@@ -24,7 +25,13 @@ const CLOUD_PROFILE_EMAIL = process.env.BUMPERS_CLOUD_USER_EMAIL || "local-user@
 const CLOUD_PROFILE_NAME = process.env.BUMPERS_CLOUD_USER_NAME || "Local Brrtz User";
 const REQUIRE_INVITE = process.env.BUMPERS_REQUIRE_INVITE === "true";
 const JOB_TOKEN = process.env.BUMPERS_JOB_TOKEN || "";
+const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
+const ALERT_EMAIL_FROM = process.env.BRRTZ_ALERT_EMAIL_FROM || "Brrtz <alerts@brrtz.com>";
+const ALERT_DIGEST_BASE_URL = process.env.BRRTZ_ALERT_DIGEST_BASE_URL || "https://brrtz.com";
+const ALERT_SEARCH_LIMIT = Number(process.env.BRRTZ_ALERT_SEARCH_LIMIT || 25);
+const ALERT_LISTING_LIMIT = Number(process.env.BRRTZ_ALERT_LISTING_LIMIT || 8);
 const SOURCE_HEALTH_FILE = join(ROOT, "data", "agent-source-health.json");
+const ALERT_EVENTS_FILE = join(ROOT, "data", "saved-search-alert-events.json");
 const CURATION_NOISE_INBOX_FILE = join(ROOT, "ops", "curation", "noise-inbox.jsonl");
 const DIGIMART_BASE_URL = "https://www.digimart.net";
 const FIVE_G_BASE_URL = "https://fiveg.net";
@@ -32,6 +39,7 @@ const IMPLANT4_BASE_URL = "https://shop.implant4.com";
 const JIMOTY_BASE_URL = "https://jmty.jp";
 const MERCARI_BASE_URL = "https://jp.mercari.com";
 const OFFMALL_BASE_URL = "https://netmall.hardoff.co.jp";
+const QSIC_BASE_URL = "https://www.qsic.jp";
 const RAKUMA_BASE_URL = "https://fril.jp";
 const REVERB_API_BASE_URL = "https://api.reverb.com";
 const REVERB_BASE_URL = "https://reverb.com";
@@ -395,6 +403,11 @@ createServer(async (request, response) => {
       return;
     }
 
+    if (url.pathname === "/api/jobs/saved-search-alerts") {
+      await handleSavedSearchAlertsJob(request, url, response);
+      return;
+    }
+
     if (url.pathname === "/api/rakuma-image") {
       await handleRakumaImageProxy(url, response);
       return;
@@ -664,6 +677,383 @@ async function handleSourceHealthJob(request, url, response) {
   });
 }
 
+async function handleSavedSearchAlertsJob(request, url, response) {
+  if (!isAuthorizedOpsRequest(request)) {
+    sendJson(response, 403, { error: "forbidden" });
+    return;
+  }
+
+  if (!["GET", "POST"].includes(request.method)) {
+    response.writeHead(405, {
+      "allow": "GET, POST",
+      "content-type": "application/json; charset=utf-8",
+    });
+    response.end(JSON.stringify({ error: "method_not_allowed" }));
+    return;
+  }
+
+  const dryRun = url.searchParams.get("dryRun") === "true" || url.searchParams.get("dry_run") === "true";
+  const requestedLimit = Number(url.searchParams.get("limit"));
+  const limit = Number.isFinite(requestedLimit) && requestedLimit >= 0 ? Math.floor(requestedLimit) : undefined;
+  const result = await runSavedSearchAlertDigest({ dryRun, limit });
+  sendJson(response, 200, result);
+}
+
+async function runSavedSearchAlertDigest(options = {}) {
+  const startedAt = new Date();
+  const dryRun = Boolean(options.dryRun);
+  const alertProfiles = await readAlertEnabledSavedSearchProfiles();
+  const profileLimit = Number.isInteger(options.limit) ? options.limit : getPositiveInteger(ALERT_SEARCH_LIMIT, 25);
+  const limitedProfiles = alertProfiles.slice(0, profileLimit);
+  const existingEvents = await readSavedSearchAlertEvents();
+  const existingEventKeys = new Set(existingEvents.map((event) => event.eventKey).filter(Boolean));
+  const nextEvents = [];
+  const reports = [];
+
+  for (const profile of limitedProfiles) {
+    const report = await processSavedSearchAlertProfile(profile, {
+      dryRun,
+      existingEventKeys,
+    });
+    reports.push(report);
+    nextEvents.push(...report.newEvents);
+    report.newEvents.forEach((event) => existingEventKeys.add(event.eventKey));
+  }
+
+  if (nextEvents.length > 0 && !dryRun) {
+    await appendSavedSearchAlertEvents(nextEvents);
+  }
+
+  return {
+    ok: true,
+    dryRun,
+    emailConfigured: isAlertEmailConfigured(),
+    storage: isSupabaseCloudEnabled() ? "supabase" : "file",
+    checkedAt: new Date().toISOString(),
+    durationMs: Date.now() - startedAt.getTime(),
+    eligibleSearchCount: alertProfiles.length,
+    processedSearchCount: limitedProfiles.length,
+    newListingCount: reports.reduce((sum, report) => sum + report.newCount, 0),
+    emailedSearchCount: reports.filter((report) => report.emailSent).length,
+    reports: reports.map(({ newEvents, ...report }) => report),
+  };
+}
+
+async function processSavedSearchAlertProfile(profile, options = {}) {
+  const searchPayload = await fetchSavedSearchAlertResults(profile);
+  const listings = Array.isArray(searchPayload.listings) ? searchPayload.listings : [];
+  const searchId = getSavedSearchAlertSearchId(profile);
+  const userId = profile.userId || CLOUD_PROFILE_USER_ID;
+  const newListings = listings.filter((listing) => {
+    const eventKey = createSavedSearchAlertEventKey(userId, searchId, listing);
+    return eventKey && !options.existingEventKeys.has(eventKey);
+  });
+  const limitedNewListings = newListings.slice(0, getPositiveInteger(ALERT_LISTING_LIMIT, 8));
+  const recipient = await getAlertRecipientForUser(userId);
+  const canEmail = Boolean(recipient.email) && isAlertEmailConfigured();
+  let emailSent = false;
+  let emailSkippedReason = "";
+
+  if (limitedNewListings.length === 0) {
+    emailSkippedReason = "no_new_listings";
+  } else if (!recipient.email) {
+    emailSkippedReason = "missing_recipient_email";
+  } else if (!isAlertEmailConfigured()) {
+    emailSkippedReason = "email_not_configured";
+  } else if (options.dryRun) {
+    emailSkippedReason = "dry_run";
+  } else {
+    await sendSavedSearchAlertEmail({
+      profile,
+      recipient,
+      listings: limitedNewListings,
+      totalNewCount: newListings.length,
+    });
+    emailSent = true;
+  }
+
+  const notifiedAt = emailSent ? new Date().toISOString() : null;
+  const newEvents = emailSent
+    ? limitedNewListings.map((listing) => createSavedSearchAlertEvent({
+      userId,
+      searchId,
+      listing,
+      notifiedAt,
+    })).filter(Boolean)
+    : [];
+
+  return {
+    searchId,
+    userId,
+    name: profile.name,
+    alertMode: profile.alertMode,
+    matchCount: listings.length,
+    newCount: newListings.length,
+    emailedCount: emailSent ? limitedNewListings.length : 0,
+    emailSent,
+    emailSkippedReason,
+    recipientEmail: recipient.email ? maskEmail(recipient.email) : "",
+    newEvents,
+    canEmail,
+  };
+}
+
+async function fetchSavedSearchAlertResults(profile) {
+  const params = new URLSearchParams({
+    terms: normalizeArrayField(profile.terms).join("|"),
+    excludes: normalizeArrayField(profile.excludes).join("|"),
+    categoryIntent: String(profile.categoryIntent || "synthesizers"),
+    maxPrice: String(Number(profile.maxPrice || 0)),
+    sources: normalizeArrayField(profile.sources).join("|"),
+    region: String(profile.regionId || "japan"),
+  });
+  const response = await fetch(`http://127.0.0.1:${PORT}/api/search?${params.toString()}`, {
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error(`Alert search for ${profile.name || "saved search"} failed with ${response.status}.`);
+  }
+
+  return response.json();
+}
+
+async function readAlertEnabledSavedSearchProfiles() {
+  if (isSupabaseCloudEnabled()) {
+    const rows = await supabaseRequest("/rest/v1/saved_searches?alerts_enabled=eq.true&deleted_at=is.null&order=updated_at.desc");
+    return Array.isArray(rows) ? rows.map(rowToSavedSearchProfile) : [];
+  }
+
+  const state = await readCloudSavedSearches();
+  return (Array.isArray(state.profiles) ? state.profiles : [])
+    .map(rowToSavedSearchProfileSafe)
+    .filter((profile) => profile.alertsEnabled && !profile.deletedAt);
+}
+
+function rowToSavedSearchProfileSafe(profile) {
+  return {
+    ...profile,
+    userId: profile.userId || profile.user?.id || CLOUD_PROFILE_USER_ID,
+    alertMode: ["immediate", "hourly", "daily"].includes(profile.alertMode) ? profile.alertMode : "daily",
+    alertsEnabled: Boolean(profile.alertsEnabled),
+    terms: normalizeArrayField(profile.terms),
+    excludes: normalizeArrayField(profile.excludes),
+    noiseTerms: normalizeArrayField(profile.noiseTerms),
+    sources: normalizeArrayField(profile.sources),
+    regionId: profile.regionId || "japan",
+    maxPrice: Number(profile.maxPrice || 0),
+  };
+}
+
+async function getAlertRecipientForUser(userId) {
+  if (isSupabaseCloudEnabled()) {
+    const rows = await supabaseRequest(`/rest/v1/user_profiles?user_id=eq.${encodeURIComponent(userId)}&select=email,name&limit=1`);
+    const row = Array.isArray(rows) ? rows[0] : null;
+    return {
+      email: normalizeEmail(row?.email),
+      name: row?.name || "",
+    };
+  }
+
+  const state = await readCloudSavedSearches();
+  return {
+    email: normalizeEmail(state.user?.email || CLOUD_PROFILE_EMAIL),
+    name: state.user?.name || CLOUD_PROFILE_NAME,
+  };
+}
+
+async function readSavedSearchAlertEvents() {
+  if (isSupabaseCloudEnabled()) {
+    const rows = await supabaseRequest("/rest/v1/saved_search_alert_events?select=id,user_id,saved_search_id,listing_id,notified_at&limit=10000");
+    return Array.isArray(rows) ? rows.map((row) => ({
+      eventKey: row.id,
+      userId: row.user_id,
+      searchId: row.saved_search_id,
+      listingId: row.listing_id,
+      notifiedAt: row.notified_at,
+    })) : [];
+  }
+
+  try {
+    const payload = JSON.parse(await readFile(ALERT_EVENTS_FILE, "utf8"));
+    return Array.isArray(payload.events) ? payload.events : [];
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+    return [];
+  }
+}
+
+async function appendSavedSearchAlertEvents(events) {
+  if (events.length === 0) return;
+
+  if (isSupabaseCloudEnabled()) {
+    await supabaseRequest("/rest/v1/saved_search_alert_events?on_conflict=id", {
+      method: "POST",
+      headers: {
+        prefer: "resolution=ignore-duplicates,return=minimal",
+      },
+      body: JSON.stringify(events.map(savedSearchAlertEventToRow)),
+    });
+    return;
+  }
+
+  const currentEvents = await readSavedSearchAlertEvents();
+  const seen = new Set(currentEvents.map((event) => event.eventKey));
+  const nextEvents = [
+    ...currentEvents,
+    ...events.filter((event) => {
+      if (seen.has(event.eventKey)) return false;
+      seen.add(event.eventKey);
+      return true;
+    }),
+  ];
+  await mkdir(join(ROOT, "data"), { recursive: true });
+  await writeFile(ALERT_EVENTS_FILE, `${JSON.stringify({ events: nextEvents }, null, 2)}\n`, "utf8");
+}
+
+function createSavedSearchAlertEvent({ userId, searchId, listing, notifiedAt }) {
+  const eventKey = createSavedSearchAlertEventKey(userId, searchId, listing);
+  if (!eventKey) return null;
+  return {
+    eventKey,
+    userId,
+    searchId,
+    listingId: getListingAlertId(listing),
+    source: String(listing.source || ""),
+    title: String(listing.title || ""),
+    url: String(listing.url || ""),
+    price: Number(listing.price || 0),
+    currency: String(listing.currency || ""),
+    firstSeenAt: new Date().toISOString(),
+    notifiedAt,
+  };
+}
+
+function savedSearchAlertEventToRow(event) {
+  return {
+    id: event.eventKey,
+    user_id: event.userId,
+    saved_search_id: event.searchId,
+    listing_id: event.listingId,
+    source: event.source,
+    title: event.title,
+    url: event.url,
+    price: event.price,
+    currency: event.currency,
+    first_seen_at: event.firstSeenAt,
+    notified_at: event.notifiedAt,
+  };
+}
+
+function createSavedSearchAlertEventKey(userId, searchId, listing) {
+  const listingId = getListingAlertId(listing);
+  if (!listingId) return "";
+  return [userId, searchId, listingId].map((part) => String(part || "").replace(/\s+/g, "_")).join(":").slice(0, 420);
+}
+
+function getSavedSearchAlertSearchId(profile) {
+  return String(profile.sync?.remoteId || profile.id || createServerSearchId(profile.name));
+}
+
+function getListingAlertId(listing) {
+  return String(listing?.id || listing?.url || "").trim();
+}
+
+function isAlertEmailConfigured() {
+  return Boolean(RESEND_API_KEY && ALERT_EMAIL_FROM);
+}
+
+async function sendSavedSearchAlertEmail({ profile, recipient, listings, totalNewCount }) {
+  const subject = `Brrtz found ${totalNewCount} new ${totalNewCount === 1 ? "listing" : "listings"} for ${profile.name}`;
+  const searchUrl = createSavedSearchAlertUrl(profile);
+  const text = createSavedSearchAlertEmailText({ profile, listings, totalNewCount, searchUrl });
+  const html = createSavedSearchAlertEmailHtml({ profile, listings, totalNewCount, searchUrl });
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${RESEND_API_KEY}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      from: ALERT_EMAIL_FROM,
+      to: [recipient.email],
+      subject,
+      text,
+      html,
+    }),
+  });
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(`Resend alert email failed with ${response.status}: ${message || response.statusText}`);
+  }
+}
+
+function createSavedSearchAlertUrl(profile) {
+  const url = new URL("/search", ALERT_DIGEST_BASE_URL);
+  url.searchParams.set("region", profile.regionId || "japan");
+  url.searchParams.set("q", normalizeArrayField(profile.terms).join("\n"));
+  url.searchParams.set("category", profile.categoryIntent || "synthesizers");
+  return url.toString();
+}
+
+function createSavedSearchAlertEmailText({ profile, listings, totalNewCount, searchUrl }) {
+  const lines = [
+    `Brrtz found ${totalNewCount} new ${totalNewCount === 1 ? "listing" : "listings"} for ${profile.name}.`,
+    "",
+    ...listings.map((listing, index) => [
+      `${index + 1}. ${listing.title || "Untitled listing"}`,
+      `${formatAlertPrice(listing)} · ${listing.source || "source"}`,
+      listing.url || "",
+    ].join("\n")),
+    "",
+    `View results: ${searchUrl}`,
+    "Manage alerts from your Brrtz saved searches page.",
+  ];
+  return lines.join("\n\n");
+}
+
+function createSavedSearchAlertEmailHtml({ profile, listings, totalNewCount, searchUrl }) {
+  const listingItems = listings.map((listing) => `
+    <li style="margin:0 0 16px;">
+      <strong>${escapeHtml(listing.title || "Untitled listing")}</strong><br>
+      <span>${escapeHtml(formatAlertPrice(listing))} · ${escapeHtml(listing.source || "source")}</span><br>
+      ${listing.url ? `<a href="${escapeHtml(listing.url)}">Open original listing</a>` : ""}
+    </li>
+  `).join("");
+
+  return `
+    <div style="font-family:Arial,Helvetica,sans-serif;line-height:1.45;color:#101820;">
+      <h1 style="font-size:24px;margin:0 0 12px;">Brrtz found ${totalNewCount} new ${totalNewCount === 1 ? "listing" : "listings"} for ${escapeHtml(profile.name || "your saved search")}</h1>
+      <ol style="padding-left:20px;margin:0 0 20px;">${listingItems}</ol>
+      <p><a href="${escapeHtml(searchUrl)}" style="font-weight:700;">View results on Brrtz</a></p>
+      <p style="color:#667;font-size:13px;">Manage alerts from your Brrtz saved searches page.</p>
+    </div>
+  `;
+}
+
+function formatAlertPrice(listing) {
+  const price = Number(listing.price || 0);
+  if (!Number.isFinite(price) || price <= 0) return "Price unavailable";
+  const currency = listing.currency === "USD" ? "USD" : "JPY";
+  return new Intl.NumberFormat(currency === "USD" ? "en-US" : "ja-JP", {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 0,
+  }).format(price);
+}
+
+function maskEmail(email) {
+  const [name, domain] = String(email || "").split("@");
+  if (!name || !domain) return "";
+  return `${name.slice(0, 2)}***@${domain}`;
+}
+
+function getPositiveInteger(value, fallback) {
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? Math.floor(number) : fallback;
+}
+
 const SHARED_SOURCE_HEALTH_REGION_IDS = {
   "bay-area": ["craigslist-sfbay", "reverb-us", "ebay-us", ...BAY_AREA_STORE_SOURCE_IDS],
   "los-angeles": ["craigslist-la", "reverb-us", "ebay-us"],
@@ -708,6 +1098,7 @@ function getSourceHealthSearchFn(sourceId) {
     jimoty: searchJimoty,
     mercari: searchMercari,
     offmall: searchOffmall,
+    qsic: searchQsic,
     "craigslist-east": searchCraigslistEast,
     "craigslist-la": searchCraigslistLa,
     "craigslist-sfbay": searchCraigslistSfbay,
@@ -1218,6 +1609,7 @@ function savedSearchProfileToRow(profile, userId = CLOUD_PROFILE_USER_ID) {
     sources: normalizeArrayField(profile.sources),
     max_price: Number(profile.maxPrice || 0),
     alert_mode: String(profile.alertMode || "immediate"),
+    alerts_enabled: Boolean(profile.alertsEnabled),
     created_at: normalizeIsoField(profile.createdAt),
     updated_at: normalizeIsoField(profile.updatedAt),
     deleted_at: normalizeNullableIsoField(profile.deletedAt),
@@ -1244,6 +1636,7 @@ function rowToSavedSearchProfile(row) {
     sources: normalizeArrayField(row.sources),
     maxPrice: Number(row.max_price || 0),
     alertMode: String(row.alert_mode || "immediate"),
+    alertsEnabled: Boolean(row.alerts_enabled),
     createdAt: normalizeIsoField(row.created_at),
     updatedAt: syncedAt,
     deletedAt: row.deleted_at || null,
@@ -1315,6 +1708,7 @@ async function handleSearch(url, response) {
   const wantsDigimart = sources.length === 0 || sources.includes("digimart");
   const wantsFiveG = sources.length === 0 || sources.includes("five-g");
   const wantsImplant4 = sources.length === 0 || sources.includes("implant4");
+  const wantsQsic = sources.length === 0 || sources.includes("qsic");
   const wantsCraigslistSfbay = sources.length === 0 || sources.includes("craigslist-sfbay");
   const wantsCraigslistLa = sources.length === 0 || sources.includes("craigslist-la");
   const wantsCraigslistEast = sources.length === 0 || sources.includes("craigslist-east");
@@ -1338,7 +1732,7 @@ async function handleSearch(url, response) {
   const wantsYahooFleamarket = sources.length === 0 || sources.includes("yahoo-fleamarket");
   const startedAt = new Date();
 
-  if ((!wantsDigimart && !wantsFiveG && !wantsImplant4 && !wantsCraigslistSfbay && !wantsCraigslistLa && !wantsCraigslistEast && !wantsEbayUs && !wantsSweetwaterUsed && !wantsGuitarCenterUsed && wantedBayAreaStoreSources.length === 0 && !wantsMainDrag && !wantsRogueMusic && !wantsThreeWave && !wantsAltoMusic && !wantsToneTweakers && wantedEastCoastStoreSources.length === 0 && !wantsJimoty && !wantsMercari && !wantsOffmall && !wantsRakuma && !wantsReverb && !wantsReverbUs && !wantsYahooAuctions && !wantsYahooFleamarket) || terms.length === 0) {
+  if ((!wantsDigimart && !wantsFiveG && !wantsImplant4 && !wantsQsic && !wantsCraigslistSfbay && !wantsCraigslistLa && !wantsCraigslistEast && !wantsEbayUs && !wantsSweetwaterUsed && !wantsGuitarCenterUsed && wantedBayAreaStoreSources.length === 0 && !wantsMainDrag && !wantsRogueMusic && !wantsThreeWave && !wantsAltoMusic && !wantsToneTweakers && wantedEastCoastStoreSources.length === 0 && !wantsJimoty && !wantsMercari && !wantsOffmall && !wantsRakuma && !wantsReverb && !wantsReverbUs && !wantsYahooAuctions && !wantsYahooFleamarket) || terms.length === 0) {
     sendJson(response, 200, { listings: [], meta: createSearchMeta(startedAt, [], [], terms, { categoryIntent }) });
     return;
   }
@@ -1361,6 +1755,13 @@ async function handleSearch(url, response) {
   if (wantsImplant4) {
     sourceTasks.push(searchSourceTerms("implant4", terms, searchImplant4, {
       maxTerms: 3,
+    }));
+  }
+
+  if (wantsQsic) {
+    sourceTasks.push(searchSourceTerms("qsic", terms, searchQsic, {
+      maxTerms: 3,
+      termDelayMs: 350,
     }));
   }
 
@@ -2120,6 +2521,59 @@ async function searchFiveG(term) {
   }
 
   return parseFiveG(await decodeResponseBody(response));
+}
+
+async function searchQsic(term) {
+  const categoryPaths = [
+    "/?mode=cate&cbid=790912&csid=0&sort=n",
+  ];
+
+  const pages = await Promise.all(categoryPaths.map(async (path) => {
+    const url = new URL(path, QSIC_BASE_URL);
+    return fetchQsicText(url);
+  }));
+
+  const listings = pages.flatMap((html) => parseQsic(html));
+  const normalizedTerm = normalizeText(term);
+  const termTokens = normalizedTerm.split(/\s+/).filter(Boolean);
+
+  const uniqueListings = [...new Map(listings.map((listing) => [listing.id, listing])).values()];
+
+  return uniqueListings.filter((listing) => {
+    if (termTokens.length === 0) return true;
+    const haystack = normalizeText(`${listing.title} ${listing.description || ""}`);
+    return termTokens.every((token) => haystack.includes(token));
+  });
+}
+
+function fetchQsicText(url) {
+  return new Promise((resolve, reject) => {
+    const request = httpsGet(url, {
+      headers: {
+        "user-agent": USER_AGENT,
+        "accept-language": "ja,en-US;q=0.9,en;q=0.8",
+      },
+      timeout: 20000,
+    }, (response) => {
+      const chunks = [];
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        response.resume();
+        reject(new Error(`Qsic responded with ${response.statusCode}`));
+        return;
+      }
+
+      response.on("data", (chunk) => chunks.push(chunk));
+      response.on("end", () => {
+        resolve(new TextDecoder("euc-jp").decode(Buffer.concat(chunks)));
+      });
+    });
+
+    request.on("timeout", () => {
+      request.destroy(new Error("Qsic request timed out"));
+    });
+    request.on("error", reject);
+  });
 }
 
 async function searchImplant4(term) {
@@ -3017,6 +3471,38 @@ function parseFiveG(html) {
       image,
     };
   }).filter((listing) => listing.id !== "five-g-" && listing.title && listing.url && listing.price > 0);
+}
+
+function parseQsic(html) {
+  const blocks = html.match(/<li class="c-item-list__item">[\s\S]*?<\/li>/g) || [];
+  const listedAt = new Date().toISOString();
+
+  return blocks.map((block) => {
+    const href = readAttributeFromPattern(block, /<a[^>]+href="([^"]+)"/i);
+    const url = normalizeRelativeUrl(href, QSIC_BASE_URL);
+    const rawId = url.match(/[?&]pid=(\d+)/)?.[1] || href;
+    const image = normalizeRelativeUrl(readAttributeFromPattern(block, /<img[^>]+src="([^"]+)"/i), QSIC_BASE_URL);
+    const title = cleanText(matchOne(block, /<span[^>]*style="font-weight:\s*600;"[^>]*>([\s\S]*?)<\/span>/i))
+      || cleanText(readAttributeFromPattern(block, /<img[^>]+alt="([^"]+)"/i));
+    const titleBlocks = [...block.matchAll(/<div class="c-item-list__ttl">([\s\S]*?)<\/div>/g)];
+    const description = cleanText(titleBlocks.slice(1).map((match) => match[1]).join(" "));
+    const price = parseYenPrice(matchOne(block, /<div class="c-item-list__price">([\s\S]*?)<\/div>/i));
+
+    return {
+      id: `qsic-${rawId}`,
+      source: "qsic",
+      region: "japan",
+      currency: "JPY",
+      title,
+      description,
+      price,
+      condition: title.includes("中古") || description.includes("中古") ? "Used" : "Listed",
+      shop: "Qsic",
+      listedAt,
+      url,
+      image,
+    };
+  }).filter((listing) => listing.id !== "qsic-" && listing.title && listing.url && listing.price > 0);
 }
 
 function parseImplant4(html) {

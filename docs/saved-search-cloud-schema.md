@@ -73,6 +73,7 @@ Recommended table name: `saved_searches`
 | `sources` | json | Enabled source ids |
 | `max_price` | integer | JPY cap |
 | `alert_mode` | text | `immediate`, `hourly`, or `daily` |
+| `alerts_enabled` | boolean | Opt-in email/digest notification toggle |
 | `created_at` | timestamp | Creation time |
 | `updated_at` | timestamp | Last local or cloud mutation |
 | `deleted_at` | timestamp nullable | Soft-delete for cross-device sync |
@@ -80,6 +81,23 @@ Recommended table name: `saved_searches`
 | `last_match_count` | integer | Latest scan result count |
 | `last_new_count` | integer | Latest new listing count |
 | `last_source_count` | integer | Latest source count |
+| `last_scan_status` | text nullable | `ok`, `partial`, or latest scan state |
+
+Recommended table name for alert dedupe: `saved_search_alert_events`
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id` | text | Stable event key: user + saved search + listing |
+| `user_id` | text / uuid | Owner account id |
+| `saved_search_id` | text | Saved search id |
+| `listing_id` | text | Source-stable listing id or URL fallback |
+| `source` | text | Source id |
+| `title` | text | Listing title snapshot for email context |
+| `url` | text | Original listing URL |
+| `price` | numeric | Price snapshot |
+| `currency` | text | Listing currency |
+| `first_seen_at` | timestamp | First alert-system discovery |
+| `notified_at` | timestamp nullable | When an alert email was sent |
 | `last_scan_status` | text nullable | `ok`, `partial`, or error status |
 
 ## Fallback Rule

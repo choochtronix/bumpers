@@ -348,8 +348,9 @@
         <div class="refine-panel">
           <div class="modal-header">
             <div>
-              <p class="eyebrow">Search Tuning</p>
-              <h2 id="refineSearchTitle">Refine Search</h2>
+              <h2 id="refineSearchTitle" class="refine-title">
+                <span class="refine-title-label">Refine Search</span><span class="refine-title-separator" id="refineSearchTitleSeparator" hidden>: </span><span class="refine-title-term" id="refineSearchTermTitle"></span>
+              </h2>
             </div>
             <button class="icon-action" id="closeRefineSearch" type="button" aria-label="Close refine search">×</button>
           </div>
@@ -358,18 +359,13 @@
             <span>Search</span>
             <div class="refine-term-entry">
               <span class="refine-search-icon" aria-hidden="true">⌕</span>
-              <textarea id="refineTerms" rows="1" placeholder="Moog Voyager&#10;モーグ&#10;Minimoog"></textarea>
+              <div class="refine-term-cloud" id="refineTermField" role="group" aria-labelledby="refineSearchTitle">
+                <div class="refine-term-chip-list" id="refineTermChipList" aria-live="polite"></div>
+                <input id="refineTermInput" type="text" autocomplete="off" aria-label="Add search term" placeholder="Moog Voyager" />
+              </div>
+              <textarea id="refineTerms" rows="1" hidden></textarea>
             </div>
-            <div class="term-dropdown" id="termDropdown" aria-label="Search terms" hidden></div>
           </div>
-
-          <label>
-            <span>Category</span>
-            <select id="categoryIntent" form="searchForm">
-              <option value="synthesizers">Synthesizers</option>
-              <option value="drum-machines">Drum Machines</option>
-            </select>
-          </label>
 
           <section class="exclude-tags-section" aria-labelledby="excludeTagsLabel">
             <div class="exclude-tags-copy">
@@ -391,6 +387,14 @@ shoes</textarea>
               <input id="excludeTagInput" type="text" autocomplete="off" aria-label="Add excluded word or phrase" placeholder="Add word or phrase..." />
             </div>
           </section>
+
+          <label>
+            <span>Category</span>
+            <select id="categoryIntent" form="searchForm">
+              <option value="synthesizers">Synthesizers</option>
+              <option value="drum-machines">Drum Machines</option>
+            </select>
+          </label>
 
           <div class="form-grid">
             <label>
@@ -482,6 +486,15 @@ stand
               <option value="hourly">Hourly</option>
               <option value="daily">Daily</option>
             </select>
+          </label>
+
+          <label class="setting-toggle save-search-alert-toggle">
+            <span>
+              <strong>Email me when new listings appear</strong>
+              <small>Phase 1 sends a daily beta digest after this search is synced.</small>
+            </span>
+            <input id="saveSearchAlertsEnabled" type="checkbox" />
+            <span class="toggle-track" aria-hidden="true"></span>
           </label>
 
           <div class="modal-actions">

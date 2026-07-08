@@ -6,6 +6,7 @@ html {
 
 :root {
   --font-ui: "Geist", Helvetica, Arial, "Segoe UI", ui-sans-serif, -apple-system, BlinkMacSystemFont, sans-serif;
+  --page-max-width: 1280px;
   --brand-gradient-start: #ff00ff;
   --brand-gradient-end: #0072ff;
   --brand-gradient: linear-gradient(110deg, var(--brand-gradient-start) 0%, var(--brand-gradient-end) 100%);
@@ -20,7 +21,7 @@ body {
 }
 
 .aeo-shell {
-  width: min(1080px, calc(100% - 32px));
+  width: min(var(--page-max-width), calc(100% - 32px));
   margin: 0 auto;
   padding: 32px 0 56px;
 }

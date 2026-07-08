@@ -21,6 +21,11 @@ Production values should live in the hosting provider's environment/secrets pane
 | `SUPABASE_URL` | Yes | No | `https://your-project-ref.supabase.co` | Project URL from Supabase Project Settings. |
 | `SUPABASE_ANON_KEY` | Yes | Public-ish | `sb_publishable_...` | Used for browser auth. Safe to expose only with RLS configured. |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | Yes | `sb_secret_...` | Server-only. Never expose in browser or commit. |
+| `RESEND_API_KEY` | For email alerts | Yes | `re_...` | Enables phase-1 saved-search digest emails through Resend. |
+| `BRRTZ_ALERT_EMAIL_FROM` | For email alerts | No | `Brrtz <alerts@brrtz.com>` | Verified sender/domain for alert digests. |
+| `BRRTZ_ALERT_DIGEST_BASE_URL` | For email alerts | No | `https://brrtz.com` | Base URL used in alert email links. |
+| `BRRTZ_ALERT_SEARCH_LIMIT` | No | No | `25` | Max saved searches checked per alert job run. |
+| `BRRTZ_ALERT_LISTING_LIMIT` | No | No | `8` | Max new listings included per saved-search email. |
 
 ## Optional Source Connectors
 

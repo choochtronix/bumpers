@@ -33,6 +33,25 @@ EBAY_CLIENT_SECRET=<eBay app client secret>
 EBAY_MARKETPLACE_ID=EBAY_US
 ```
 
+Optional for phase-1 saved-search alert digests:
+
+```text
+RESEND_API_KEY=<Resend API key>
+BRRTZ_ALERT_EMAIL_FROM=Brrtz <alerts@brrtz.com>
+BRRTZ_ALERT_DIGEST_BASE_URL=https://brrtz.com
+BRRTZ_ALERT_SEARCH_LIMIT=25
+BRRTZ_ALERT_LISTING_LIMIT=8
+```
+
+After the Supabase alert migration is applied, schedule a daily Railway cron/request:
+
+```text
+GET https://brrtz.com/api/jobs/saved-search-alerts
+Authorization: Bearer <BUMPERS_JOB_TOKEN>
+```
+
+Run `https://brrtz.com/api/jobs/saved-search-alerts?dryRun=true` first to verify eligible saved searches without sending email.
+
 Railway provides `PORT`; do not set it manually unless Railway support tells you to.
 
 ## Deploy Steps

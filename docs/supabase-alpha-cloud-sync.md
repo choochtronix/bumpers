@@ -26,6 +26,7 @@ create table if not exists public.saved_searches (
   sources jsonb not null default '[]'::jsonb,
   max_price integer not null default 0,
   alert_mode text not null default 'immediate',
+  alerts_enabled boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   deleted_at timestamptz,
@@ -38,6 +39,23 @@ create table if not exists public.saved_searches (
 
 create index if not exists saved_searches_user_updated_idx
   on public.saved_searches (user_id, updated_at desc);
+
+create table if not exists public.saved_search_alert_events (
+  id text primary key,
+  user_id text not null,
+  saved_search_id text not null,
+  listing_id text not null,
+  source text,
+  title text,
+  url text,
+  price numeric,
+  currency text,
+  first_seen_at timestamptz not null default now(),
+  notified_at timestamptz
+);
+
+create index if not exists saved_search_alert_events_user_search_idx
+  on public.saved_search_alert_events (user_id, saved_search_id, notified_at desc);
 
 create table if not exists public.user_profiles (
   user_id text primary key,
@@ -63,6 +81,33 @@ create index if not exists alpha_invites_status_idx
 grant select, insert, update, delete on public.saved_searches to service_role;
 grant select, insert, update, delete on public.user_profiles to service_role;
 grant select, insert, update, delete on public.alpha_invites to service_role;
+grant select, insert, update, delete on public.saved_search_alert_events to service_role;
+```
+
+If your existing beta database was created before email alerts, run this additive migration:
+
+```sql
+alter table public.saved_searches
+  add column if not exists alerts_enabled boolean not null default false;
+
+create table if not exists public.saved_search_alert_events (
+  id text primary key,
+  user_id text not null,
+  saved_search_id text not null,
+  listing_id text not null,
+  source text,
+  title text,
+  url text,
+  price numeric,
+  currency text,
+  first_seen_at timestamptz not null default now(),
+  notified_at timestamptz
+);
+
+create index if not exists saved_search_alert_events_user_search_idx
+  on public.saved_search_alert_events (user_id, saved_search_id, notified_at desc);
+
+grant select, insert, update, delete on public.saved_search_alert_events to service_role;
 ```
 
 For the current alpha adapter, the Node server uses the Supabase service role key and talks to Supabase server-side only. Do not expose the service role key in browser JavaScript.
