@@ -6155,6 +6155,11 @@ function createMyPageSavedSearchRow(profile) {
           <span>Refine</span>
         </button>
         <button class="my-page-text-action" type="button" data-result-action="run-saved-search" data-saved-search-id="${profileId}">View results</button>
+        <label class="my-page-alert-toggle">
+          <span>Email alerts</span>
+          <input type="checkbox" data-my-page-alert-toggle data-saved-search-id="${profileId}"${profile.alertsEnabled ? " checked" : ""} aria-label="Email alerts for ${escapeHtml(profile.name)}">
+          <span class="my-page-alert-track" aria-hidden="true"></span>
+        </label>
         <button class="my-page-text-action is-danger" type="button" data-result-action="delete-saved-search" data-saved-search-id="${profileId}">
           <span class="my-page-delete-icon" aria-hidden="true">×</span>
           <span>Delete</span>
@@ -6561,6 +6566,12 @@ function handleResultGridAction(event) {
       return;
     }
 
+    const myPageAlertToggle = event.target.closest("[data-my-page-alert-toggle]");
+    if (myPageAlertToggle) {
+      toggleSavedSearchEmailAlerts(myPageAlertToggle);
+      return;
+    }
+
     if (event.type === "input" && event.target.closest("select")) return;
 
     const browseSelect = event.target.closest("#homeBrowseCategory");
@@ -6654,6 +6665,27 @@ function clearResultViewFilters() {
   if (getCurrentAppView() === APP_VIEW_WATCHLIST) setAppView(null);
   syncFilterModeButtons();
   renderResults();
+}
+
+function toggleSavedSearchEmailAlerts(toggle) {
+  const profile = getSavedSearchActionProfile(toggle);
+  if (!profile) return;
+
+  const nextProfile = {
+    ...profile,
+    alertsEnabled: Boolean(toggle.checked),
+    updatedAt: new Date().toISOString(),
+  };
+  saveProfile(nextProfile);
+
+  if (currentProfile && normalizeText(currentProfile.name) === normalizeText(nextProfile.name)) {
+    currentProfile = hydrateProfile(nextProfile);
+  }
+
+  renderMyPageView();
+  renderSavedSearches();
+  updateQuickSaveSearchButton();
+  queueSavedSearchAutoSync("toggle-email-alerts");
 }
 
 function createNoResultsMessage(baseResults = currentResults) {

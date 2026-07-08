@@ -9693,6 +9693,74 @@ body[data-theme="dark"] .refine-backdrop {
   font-weight: 650;
 }
 
+.my-page-alert-toggle {
+  display: inline-flex;
+  position: relative;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1;
+}
+
+.my-page-alert-toggle input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+}
+
+.my-page-alert-track {
+  position: relative;
+  display: inline-flex;
+  width: 34px;
+  height: 20px;
+  flex: 0 0 auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--field) 88%, transparent);
+  transition:
+    background var(--motion-standard),
+    border-color var(--motion-standard),
+    box-shadow var(--motion-standard);
+}
+
+.my-page-alert-track::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition:
+    background var(--motion-standard),
+    transform var(--motion-standard);
+}
+
+.my-page-alert-toggle input:checked + .my-page-alert-track {
+  border-color: transparent;
+  background: var(--brand-gradient);
+}
+
+.my-page-alert-toggle input:checked + .my-page-alert-track::after {
+  background: #fff;
+  transform: translateX(14px);
+}
+
+.my-page-alert-toggle:hover,
+.my-page-alert-toggle:focus-within {
+  color: var(--brand-gradient-start);
+}
+
+.my-page-alert-toggle:focus-within .my-page-alert-track {
+  box-shadow: var(--focus-ring);
+}
+
 .my-page-refine-action .refine-icon {
   width: 18px;
   height: 18px;
@@ -9768,6 +9836,11 @@ body[data-theme="dark"] .refine-backdrop {
 
   .my-page-saved-actions {
     gap: 16px;
+  }
+
+  .my-page-alert-toggle {
+    min-height: 32px;
+    padding-right: 4px;
   }
 
   .featured-home-section.is-gear-browser-frame .featured-home-rail {
