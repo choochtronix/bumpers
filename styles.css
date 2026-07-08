@@ -2425,22 +2425,50 @@ body[data-theme="dark"] .settings-section-icon {
 }
 
 .modal-header h2.refine-title {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.18em;
-  font-size: clamp(36px, 5vw, 58px);
-  line-height: 0.96;
+  display: grid;
+  gap: clamp(6px, 1vw, 12px);
+  align-items: start;
+  font-family: var(--font-ui);
+  font-size: clamp(38px, 6.2vw, 76px);
+  line-height: 1;
   letter-spacing: 0;
+}
+
+.refine-title-label,
+.refine-title-separator {
+  color: color-mix(in srgb, var(--ink) 58%, var(--muted));
+  font-family: var(--font-ui);
+  font-size: clamp(19px, 3.1vw, 38px);
+  font-weight: 650;
+  line-height: 1.05;
+}
+
+.refine-title-separator {
+  display: none;
 }
 
 .refine-title-term {
   display: inline-block;
+  padding-bottom: 0.12em;
   background: var(--brand-gradient);
   background-clip: text;
   -webkit-background-clip: text;
   color: transparent;
+  font-size: inherit;
+  font-family: var(--font-ui);
+  font-weight: 650;
+  line-height: 1.04;
+  overflow-wrap: anywhere;
   -webkit-text-fill-color: transparent;
+}
+
+.refine-title:not(.has-term) {
+  font-size: clamp(36px, 5vw, 58px);
+  line-height: 0.96;
+}
+
+.refine-title:not(.has-term) .refine-title-label {
+  font-size: inherit;
 }
 
 .settings-title-lockup {
@@ -9879,7 +9907,7 @@ body[data-theme="dark"] .refine-backdrop {
     grid-auto-columns: clamp(118px, calc((100vw - 58px) / 2.35), 170px);
     grid-template-rows: repeat(2, minmax(0, 1fr));
     gap: 10px;
-    padding: clamp(24px, 7vw, 34px) 2px 14px;
+    padding: clamp(82px, 22vw, 112px) 2px 14px;
     scroll-padding-inline: 2px;
     scroll-snap-type: x proximity;
     scroll-snap-stop: normal;
@@ -9891,6 +9919,8 @@ body[data-theme="dark"] .refine-backdrop {
   .featured-home-section.is-gear-browser-frame .gear-browser-double-rail .listing-card.is-browse-home-card {
     flex: 0 0 clamp(96px, calc((100% - 20px) / 2.5), 170px);
     aspect-ratio: 1 / 1;
+    min-height: 0;
+    overflow: hidden;
     background: var(--image-bg);
     box-shadow:
       0 16px 34px rgba(24, 28, 30, 0.13),
@@ -9900,6 +9930,15 @@ body[data-theme="dark"] .refine-backdrop {
 
   .featured-home-section.is-gear-browser-frame .gear-browser-double-rail .listing-card.is-browse-home-card {
     width: 100%;
+  }
+
+  .featured-home-section.is-gear-browser-frame .gear-browser-double-rail .listing-card.is-browse-home-card .image-stage,
+  .featured-home-section.is-gear-browser-frame .gear-browser-double-rail .listing-card.is-browse-home-card .image-link,
+  .featured-home-section.is-gear-browser-frame .gear-browser-double-rail .listing-card.is-browse-home-card .image-link img {
+    width: 100%;
+    height: 100%;
+    aspect-ratio: 1 / 1;
+    border-radius: inherit;
   }
 
   .listing-card.is-browse-home-card .price-row strong {

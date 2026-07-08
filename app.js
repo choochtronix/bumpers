@@ -7439,7 +7439,6 @@ function renderListing(listing, options = {}) {
   const buyeeOpenLink = fragment.querySelector(".buyee-open-link");
   const sourceOpenIcon = fragment.querySelector(".source-open-link .menu-source-avatar");
   const sourceOpenLabel = fragment.querySelector(".source-open-link .menu-action-label");
-  const copyListingLink = fragment.querySelector(".copy-listing-link");
   const watchMenuAction = fragment.querySelector(".watch-menu-action");
   const noiseMenuAction = fragment.querySelector(".noise-menu-action");
   const renderContext = options.renderContext || createListingRenderContext();
@@ -7507,14 +7506,6 @@ function renderListing(listing, options = {}) {
 
   openMenu.addEventListener("click", (event) => {
     event.stopPropagation();
-  });
-
-  copyListingLink.addEventListener("click", async () => {
-    await copyText(listing.url);
-    copyListingLink.textContent = "Copied";
-    setTimeout(() => {
-      copyListingLink.textContent = "Copy URL";
-    }, 1200);
   });
 
   noiseMenuAction?.addEventListener("click", (event) => {
