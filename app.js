@@ -7440,6 +7440,7 @@ function renderListing(listing, options = {}) {
   const sourceOpenIcon = fragment.querySelector(".source-open-link .menu-source-avatar");
   const sourceOpenLabel = fragment.querySelector(".source-open-link .menu-action-label");
   const copyListingLink = fragment.querySelector(".copy-listing-link");
+  const watchMenuAction = fragment.querySelector(".watch-menu-action");
   const noiseMenuAction = fragment.querySelector(".noise-menu-action");
   const renderContext = options.renderContext || createListingRenderContext();
   const watching = renderContext.watching;
@@ -7488,6 +7489,7 @@ function renderListing(listing, options = {}) {
   if (sourceOpenLabel) sourceOpenLabel.textContent = source?.label || "Listing";
   configureBuyeeLink(buyeeOpenLink, listing);
   renderWatchButtonState(watchButton, watching.has(listing.id));
+  renderWatchMenuActionState(watchMenuAction, watching.has(listing.id));
   gearButton.classList.toggle("is-active", feedbackStatus === "gear");
   noiseButton.classList.toggle("is-active", feedbackStatus === "noise");
 
@@ -7522,23 +7524,20 @@ function renderListing(listing, options = {}) {
     dismissListingAsNoise(card, listing);
   });
 
+  watchMenuAction?.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const isWatching = toggleListingWatch(listing, { watchButton, watchMenuAction });
+    closeListingActionMenu(openMenu);
+    if (filterMode === "watching" && !isWatching) {
+      renderResults();
+    }
+  });
+
   watchButton.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
-    const next = new Set(loadSet(STORAGE_KEYS.watching));
-    let isWatching;
-    if (next.has(listing.id)) {
-      next.delete(listing.id);
-      isWatching = false;
-    } else {
-      next.add(listing.id);
-      isWatching = true;
-      recordListingSnapshot(listing);
-      acknowledgeListings([listing], { watched: true });
-    }
-    saveSet(STORAGE_KEYS.watching, next);
-    queueProfileAutoSync("watch-listing");
-    renderWatchButtonState(watchButton, isWatching);
+    const isWatching = toggleListingWatch(listing, { watchButton, watchMenuAction });
     if (filterMode === "watching" && !isWatching) {
       renderResults();
     }
@@ -7630,6 +7629,36 @@ function renderWatchButtonState(button, isWatching) {
   button.replaceChildren(createWatchIconSvg(isWatching));
   button.setAttribute("aria-label", isWatching ? "Remove from watching" : "Watch listing");
   button.title = isWatching ? "Remove from watching" : "Watch listing";
+}
+
+function toggleListingWatch(listing, options = {}) {
+  const next = new Set(loadSet(STORAGE_KEYS.watching));
+  let isWatching;
+  if (next.has(listing.id)) {
+    next.delete(listing.id);
+    isWatching = false;
+  } else {
+    next.add(listing.id);
+    isWatching = true;
+    recordListingSnapshot(listing);
+    acknowledgeListings([listing], { watched: true });
+  }
+  saveSet(STORAGE_KEYS.watching, next);
+  queueProfileAutoSync("watch-listing");
+  renderWatchButtonState(options.watchButton, isWatching);
+  renderWatchMenuActionState(options.watchMenuAction, isWatching);
+  return isWatching;
+}
+
+function renderWatchMenuActionState(button, isWatching) {
+  if (!button) return;
+  button.classList.toggle("is-watching", isWatching);
+  button.setAttribute("aria-label", isWatching ? "Remove from watchlist" : "Add to watchlist");
+  button.title = isWatching ? "Remove from watchlist" : "Add to watchlist";
+  const icon = button.querySelector(".watch-menu-icon");
+  if (icon) icon.textContent = isWatching ? "♥" : "♡";
+  const label = button.querySelector(".watch-menu-label");
+  if (label) label.textContent = isWatching ? "Remove from watchlist" : "Add to watchlist";
 }
 
 function createWatchIconSvg(isWatching) {

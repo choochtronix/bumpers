@@ -6088,6 +6088,13 @@ body[data-theme="dark"] .open-link:focus-visible {
   flex-basis: 28px;
 }
 
+.open-menu.is-mobile-sheet .watch-menu-icon {
+  width: 30px;
+  height: 30px;
+  flex-basis: 30px;
+  font-size: 24px;
+}
+
 .open-menu.is-mobile-sheet .noise-menu-icon::after {
   height: 31px;
   width: 3px;
@@ -6190,6 +6197,27 @@ body[data-theme="dark"] .open-link:focus-visible {
   place-items: center;
   border: 2px solid currentColor;
   border-radius: 999px;
+  color: var(--color-brand-hot);
+}
+
+.watch-menu-icon {
+  display: inline-grid;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  place-items: center;
+  color: var(--ink);
+  font-size: 20px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.watch-menu-action.is-watching .watch-menu-icon {
+  color: var(--color-brand-hot);
+}
+
+.watch-menu-action:hover .watch-menu-icon,
+.watch-menu-action:focus-visible .watch-menu-icon {
   color: var(--color-brand-hot);
 }
 
