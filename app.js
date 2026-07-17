@@ -7,7 +7,9 @@ const SOURCES = [
   { id: "qsic", label: "Qsic", icon: "Qs", color: "blue" },
   { id: "reverb", label: "Reverb", icon: "Rv", color: "orange" },
   { id: "reverb-us", label: "Reverb US", icon: "Rv", color: "orange" },
+  { id: "reverb-uk", label: "Reverb UK", icon: "Rv", color: "orange" },
   { id: "ebay-us", label: "eBay US", icon: "eB", color: "blue" },
+  { id: "ebay-uk", label: "eBay UK", icon: "eB", color: "blue" },
   { id: "sweetwater-used", label: "Sweetwater Used", icon: "SW", color: "blue" },
   { id: "guitar-center-used", label: "Guitar Center", icon: "GC", color: "black" },
   { id: "craigslist-sfbay", label: "Craigslist SF", icon: "SF", color: "purple" },
@@ -32,10 +34,10 @@ const SOURCES = [
 ];
 
 const LEGACY_DEFAULT_SOURCE_IDS = ["mercari", "yahoo-auctions", "yahoo-fleamarket", "rakuma", "digimart", "qsic", "offmall", "five-g", "implant4", "hardoff"];
-const LIVE_SOURCE_IDS = ["mercari", "yahoo-auctions", "yahoo-fleamarket", "rakuma", "digimart", "qsic", "reverb", "reverb-us", "ebay-us", "sweetwater-used", "guitar-center-used", "craigslist-sfbay", "robotspeak", "mission-synths", "starving-musician", "bananas-at-large", "gelb-music", "craigslist-la", "craigslist-east", "main-drag", "rogue-music", "three-wave", "alto-music", "tone-tweakers", "pro-audio-star", "jimoty", "offmall", "five-g", "implant4", "hardoff"];
-const LIVE_SOURCE_DISPLAY_ORDER = ["robotspeak", "mission-synths", "starving-musician", "bananas-at-large", "gelb-music", "craigslist-sfbay", "craigslist-la", "craigslist-east", "main-drag", "rogue-music", "three-wave", "alto-music", "tone-tweakers", "pro-audio-star", "reverb-us", "ebay-us", "sweetwater-used", "guitar-center-used", "yahoo-auctions", "yahoo-fleamarket", "digimart", "qsic", "reverb", "jimoty", "offmall", "five-g", "implant4", "hardoff", "mercari", "rakuma"];
+const LIVE_SOURCE_IDS = ["mercari", "yahoo-auctions", "yahoo-fleamarket", "rakuma", "digimart", "qsic", "reverb", "reverb-us", "reverb-uk", "ebay-us", "ebay-uk", "sweetwater-used", "guitar-center-used", "craigslist-sfbay", "robotspeak", "mission-synths", "starving-musician", "bananas-at-large", "gelb-music", "craigslist-la", "craigslist-east", "main-drag", "rogue-music", "three-wave", "alto-music", "tone-tweakers", "pro-audio-star", "jimoty", "offmall", "five-g", "implant4", "hardoff"];
+const LIVE_SOURCE_DISPLAY_ORDER = ["robotspeak", "mission-synths", "starving-musician", "bananas-at-large", "gelb-music", "craigslist-sfbay", "craigslist-la", "craigslist-east", "main-drag", "rogue-music", "three-wave", "alto-music", "tone-tweakers", "pro-audio-star", "reverb-us", "ebay-us", "reverb-uk", "ebay-uk", "sweetwater-used", "guitar-center-used", "yahoo-auctions", "yahoo-fleamarket", "digimart", "qsic", "reverb", "jimoty", "offmall", "five-g", "implant4", "hardoff", "mercari", "rakuma"];
 const SOURCE_SEARCH_CONTEXT_TRUST_IDS = new Set(["craigslist-sfbay", "craigslist-la", "craigslist-east"]);
-const CATEGORY_SEARCH_CONTEXT_IDS = new Set(["reverb", "reverb-us"]);
+const CATEGORY_SEARCH_CONTEXT_IDS = new Set(["reverb", "reverb-us", "reverb-uk"]);
 const REGION_CONFIG = typeof window !== "undefined" ? window.BRRTZ_REGION_CONFIG : null;
 const ACTIVE_REGION = REGION_CONFIG?.activeRegion || {
   id: "japan",
@@ -1172,7 +1174,9 @@ const SOURCE_ACCENT_TOKENS = {
   qsic: "--source-digimart",
   reverb: "--source-reverb",
   "reverb-us": "--source-reverb",
+  "reverb-uk": "--source-reverb",
   "ebay-us": "--source-ebay",
+  "ebay-uk": "--source-ebay",
   "sweetwater-used": "--source-sweetwater",
   "guitar-center-used": "--source-guitar-center",
   "craigslist-sfbay": "--source-craigslist",
@@ -1218,7 +1222,9 @@ const SOURCE_METADATA_ALIASES = {
   qsic: ["Qsic", "Qsic.jp", "キュージック"],
   reverb: ["Reverb", "Reverb.com"],
   "reverb-us": ["Reverb US", "Reverb", "Reverb.com"],
+  "reverb-uk": ["Reverb UK", "Reverb", "Reverb.com"],
   "ebay-us": ["eBay US", "eBay", "ebay.com"],
+  "ebay-uk": ["eBay UK", "eBay", "ebay.co.uk"],
   "sweetwater-used": ["Sweetwater Used", "Sweetwater", "Sweetwater Gear Exchange"],
   "guitar-center-used": ["Guitar Center", "Guitar Center Used", "GC Used"],
   "craigslist-sfbay": ["Craigslist SF", "Craigslist", "SF Bay Craigslist"],
@@ -1473,6 +1479,7 @@ const REGIONAL_FRESH_FIND_SOURCE_IDS = {
   "bay-area": ["robotspeak", "mission-synths", "starving-musician", "bananas-at-large", "gelb-music", "craigslist-sfbay", "reverb-us", "ebay-us"],
   "los-angeles": ["craigslist-la", "reverb-us", "ebay-us", "sweetwater-used", "guitar-center-used"],
   "east-coast": ["main-drag", "rogue-music", "three-wave", "alto-music", "tone-tweakers", "reverb-us", "ebay-us"],
+  uk: ["reverb-uk", "ebay-uk"],
 };
 
 function createStarterSynthArtwork(label, background, panel) {
@@ -5663,8 +5670,16 @@ function createLiveSearchGroups(profile) {
     groups.push({ id: "reverb-us", sources: ["reverb-us"] });
   }
 
+  if (selectedSources.has("reverb-uk")) {
+    groups.push({ id: "reverb-uk", sources: ["reverb-uk"] });
+  }
+
   if (selectedSources.has("ebay-us")) {
     groups.push({ id: "ebay-us", sources: ["ebay-us"] });
+  }
+
+  if (selectedSources.has("ebay-uk")) {
+    groups.push({ id: "ebay-uk", sources: ["ebay-uk"] });
   }
 
   if (selectedSources.has("sweetwater-used")) {
@@ -7475,7 +7490,9 @@ function renderListing(listing, options = {}) {
   renderSourceAvatar(listSourceAvatar, source, listing.source);
   renderListingNewnessBadges(fragment, newness);
   fragment.querySelector(".source-chip").textContent = source?.label || listing.source;
-  fragment.querySelector("h3").textContent = listing.title;
+  const titleElement = fragment.querySelector("h3");
+  titleElement.textContent = listing.title;
+  titleElement.dataset.previewTitle = createListingTitlePreview(listing.title);
   renderShopName(fragment.querySelector(".shop-name"), listing);
   fragment.querySelector(".price-row strong").textContent = listing.priceLabel || formatPrice(listing.price);
   fragment.querySelector(".price-row span").textContent = "";
@@ -7728,6 +7745,15 @@ function handlePrimaryListingOpen(event, url) {
   if (listing) acknowledgeListings([listing], { viewed: true });
   openExternalListing(url);
   if (listing) renderResults();
+}
+
+function createListingTitlePreview(title) {
+  const cleanTitle = String(title || "").replace(/\s+/g, " ").trim();
+  const characters = Array.from(cleanTitle);
+  const maxPreviewCharacters = 36;
+
+  if (characters.length <= maxPreviewCharacters) return cleanTitle;
+  return `${characters.slice(0, maxPreviewCharacters - 3).join("").trimEnd()}...`;
 }
 
 function renderListingNewnessBadges(fragment, newness) {
@@ -9143,7 +9169,9 @@ function createStarterFreshFindUrl(sourceId, term) {
   if (sourceId === "craigslist-la") return `https://losangeles.craigslist.org/search/msa?query=${encodedTerm}&sort=date`;
   if (sourceId === "craigslist-east") return `https://newyork.craigslist.org/search/msa?query=${encodedTerm}&sort=date`;
   if (sourceId === "reverb-us") return `https://reverb.com/marketplace?query=${encodedTerm}`;
+  if (sourceId === "reverb-uk") return `https://reverb.com/uk/marketplace?query=${encodedTerm}`;
   if (sourceId === "ebay-us") return `https://www.ebay.com/sch/i.html?_nkw=${encodedTerm}`;
+  if (sourceId === "ebay-uk") return `https://www.ebay.co.uk/sch/i.html?_nkw=${encodedTerm}`;
   if (sourceId === "sweetwater-used") return `https://www.sweetwater.com/used/listings?query=${encodedTerm}`;
   if (sourceId === "guitar-center-used") return `https://www.guitarcenter.com/Used/?Ntt=${encodedTerm}`;
   if (sourceId === "robotspeak") return `https://robotspeak.com/search?q=${encodedTerm}`;
@@ -10347,7 +10375,7 @@ function hydrateSettings(settings) {
   const rate = Number(settings.jpyPerUsd);
   const regionId = sanitizeRegionId(settings.regionId || defaultSettings.regionId);
   const region = getRegionById(regionId);
-  const requestedCurrency = settings.currency === "USD" ? "USD" : settings.currency === "JPY" ? "JPY" : "";
+  const requestedCurrency = ["USD", "JPY", "GBP"].includes(settings.currency) ? settings.currency : "";
   const brandGradient = normalizeBrandGradient(settings.brandGradient) || { ...DEFAULT_BRAND_GRADIENT };
   return {
     regionId,
@@ -10667,7 +10695,16 @@ function isSeen(listingId) {
 }
 
 function formatPrice(value) {
-  const nativeCurrency = getActiveRegion().currency === "USD" ? "USD" : "JPY";
+  const nativeCurrency = getActiveRegion().currency || "JPY";
+
+  if (appSettings.currency === "GBP" || nativeCurrency === "GBP") {
+    const gbpValue = nativeCurrency === "GBP" ? value : value / appSettings.jpyPerUsd;
+    return new Intl.NumberFormat("en-GB", {
+      style: "currency",
+      currency: "GBP",
+      maximumFractionDigits: 0,
+    }).format(gbpValue);
+  }
 
   if (appSettings.currency === "USD") {
     const usdValue = nativeCurrency === "USD" ? value : value / appSettings.jpyPerUsd;

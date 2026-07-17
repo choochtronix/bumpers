@@ -92,6 +92,20 @@ window.BRRTZ_REGION_CONFIG = (() => {
         maxDistanceMiles: 150,
       },
     },
+    {
+      id: "uk",
+      label: "UK",
+      currency: "GBP",
+      defaultLocale: "en-GB",
+      status: "beta",
+      sources: ["reverb-uk", "ebay-uk"],
+      searchDefaults: {
+        cleanGear: true,
+        categoryIntent: "synthesizers",
+        maxResults: 80,
+        maxPrice: 10000,
+      },
+    },
   ];
 
   const activeRegionId = "japan";

@@ -1058,6 +1058,7 @@ const SHARED_SOURCE_HEALTH_REGION_IDS = {
   "bay-area": ["craigslist-sfbay", "reverb-us", "ebay-us", ...BAY_AREA_STORE_SOURCE_IDS],
   "los-angeles": ["craigslist-la", "reverb-us", "ebay-us"],
   "east-coast": ["craigslist-east", "reverb-us", "ebay-us"],
+  uk: ["reverb-uk", "ebay-uk"],
 };
 
 function getHealthSourcesForRegion(regionId) {
@@ -1088,11 +1089,12 @@ async function checkSourceHealthSource(source) {
 
 function getSourceHealthSearchFn(sourceId) {
   if (!isCraigslistLiveEnabled() && sourceId.startsWith("craigslist-")) return null;
-  if (sourceId === "ebay-us" && !hasEbayCredentials()) return null;
+  if (["ebay-us", "ebay-uk"].includes(sourceId) && !hasEbayCredentials()) return null;
 
   return {
     digimart: searchDigimart,
     "ebay-us": searchEbayUs,
+    "ebay-uk": searchEbayUk,
     "five-g": searchFiveG,
     implant4: searchImplant4,
     jimoty: searchJimoty,
@@ -1110,6 +1112,7 @@ function getSourceHealthSearchFn(sourceId) {
     rakuma: searchRakuma,
     reverb: searchReverb,
     "reverb-us": searchReverbUs,
+    "reverb-uk": searchReverbUk,
     "yahoo-auctions": searchYahooAuctions,
     "yahoo-fleamarket": searchYahooFleamarket,
   }[sourceId] || null;
@@ -1713,6 +1716,7 @@ async function handleSearch(url, response) {
   const wantsCraigslistLa = sources.length === 0 || sources.includes("craigslist-la");
   const wantsCraigslistEast = sources.length === 0 || sources.includes("craigslist-east");
   const wantsEbayUs = sources.length === 0 || sources.includes("ebay-us");
+  const wantsEbayUk = sources.length === 0 || sources.includes("ebay-uk");
   const wantsSweetwaterUsed = sources.length === 0 || sources.includes("sweetwater-used");
   const wantsGuitarCenterUsed = sources.length === 0 || sources.includes("guitar-center-used");
   const wantedBayAreaStoreSources = getWantedBayAreaStoreSources(sources, regionId);
@@ -1728,11 +1732,12 @@ async function handleSearch(url, response) {
   const wantsRakuma = (sources.length === 0 || sources.includes("rakuma")) && !shouldSuppressRakumaForSearchTerms(terms);
   const wantsReverb = sources.length === 0 || sources.includes("reverb");
   const wantsReverbUs = sources.length === 0 || sources.includes("reverb-us");
+  const wantsReverbUk = sources.length === 0 || sources.includes("reverb-uk");
   const wantsYahooAuctions = sources.length === 0 || sources.includes("yahoo-auctions");
   const wantsYahooFleamarket = sources.length === 0 || sources.includes("yahoo-fleamarket");
   const startedAt = new Date();
 
-  if ((!wantsDigimart && !wantsFiveG && !wantsImplant4 && !wantsQsic && !wantsCraigslistSfbay && !wantsCraigslistLa && !wantsCraigslistEast && !wantsEbayUs && !wantsSweetwaterUsed && !wantsGuitarCenterUsed && wantedBayAreaStoreSources.length === 0 && !wantsMainDrag && !wantsRogueMusic && !wantsThreeWave && !wantsAltoMusic && !wantsToneTweakers && wantedEastCoastStoreSources.length === 0 && !wantsJimoty && !wantsMercari && !wantsOffmall && !wantsRakuma && !wantsReverb && !wantsReverbUs && !wantsYahooAuctions && !wantsYahooFleamarket) || terms.length === 0) {
+  if ((!wantsDigimart && !wantsFiveG && !wantsImplant4 && !wantsQsic && !wantsCraigslistSfbay && !wantsCraigslistLa && !wantsCraigslistEast && !wantsEbayUs && !wantsEbayUk && !wantsSweetwaterUsed && !wantsGuitarCenterUsed && wantedBayAreaStoreSources.length === 0 && !wantsMainDrag && !wantsRogueMusic && !wantsThreeWave && !wantsAltoMusic && !wantsToneTweakers && wantedEastCoastStoreSources.length === 0 && !wantsJimoty && !wantsMercari && !wantsOffmall && !wantsRakuma && !wantsReverb && !wantsReverbUs && !wantsReverbUk && !wantsYahooAuctions && !wantsYahooFleamarket) || terms.length === 0) {
     sendJson(response, 200, { listings: [], meta: createSearchMeta(startedAt, [], [], terms, { categoryIntent }) });
     return;
   }
@@ -1799,6 +1804,15 @@ async function handleSearch(url, response) {
     }));
   } else if (wantsEbayUs) {
     sourceTasks.push(Promise.resolve(createPendingSourceResult("ebay-us", terms, EBAY_PENDING_MESSAGE)));
+  }
+
+  if (wantsEbayUk && hasEbayCredentials()) {
+    sourceTasks.push(searchSourceTerms("ebay-uk", terms, searchEbayUk, {
+      maxTerms: EBAY_TERM_LIMIT,
+      termDelayMs: 0,
+    }));
+  } else if (wantsEbayUk) {
+    sourceTasks.push(Promise.resolve(createPendingSourceResult("ebay-uk", terms, EBAY_PENDING_MESSAGE)));
   }
 
   if (wantsSweetwaterUsed) {
@@ -1877,6 +1891,12 @@ async function handleSearch(url, response) {
 
   if (wantsReverbUs) {
     sourceTasks.push(searchSourceTerms("reverb-us", terms, searchReverbUs, {
+      maxTerms: REVERB_TERM_LIMIT,
+    }));
+  }
+
+  if (wantsReverbUk) {
+    sourceTasks.push(searchSourceTerms("reverb-uk", terms, searchReverbUk, {
       maxTerms: REVERB_TERM_LIMIT,
     }));
   }
@@ -2005,23 +2025,27 @@ async function handleBrowse(url, response) {
         }
       }
     }
-  } else if (isUsRegion(regionId)) {
+  } else if (isUsRegion(regionId) || regionId === "uk") {
     const browseTerms = browseBrandTerms.length > 0 ? browseBrandTerms : getUsBrowseTerms(categoryIntent);
     const browseTermLimit = browseBrandTerms.length > 0 ? brandTermLimit : US_BROWSE_TERM_LIMIT;
-    const browseTasks = [
-      searchSourceTerms("reverb-us", browseTerms, searchReverbUs, {
-        maxTerms: browseTermLimit,
-        termDelayMs: 0,
-      }),
-    ];
+    const ebaySourceId = regionId === "uk" ? "ebay-uk" : "ebay-us";
+    const ebaySearchFn = regionId === "uk" ? searchEbayUk : searchEbayUs;
+    const reverbSourceId = regionId === "uk" ? "reverb-uk" : "reverb-us";
+    const reverbSearchFn = regionId === "uk" ? searchReverbUk : searchReverbUs;
+    const browseTasks = [];
+
+    browseTasks.push(searchSourceTerms(reverbSourceId, browseTerms, reverbSearchFn, {
+      maxTerms: browseTermLimit,
+      termDelayMs: 0,
+    }));
 
     if (hasEbayCredentials()) {
-      browseTasks.push(searchSourceTerms("ebay-us", browseTerms, searchEbayUs, {
+      browseTasks.push(searchSourceTerms(ebaySourceId, browseTerms, ebaySearchFn, {
         maxTerms: browseTermLimit,
         termDelayMs: 0,
       }));
     } else {
-      browseTasks.push(Promise.resolve(createPendingSourceResult("ebay-us", browseTerms, EBAY_PENDING_MESSAGE)));
+      browseTasks.push(Promise.resolve(createPendingSourceResult(ebaySourceId, browseTerms, EBAY_PENDING_MESSAGE)));
     }
 
     if (regionId === "bay-area") {
@@ -2243,10 +2267,11 @@ function normalizeMode(value, allowedModes, fallback) {
 }
 
 function sanitizeRegionId(regionId) {
-  return ["bay-area", "los-angeles", "east-coast"].includes(regionId) ? regionId : "japan";
+  return ["bay-area", "los-angeles", "east-coast", "uk"].includes(regionId) ? regionId : "japan";
 }
 
 function getRegionCurrency(regionId) {
+  if (regionId === "uk") return "GBP";
   return regionId === "japan" ? "JPY" : "USD";
 }
 
@@ -2764,10 +2789,47 @@ async function searchReverbUs(term) {
     countryFilter: "country:us",
     displayCurrency: "USD",
     acceptLanguage: "en-US,en;q=0.9",
+    region: "bay-area",
+    currency: "USD",
+  });
+}
+
+async function searchReverbUk(term) {
+  return searchReverbListings(term, {
+    sourceId: "reverb-uk",
+    countryFilter: "country:gb",
+    displayCurrency: "GBP",
+    acceptLanguage: "en-GB,en;q=0.9",
+    region: "uk",
+    currency: "GBP",
   });
 }
 
 async function searchEbayUs(term) {
+  return searchEbayMarketplace(term, {
+    sourceId: "ebay-us",
+    marketplaceId: EBAY_MARKETPLACE_ID,
+    itemLocationCountry: "US",
+    acceptLanguage: "en-US,en;q=0.9",
+    baseUrl: "https://www.ebay.com",
+    region: "bay-area",
+    currency: "USD",
+  });
+}
+
+async function searchEbayUk(term) {
+  return searchEbayMarketplace(term, {
+    sourceId: "ebay-uk",
+    marketplaceId: "EBAY_GB",
+    itemLocationCountry: "GB",
+    acceptLanguage: "en-GB,en;q=0.9",
+    baseUrl: "https://www.ebay.co.uk",
+    region: "uk",
+    currency: "GBP",
+  });
+}
+
+async function searchEbayMarketplace(term, options = {}) {
   if (!hasEbayCredentials()) {
     throw new Error("eBay API credentials are not configured. Add EBAY_CLIENT_ID and EBAY_CLIENT_SECRET.");
   }
@@ -2782,7 +2844,7 @@ async function searchEbayUs(term) {
   }
   url.searchParams.set("filter", [
     "buyingOptions:{FIXED_PRICE|AUCTION}",
-    "itemLocationCountry:US",
+    `itemLocationCountry:${options.itemLocationCountry || "US"}`,
   ].join(","));
 
   const response = await fetch(url, {
@@ -2790,8 +2852,8 @@ async function searchEbayUs(term) {
       "user-agent": USER_AGENT,
       "authorization": `Bearer ${token}`,
       "accept": "application/json",
-      "accept-language": "en-US,en;q=0.9",
-      "x-ebay-c-marketplace-id": EBAY_MARKETPLACE_ID,
+      "accept-language": options.acceptLanguage || "en-US,en;q=0.9",
+      "x-ebay-c-marketplace-id": options.marketplaceId || EBAY_MARKETPLACE_ID,
     },
   });
 
@@ -2800,7 +2862,7 @@ async function searchEbayUs(term) {
     throw new Error(`eBay responded with ${response.status}${message ? `: ${message.slice(0, 180)}` : ""}`);
   }
 
-  return parseEbayBrowse(await response.json());
+  return parseEbayBrowse(await response.json(), options);
 }
 
 async function searchRobotSpeak(term) {
@@ -3053,7 +3115,11 @@ async function searchReverbListings(term, options = {}) {
     throw new Error(`Reverb responded with ${response.status}`);
   }
 
-  return parseReverb(await response.json(), { sourceId: options.sourceId || "reverb" });
+  return parseReverb(await response.json(), {
+    sourceId: options.sourceId || "reverb",
+    region: options.region || "japan",
+    currency: options.currency || options.displayCurrency || "JPY",
+  });
 }
 
 async function searchCraigslistSfbay(term) {
@@ -3912,6 +3978,8 @@ function parseReverb(data, options = {}) {
     return {
       id: `${sourceId}-${rawId}`,
       source: sourceId,
+      region: options.region || "japan",
+      currency: options.currency || "JPY",
       title: cleanText(String(item.title || [item.make, item.model].filter(Boolean).join(" "))),
       price: parseReverbPrice(item.price),
       condition,
@@ -3931,7 +3999,9 @@ function parseReverb(data, options = {}) {
   }).filter((listing) => listing.id !== `${sourceId}-` && listing.title && listing.url && listing.price > 0);
 }
 
-function parseEbayBrowse(data) {
+function parseEbayBrowse(data, options = {}) {
+  const sourceId = options.sourceId || "ebay-us";
+  const baseUrl = options.baseUrl || "https://www.ebay.com";
   return (data?.itemSummaries || []).map((item) => {
     const rawId = String(item.itemId || item.legacyItemId || "");
     const categories = Array.isArray(item.categories)
@@ -3948,25 +4018,27 @@ function parseEbayBrowse(data) {
     ].filter(Boolean).join(" · ") || "Listed";
 
     return {
-      id: `ebay-us-${rawId}`,
-      source: "ebay-us",
+      id: `${sourceId}-${rawId}`,
+      source: sourceId,
+      region: options.region || "bay-area",
+      currency: options.currency || "USD",
       title: cleanText(String(item.title || "")),
       price: parseEbayPrice(item.price),
       condition,
       shop: cleanText(String(item.seller?.username || "")),
       listedAt: item.itemCreationDate || item.itemOriginDate || new Date().toISOString(),
-      url: normalizeUrl(item.itemWebUrl || "", "https://www.ebay.com"),
+      url: normalizeUrl(item.itemWebUrl || "", baseUrl),
       image: normalizeUrl(
         item.image?.imageUrl
           || item.thumbnailImages?.[0]?.imageUrl
           || item.additionalImages?.[0]?.imageUrl
           || "",
-        "https://www.ebay.com",
+        baseUrl,
       ),
       categoryPath: categories.length ? categories : [cleanText(String(item.categoryPath || ""))].filter(Boolean),
       availability: item.itemEndDate ? `Ends ${item.itemEndDate}` : "",
     };
-  }).filter((listing) => listing.id !== "ebay-us-" && listing.title && listing.url && listing.price > 0);
+  }).filter((listing) => listing.id !== `${sourceId}-` && listing.title && listing.url && listing.price > 0);
 }
 
 function parseShopifySuggestProducts(data, options = {}, term = "") {
@@ -4680,6 +4752,7 @@ const SEARCH_PAGE_REGIONS = {
   "bay-area": { id: "bay-area", label: "Bay Area" },
   "los-angeles": { id: "los-angeles", label: "Los Angeles" },
   "east-coast": { id: "east-coast", label: "East Coast" },
+  uk: { id: "uk", label: "UK" },
 };
 
 const SEARCH_PAGE_CATEGORIES = {
