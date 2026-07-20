@@ -74,3 +74,15 @@ Three layers inside the token file:
 ## 6. Component + pattern specs
 
 The visual spec (tokens rendered, component anatomy, listing card in grid/list view, source badge system, curation layouts) lives in **`BRRTZ Design System.dc.html`** in this project — open it in a browser. Values shown there are generated from the same token source.
+
+## 7. Figma library
+
+The tokens in this spec are mirrored as a Figma variable library, ported directly from `tokens/brrtz-tokens.json` and `design-system.css`:
+
+- **File:** [Brrtz Design System](https://www.figma.com/design/U1J4gaqeqckMVjwyrdGiuW) (Craig Drake's team)
+- **Variable collections:** Brand (5), Color — Light/Dark modes (24), Source (18), Radius (7), Spacing (7), Typography (12) — 73 variables total.
+- **Styles:** 8 shadow effect styles (elevated / card / float / focus-ring × light/dark), 9 Geist text styles (Hero → Label/Micro).
+- Every variable carries WEB code syntax (`var(--…)`) matching the CSS custom properties, so Dev Mode hands off the real token names.
+- Foundations pages document Color (both themes), Typography, Spacing & Radius, Elevation, and Sources.
+
+Keep the Figma file and the token files in sync: a brand pivot regenerates the token files (§2), then the Figma variable values are updated to match. The token JSON/CSS remain the engineering source of truth.
