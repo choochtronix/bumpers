@@ -124,8 +124,15 @@
   --text-emphasis: 18px;
   --text-title: 24px;
   --text-headline: clamp(28px, 4vw, 52px);
+  --text-home-section-title: clamp(31px, 5vw, 62px);
+  --text-home-section-title-fit: clamp(22px, 4.6vw, 54px);
+  --text-home-section-title-reduced: clamp(25px, 5vw, 48px);
+  --text-home-section-title-compact: clamp(20px, 5.7vw, 34px);
+  --text-home-section-title-mobile: clamp(18px, 4.8vw, 26px);
+  --text-home-section-title-mini: clamp(15px, 4.2vw, 18px);
   --text-display: clamp(44px, 6vw, 76px);
   --text-hero: clamp(42px, 8vw, 92px);
+  --weight-home-section-title: 600;
 
   /* Spacing scale */
   --space-1: 4px;

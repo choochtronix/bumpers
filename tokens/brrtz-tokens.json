@@ -82,7 +82,8 @@
       "bold": { "$type": "fontWeight", "$value": 800 },
       "heavy": { "$type": "fontWeight", "$value": 850 },
       "black": { "$type": "fontWeight", "$value": 900 },
-      "display": { "$type": "fontWeight", "$value": 950 }
+      "display": { "$type": "fontWeight", "$value": 950 },
+      "homeSectionTitle": { "$type": "fontWeight", "$value": 600, "$description": "Reusable home section title weight for top-level homepage modules." }
     },
     "size": {
       "micro": { "$type": "dimension", "$value": "11px" },
@@ -91,6 +92,12 @@
       "emphasis": { "$type": "dimension", "$value": "18px" },
       "title": { "$type": "dimension", "$value": "24px" },
       "headline": { "$type": "dimension", "$value": "clamp(28px, 4vw, 52px)" },
+      "homeSectionTitle": { "$type": "dimension", "$value": "clamp(31px, 5vw, 62px)", "$description": "Reusable home section title size for Gear Scanner, Watched Gear, Browse by Brand, and future homepage modules." },
+      "homeSectionTitleFit": { "$type": "dimension", "$value": "clamp(22px, 4.6vw, 54px)", "$description": "Fit-safe home section title size for one-line header/control rows." },
+      "homeSectionTitleReduced": { "$type": "dimension", "$value": "clamp(25px, 5vw, 48px)", "$description": "Reduced home section title size for medium responsive states." },
+      "homeSectionTitleCompact": { "$type": "dimension", "$value": "clamp(20px, 5.7vw, 34px)", "$description": "Compact home section title size for constrained responsive states." },
+      "homeSectionTitleMobile": { "$type": "dimension", "$value": "clamp(18px, 4.8vw, 26px)", "$description": "Mobile home section title size." },
+      "homeSectionTitleMini": { "$type": "dimension", "$value": "clamp(15px, 4.2vw, 18px)", "$description": "Smallest home section title size for narrow layouts." },
       "display": { "$type": "dimension", "$value": "clamp(44px, 6vw, 76px)" },
       "hero": { "$type": "dimension", "$value": "clamp(42px, 8vw, 92px)" }
     }

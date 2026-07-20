@@ -53,10 +53,11 @@ const ACTIVE_REGION = REGION_CONFIG?.activeRegion || {
 };
 const RESULTS_PER_PAGE = 48;
 const FEATURED_HOME_LIMIT = 12;
-const BROWSE_HOME_LIMIT = 18;
+const BROWSE_HOME_INITIAL_LIMIT = 18;
+const BROWSE_HOME_LIMIT = BROWSE_HOME_INITIAL_LIMIT * 2;
 const BROWSE_EXPANDED_LIMIT = 240;
 const BROWSE_CARD_RENDER_CHUNK_SIZE = 6;
-const BROWSE_HOME_CURATION_CANDIDATE_LIMIT = 24;
+const BROWSE_HOME_CURATION_CANDIDATE_LIMIT = 48;
 const APP_VIEW_PARAM = "view";
 const APP_VIEW_SYNTH_BROWSER = "synth-browser";
 const APP_VIEW_WATCHLIST = "watchlist";
@@ -3145,6 +3146,35 @@ function scheduleUiIdleTask(callback, options = {}) {
   scheduleAttempt(delay);
 }
 
+function appendBrowseHomeListingToRail(rail, listing, renderContext) {
+  if (!rail || !listing) return;
+  if (listing.isFreshFindLoading) {
+    rail.appendChild(createFeaturedHomeLoadingCard(listing));
+    return;
+  }
+
+  const listingFragment = renderListing(listing, { isFeaturedHome: false, renderContext });
+  const card = listingFragment.querySelector(".listing-card");
+  card?.classList.add("is-browse-home-card");
+  rail.appendChild(listingFragment);
+}
+
+function appendDeferredBrowseHomeListings(rail, listings, renderContext, onComplete) {
+  const deferredListings = listings.slice(BROWSE_HOME_INITIAL_LIMIT, BROWSE_HOME_LIMIT);
+  if (deferredListings.length === 0) return;
+  scheduleUiIdleTask(() => {
+    if (!rail.isConnected) return;
+    deferredListings.forEach((listing) => appendBrowseHomeListingToRail(rail, listing, renderContext));
+    requestAnimationFrame(() => {
+      onComplete?.();
+      rail.dispatchEvent(new Event("scroll"));
+    });
+  }, {
+    delay: 450,
+    timeout: 3000,
+  });
+}
+
 function handleRegionPopoverOutsideClick(event) {
   if (regionPopover?.hidden) return;
   if (regionSelector?.contains(event.target)) return;
@@ -6148,28 +6178,32 @@ function createMyPageSavedSearchRow(profile) {
   const checkedAt = formatSavedSearchCheckedAt(profile);
   const status = profile.lastScanStatus ? capitalize(profile.lastScanStatus) : "Ready";
   const searchLetter = normalizeText(profile.name).charAt(0) || "#";
+  const hasNewListings = newCount > 0;
+  const newListingsMarkup = newCount > 0
+    ? `<button class="my-page-new-pill" type="button" data-result-action="run-saved-search" data-saved-search-id="${profileId}" aria-label="View new results for ${escapeHtml(profile.name)}">${newCount} New</button>`
+    : "";
   return `
-    <article class="my-page-saved-row${newCount > 0 ? " has-new" : ""}" data-saved-search-letter="${escapeHtml(searchLetter)}" data-saved-search-name="${escapeHtml(profile.name)}">
+    <article class="my-page-saved-row${hasNewListings ? " has-new" : " is-quiet"}" data-saved-search-letter="${escapeHtml(searchLetter)}" data-saved-search-name="${escapeHtml(profile.name)}">
+      <span class="my-page-status-marker" aria-label="${hasNewListings ? `${newCount} new listings` : "No new listings"}"></span>
       <div class="my-page-saved-copy">
-        <button class="my-page-saved-title" type="button" data-result-action="run-saved-search" data-saved-search-id="${profileId}">
-          ${escapeHtml(profile.name)}
-        </button>
+        <div class="my-page-saved-mainline">
+          <button class="my-page-saved-title" type="button" data-result-action="run-saved-search" data-saved-search-id="${profileId}">
+            ${escapeHtml(profile.name)}
+          </button>
+          ${newListingsMarkup}
+        </div>
+        <p class="my-page-saved-quick-meta">${escapeHtml(regionLabel)} · ${escapeHtml(terms)} · ${escapeHtml(checkedAt)}</p>
         <details class="my-page-saved-details">
           <summary>Details</summary>
-          <p>${escapeHtml(terms)}</p>
           <p>${escapeHtml(regionLabel)} · ${escapeHtml(sourceSummary)} · Gear Mode ${profile.gearMode === false ? "Off" : "On"}</p>
-          <p>${escapeHtml(checkedAt)} · ${escapeHtml(status)}</p>
+          <p>${escapeHtml(status)}</p>
         </details>
-      </div>
-      <div class="my-page-saved-stats">
-        <button class="my-page-new-pill${newCount > 0 ? "" : " is-empty"}" type="button" data-result-action="run-saved-search" data-saved-search-id="${profileId}" aria-label="View results for ${escapeHtml(profile.name)}">${newCount > 0 ? `${newCount} New` : "No new listings"}</button>
       </div>
       <div class="my-page-saved-actions">
         <button class="my-page-text-action my-page-refine-action" type="button" data-result-action="refine-saved-search" data-saved-search-id="${profileId}">
           <span class="refine-icon" aria-hidden="true"></span>
           <span>Refine</span>
         </button>
-        <button class="my-page-text-action" type="button" data-result-action="run-saved-search" data-saved-search-id="${profileId}">View results</button>
         <label class="my-page-alert-toggle">
           <span>Email alerts</span>
           <input type="checkbox" data-my-page-alert-toggle data-saved-search-id="${profileId}"${profile.alertsEnabled ? " checked" : ""} aria-label="Email alerts for ${escapeHtml(profile.name)}">
@@ -8277,7 +8311,7 @@ function createFeaturedHomeSection(listings, options = {}) {
     preview.className = "gear-browser-preview";
 
     const carousel = document.createElement("div");
-    carousel.className = "featured-home-carousel gear-browser-double-carousel";
+    carousel.className = "featured-home-carousel gear-browser-double-carousel gear-browser-live-carousel";
 
     const previousButton = document.createElement("button");
     previousButton.className = "featured-carousel-control featured-carousel-control-prev";
@@ -8285,18 +8319,8 @@ function createFeaturedHomeSection(listings, options = {}) {
     previousButton.setAttribute("aria-label", "Show previous Gear Scanner listings");
 
     const rail = document.createElement("div");
-    rail.className = "featured-home-rail gear-browser-double-rail";
-    listings.slice(0, BROWSE_HOME_LIMIT).forEach((listing) => {
-      if (listing.isFreshFindLoading) {
-        rail.appendChild(createFeaturedHomeLoadingCard(listing));
-        return;
-      }
-
-      const listingFragment = renderListing(listing, { isFeaturedHome: false, renderContext });
-      const card = listingFragment.querySelector(".listing-card");
-      card?.classList.add("is-browse-home-card");
-      rail.appendChild(listingFragment);
-    });
+    rail.className = "featured-home-rail gear-browser-double-rail gear-browser-live-rail";
+    listings.slice(0, BROWSE_HOME_INITIAL_LIMIT).forEach((listing) => appendBrowseHomeListingToRail(rail, listing, renderContext));
 
     const nextButton = document.createElement("button");
     nextButton.className = "featured-carousel-control featured-carousel-control-next";
@@ -8313,7 +8337,8 @@ function createFeaturedHomeSection(listings, options = {}) {
 
     preview.append(carousel, seeAllLink);
     section.appendChild(preview);
-    setupFeaturedHomeCarousel(rail, previousButton, nextButton);
+    const updateCarouselControls = setupFeaturedHomeCarousel(rail, previousButton, nextButton);
+    appendDeferredBrowseHomeListings(rail, listings, renderContext, updateCarouselControls);
     return section;
   }
 
@@ -8422,10 +8447,12 @@ function createFeaturedHomeLoadingCard(listing) {
 
 const carouselScrollAnimations = new WeakMap();
 
-function easeInOutCubic(progress) {
-  return progress < 0.5
-    ? 4 * progress * progress * progress
-    : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+function easeInOutSine(progress) {
+  return -(Math.cos(Math.PI * progress) - 1) / 2;
+}
+
+function easeOutCubic(progress) {
+  return 1 - Math.pow(1 - progress, 3);
 }
 
 function animateCarouselScroll(rail, targetLeft, options = {}) {
@@ -8438,23 +8465,28 @@ function animateCarouselScroll(rail, targetLeft, options = {}) {
   carouselScrollAnimations.get(rail)?.cancel?.();
   if (prefersReducedMotion || Math.abs(delta) < 1) {
     rail.scrollLeft = endLeft;
+    rail._brrtzCarouselTarget = endLeft;
     return;
   }
 
   const duration = options.duration || 520;
+  const easing = options.easing || easeInOutSine;
   const startTime = performance.now();
   let frameId = 0;
   const animation = {
     cancel() {
       if (frameId) window.cancelAnimationFrame(frameId);
       frameId = 0;
+      rail.classList.remove("is-programmatic-scroll");
     },
   };
   carouselScrollAnimations.set(rail, animation);
+  rail._brrtzCarouselTarget = endLeft;
+  rail.classList.add("is-programmatic-scroll");
 
   const step = (now) => {
     const progress = Math.min(1, (now - startTime) / duration);
-    rail.scrollLeft = startLeft + delta * easeInOutCubic(progress);
+    rail.scrollLeft = startLeft + delta * easing(progress);
 
     if (progress < 1) {
       frameId = window.requestAnimationFrame(step);
@@ -8463,15 +8495,64 @@ function animateCarouselScroll(rail, targetLeft, options = {}) {
 
     rail.scrollLeft = endLeft;
     carouselScrollAnimations.delete(rail);
+    rail.classList.remove("is-programmatic-scroll");
   };
 
   frameId = window.requestAnimationFrame(step);
 }
 
+function getFeaturedCarouselScrollDistance(rail) {
+  const cards = Array.from(rail.querySelectorAll(".listing-card"));
+  const smallCard = rail.classList.contains("gear-browser-live-rail")
+    ? cards.find((card, index) => index > 0) || cards[0]
+    : cards[0];
+  const cardRect = smallCard?.getBoundingClientRect();
+  const style = window.getComputedStyle(rail);
+  const gap = parseFloat(style.columnGap || style.gap || "0") || 0;
+  const cardWidth = cardRect?.width || 0;
+
+  if (rail.classList.contains("gear-browser-live-rail") && cardWidth > 0) {
+    const columnWidth = cardWidth + gap;
+    const viewportJump = rail.clientWidth < 640 ? rail.clientWidth * 0.85 : rail.clientWidth * 0.58;
+    return Math.max(columnWidth * 2, viewportJump);
+  }
+
+  return Math.max(rail.clientWidth * 0.78, 260);
+}
+
+function getFeaturedCarouselTargetLeft(rail, direction) {
+  const maxLeft = Math.max(0, rail.scrollWidth - rail.clientWidth);
+  const cards = Array.from(rail.querySelectorAll(".listing-card"));
+  const firstOffset = cards[0]?.offsetLeft || 0;
+  const currentLeft = Number.isFinite(rail._brrtzCarouselTarget)
+    ? rail._brrtzCarouselTarget
+    : rail.scrollLeft;
+  const snapPoints = Array.from(new Set(
+    cards
+      .map((card) => Math.max(0, Math.min(card.offsetLeft - firstOffset, maxLeft)))
+      .filter((left) => Number.isFinite(left))
+      .map((left) => Math.round(left))
+  )).sort((a, b) => a - b);
+
+  if (snapPoints.length > 1) {
+    const distance = getFeaturedCarouselScrollDistance(rail);
+    const targetLeft = currentLeft + direction * distance;
+    const nextPoint = direction > 0
+      ? snapPoints.find((left) => left >= targetLeft - 8) || snapPoints[snapPoints.length - 1]
+      : snapPoints.slice().reverse().find((left) => left <= targetLeft + 8) || snapPoints[0];
+    if (Number.isFinite(nextPoint)) return nextPoint;
+  }
+
+  return currentLeft + direction * getFeaturedCarouselScrollDistance(rail);
+}
+
 function setupFeaturedHomeCarousel(rail, previousButton, nextButton) {
   const scrollByPage = (direction) => {
-    const distance = Math.max(rail.clientWidth * 0.82, 260);
-    animateCarouselScroll(rail, rail.scrollLeft + direction * distance);
+    const isGearScannerRail = rail.classList.contains("gear-browser-live-rail");
+    animateCarouselScroll(rail, getFeaturedCarouselTargetLeft(rail, direction), {
+      duration: isGearScannerRail ? 360 : 620,
+      easing: isGearScannerRail ? easeOutCubic : easeInOutSine,
+    });
   };
 
   const updateControls = () => {
@@ -8492,6 +8573,7 @@ function setupFeaturedHomeCarousel(rail, previousButton, nextButton) {
     resizeObserver.observe(rail);
   }
   requestAnimationFrame(updateControls);
+  return updateControls;
 }
 
 function getFreshFindHomeListings() {
