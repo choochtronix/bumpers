@@ -1,6 +1,10 @@
 // Shared listing freshness primitives for the browser app, server, and tests.
 // Keep this file free of DOM and storage access.
 
+const DEFAULT_NEW_SOURCE_WINDOW_MS = 72 * 60 * 60 * 1000;
+const DEFAULT_NEW_DISCOVERY_FALLBACK_MS = 24 * 60 * 60 * 1000;
+const DEFAULT_SOURCE_CLOCK_SKEW_MS = 6 * 60 * 60 * 1000;
+
 function normalizeSourceListedAt(value) {
   const timestamp = String(value || "").trim();
   if (!timestamp || !Number.isFinite(Date.parse(timestamp))) return "";
@@ -19,6 +23,60 @@ function compareListingsBySourceDate(first = {}, second = {}) {
   if (!firstTime) return 1;
   if (!secondTime) return -1;
   return secondTime - firstTime;
+}
+
+function getTimestampTime(value) {
+  const timestamp = normalizeSourceListedAt(value);
+  return timestamp ? Date.parse(timestamp) : 0;
+}
+
+function isWithinAgeWindow(timestampMs, nowMs, windowMs, futureToleranceMs = 0) {
+  if (!timestampMs || !Number.isFinite(nowMs) || !Number.isFinite(windowMs)) return false;
+  const ageMs = nowMs - timestampMs;
+  return ageMs >= -futureToleranceMs && ageMs <= windowMs;
+}
+
+function getListingNewBadgeEligibility(listing = {}, previous = {}, options = {}) {
+  const nowMs = getTimestampTime(options.now) || Date.now();
+  const sourceWindowMs = Number(options.sourceWindowMs || DEFAULT_NEW_SOURCE_WINDOW_MS);
+  const fallbackWindowMs = Number(options.fallbackWindowMs || DEFAULT_NEW_DISCOVERY_FALLBACK_MS);
+  const sourceClockSkewMs = Number(options.sourceClockSkewMs || DEFAULT_SOURCE_CLOCK_SKEW_MS);
+  const sourceListedAtMs = getSourceListedAtTime(listing) || getTimestampTime(previous.listedAt);
+  const isNewDiscovery = Boolean(options.isNewDiscovery);
+  const firstDiscoveredAtMs = getTimestampTime(previous.firstDiscoveredAt || previous.firstSeenAt)
+    || (isNewDiscovery ? nowMs : 0);
+  const isSourceFresh = isWithinAgeWindow(
+    sourceListedAtMs,
+    nowMs,
+    sourceWindowMs,
+    sourceClockSkewMs,
+  );
+  const isRecentDiscovery = isWithinAgeWindow(
+    firstDiscoveredAtMs,
+    nowMs,
+    sourceListedAtMs ? sourceWindowMs : fallbackWindowMs,
+  );
+  const discoveredAfterBaseline = previous.discoveredAfterBaseline === true
+    || options.discoveredAfterBaseline === true;
+  const usesDiscoveryFallback = !sourceListedAtMs
+    && discoveredAfterBaseline
+    && isRecentDiscovery;
+  const showsNewBadge = !options.isSeen
+    && isRecentDiscovery
+    && (isSourceFresh || usesDiscoveryFallback);
+
+  return {
+    showsNewBadge,
+    isSourceFresh,
+    isRecentDiscovery,
+    usesDiscoveryFallback,
+    hasTrustedSourceDate: Boolean(sourceListedAtMs),
+    reason: isSourceFresh
+      ? "recent-source"
+      : usesDiscoveryFallback
+        ? "recent-discovery"
+        : "",
+  };
 }
 
 function normalizeSignatureValue(value) {
@@ -116,6 +174,7 @@ globalThis.BrrtzListingFreshness = {
   normalizeSourceListedAt,
   getSourceListedAtTime,
   compareListingsBySourceDate,
+  getListingNewBadgeEligibility,
   createListingContentSignature,
   evolveListingFreshnessState,
 };

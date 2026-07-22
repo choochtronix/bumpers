@@ -160,9 +160,52 @@
               <path d="M12 20.5C12 20.5 3.5 15.3 3.5 9C3.5 6.1 5.6 4 8.2 4C9.85 4 11.25 4.95 12 6.35C12.75 4.95 14.15 4 15.8 4C18.4 4 20.5 6.1 20.5 9C20.5 15.3 12 20.5 12 20.5Z" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
             </svg>
           </button>
-          <button class="theme-toggle" id="openSettings" type="button" aria-label="Open settings" title="Settings">
-            <span class="site-icon site-icon-settings" aria-hidden="true"></span>
-          </button>
+          <div class="account-menu" id="headerAccountMenu">
+            <button class="theme-toggle account-trigger" id="openSettings" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="headerAccountPopover" aria-label="Sign in" title="Sign in">
+              <svg class="account-person-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+                <circle cx="12" cy="8" r="3.6" stroke="currentColor" stroke-width="2.2" />
+                <path d="M4.8 20C5.52 16.16 8.1 14 12 14C15.9 14 18.48 16.16 19.2 20" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
+              </svg>
+              <span class="account-avatar-initial" id="headerAccountInitial" aria-hidden="true" hidden>B</span>
+              <span class="account-avatar-check" aria-hidden="true" hidden>✓</span>
+            </button>
+            <div class="account-popover" id="headerAccountPopover" role="menu" aria-label="Account" hidden>
+              <div class="account-popover-identity">
+                <span class="account-popover-avatar" id="headerAccountPopoverInitial" aria-hidden="true">B</span>
+                <span class="account-popover-identity-copy">
+                  <strong>Signed in</strong>
+                  <span id="headerAccountPopoverEmail"></span>
+                </span>
+              </div>
+              <button class="account-popover-action" type="button" role="menuitem" data-account-action="saved">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+                  <path d="M7 4.5C7 3.67 7.67 3 8.5 3H15.5C16.33 3 17 3.67 17 4.5V20L12 17L7 20V4.5Z" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <span>My Saved Searches</span>
+              </button>
+              <button class="account-popover-action" type="button" role="menuitem" data-account-action="alerts">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+                  <path d="M6.5 10.5C6.5 7.12 8.62 4.5 12 4.5C15.38 4.5 17.5 7.12 17.5 10.5V14.5L19.25 17H4.75L6.5 14.5V10.5Z" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+                  <path d="M9.75 19C10.22 19.63 10.95 20 12 20C13.05 20 13.78 19.63 14.25 19" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
+                </svg>
+                <span>Email Alerts</span>
+              </button>
+              <button class="account-popover-action" type="button" role="menuitem" data-account-action="settings">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+                  <circle cx="12" cy="8" r="3.3" stroke="currentColor" stroke-width="2.2" />
+                  <path d="M5 20C5.72 16.45 8.2 14.5 12 14.5C15.8 14.5 18.28 16.45 19 20" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
+                </svg>
+                <span>Account settings</span>
+              </button>
+              <button class="account-popover-action account-popover-sign-out" type="button" role="menuitem" data-account-action="sign-out">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+                  <path d="M10 5H6.5C5.67 5 5 5.67 5 6.5V17.5C5 18.33 5.67 19 6.5 19H10" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
+                  <path d="M13 8L17 12L13 16M17 12H9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <span>Sign out</span>
+              </button>
+            </div>
+          </div>
         </div>
       </header>
 
@@ -715,11 +758,21 @@ stand
                 </div>
 
                 <div class="account-panel" id="signedOutAccountPanel">
-                  <label>
-                    <span>Email</span>
-                    <input id="accountEmailInput" type="email" autocomplete="email" placeholder="you@example.com" />
-                  </label>
-                  <button class="primary-action" id="sendSignInLink" type="button">Send sign-in link</button>
+                  <div class="account-auth-fields">
+                    <label>
+                      <span>Email</span>
+                      <input id="accountEmailInput" type="email" autocomplete="email" placeholder="you@example.com" />
+                    </label>
+                    <label>
+                      <span>Password</span>
+                      <input id="accountPasswordInput" type="password" autocomplete="current-password" placeholder="Your password" />
+                    </label>
+                  </div>
+                  <div class="account-auth-actions">
+                    <button class="primary-action" id="signInWithPassword" type="button">Sign in</button>
+                    <button class="secondary-action" id="sendSignInLink" type="button">Email me a sign-in link</button>
+                  </div>
+                  <p class="settings-sync-detail">First time here? Use the email link once to verify your address, then create a password from this Account tab.</p>
                 </div>
 
                 <div class="account-panel account-panel-signed-in" id="signedInAccountPanel" hidden>
@@ -733,6 +786,23 @@ stand
                   </div>
                   <p class="settings-sync-detail">Sync now merges this browser with Brrtz cloud so saved searches, watched gear, and preferences stay aligned.</p>
                   <p class="settings-sync-detail" id="accountSyncDetail">Last synced: never</p>
+                  <div class="account-password-setup" aria-labelledby="accountPasswordTitle">
+                    <div>
+                      <h4 id="accountPasswordTitle">Password sign-in</h4>
+                      <p class="settings-sync-detail">Create or update a password for signing in on another browser without opening email.</p>
+                    </div>
+                    <div class="account-password-fields">
+                      <label>
+                        <span>New password</span>
+                        <input id="accountNewPasswordInput" type="password" autocomplete="new-password" minlength="8" placeholder="At least 8 characters" />
+                      </label>
+                      <label>
+                        <span>Confirm password</span>
+                        <input id="accountConfirmPasswordInput" type="password" autocomplete="new-password" minlength="8" placeholder="Repeat password" />
+                      </label>
+                    </div>
+                    <button class="secondary-action" id="updateAccountPassword" type="button">Create or update password</button>
+                  </div>
                 </div>
 
                 <p class="settings-status" id="accountStatus" aria-live="polite"></p>
@@ -858,8 +928,9 @@ stand
     </script>
     <script src="regions.js?v=browse-cache-2"></script>
     <script src="search-discovery.js?v=discovery-plan-1"></script>
-    <script src="listing-freshness.js?v=freshness-ledger-1"></script>
+  <script src="listing-freshness.js?v=new-badge-1"></script>
     <script src="gear-scanner-curation.js?v=curation-module-1"></script>
-    <script src="app.js?v=discovery-plan-1"></script>
+    <script src="auth-session.js?v=persistent-auth-1"></script>
+  <script src="app.js?v=persistent-auth-new-badge-1"></script>
   </body>
 </html>

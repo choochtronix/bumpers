@@ -268,6 +268,22 @@ Pass 2 added:
 - Supabase Auth magic-link login in Settings -> Account.
 - A local browser auth session for desktop and mobile web.
 - Sign out and session restore.
+- Automatic refresh before access-token expiry, with one refresh request at a time.
+- Resilient session restore that keeps the saved login during temporary network or Supabase outages.
+- Password creation after a verified magic-link login.
+- Returning-user email and password sign-in without another email round trip.
+
+No additional environment variables or auth provider are required for password sign-in. Keep the Email provider enabled in Supabase Authentication settings. The first magic-link login verifies ownership of the email address; after that, the signed-in user can create a password from Settings -> Account.
+
+Expected account flow:
+
+1. New user requests and opens one email sign-in link.
+2. In Settings -> Account, the user creates a password with at least 8 characters.
+3. That browser remains signed in through its stored, rotating refresh token.
+4. On another browser, the user signs in with email and password.
+5. If the password is forgotten, the user can use the email sign-in link again and create a new password.
+
+Brrtz stores only Supabase access and refresh tokens in browser local storage. Passwords are sent directly to Supabase Auth over HTTPS and are never stored in Brrtz local storage, cloud profile data, logs, or application files.
 
 Pass 3 adds:
 

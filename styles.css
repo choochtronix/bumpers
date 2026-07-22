@@ -2306,6 +2306,47 @@ body[data-theme="dark"] .settings-section-icon {
   gap: 10px;
 }
 
+.account-auth-fields,
+.account-password-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.account-auth-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  gap: var(--space-3);
+}
+
+.account-password-setup {
+  display: grid;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--line);
+}
+
+.account-password-setup h4,
+.account-password-setup p {
+  margin: 0;
+}
+
+.account-password-setup > .secondary-action {
+  justify-self: start;
+}
+
+@media (max-width: 700px) {
+  .account-auth-fields,
+  .account-password-fields,
+  .account-auth-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .account-password-setup > .secondary-action {
+    width: 100%;
+  }
+}
+
 .settings-cloud-profile {
   display: grid;
   gap: 4px;
@@ -8162,6 +8203,177 @@ body[data-theme="dark"] .watching-trigger:focus-visible {
   box-shadow: var(--focus-ring), 0 16px 34px rgba(0, 0, 0, 0.4);
 }
 
+.account-menu {
+  position: relative;
+}
+
+.account-trigger {
+  position: relative;
+  cursor: pointer;
+}
+
+.account-person-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.account-person-icon[hidden] {
+  display: none;
+}
+
+.account-avatar-initial {
+  font-size: var(--text-emphasis);
+  font-weight: var(--weight-bold);
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.header-actions .account-trigger.is-signed-in,
+.header-actions .account-trigger.is-signed-in:hover,
+.header-actions .account-trigger.is-signed-in:focus-visible,
+.header-actions .account-trigger.is-signed-in[aria-expanded="true"] {
+  border-color: var(--brrtz-ink);
+  background: var(--brrtz-ink);
+  color: var(--color-control-on-ink);
+}
+
+.header-actions .account-trigger:hover,
+.header-actions .account-trigger:focus-visible,
+.header-actions .account-trigger[aria-expanded="true"] {
+  border-color: color-mix(in srgb, var(--color-brand-hot) 58%, var(--line));
+}
+
+.header-actions .account-trigger.is-signed-in:hover,
+.header-actions .account-trigger.is-signed-in:focus-visible,
+.header-actions .account-trigger.is-signed-in[aria-expanded="true"] {
+  border-color: var(--color-brand-hot);
+}
+
+.account-trigger:active {
+  transform: translateY(0) scale(0.96);
+}
+
+.account-avatar-check {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  display: grid;
+  width: 17px;
+  height: 17px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--panel);
+  color: var(--color-brand-hot);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-black);
+  line-height: 1;
+}
+
+.account-avatar-initial[hidden],
+.account-avatar-check[hidden] {
+  display: none;
+}
+
+.account-popover {
+  position: absolute;
+  z-index: 72;
+  top: calc(100% + var(--space-3));
+  right: 0;
+  display: grid;
+  width: min(310px, calc(100vw - 44px));
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-modal);
+  background: var(--panel);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+}
+
+.account-popover[hidden] {
+  display: none;
+}
+
+.account-popover-identity {
+  display: grid;
+  grid-template-columns: var(--control-header-utility-size) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+
+.account-popover-avatar {
+  display: grid;
+  width: var(--control-header-utility-size);
+  height: var(--control-header-utility-size);
+  place-items: center;
+  border-radius: var(--radius-pill);
+  background: var(--brrtz-ink);
+  color: var(--color-control-on-ink);
+  font-size: var(--text-emphasis);
+  font-weight: var(--weight-bold);
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.account-popover-identity-copy {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-1);
+}
+
+.account-popover-identity-copy strong {
+  font-size: var(--text-body);
+  font-weight: var(--weight-bold);
+}
+
+.account-popover-identity-copy span {
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-medium);
+}
+
+.account-popover-action {
+  display: flex;
+  width: 100%;
+  min-height: var(--control-header-utility-size);
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 var(--space-4);
+  border: 0;
+  border-top: 1px solid var(--line);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--text-body);
+  font-weight: var(--weight-bold);
+  text-align: left;
+  transition: background var(--motion-fast), color var(--motion-fast);
+}
+
+.account-popover-action svg {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+}
+
+.account-popover-action:hover,
+.account-popover-action:focus-visible {
+  outline: none;
+  background: var(--select-hover-bg);
+  color: var(--color-brand-hot);
+}
+
+.account-popover-action:focus-visible {
+  box-shadow: inset var(--focus-ring);
+}
+
+.account-popover-sign-out {
+  color: var(--rose);
+}
+
 .mobile-bottom-nav {
   display: none;
 }
@@ -10118,7 +10330,12 @@ body[data-theme="dark"] .refine-backdrop {
 }
 
 .my-page-saved-row.is-quiet .my-page-saved-title {
-  font-weight: var(--weight-medium);
+  font-weight: inherit;
+}
+
+.my-page-saved-row.is-quiet .my-page-saved-title:hover,
+.my-page-saved-row.is-quiet .my-page-saved-title:focus-visible {
+  color: var(--color-brand-hot);
 }
 
 .my-page-saved-row.is-key-jump-target {
@@ -10138,6 +10355,53 @@ body[data-theme="dark"] .refine-backdrop {
   min-width: 0;
   align-items: center;
   gap: var(--space-4);
+}
+
+.my-page-new-radar {
+  position: relative;
+  display: inline-grid;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  place-items: center;
+}
+
+.my-page-new-radar::before,
+.my-page-new-radar::after {
+  content: "";
+  position: absolute;
+  border-radius: var(--radius-pill);
+}
+
+.my-page-new-radar::before {
+  width: var(--space-2);
+  height: var(--space-2);
+  background: var(--color-brand-hot);
+}
+
+.my-page-new-radar::after {
+  inset: 2px;
+  border: 2px solid var(--color-brand-hot);
+  animation: myPageRadarPing var(--motion-toast-travel) ease-out both;
+}
+
+@keyframes myPageRadarPing {
+  from {
+    opacity: 1;
+    transform: scale(0.5);
+  }
+
+  to {
+    opacity: 0.45;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .my-page-new-radar::after {
+    animation: none;
+    opacity: 0.45;
+  }
 }
 
 .my-page-saved-title {
@@ -10713,6 +10977,10 @@ body[data-theme="dark"] .refine-backdrop {
     width: 0;
     height: 0;
     pointer-events: auto;
+  }
+
+  .app-header .account-menu {
+    display: none;
   }
 
   .app-header .saved-trigger,

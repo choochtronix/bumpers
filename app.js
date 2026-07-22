@@ -1164,6 +1164,10 @@ const FRESH_FIND_STALE_HOURS = 72;
 const FRESH_FIND_STALE_MS = FRESH_FIND_STALE_HOURS * 60 * 60 * 1000;
 const FRESH_LISTING_HOURS = 72;
 const FRESH_LISTING_MS = FRESH_LISTING_HOURS * 60 * 60 * 1000;
+const FRESH_DISCOVERY_FALLBACK_HOURS = 24;
+const FRESH_DISCOVERY_FALLBACK_MS = FRESH_DISCOVERY_FALLBACK_HOURS * 60 * 60 * 1000;
+const LISTING_SEEN_THRESHOLD = 0.6;
+const LISTING_SEEN_DELAY_MS = 1600;
 const SAVE_CONFIRMATION_DURATION_MS = 3500;
 const SAVE_CONFIRMATION_TRANSITION_MS = 220;
 const SOURCE_ACCENT_TOKENS = {
@@ -1533,6 +1537,8 @@ const CLOUD_EMULATOR_USER = {
 const savedSearchRepository = createSavedSearchRepository({
   storageKey: STORAGE_KEYS.profiles,
 });
+const AUTH_SESSION = globalThis.BrrtzAuthSession;
+const AUTH_REFRESH_RETRY_MS = 30_000;
 
 let authState = {
   config: null,
@@ -1542,6 +1548,14 @@ let authState = {
   accountNotice: "",
   lastSyncedAt: "",
 };
+let authRefreshTimer = 0;
+let authRefreshPromise = null;
+let authSessionRevision = 0;
+let listingSeenObserver = null;
+const listingSeenTimers = new WeakMap();
+const listingSeenTargets = new WeakMap();
+const pendingSeenListings = new Map();
+let pendingSeenFlushTimer = 0;
 
 const DEFAULT_BRAND_GRADIENT = Object.freeze(readDefaultBrandGradientTokens());
 const RESULT_VIEW_MODES = new Set(["grid", "list", "gallery"]);
@@ -1710,6 +1724,14 @@ const savedSearchPopover = document.querySelector("#savedSearchPopover");
 const savedWatchingFilter = document.querySelector("#savedWatchingFilter");
 const quickSaveSearchButton = document.querySelector("#quickSaveSearch");
 const topWatchingFilter = document.querySelector("#topWatchingFilter");
+const headerAccountMenu = document.querySelector("#headerAccountMenu");
+const headerAccountTrigger = document.querySelector("#openSettings");
+const headerAccountPopover = document.querySelector("#headerAccountPopover");
+const headerAccountPersonIcon = headerAccountTrigger?.querySelector(".account-person-icon");
+const headerAccountInitial = document.querySelector("#headerAccountInitial");
+const headerAccountCheck = headerAccountTrigger?.querySelector(".account-avatar-check");
+const headerAccountPopoverInitial = document.querySelector("#headerAccountPopoverInitial");
+const headerAccountPopoverEmail = document.querySelector("#headerAccountPopoverEmail");
 const mobileBottomNav = document.querySelector("#mobileBottomNav");
 const mobileBottomNavItems = [...document.querySelectorAll("[data-mobile-nav]")];
 const refineSearchModal = document.querySelector("#refineSearchModal");
@@ -1776,10 +1798,15 @@ const regionSelect = document.querySelector("#regionSelect");
 const signedOutAccountPanel = document.querySelector("#signedOutAccountPanel");
 const signedInAccountPanel = document.querySelector("#signedInAccountPanel");
 const accountEmailInput = document.querySelector("#accountEmailInput");
+const accountPasswordInput = document.querySelector("#accountPasswordInput");
+const accountNewPasswordInput = document.querySelector("#accountNewPasswordInput");
+const accountConfirmPasswordInput = document.querySelector("#accountConfirmPasswordInput");
 const accountEmailDisplay = document.querySelector("#accountEmailDisplay");
 const accountStatus = document.querySelector("#accountStatus");
 const accountSyncDetail = document.querySelector("#accountSyncDetail");
 const sendSignInLinkButton = document.querySelector("#sendSignInLink");
+const signInWithPasswordButton = document.querySelector("#signInWithPassword");
+const updateAccountPasswordButton = document.querySelector("#updateAccountPassword");
 const syncAccountSavedSearchesButton = document.querySelector("#syncAccountSavedSearches");
 const signOutAccountButton = document.querySelector("#signOutAccount");
 const cloudProfileEmail = document.querySelector("#cloudProfileEmail");
@@ -2457,7 +2484,10 @@ function bindEvents() {
     });
   });
 
-  document.querySelector("#openSettings").addEventListener("click", openSettingsModal);
+  headerAccountTrigger?.addEventListener("click", handleHeaderAccountTrigger);
+  headerAccountPopover?.addEventListener("click", handleHeaderAccountPopoverClick);
+  document.addEventListener("click", handleHeaderAccountOutsideClick);
+  document.addEventListener("keydown", handleHeaderAccountKeydown);
   document.querySelector("#closeSettings").addEventListener("click", closeSettingsModal);
   document.querySelector("#cancelSettings").addEventListener("click", closeSettingsModal);
   settingsModal.addEventListener("click", (event) => {
@@ -2478,6 +2508,12 @@ function bindEvents() {
   applyBrandGradientButton?.addEventListener("click", applyBrandGradientFromControls);
   resetBrandGradientButton?.addEventListener("click", resetBrandGradient);
   sendSignInLinkButton?.addEventListener("click", handleAccountSignInShell);
+  signInWithPasswordButton?.addEventListener("click", handleAccountPasswordSignIn);
+  updateAccountPasswordButton?.addEventListener("click", handleAccountPasswordUpdate);
+  accountEmailInput?.addEventListener("keydown", handleAccountSignInKeydown);
+  accountPasswordInput?.addEventListener("keydown", handleAccountSignInKeydown);
+  accountNewPasswordInput?.addEventListener("keydown", handleAccountPasswordUpdateKeydown);
+  accountConfirmPasswordInput?.addEventListener("keydown", handleAccountPasswordUpdateKeydown);
   syncAccountSavedSearchesButton?.addEventListener("click", syncAccountCloudData);
   signOutAccountButton?.addEventListener("click", handleAccountSignOutShell);
   exportSavedSearchesButton.addEventListener("click", exportSavedSearches);
@@ -2591,6 +2627,9 @@ function bindEvents() {
   window.addEventListener("resize", requestMobileSearchOverlayUpdate);
   window.addEventListener("resize", refreshSavedSearchPopoverPosition);
   window.addEventListener("resize", closeListingActionMenus);
+  window.addEventListener("focus", handleAuthSessionWake);
+  window.addEventListener("online", handleAuthSessionWake);
+  document.addEventListener("visibilitychange", handleAuthVisibilityChange);
   window.addEventListener("popstate", handleAppViewPopState);
 
   document.addEventListener("keydown", (event) => {
@@ -4445,15 +4484,20 @@ function updateMobileBottomNavState() {
 }
 
 function openSettingsModal(event, options = {}) {
+  closeHeaderAccountPopover({ restoreFocus: false });
   settingsReturnFocus = event?.currentTarget || document.activeElement;
   fillSettingsForm();
   setSavedSearchTransferStatus("");
-  setActiveSettingsTab("general", { focus: false });
+  const tabName = options.tabName || "general";
+  setActiveSettingsTab(tabName, { focus: false });
   settingsModal.hidden = false;
   document.body.classList.add("modal-open");
   document.body.classList.add("settings-modal-open");
   updateMobileSearchOverlayVisibility();
-  (options.focusTarget || currencyToggle)?.focus?.();
+  const defaultFocusTarget = tabName === "account"
+    ? (authState.user?.email ? updateAccountPasswordButton : accountEmailInput)
+    : currencyToggle;
+  (options.focusTarget || defaultFocusTarget)?.focus?.();
   updateMobileBottomNavState();
 }
 
@@ -4523,6 +4567,7 @@ function handleSettingsTabKeydown(event) {
 
 function renderAccountShell(account = null) {
   const isSignedIn = Boolean(account?.email);
+  renderHeaderAccountState(account);
   if (signedOutAccountPanel) signedOutAccountPanel.hidden = isSignedIn;
   if (signedInAccountPanel) signedInAccountPanel.hidden = !isSignedIn;
   if (accountEmailDisplay) accountEmailDisplay.textContent = account?.email || CLOUD_EMULATOR_USER.email;
@@ -4532,6 +4577,143 @@ function renderAccountShell(account = null) {
       : getSignedOutAccountStatus();
   }
   renderAccountSyncDetail();
+}
+
+function getAccountInitial(email = "") {
+  return Array.from(String(email).trim())[0]?.toLocaleUpperCase() || "B";
+}
+
+function renderHeaderAccountState(account = null) {
+  if (!headerAccountTrigger) return;
+
+  const email = String(account?.email || "").trim();
+  const isSignedIn = Boolean(email);
+  const initial = getAccountInitial(email);
+
+  headerAccountTrigger.classList.toggle("is-signed-in", isSignedIn);
+  headerAccountTrigger.setAttribute("aria-label", isSignedIn ? `Open account menu for ${email}` : "Sign in");
+  headerAccountTrigger.title = isSignedIn ? "Account" : "Sign in";
+
+  if (headerAccountPersonIcon) headerAccountPersonIcon.hidden = isSignedIn;
+  if (headerAccountInitial) {
+    headerAccountInitial.hidden = !isSignedIn;
+    headerAccountInitial.textContent = initial;
+  }
+  if (headerAccountCheck) headerAccountCheck.hidden = !isSignedIn;
+  if (headerAccountPopoverInitial) headerAccountPopoverInitial.textContent = initial;
+  if (headerAccountPopoverEmail) headerAccountPopoverEmail.textContent = email;
+
+  if (!isSignedIn) closeHeaderAccountPopover({ restoreFocus: false });
+}
+
+function openHeaderAccountPopover() {
+  if (!headerAccountPopover || !headerAccountTrigger || !authState.user?.email) return;
+  headerAccountPopover.hidden = false;
+  headerAccountTrigger.setAttribute("aria-expanded", "true");
+  headerAccountPopover.querySelector('[role="menuitem"]')?.focus?.();
+}
+
+function closeHeaderAccountPopover(options = {}) {
+  const { restoreFocus = false } = options;
+  if (!headerAccountPopover || !headerAccountTrigger) return;
+  const wasOpen = !headerAccountPopover.hidden;
+  headerAccountPopover.hidden = true;
+  headerAccountTrigger.setAttribute("aria-expanded", "false");
+  if (restoreFocus && wasOpen) headerAccountTrigger.focus();
+}
+
+function handleHeaderAccountTrigger(event) {
+  event.preventDefault();
+  event.stopPropagation();
+
+  if (!authState.user?.email) {
+    openSettingsModal(event, {
+      tabName: "account",
+      focusTarget: accountEmailInput,
+    });
+    return;
+  }
+
+  if (headerAccountPopover?.hidden) {
+    openHeaderAccountPopover();
+  } else {
+    closeHeaderAccountPopover({ restoreFocus: true });
+  }
+}
+
+async function handleHeaderAccountPopoverClick(event) {
+  const actionButton = event.target.closest("[data-account-action]");
+  if (!actionButton) return;
+
+  event.preventDefault();
+  event.stopPropagation();
+  const action = actionButton.dataset.accountAction;
+  closeHeaderAccountPopover({ restoreFocus: false });
+
+  if (action === "saved") {
+    openMyPageView();
+    return;
+  }
+
+  if (action === "alerts") {
+    openMyPageView();
+    window.requestAnimationFrame(() => {
+      const firstAlertToggle = document.querySelector("[data-my-page-alert-toggle]");
+      if (!firstAlertToggle) {
+        showStatusToast({
+          icon: "!",
+          message: "Save a search to turn on email alerts.",
+        });
+        return;
+      }
+      firstAlertToggle.scrollIntoView({ behavior: "smooth", block: "center" });
+      firstAlertToggle.focus({ preventScroll: true });
+    });
+    return;
+  }
+
+  if (action === "settings") {
+    openSettingsModal({ currentTarget: headerAccountTrigger }, {
+      tabName: "account",
+      focusTarget: updateAccountPasswordButton,
+    });
+    return;
+  }
+
+  if (action === "sign-out") {
+    await signOutAccount();
+    showStatusToast({
+      icon: "✓",
+      message: "Signed out on this browser.",
+    });
+  }
+}
+
+function handleHeaderAccountOutsideClick(event) {
+  if (!headerAccountMenu?.contains(event.target)) closeHeaderAccountPopover({ restoreFocus: false });
+}
+
+function handleHeaderAccountKeydown(event) {
+  if (headerAccountPopover?.hidden) return;
+
+  if (event.key === "Escape") {
+    event.preventDefault();
+    closeHeaderAccountPopover({ restoreFocus: true });
+    return;
+  }
+
+  if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+  const menuItems = [...headerAccountPopover.querySelectorAll('[role="menuitem"]')];
+  if (!menuItems.length) return;
+
+  event.preventDefault();
+  const currentIndex = menuItems.indexOf(document.activeElement);
+  let nextIndex = currentIndex;
+  if (event.key === "ArrowDown") nextIndex = (currentIndex + 1 + menuItems.length) % menuItems.length;
+  if (event.key === "ArrowUp") nextIndex = (currentIndex - 1 + menuItems.length) % menuItems.length;
+  if (event.key === "Home") nextIndex = 0;
+  if (event.key === "End") nextIndex = menuItems.length - 1;
+  menuItems[nextIndex].focus();
 }
 
 function renderAccountSyncDetail() {
@@ -4589,6 +4771,7 @@ function getSignedOutAccountStatus() {
 }
 
 async function initializeAuth() {
+  clearAuthRefreshTimer();
   authState.config = await fetchAuthConfig();
   authState.lastSyncedAt = readCloudSyncMeta().lastSyncedAt || "";
   authState.session = readAuthSessionFromCallback() || readStoredAuthSession();
@@ -4619,16 +4802,30 @@ async function fetchAuthConfig() {
 }
 
 async function hydrateAuthUser() {
+  const cachedUser = getCachedAuthUser(authState.session);
   try {
     authState.session = await refreshAuthSessionIfNeeded(authState.session);
     authState.user = await fetchSupabaseUser(authState.session.access_token);
+    authState.session = {
+      ...authState.session,
+      user: authState.user,
+    };
+    storeAuthSession(authState.session);
     authState.accountNotice = "";
   } catch (error) {
     console.warn("Could not restore auth session.", error);
-    clearStoredAuthSession();
-    authState.session = null;
-    authState.user = null;
-    authState.accountNotice = "";
+    if (isPermanentAuthError(error)) {
+      clearStoredAuthSession();
+      authState.session = null;
+      authState.user = null;
+      authState.accountNotice = "Your saved sign-in expired. Use your password or request a fresh email link.";
+    } else {
+      authState.user = cachedUser;
+      authState.accountNotice = cachedUser
+        ? "Still signed in on this device. Brrtz will reconnect when the network is available."
+        : "Brrtz could not verify this saved sign-in yet. It will retry automatically.";
+      scheduleAuthRefreshRetry();
+    }
     return;
   }
 
@@ -4689,14 +4886,19 @@ function readStoredAuthSession() {
 }
 
 function storeAuthSession(session) {
-  localStorage.setItem(STORAGE_KEYS.authSession, JSON.stringify(session));
+  const normalizedSession = normalizeAuthSession(session);
+  if (!normalizedSession) return;
+  localStorage.setItem(STORAGE_KEYS.authSession, JSON.stringify(normalizedSession));
+  scheduleAuthSessionRefresh(normalizedSession);
 }
 
 function clearStoredAuthSession() {
+  clearAuthRefreshTimer();
   localStorage.removeItem(STORAGE_KEYS.authSession);
 }
 
 function clearInvalidCloudSession(message = "Your cloud session could not be verified. Sign out and sign in again.") {
+  authSessionRevision += 1;
   clearStoredAuthSession();
   authState.session = null;
   authState.user = null;
@@ -4709,50 +4911,141 @@ function isCloudAuthSessionError(message = "") {
 }
 
 function normalizeAuthSession(rawSession) {
-  if (!rawSession?.access_token) return null;
-
-  const expiresAt = Number(rawSession.expires_at)
-    || Math.floor(Date.now() / 1000) + Number(rawSession.expires_in || 3600);
-
-  return {
-    access_token: rawSession.access_token,
-    refresh_token: rawSession.refresh_token || "",
-    expires_at: expiresAt,
-    token_type: rawSession.token_type || "bearer",
-  };
+  return AUTH_SESSION?.normalizeAuthSession(rawSession) || null;
 }
 
-async function refreshAuthSessionIfNeeded(session) {
+function getCachedAuthUser(session = authState.session) {
+  return AUTH_SESSION?.normalizeAuthUser(session?.user)
+    || AUTH_SESSION?.readAuthUserFromAccessToken(session?.access_token)
+    || null;
+}
+
+function createAuthRequestError(message, options = {}) {
+  const error = new Error(message);
+  error.authPermanent = Boolean(options.permanent);
+  error.authStatus = Number(options.status || 0);
+  error.authCode = String(options.code || "");
+  return error;
+}
+
+function isPermanentAuthError(error) {
+  return Boolean(error?.authPermanent);
+}
+
+function getAuthPayloadMessage(payload, fallback) {
+  return payload?.msg || payload?.message || payload?.error_description || fallback;
+}
+
+function clearAuthRefreshTimer() {
+  if (!authRefreshTimer) return;
+  window.clearTimeout(authRefreshTimer);
+  authRefreshTimer = 0;
+}
+
+function scheduleAuthSessionRefresh(session = authState.session) {
+  clearAuthRefreshTimer();
+  const delay = AUTH_SESSION?.getAuthRefreshDelay(session);
+  if (!Number.isFinite(delay) || delay < 0) return;
+  authRefreshTimer = window.setTimeout(() => {
+    authRefreshTimer = 0;
+    maintainAuthSession({ reason: "scheduled" });
+  }, delay);
+}
+
+function scheduleAuthRefreshRetry() {
+  clearAuthRefreshTimer();
+  if (!authState.session?.refresh_token) return;
+  authRefreshTimer = window.setTimeout(() => {
+    authRefreshTimer = 0;
+    maintainAuthSession({ reason: "retry", force: true });
+  }, AUTH_REFRESH_RETRY_MS);
+}
+
+async function refreshAuthSessionIfNeeded(session, options = {}) {
   if (!session?.refresh_token) return session;
+  if (!AUTH_SESSION?.shouldRefreshAuthSession(session, options)) {
+    scheduleAuthSessionRefresh(session);
+    return session;
+  }
+  if (authRefreshPromise) return authRefreshPromise;
+  const refreshRevision = authSessionRevision;
 
-  const expiresSoon = Number(session.expires_at || 0) * 1000 < Date.now() + 60_000;
-  if (!expiresSoon) return session;
+  authRefreshPromise = (async () => {
+    let response;
+    try {
+      response = await fetch(`${getSupabaseAuthBaseUrl()}/token?grant_type=refresh_token`, {
+        method: "POST",
+        headers: getSupabaseAnonHeaders(),
+        body: JSON.stringify({ refresh_token: session.refresh_token }),
+      });
+    } catch (error) {
+      throw createAuthRequestError("Brrtz could not refresh this sign-in while offline.", {
+        permanent: false,
+      });
+    }
 
-  const response = await fetch(`${getSupabaseAuthBaseUrl()}/token?grant_type=refresh_token`, {
-    method: "POST",
-    headers: getSupabaseAnonHeaders(),
-    body: JSON.stringify({ refresh_token: session.refresh_token }),
-  });
+    const payload = await readJsonResponse(response);
+    if (!response.ok) {
+      const permanent = AUTH_SESSION?.isPermanentAuthFailure(response.status, payload);
+      throw createAuthRequestError(
+        getAuthPayloadMessage(payload, permanent
+          ? "Your saved sign-in expired. Please sign in again."
+          : "Brrtz could not refresh this sign-in yet."),
+        {
+          permanent,
+          status: response.status,
+          code: payload?.error_code || payload?.code || payload?.error,
+        },
+      );
+    }
 
-  if (!response.ok) throw new Error("Your sign-in session expired. Please send a new sign-in link.");
+    const nextSession = normalizeAuthSession({
+      ...payload,
+      user: payload?.user || session.user,
+    });
+    if (!nextSession) {
+      throw createAuthRequestError("Supabase returned an invalid refreshed session.", {
+        permanent: true,
+      });
+    }
+    if (refreshRevision !== authSessionRevision) return authState.session;
+    storeAuthSession(nextSession);
+    return nextSession;
+  })();
 
-  const nextSession = normalizeAuthSession(await response.json());
-  storeAuthSession(nextSession);
-  return nextSession;
+  try {
+    return await authRefreshPromise;
+  } finally {
+    authRefreshPromise = null;
+  }
 }
 
 async function fetchSupabaseUser(accessToken) {
-  const response = await fetch(`${getSupabaseAuthBaseUrl()}/user`, {
-    headers: getSupabaseAuthHeaders(accessToken),
-  });
+  let response;
+  try {
+    response = await fetch(`${getSupabaseAuthBaseUrl()}/user`, {
+      headers: getSupabaseAuthHeaders(accessToken),
+    });
+  } catch {
+    throw createAuthRequestError("Brrtz could not verify this sign-in while offline.", {
+      permanent: false,
+    });
+  }
 
-  if (!response.ok) throw new Error("Could not load the signed-in Supabase user.");
+  if (!response.ok) {
+    const payload = await readJsonResponse(response);
+    throw createAuthRequestError(
+      getAuthPayloadMessage(payload, "Could not load the signed-in Supabase user."),
+      {
+        permanent: response.status === 401,
+        status: response.status,
+        code: payload?.error_code || payload?.code || payload?.error,
+      },
+    );
+  }
 
   const user = await response.json();
-  return {
-    id: user.id,
-    email: user.email,
-  };
+  return AUTH_SESSION?.normalizeAuthUser(user);
 }
 
 async function sendSupabaseMagicLink(email) {
@@ -4778,6 +5071,220 @@ async function sendSupabaseMagicLink(email) {
   }
 }
 
+async function signInWithSupabasePassword(email, password) {
+  let response;
+  try {
+    response = await fetch(`${getSupabaseAuthBaseUrl()}/token?grant_type=password`, {
+      method: "POST",
+      headers: getSupabaseAnonHeaders(),
+      body: JSON.stringify({ email, password }),
+    });
+  } catch {
+    throw createAuthRequestError("Brrtz could not reach the sign-in service. Check your connection and try again.");
+  }
+
+  const payload = await readJsonResponse(response);
+  if (!response.ok) {
+    const code = String(payload?.error_code || payload?.code || payload?.error || "");
+    const invalidCredentials = /invalid.?credentials/i.test(code)
+      || /invalid login credentials/i.test(getAuthPayloadMessage(payload, ""));
+    throw createAuthRequestError(invalidCredentials
+      ? "Email or password is incorrect. If this is your first login, use the email link first."
+      : getAuthPayloadMessage(payload, "Supabase could not sign in with that password."), {
+      status: response.status,
+      code,
+    });
+  }
+
+  const session = normalizeAuthSession(payload);
+  if (!session) throw createAuthRequestError("Supabase returned an invalid sign-in session.");
+  return session;
+}
+
+async function updateSupabasePassword(password) {
+  authState.session = await refreshAuthSessionIfNeeded(authState.session);
+  if (!authState.session?.access_token) {
+    throw createAuthRequestError("Sign in with a fresh email link before creating a password.", {
+      permanent: true,
+    });
+  }
+
+  let response;
+  try {
+    response = await fetch(`${getSupabaseAuthBaseUrl()}/user`, {
+      method: "PUT",
+      headers: getSupabaseAuthHeaders(authState.session.access_token),
+      body: JSON.stringify({ password }),
+    });
+  } catch {
+    throw createAuthRequestError("Brrtz could not reach the account service. Your password was not changed.");
+  }
+
+  const payload = await readJsonResponse(response);
+  if (!response.ok) {
+    const permanent = response.status === 401;
+    throw createAuthRequestError(
+      getAuthPayloadMessage(payload, "Supabase could not update that password."),
+      {
+        permanent,
+        status: response.status,
+        code: payload?.error_code || payload?.code || payload?.error,
+      },
+    );
+  }
+
+  return AUTH_SESSION?.normalizeAuthUser(payload) || authState.user;
+}
+
+async function maintainAuthSession(options = {}) {
+  if (!authState.config?.enabled || !authState.session) return;
+  const cachedUser = authState.user || getCachedAuthUser(authState.session);
+
+  try {
+    const nextSession = await refreshAuthSessionIfNeeded(authState.session, {
+      force: Boolean(options.force),
+    });
+    if (!nextSession) return;
+    authState.session = nextSession;
+    authState.user = authState.user || await fetchSupabaseUser(nextSession.access_token);
+    authState.session = {
+      ...nextSession,
+      user: authState.user,
+    };
+    storeAuthSession(authState.session);
+    if (/reconnect|retry automatically|could not verify/i.test(authState.accountNotice)) {
+      authState.accountNotice = "";
+    }
+    renderAccountShell(authState.user);
+  } catch (error) {
+    console.warn(`Could not maintain auth session (${options.reason || "wake"}).`, error);
+    if (isPermanentAuthError(error)) {
+      clearInvalidCloudSession("Your saved sign-in expired. Use your password or request a fresh email link.");
+      return;
+    }
+    authState.user = cachedUser;
+    authState.accountNotice = cachedUser
+      ? "Still signed in on this device. Brrtz will reconnect when the network is available."
+      : "Brrtz could not verify this saved sign-in yet. It will retry automatically.";
+    scheduleAuthRefreshRetry();
+    renderAccountShell(authState.user);
+  }
+}
+
+function handleAuthSessionWake() {
+  maintainAuthSession({ reason: "browser wake" });
+}
+
+function handleAuthVisibilityChange() {
+  if (!document.hidden) maintainAuthSession({ reason: "tab visible" });
+}
+
+function setAccountSignInControlsDisabled(disabled) {
+  if (signInWithPasswordButton) signInWithPasswordButton.disabled = disabled;
+  if (sendSignInLinkButton) sendSignInLinkButton.disabled = disabled;
+  if (accountEmailInput) accountEmailInput.disabled = disabled;
+  if (accountPasswordInput) accountPasswordInput.disabled = disabled;
+}
+
+function setAccountPasswordControlsDisabled(disabled) {
+  if (updateAccountPasswordButton) updateAccountPasswordButton.disabled = disabled;
+  if (accountNewPasswordInput) accountNewPasswordInput.disabled = disabled;
+  if (accountConfirmPasswordInput) accountConfirmPasswordInput.disabled = disabled;
+}
+
+async function handleAccountPasswordSignIn() {
+  const email = accountEmailInput?.value.trim();
+  const password = accountPasswordInput?.value || "";
+  authState.accountNotice = "";
+
+  if (!email) {
+    accountStatus.textContent = "Enter your email address first.";
+    accountEmailInput?.focus();
+    return;
+  }
+  if (!password) {
+    accountStatus.textContent = "Enter your password, or use the email link for first-time sign-in.";
+    accountPasswordInput?.focus();
+    return;
+  }
+  if (!authState.config?.enabled) {
+    accountStatus.textContent = "Email sign-in is not configured yet. Add SUPABASE_ANON_KEY and restart Brrtz.";
+    return;
+  }
+
+  setAccountSignInControlsDisabled(true);
+  accountStatus.textContent = "Signing in...";
+  try {
+    const session = await signInWithSupabasePassword(email, password);
+    authSessionRevision += 1;
+    authState.session = session;
+    authState.user = session.user || null;
+    storeAuthSession(session);
+    await hydrateAuthUser();
+    if (!authState.user) throw createAuthRequestError("Brrtz could not finish signing in.");
+    if (accountPasswordInput) accountPasswordInput.value = "";
+    renderAccountShell(authState.user);
+    accountStatus.textContent = "Signed in. This browser will remember your account.";
+  } catch (error) {
+    accountStatus.textContent = error instanceof Error ? error.message : "Could not sign in.";
+  } finally {
+    setAccountSignInControlsDisabled(false);
+  }
+}
+
+async function handleAccountPasswordUpdate() {
+  const password = accountNewPasswordInput?.value || "";
+  const confirmation = accountConfirmPasswordInput?.value || "";
+  if (!authState.user?.id) {
+    accountStatus.textContent = "Sign in with an email link before creating a password.";
+    return;
+  }
+  if (password.length < 8) {
+    accountStatus.textContent = "Use at least 8 characters for your password.";
+    accountNewPasswordInput?.focus();
+    return;
+  }
+  if (password !== confirmation) {
+    accountStatus.textContent = "Those passwords do not match.";
+    accountConfirmPasswordInput?.focus();
+    return;
+  }
+
+  setAccountPasswordControlsDisabled(true);
+  accountStatus.textContent = "Updating password...";
+  try {
+    authState.user = await updateSupabasePassword(password);
+    authState.session = {
+      ...authState.session,
+      user: authState.user,
+    };
+    storeAuthSession(authState.session);
+    accountNewPasswordInput.value = "";
+    accountConfirmPasswordInput.value = "";
+    accountStatus.textContent = "Password sign-in is ready for your other browsers and devices.";
+  } catch (error) {
+    if (isPermanentAuthError(error)) {
+      clearInvalidCloudSession("For security, use a fresh email link before changing your password.");
+    } else {
+      accountStatus.textContent = error instanceof Error ? error.message : "Could not update password.";
+    }
+  } finally {
+    setAccountPasswordControlsDisabled(false);
+  }
+}
+
+function handleAccountSignInKeydown(event) {
+  if (event.key !== "Enter") return;
+  event.preventDefault();
+  handleAccountPasswordSignIn();
+}
+
+function handleAccountPasswordUpdateKeydown(event) {
+  if (event.key !== "Enter") return;
+  event.preventDefault();
+  handleAccountPasswordUpdate();
+}
+
 async function signOutAccount() {
   signOutAccountButton.disabled = true;
   syncAccountSavedSearchesButton.disabled = true;
@@ -4793,6 +5300,7 @@ async function signOutAccount() {
   } catch (error) {
     console.warn("Supabase sign-out request failed.", error);
   } finally {
+    authSessionRevision += 1;
     clearStoredAuthSession();
     authState.session = null;
     authState.user = null;
@@ -4840,6 +5348,7 @@ async function readJsonResponse(response) {
 
 async function handleAccountSignInShell() {
   const email = accountEmailInput?.value.trim();
+  const idleButtonLabel = sendSignInLinkButton?.textContent || "Email me a sign-in link";
   authState.accountNotice = "";
   if (!email) {
     accountStatus.textContent = "Enter an email address first.";
@@ -4852,16 +5361,24 @@ async function handleAccountSignInShell() {
     return;
   }
 
-  sendSignInLinkButton.disabled = true;
+  setAccountSignInControlsDisabled(true);
+  sendSignInLinkButton?.setAttribute("aria-busy", "true");
+  if (sendSignInLinkButton) sendSignInLinkButton.textContent = "Sending...";
   accountStatus.textContent = `Sending sign-in link to ${email}...`;
 
   try {
     await sendSupabaseMagicLink(email);
-    accountStatus.textContent = `Check ${email} for a Brrtz sign-in link.`;
+    accountStatus.textContent = `Link sent. Check ${email}.`;
+    showStatusToast({
+      icon: "✓",
+      message: `Sign-in link sent to ${email}`,
+    });
   } catch (error) {
     accountStatus.textContent = error instanceof Error ? error.message : "Could not send sign-in link.";
   } finally {
-    sendSignInLinkButton.disabled = false;
+    sendSignInLinkButton?.removeAttribute("aria-busy");
+    if (sendSignInLinkButton) sendSignInLinkButton.textContent = idleButtonLabel;
+    setAccountSignInControlsDisabled(false);
   }
 }
 
@@ -5606,7 +6123,7 @@ function applySearchResult(profile, liveResult, isFinal) {
 
   const isFinalLiveResult = isFinal && liveResult.mode === "live";
   const discoveryLedger = isFinalLiveResult ? loadLedger() : null;
-  currentDiscoveryIds = isFinalLiveResult ? getNewDiscoveryIds(currentResults, discoveryLedger) : new Set();
+  currentDiscoveryIds = isFinalLiveResult ? getNewDiscoveryIds(currentResults, discoveryLedger, currentProfile) : new Set();
   currentNewForSearchIds = isFinalLiveResult ? getNewForSearchIds(currentProfile, currentResults, discoveryLedger) : new Set();
   if (isFinalLiveResult) {
     liveResult.detail = appendDiscoveryDetail(liveResult.detail, currentDiscoveryIds.size);
@@ -6179,6 +6696,9 @@ function createMyPageSavedSearchRow(profile) {
   const status = profile.lastScanStatus ? capitalize(profile.lastScanStatus) : "Ready";
   const searchLetter = normalizeText(profile.name).charAt(0) || "#";
   const hasNewListings = newCount > 0;
+  const newMarkerMarkup = hasNewListings
+    ? `<span class="my-page-new-radar" aria-hidden="true"></span>`
+    : "";
   const newListingsMarkup = newCount > 0
     ? `<button class="my-page-new-pill" type="button" data-result-action="run-saved-search" data-saved-search-id="${profileId}" aria-label="View new results for ${escapeHtml(profile.name)}">${newCount} New</button>`
     : "";
@@ -6186,6 +6706,7 @@ function createMyPageSavedSearchRow(profile) {
     <article class="my-page-saved-row${hasNewListings ? " has-new" : " is-quiet"}" data-saved-search-letter="${escapeHtml(searchLetter)}" data-saved-search-name="${escapeHtml(profile.name)}">
       <div class="my-page-saved-copy">
         <div class="my-page-saved-mainline">
+          ${newMarkerMarkup}
           <button class="my-page-saved-title" type="button" data-result-action="run-saved-search" data-saved-search-id="${profileId}">
             ${escapeHtml(profile.name)}
           </button>
@@ -7519,7 +8040,7 @@ function renderListing(listing, options = {}) {
   }
 
   card.classList.toggle("is-featured-home-card", isFeaturedHome);
-  card.classList.toggle("is-new", newness.isNewToUser || newness.isNewForSearch);
+  card.classList.toggle("is-new", newness.showsNewBadge);
   card.classList.toggle("is-new-for-search", newness.isNewForSearch);
   card.classList.toggle("is-feedback-gear", feedbackStatus === "gear");
   card.classList.toggle("is-feedback-noise", feedbackStatus === "noise");
@@ -7536,6 +8057,7 @@ function renderListing(listing, options = {}) {
   renderSourceAvatar(sourceAvatar, source, listing.source);
   renderSourceAvatar(listSourceAvatar, source, listing.source);
   renderListingNewnessBadges(fragment, newness);
+  observeNewListingCard(card, listing, newness);
   fragment.querySelector(".source-chip").textContent = source?.label || listing.source;
   const titleElement = fragment.querySelector("h3");
   titleElement.textContent = listing.title;
@@ -7810,6 +8332,51 @@ function renderListingNewnessBadges(fragment, newness) {
     newPill.textContent = "New";
     newPill.title = getListingNewnessTitle(newness);
   }
+}
+
+function observeNewListingCard(card, listing, newness) {
+  if (!card || !listing?.id || !newness?.showsNewBadge || typeof IntersectionObserver !== "function") return;
+
+  if (!listingSeenObserver) {
+    listingSeenObserver = new IntersectionObserver(handleNewListingVisibility, {
+      threshold: [0, LISTING_SEEN_THRESHOLD],
+    });
+  }
+
+  listingSeenTargets.set(card, listing);
+  listingSeenObserver.observe(card);
+}
+
+function handleNewListingVisibility(entries) {
+  entries.forEach((entry) => {
+    const existingTimer = listingSeenTimers.get(entry.target);
+    if (!entry.isIntersecting || entry.intersectionRatio < LISTING_SEEN_THRESHOLD) {
+      if (existingTimer) window.clearTimeout(existingTimer);
+      listingSeenTimers.delete(entry.target);
+      return;
+    }
+    if (existingTimer) return;
+
+    const timer = window.setTimeout(() => {
+      listingSeenTimers.delete(entry.target);
+      listingSeenObserver?.unobserve(entry.target);
+      const listing = listingSeenTargets.get(entry.target);
+      if (listing) queueListingSeenAcknowledgement(listing);
+    }, LISTING_SEEN_DELAY_MS);
+    listingSeenTimers.set(entry.target, timer);
+  });
+}
+
+function queueListingSeenAcknowledgement(listing) {
+  pendingSeenListings.set(listing.id, listing);
+  if (pendingSeenFlushTimer) return;
+
+  pendingSeenFlushTimer = window.setTimeout(() => {
+    pendingSeenFlushTimer = 0;
+    const listings = [...pendingSeenListings.values()];
+    pendingSeenListings.clear();
+    acknowledgeListings(listings, { seenInFeed: true });
+  }, 100);
 }
 
 function renderAuctionDetails(container, listing) {
@@ -9516,19 +10083,29 @@ function getListingNewness(listing, renderContext = null) {
   const seen = isListingAcknowledged(entry) || (renderContext?.seen ? renderContext.seen.has(listing.id) : isSeen(listing.id));
   const isNewToBrrtz = currentDiscoveryIds.has(listing.id) || !entry;
   const isNewToSearch = Boolean(entry) && currentNewForSearchIds.has(listing.id);
-  const isNewToUser = !seen && isNewToBrrtz;
-  const isNewForSearch = !seen && isNewToSearch;
-  const isSourceFresh = isFreshBySourceDate(listing, entry);
-  const reason = isNewToUser ? "new-to-brrtz" : isNewForSearch ? "new-to-search" : isSourceFresh ? "latest-source" : "";
+  const hasDiscoveryBaseline = hasProfileDiscoveryBaseline(ledger, currentProfile);
+  const eligibility = getListingNewBadgeEligibility(listing, entry, {
+    isNewDiscovery: isNewToBrrtz,
+    isSeen: seen,
+    discoveredAfterBaseline: entry?.discoveredAfterBaseline === true
+      || (isNewToBrrtz && hasDiscoveryBaseline),
+    sourceWindowMs: FRESH_LISTING_MS,
+    fallbackWindowMs: FRESH_DISCOVERY_FALLBACK_MS,
+  });
+  const isNewToUser = eligibility.showsNewBadge && isNewToBrrtz;
+  const isNewForSearch = eligibility.showsNewBadge && isNewToSearch;
 
   return createListingNewnessState({
     isNewToBrrtz,
     isNewToSearch,
     isNewToUser,
     isNewForSearch,
-    isSourceFresh,
+    isSourceFresh: eligibility.isSourceFresh,
+    isRecentDiscovery: eligibility.isRecentDiscovery,
+    usesDiscoveryFallback: eligibility.usesDiscoveryFallback,
     isSeen: seen,
-    reason,
+    showsNewBadge: eligibility.showsNewBadge,
+    reason: eligibility.reason,
   });
 }
 
@@ -9539,6 +10116,8 @@ function createListingNewnessState(overrides = {}) {
     isNewToUser: false,
     isNewForSearch: false,
     isSourceFresh: false,
+    isRecentDiscovery: false,
+    usesDiscoveryFallback: false,
     isFresh: false,
     isSeen: false,
     showsNewBadge: false,
@@ -9547,19 +10126,18 @@ function createListingNewnessState(overrides = {}) {
   };
 
   state.isFresh = state.isSourceFresh;
-  state.showsNewBadge = Boolean(state.isNewToUser || state.isNewForSearch);
+  state.showsNewBadge = Boolean(overrides.showsNewBadge ?? (state.isNewToUser || state.isNewForSearch));
   return state;
 }
 
 function getListingNewnessTitle(newness = {}) {
-  if (newness.reason === "new-to-brrtz") return "New to Brrtz: first seen during this scan.";
-  if (newness.reason === "new-to-search") return "New to this saved search since you last saw it.";
-  if (newness.reason === "latest-source") return "Recently listed by the source.";
-  return "New to you in Brrtz.";
+  if (newness.reason === "recent-source") return `Listed by the source within the last ${FRESH_LISTING_HOURS} hours.`;
+  if (newness.reason === "recent-discovery") return `First found by Brrtz within the last ${FRESH_DISCOVERY_FALLBACK_HOURS} hours; source date unavailable.`;
+  return "Recently listed and newly found by Brrtz.";
 }
 
 function isListingAcknowledged(entry) {
-  return Boolean(entry?.acknowledgedAt || entry?.viewedAt || entry?.dismissedAt || entry?.watchedAt);
+  return Boolean(entry?.acknowledgedAt || entry?.seenInFeedAt || entry?.viewedAt || entry?.dismissedAt || entry?.watchedAt);
 }
 
 function isFreshBySourceDate(listing, entry = {}) {
@@ -10686,6 +11264,8 @@ function sanitizeListingLedgerEntry(id, entry) {
     presentationCount: Math.max(0, Number(entry.presentationCount || 0)),
     priceHistory: Array.isArray(entry.priceHistory) ? entry.priceHistory.slice(-8) : [],
     profileNames: normalizeStoredList(entry.profileNames),
+    profileKeys: normalizeStoredList(entry.profileKeys),
+    discoveredAfterBaseline: entry.discoveredAfterBaseline === true,
   };
 }
 
@@ -10701,32 +11281,72 @@ function saveLedger(ledger) {
   }
 }
 
-function getNewDiscoveryIds(listings, ledger = loadLedger()) {
-  return new Set(listings.filter((listing) => !ledger[listing.id]).map((listing) => listing.id));
+function getNewDiscoveryIds(listings, ledger = loadLedger(), profile = currentProfile) {
+  const hasDiscoveryBaseline = hasProfileDiscoveryBaseline(ledger, profile);
+  return new Set(listings
+    .filter((listing) => {
+      if (ledger[listing.id]) return false;
+      return getListingNewBadgeEligibility(listing, {}, {
+        isNewDiscovery: true,
+        discoveredAfterBaseline: hasDiscoveryBaseline,
+        sourceWindowMs: FRESH_LISTING_MS,
+        fallbackWindowMs: FRESH_DISCOVERY_FALLBACK_MS,
+      }).showsNewBadge;
+    })
+    .map((listing) => listing.id));
 }
 
 function getNewForSearchIds(profile, listings, ledger = loadLedger()) {
-  const profileName = profile?.name || "";
-  if (!profileName) return new Set();
+  const profileKey = getProfileDiscoveryKey(profile);
+  if (!profileKey) return new Set();
 
   return new Set(listings
     .filter((listing) => {
       const entry = ledger[listing.id];
       if (!entry || isListingAcknowledged(entry)) return false;
-      return !normalizeStoredList(entry.profileNames).includes(profileName);
+      if (listingLedgerEntryMatchesProfile(entry, profile)) return false;
+      return getListingNewBadgeEligibility(listing, entry, {
+        isSeen: false,
+        discoveredAfterBaseline: entry.discoveredAfterBaseline === true,
+        sourceWindowMs: FRESH_LISTING_MS,
+        fallbackWindowMs: FRESH_DISCOVERY_FALLBACK_MS,
+      }).showsNewBadge;
     })
     .map((listing) => listing.id));
+}
+
+function getProfileDiscoveryKey(profile = {}) {
+  const id = String(profile.id || "").trim();
+  if (id) return `id:${id}`;
+  const name = String(profile.name || "").trim().toLocaleLowerCase();
+  return name ? `name:${name}` : "";
+}
+
+function listingLedgerEntryMatchesProfile(entry = {}, profile = {}) {
+  const profileKey = getProfileDiscoveryKey(profile);
+  if (profileKey && normalizeStoredList(entry.profileKeys).includes(profileKey)) return true;
+
+  const profileName = String(profile.name || "").trim();
+  return Boolean(profileName && normalizeStoredList(entry.profileNames).includes(profileName));
+}
+
+function hasProfileDiscoveryBaseline(ledger = {}, profile = {}) {
+  return Object.values(ledger).some((entry) => listingLedgerEntryMatchesProfile(entry, profile));
 }
 
 function recordListingDiscoveries(profile, listings) {
   const ledger = loadLedger();
   const now = new Date().toISOString();
+  const hasDiscoveryBaseline = hasProfileDiscoveryBaseline(ledger, profile);
 
   listings.forEach((listing) => {
-    ledger[listing.id] = createLedgerEntry(listing, ledger[listing.id], {
+    const previous = ledger[listing.id];
+    ledger[listing.id] = createLedgerEntry(listing, previous, {
       observedAt: now,
       presented: true,
       profileName: profile.name,
+      profileKey: getProfileDiscoveryKey(profile),
+      discoveredAfterBaseline: previous?.discoveredAfterBaseline === true || (!previous && hasDiscoveryBaseline),
     });
   });
 
@@ -10738,6 +11358,7 @@ function recordListingSnapshot(listing) {
   ledger[listing.id] = createLedgerEntry(listing, ledger[listing.id], {
     observed: false,
     profileName: currentProfile.name,
+    profileKey: getProfileDiscoveryKey(currentProfile),
   });
   saveLedger(ledger);
 }
@@ -10745,7 +11366,9 @@ function recordListingSnapshot(listing) {
 function createLedgerEntry(listing, previous = {}, options = {}) {
   const now = new Date().toISOString();
   const profileNames = new Set(normalizeStoredList(previous.profileNames));
+  const profileKeys = new Set(normalizeStoredList(previous.profileKeys));
   if (options.profileName) profileNames.add(options.profileName);
+  if (options.profileKey) profileKeys.add(options.profileKey);
   const unavailable = isUnavailableListing(listing);
   const freshness = evolveListingFreshnessState(listing, previous, {
     now,
@@ -10771,6 +11394,9 @@ function createLedgerEntry(listing, previous = {}, options = {}) {
     ...freshness,
     freshnessStatus: unavailable ? "unavailable" : "active",
     profileNames: [...profileNames],
+    profileKeys: [...profileKeys],
+    discoveredAfterBaseline: previous.discoveredAfterBaseline === true
+      || options.discoveredAfterBaseline === true,
   };
 }
 
@@ -10783,8 +11409,10 @@ function acknowledgeListings(listings, options = {}) {
     ledger[listing.id] = createLedgerEntry(listing, ledger[listing.id], {
       observed: false,
       profileName: currentProfile.name,
+      profileKey: getProfileDiscoveryKey(currentProfile),
     });
     ledger[listing.id].acknowledgedAt = ledger[listing.id].acknowledgedAt || now;
+    if (options.seenInFeed) ledger[listing.id].seenInFeedAt = now;
     if (options.viewed) ledger[listing.id].viewedAt = now;
     if (options.dismissed) ledger[listing.id].dismissedAt = now;
     if (options.watched) ledger[listing.id].watchedAt = now;

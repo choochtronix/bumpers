@@ -6,6 +6,7 @@ import "../listing-freshness.js";
 const {
   compareListingsBySourceDate,
   evolveListingFreshnessState,
+  getListingNewBadgeEligibility,
   normalizeSourceListedAt,
 } = globalThis.BrrtzListingFreshness;
 
@@ -89,4 +90,70 @@ test("UI interactions do not masquerade as another source observation", () => {
   assert.equal(interacted.lastSeenAt, first.lastSeenAt);
   assert.equal(interacted.scanCount, first.scanCount);
   assert.equal(interacted.unchangedScanCount, first.unchangedScanCount);
+});
+
+test("New badge requires both a recent source date and a recent discovery", () => {
+  const state = getListingNewBadgeEligibility({
+    ...LISTING,
+    listedAt: "2026-07-21T12:00:00.000Z",
+  }, {
+    firstDiscoveredAt: "2026-07-21T13:00:00.000Z",
+  }, {
+    now: "2026-07-22T12:00:00.000Z",
+  });
+
+  assert.equal(state.showsNewBadge, true);
+  assert.equal(state.reason, "recent-source");
+});
+
+test("month-old marketplace listings cannot receive the New badge", () => {
+  const state = getListingNewBadgeEligibility({
+    ...LISTING,
+    listedAt: "2026-06-01T12:00:00.000Z",
+  }, {
+    firstDiscoveredAt: "2026-07-22T11:00:00.000Z",
+  }, {
+    now: "2026-07-22T12:00:00.000Z",
+  });
+
+  assert.equal(state.showsNewBadge, false);
+  assert.equal(state.isSourceFresh, false);
+});
+
+test("unknown-age listings are New only after a baseline and for 24 hours", () => {
+  const firstBaseline = getListingNewBadgeEligibility(LISTING, {}, {
+    now: "2026-07-22T12:00:00.000Z",
+    isNewDiscovery: true,
+    discoveredAfterBaseline: false,
+  });
+  const postBaseline = getListingNewBadgeEligibility(LISTING, {}, {
+    now: "2026-07-22T12:00:00.000Z",
+    isNewDiscovery: true,
+    discoveredAfterBaseline: true,
+  });
+  const expired = getListingNewBadgeEligibility(LISTING, {
+    firstDiscoveredAt: "2026-07-20T12:00:00.000Z",
+    discoveredAfterBaseline: true,
+  }, {
+    now: "2026-07-22T12:00:00.000Z",
+  });
+
+  assert.equal(firstBaseline.showsNewBadge, false);
+  assert.equal(postBaseline.showsNewBadge, true);
+  assert.equal(postBaseline.reason, "recent-discovery");
+  assert.equal(expired.showsNewBadge, false);
+});
+
+test("seen listings never retain the New badge", () => {
+  const state = getListingNewBadgeEligibility({
+    ...LISTING,
+    listedAt: "2026-07-22T10:00:00.000Z",
+  }, {
+    firstDiscoveredAt: "2026-07-22T10:30:00.000Z",
+  }, {
+    now: "2026-07-22T12:00:00.000Z",
+    isSeen: true,
+  });
+
+  assert.equal(state.showsNewBadge, false);
 });
