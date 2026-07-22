@@ -72,6 +72,18 @@
   --color-brand-hot: var(--brrtz-magenta);   /* watch-active, hover borders, "loading" copy */
   --color-control-on-ink: #ffffff;
   --color-modal-backdrop: rgba(0,0,0,0.42);
+  --color-mobile-nav-surface-top: rgba(32,39,45,0.94);
+  --color-mobile-nav-surface-bottom: rgba(17,22,27,0.96);
+  --color-mobile-nav-border: rgba(255,255,255,0.14);
+  --color-mobile-nav-ink: rgba(255,255,255,0.66);
+  --color-mobile-nav-interaction: rgba(255,255,255,0.08);
+  --color-toast-surface: rgba(17,17,17,0.92);
+  --color-toast-ink: #ffffff;
+  --color-toast-link: #7db2ff;
+  --color-overlay-interaction: rgba(255,255,255,0.12);
+  --color-overlay-edge: rgba(255,255,255,0.18);
+  --color-search-field: rgba(255,255,255,0.9);
+  --color-search-ink: #686868;
   --color-gear-browser-frame: #151515;
 
   /* Marketplace identity */
@@ -106,6 +118,8 @@
   --source-random-green: #00a36c;
   --source-random-orange: #ff7a00;
   --source-random-violet: #8a5cff;
+  --source-buyee: #d9a321;
+  --source-buyee-ink: #111418;
   --source-ink-on-color: #ffffff;
   --source-ink-on-yellow: #1a1a1a;
 
@@ -117,17 +131,45 @@
   --radius-card-media: 14px;
   --radius-modal: 8px;
   --radius-sheet: 24px;
+  --radius-navigation-item: 18px;
   --radius-pill: 999px;
+  --control-search-height-desktop: 72px;
+  --control-search-height-mobile: 56px;
+  --control-search-font-size: 18px;
+  --control-search-submit-desktop: 54px;
+  --control-search-submit-mobile: 42px;
+  --control-search-clear: 32px;
+  --control-refine-action-height: 42px;
+  --control-suggestion-height: 30px;
+  --control-tag-min-height: 34px;
+  --control-token-field-min-height: 58px;
+  --control-exclude-field-min-height: 50px;
+  --control-header-utility-size: 46px;
+  --control-mobile-nav-height: 66px;
+  --control-mobile-nav-item-height: 52px;
+  --control-mobile-nav-icon-size: 23px;
+  --control-back-to-top-size: 48px;
+  --control-toast-min-height: 58px;
+  --control-toast-close-size: 38px;
+  --control-action-menu-row-height: 40px;
+  --control-action-sheet-row-height: 72px;
+  --control-action-menu-icon-size: 22px;
+  --control-action-sheet-icon-size: 30px;
 
   /* Elevation + focus */
   --shadow-elevated: 0 18px 50px rgba(20, 24, 28, 0.12);
   --shadow-card: 0 22px 54px rgba(25, 30, 35, 0.16), 0 5px 16px rgba(25, 30, 35, 0.08);
   --shadow-float: 0 8px 18px rgba(0, 0, 0, 0.28);   /* watch button etc. */
+  --shadow-toast: 0 18px 48px rgba(0,0,0,0.32);
+  --shadow-action-menu: 0 16px 36px rgba(20,24,28,0.18);
+  --shadow-action-sheet: 0 24px 70px rgba(0,0,0,0.46);
   --focus-ring: 0 0 0 4px rgba(10, 132, 255, 0.14);
 
   /* Motion */
   --motion-fast: 140ms ease;
   --motion-standard: 160ms ease;
+  --motion-toast-fade: 180ms;
+  --motion-toast-travel: 220ms;
 
   /* Typography */
   --font-ui: var(--brrtz-font);
@@ -216,6 +258,8 @@ body[data-theme="dark"] {
   --color-muted: #9da5a7;
   --color-line: #30363a;
   --color-field: rgba(19, 22, 25, 0.95);
+  --color-search-field: #24282c;
+  --color-search-ink: #b8b8b8;
   --color-image-bg: #22272b;
 
   --color-button-bg: #202428;

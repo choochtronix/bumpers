@@ -36,7 +36,44 @@
     "gearBrowserFrame": { "$type": "color", "$value": { "light": "#151515", "dark": "#5f6669" }, "$description": "Gear Scanner perspective-grid line color." },
     "brandHot": { "$type": "color", "$value": "{brand.magenta}", "$description": "Watch-active, hover borders, loading copy. Theme-invariant." },
     "controlOnInk": { "$type": "color", "$value": "#ffffff", "$description": "Theme-invariant icon and thumb color on brand-gradient controls." },
-    "modalBackdrop": { "$type": "color", "$value": "rgba(0,0,0,0.42)", "$description": "Shared modal backdrop tint before blur." }
+    "modalBackdrop": { "$type": "color", "$value": "rgba(0,0,0,0.42)", "$description": "Shared modal backdrop tint before blur." },
+    "searchField": { "$type": "color", "$value": { "light": "rgba(255,255,255,0.9)", "dark": "#24282c" }, "$description": "Primary and Refine search-entry surface." },
+    "searchInk": { "$type": "color", "$value": { "light": "#686868", "dark": "#b8b8b8" }, "$description": "Search-entry text and placeholder ink." },
+    "mobileNavSurfaceTop": { "$type": "color", "$value": "rgba(32,39,45,0.94)", "$description": "Always-dark mobile navigation surface start." },
+    "mobileNavSurfaceBottom": { "$type": "color", "$value": "rgba(17,22,27,0.96)", "$description": "Always-dark mobile navigation surface end." },
+    "mobileNavBorder": { "$type": "color", "$value": "rgba(255,255,255,0.14)", "$description": "Mobile navigation edge and inset highlight." },
+    "mobileNavInk": { "$type": "color", "$value": "rgba(255,255,255,0.66)", "$description": "Inactive mobile navigation label and icon." },
+    "mobileNavInteraction": { "$type": "color", "$value": "rgba(255,255,255,0.08)", "$description": "Mobile navigation hover and active state layer." },
+    "toastSurface": { "$type": "color", "$value": "rgba(17,17,17,0.92)", "$description": "Always-dark status toast surface." },
+    "toastInk": { "$type": "color", "$value": "#ffffff", "$description": "Status toast content color." },
+    "toastLink": { "$type": "color", "$value": "#7db2ff", "$description": "Status toast action hover color." },
+    "overlayInteraction": { "$type": "color", "$value": "rgba(255,255,255,0.12)", "$description": "Hover and focus surface for controls on dark overlays." },
+    "overlayEdge": { "$type": "color", "$value": "rgba(255,255,255,0.18)", "$description": "High-contrast edge for floating mobile overlays." }
+  },
+  "control": {
+    "$description": "Shared dimensions for search, token-entry, and suggestion controls.",
+    "searchHeightDesktop": { "$type": "dimension", "$value": "72px" },
+    "searchHeightMobile": { "$type": "dimension", "$value": "56px" },
+    "searchFontSize": { "$type": "dimension", "$value": "18px" },
+    "searchSubmitDesktop": { "$type": "dimension", "$value": "54px" },
+    "searchSubmitMobile": { "$type": "dimension", "$value": "42px" },
+    "searchClear": { "$type": "dimension", "$value": "32px" },
+    "refineActionHeight": { "$type": "dimension", "$value": "42px" },
+    "suggestionHeight": { "$type": "dimension", "$value": "30px" },
+    "tagMinHeight": { "$type": "dimension", "$value": "34px" },
+    "tokenFieldMinHeight": { "$type": "dimension", "$value": "58px" },
+    "excludeFieldMinHeight": { "$type": "dimension", "$value": "50px" },
+    "headerUtilitySize": { "$type": "dimension", "$value": "46px" },
+    "mobileNavHeight": { "$type": "dimension", "$value": "66px" },
+    "mobileNavItemHeight": { "$type": "dimension", "$value": "52px" },
+    "mobileNavIconSize": { "$type": "dimension", "$value": "23px" },
+    "backToTopSize": { "$type": "dimension", "$value": "48px" },
+    "toastMinHeight": { "$type": "dimension", "$value": "58px" },
+    "toastCloseSize": { "$type": "dimension", "$value": "38px" },
+    "actionMenuRowHeight": { "$type": "dimension", "$value": "40px" },
+    "actionSheetRowHeight": { "$type": "dimension", "$value": "72px" },
+    "actionMenuIconSize": { "$type": "dimension", "$value": "22px" },
+    "actionSheetIconSize": { "$type": "dimension", "$value": "30px" }
   },
   "source": {
     "$description": "Marketplace identity colors. Theme-invariant.",
@@ -71,6 +108,8 @@
     "randomGreen": { "$type": "color", "$value": "#00a36c" },
     "randomOrange": { "$type": "color", "$value": "#ff7a00" },
     "randomViolet": { "$type": "color", "$value": "#8a5cff" },
+    "buyee": { "$type": "color", "$value": "#d9a321" },
+    "buyeeInk": { "$type": "color", "$value": "#111418" },
     "inkOnColor": { "$type": "color", "$value": "#ffffff" },
     "inkOnYellow": { "$type": "color", "$value": "#1a1a1a" }
   },
@@ -82,17 +121,23 @@
     "cardMedia": { "$type": "dimension", "$value": "14px", "$description": "Grid and gallery listing media surfaces" },
     "modal": { "$type": "dimension", "$value": "8px" },
     "sheet": { "$type": "dimension", "$value": "24px" },
+    "navigationItem": { "$type": "dimension", "$value": "18px" },
     "pill": { "$type": "dimension", "$value": "999px" }
   },
   "shadow": {
     "elevated": { "$type": "shadow", "$value": { "light": "0 18px 50px rgba(20,24,28,0.12)", "dark": "0 18px 50px rgba(0,0,0,0.42)" } },
     "card": { "$type": "shadow", "$value": { "light": "0 22px 54px rgba(25,30,35,0.16), 0 5px 16px rgba(25,30,35,0.08)", "dark": "0 24px 58px rgba(0,0,0,0.54), 0 5px 18px rgba(0,0,0,0.34)" } },
     "float": { "$type": "shadow", "$value": { "light": "0 8px 18px rgba(0,0,0,0.28)", "dark": "0 8px 18px rgba(0,0,0,0.5)" } },
+    "toast": { "$type": "shadow", "$value": "0 18px 48px rgba(0,0,0,0.32)" },
+    "actionMenu": { "$type": "shadow", "$value": "0 16px 36px rgba(20,24,28,0.18)" },
+    "actionSheet": { "$type": "shadow", "$value": "0 24px 70px rgba(0,0,0,0.46)" },
     "focusRing": { "$type": "shadow", "$value": { "light": "0 0 0 4px rgba(10,132,255,0.14)", "dark": "0 0 0 4px rgba(90,167,255,0.18)" } }
   },
   "motion": {
     "fast": { "$type": "duration", "$value": "140ms", "$description": "easing: ease" },
-    "standard": { "$type": "duration", "$value": "160ms", "$description": "easing: ease" }
+    "standard": { "$type": "duration", "$value": "160ms", "$description": "easing: ease" },
+    "toastFade": { "$type": "duration", "$value": "180ms", "$description": "Status toast opacity transition; easing: ease." },
+    "toastTravel": { "$type": "duration", "$value": "220ms", "$description": "Status toast transform transition; easing: ease." }
   },
   "typography": {
     "family": { "$type": "fontFamily", "$value": "{brand.font}" },

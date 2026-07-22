@@ -56,6 +56,20 @@ system generator. `design:check` catches unresolved custom properties, unresolve
 source-token references, duplicated AEO brand colors, and AEO pages that fail to
 load the shared token layer before `aeo.css`.
 
+### Local Figma component map
+
+Native Figma Code Connect requires an Organization or Enterprise plan. Until that
+is available, `docs/figma-code-map.json` maps stable Figma component node IDs to
+their production HTML, CSS, and JS anchors. Run this alongside the token checks:
+
+```sh
+npm run design:map-check
+```
+
+The human workflow and direct-link convention are documented in
+`docs/figma-code-map.md`. Update the map whenever a shared Figma component or a
+mapped source selector/function is renamed.
+
 ## 3. Architecture
 
 Three layers inside the token file:

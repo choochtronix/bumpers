@@ -1,0 +1,190 @@
+{
+  "schemaVersion": 1,
+  "figma": {
+    "fileName": "Brrtz Design System",
+    "fileKey": "U1J4gaqeqckMVjwyrdGiuW",
+    "url": "https://www.figma.com/design/U1J4gaqeqckMVjwyrdGiuW/Brrtz-Design-System",
+    "nativeCodeConnect": false
+  },
+  "components": [
+    {
+      "key": "button",
+      "name": "Button",
+      "page": "Buttons",
+      "nodeId": "34:44",
+      "implementation": [
+        { "file": "styles.css", "anchors": [".primary-action {", ".secondary-action {", ".icon-action {"] },
+        { "file": "index.html", "anchors": ["class=\"primary-action\"", "class=\"icon-action\""] }
+      ]
+    },
+    {
+      "key": "toggle",
+      "name": "Toggle",
+      "page": "Buttons",
+      "nodeId": "38:42",
+      "implementation": [
+        { "file": "styles.css", "anchors": [".toggle-track {", ".toggle-track::after {"] },
+        { "file": "index.html", "anchors": ["class=\"toggle-track\""] }
+      ]
+    },
+    {
+      "key": "listing-card",
+      "name": "Listing Card",
+      "page": "Listing Cards",
+      "nodeId": "37:184",
+      "implementation": [
+        { "file": "index.html", "anchors": ["id=\"listingTemplate\"", "class=\"listing-card\""] },
+        { "file": "styles.css", "anchors": [".listing-card {", ".result-grid.is-list-view", ".result-grid.is-gallery-view"] },
+        { "file": "app.js", "anchors": ["function renderListing(listing, options = {})", "function renderListingNewnessBadges(fragment, newness)"] }
+      ]
+    },
+    {
+      "key": "select",
+      "name": "Select",
+      "page": "Selects",
+      "nodeId": "89:56",
+      "implementation": [
+        { "file": "index.html", "anchors": ["class=\"region-badge region-native-select\""] },
+        { "file": "app.js", "anchors": ["<label class=\"browse-category-control\">", "id=\"homeBrowseCategory\""] },
+        { "file": "styles.css", "anchors": [".region-native-select {", ".browse-category-control select {"] }
+      ]
+    },
+    {
+      "key": "modal-shell",
+      "name": "Modal Shell",
+      "page": "Modals",
+      "nodeId": "94:70",
+      "implementation": [
+        { "file": "index.html", "anchors": ["id=\"refineSearchModal\"", "id=\"settingsModal\""] },
+        { "file": "styles.css", "anchors": [".modal-backdrop {", ".modal {", ".modal-header,"] },
+        { "file": "app.js", "anchors": ["function openRefineSearchModal(event)", "function closeRefineSearchModal(options = {})"] }
+      ]
+    },
+    {
+      "key": "chip",
+      "name": "Chip",
+      "page": "Chips",
+      "nodeId": "102:60",
+      "implementation": [
+        { "file": "styles.css", "anchors": [".quick-search-suggestion {", ".exclude-tag-chip,", ".refine-term-chip.is-primary {"] },
+        { "file": "app.js", "anchors": ["function renderRefineTermChips()", "button.className = \"quick-search-suggestion\""] }
+      ]
+    },
+    {
+      "key": "token-input",
+      "name": "Token Input",
+      "page": "Inputs",
+      "nodeId": "105:52",
+      "implementation": [
+        { "file": "index.html", "anchors": ["id=\"refineTermField\"", "id=\"excludeTagField\""] },
+        { "file": "styles.css", "anchors": [".refine-term-entry {", ".exclude-tag-cloud {"] },
+        { "file": "app.js", "anchors": ["function renderRefineTermChips()", "chip.className = \"exclude-tag-chip\""] }
+      ]
+    },
+    {
+      "key": "search-field",
+      "name": "Search Field",
+      "page": "Search Field",
+      "nodeId": "107:180",
+      "implementation": [
+        { "file": "index.html", "anchors": ["id=\"searchForm\"", "id=\"quickSearchSuggestions\""] },
+        { "file": "styles.css", "anchors": [".search-form {", ".quick-search-input {", ".quick-search-submit::before {"] },
+        { "file": "app.js", "anchors": ["function renderQuickSearchSuggestions()"] }
+      ]
+    },
+    {
+      "key": "header-utility",
+      "name": "Header Utility",
+      "page": "Navigation",
+      "nodeId": "110:26",
+      "implementation": [
+        { "file": "index.html", "anchors": ["id=\"openSavedSearches\"", "id=\"topWatchingFilter\"", "id=\"openSettings\""] },
+        { "file": "styles.css", "anchors": [".theme-toggle,", ".saved-trigger,", ".watching-trigger {"] }
+      ]
+    },
+    {
+      "key": "mobile-navigation-item",
+      "name": "Mobile Navigation Item",
+      "page": "Navigation",
+      "nodeId": "111:29",
+      "implementation": [
+        { "file": "index.html", "anchors": ["data-mobile-nav=\"home\"", "data-mobile-nav=\"settings\""] },
+        { "file": "styles.css", "anchors": [".mobile-bottom-nav-item {", ".mobile-bottom-nav-item.is-active {"] },
+        { "file": "app.js", "anchors": ["function updateMobileBottomNavState()"] }
+      ]
+    },
+    {
+      "key": "mobile-bottom-navigation",
+      "name": "Mobile Bottom Navigation",
+      "page": "Navigation",
+      "nodeId": "112:121",
+      "implementation": [
+        { "file": "index.html", "anchors": ["id=\"mobileBottomNav\"", "aria-label=\"Primary mobile navigation\""] },
+        { "file": "styles.css", "anchors": [".mobile-bottom-nav {", "--mobile-bottom-nav-height:"] },
+        { "file": "app.js", "anchors": ["function handleMobileBottomNavClick(event)", "function updateMobileBottomNavState()"] }
+      ]
+    },
+    {
+      "key": "back-to-top",
+      "name": "Back To Top",
+      "page": "Navigation",
+      "nodeId": "114:103",
+      "implementation": [
+        { "file": "index.html", "anchors": ["id=\"backToTop\""] },
+        { "file": "styles.css", "anchors": [".back-to-top {", ".back-to-top:hover {", ".back-to-top:active {"] }
+      ]
+    },
+    {
+      "key": "footer-link",
+      "name": "Footer Link",
+      "page": "Navigation",
+      "nodeId": "116:107",
+      "implementation": [
+        { "file": "index.html", "anchors": ["class=\"site-footer-links\""] },
+        { "file": "styles.css", "anchors": [".site-footer-links {"] }
+      ]
+    },
+    {
+      "key": "status-toast",
+      "name": "Status Toast",
+      "page": "Feedback & Overlays",
+      "nodeId": "120:30",
+      "implementation": [
+        { "file": "index.html", "anchors": ["id=\"saveConfirmationToast\"", "class=\"save-toast-view\""] },
+        { "file": "styles.css", "anchors": [".save-confirmation-toast {", ".save-confirmation-toast.is-visible {"] },
+        { "file": "app.js", "anchors": ["function showStatusToast({ icon = \"★\", message = \"\", showView = false } = {})"] }
+      ]
+    },
+    {
+      "key": "listing-action-menu",
+      "name": "Listing Action Menu",
+      "page": "Feedback & Overlays",
+      "nodeId": "121:76",
+      "implementation": [
+        { "file": "index.html", "anchors": ["class=\"listing-action-menu\"", "class=\"open-menu\""] },
+        { "file": "styles.css", "anchors": [".open-menu {", ".open-menu.is-floating {"] },
+        { "file": "app.js", "anchors": ["function openListingActionMenu(menu, trigger, triggerRect = null)", "function closeListingActionMenu(menu)"] }
+      ]
+    },
+    {
+      "key": "mobile-listing-action-sheet",
+      "name": "Mobile Listing Action Sheet",
+      "page": "Feedback & Overlays",
+      "nodeId": "122:42",
+      "implementation": [
+        { "file": "styles.css", "anchors": [".open-menu.is-mobile-sheet {", ".open-menu.is-mobile-sheet a,"] },
+        { "file": "app.js", "anchors": ["function shouldAttachListingActionMenuToHost()"] }
+      ]
+    },
+    {
+      "key": "loading-panel",
+      "name": "Loading Panel",
+      "page": "Feedback & Overlays",
+      "nodeId": "123:26",
+      "implementation": [
+        { "file": "styles.css", "anchors": [".browse-expanded-loader {", ".browse-expanded-loader-svg {", ".browse-expanded-loader-copy {"] },
+        { "file": "app.js", "anchors": ["browse-expanded-loader", "browse-expanded-loader-copy"] }
+      ]
+    }
+  ]
+}
