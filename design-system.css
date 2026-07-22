@@ -70,6 +70,8 @@
   --brand-gradient-end: var(--brrtz-blue);
   --color-brand-gradient: linear-gradient(110deg, var(--brand-gradient-start) 0%, var(--brand-gradient-end) 100%);
   --color-brand-hot: var(--brrtz-magenta);   /* watch-active, hover borders, "loading" copy */
+  --color-control-on-ink: #ffffff;
+  --color-modal-backdrop: rgba(0,0,0,0.42);
   --color-gear-browser-frame: #151515;
 
   /* Marketplace identity */
@@ -84,11 +86,26 @@
   --source-sweetwater: #1f75bc;
   --source-guitar-center: #111416;
   --source-craigslist: #6b3fa0;
+  --source-qsic: #0a62b7;
+  --source-robotspeak: #f47a20;
+  --source-mission-synths: #b13b57;
+  --source-starving-musician: #151515;
+  --source-bananas-at-large: #f2a900;
+  --source-gelb-music: #0a62b7;
+  --source-main-drag: #111416;
+  --source-rogue-music: #b13b57;
+  --source-three-wave: #1f73e8;
+  --source-alto-music: #1f75bc;
+  --source-tone-tweakers: #f2a900;
+  --source-pro-audio-star: #f15a24;
   --source-jimoty: #f15a24;
   --source-offmall: #f2a900;
   --source-hardoff: #f2a900;
   --source-five-g: #151515;
   --source-implant4: #b13b57;
+  --source-random-green: #00a36c;
+  --source-random-orange: #ff7a00;
+  --source-random-violet: #8a5cff;
   --source-ink-on-color: #ffffff;
   --source-ink-on-yellow: #1a1a1a;
 
@@ -97,6 +114,7 @@
   --radius-card: 8px;
   --radius-card-large: 22px;       /* listing cards (was hardcoded) */
   --radius-card-list: 16px;        /* list-view rows (was hardcoded) */
+  --radius-card-media: 14px;
   --radius-modal: 8px;
   --radius-sheet: 24px;
   --radius-pill: 999px;
@@ -123,6 +141,11 @@
   --text-body: 15px;
   --text-emphasis: 18px;
   --text-title: 24px;
+  --text-listing-title-grid: 13px;
+  --text-listing-title-list: 14px;
+  --text-listing-title-gallery: 12px;
+  --text-listing-price-grid: 21px;
+  --text-listing-price-list: 30px;
   --text-headline: clamp(28px, 4vw, 52px);
   --text-home-section-title: clamp(31px, 5vw, 62px);
   --text-home-section-title-fit: clamp(22px, 4.6vw, 54px);

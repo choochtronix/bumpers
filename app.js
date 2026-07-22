@@ -1172,7 +1172,7 @@ const SOURCE_ACCENT_TOKENS = {
   "yahoo-fleamarket": "--source-yahoo-fleamarket",
   rakuma: "--source-rakuma",
   digimart: "--source-digimart",
-  qsic: "--source-digimart",
+  qsic: "--source-qsic",
   reverb: "--source-reverb",
   "reverb-us": "--source-reverb",
   "reverb-uk": "--source-reverb",
@@ -1181,19 +1181,19 @@ const SOURCE_ACCENT_TOKENS = {
   "sweetwater-used": "--source-sweetwater",
   "guitar-center-used": "--source-guitar-center",
   "craigslist-sfbay": "--source-craigslist",
-  robotspeak: "--source-reverb",
-  "mission-synths": "--source-implant4",
-  "starving-musician": "--source-five-g",
-  "bananas-at-large": "--source-offmall",
-  "gelb-music": "--source-digimart",
+  robotspeak: "--source-robotspeak",
+  "mission-synths": "--source-mission-synths",
+  "starving-musician": "--source-starving-musician",
+  "bananas-at-large": "--source-bananas-at-large",
+  "gelb-music": "--source-gelb-music",
   "craigslist-la": "--source-craigslist",
   "craigslist-east": "--source-craigslist",
-  "main-drag": "--source-guitar-center",
-  "rogue-music": "--source-guitar-center",
-  "three-wave": "--source-ebay",
-  "alto-music": "--source-ebay",
-  "tone-tweakers": "--source-five-g",
-  "pro-audio-star": "--source-ebay",
+  "main-drag": "--source-main-drag",
+  "rogue-music": "--source-rogue-music",
+  "three-wave": "--source-three-wave",
+  "alto-music": "--source-alto-music",
+  "tone-tweakers": "--source-tone-tweakers",
+  "pro-audio-star": "--source-pro-audio-star",
   jimoty: "--source-jimoty",
   offmall: "--source-offmall",
   "five-g": "--source-five-g",
@@ -1203,11 +1203,11 @@ const SOURCE_ACCENT_TOKENS = {
 
 const RANDOMIZED_BAY_AREA_SOURCE_IDS = ["robotspeak", "mission-synths", "starving-musician", "bananas-at-large", "gelb-music"];
 const RANDOMIZED_BAY_AREA_SOURCE_COLORS = [
-  { solid: "var(--color-brand-hot)", ink: "#ffffff", mark: "var(--color-brand-hot)" },
-  { solid: "var(--brand-gradient-end)", ink: "#ffffff", mark: "var(--brand-gradient-end)" },
-  { solid: "#00a36c", ink: "#ffffff", mark: "#00a36c" },
-  { solid: "#ff7a00", ink: "#ffffff", mark: "#ff7a00" },
-  { solid: "#8a5cff", ink: "#ffffff", mark: "#8a5cff" },
+  { solid: "var(--color-brand-hot)", ink: "var(--source-ink-on-color)", mark: "var(--color-brand-hot)" },
+  { solid: "var(--brand-gradient-end)", ink: "var(--source-ink-on-color)", mark: "var(--brand-gradient-end)" },
+  { solid: "var(--source-random-green)", ink: "var(--source-ink-on-color)", mark: "var(--source-random-green)" },
+  { solid: "var(--source-random-orange)", ink: "var(--source-ink-on-color)", mark: "var(--source-random-orange)" },
+  { solid: "var(--source-random-violet)", ink: "var(--source-ink-on-color)", mark: "var(--source-random-violet)" },
 ];
 const RANDOMIZED_BAY_AREA_SOURCE_COLOR_MAP = createRandomizedSourceColorMap(
   RANDOMIZED_BAY_AREA_SOURCE_IDS,
@@ -5601,7 +5601,7 @@ function applySearchResult(profile, liveResult, isFinal) {
     .filter((listing) => !isUnavailableListing(listing))
     .filter((listing) => listingMatchesSearchContext(listing, searchContext))
     .filter((listing) => !profile.excludes.some((term) => termMatches(normalizeText(listing.title), term)))
-    .sort((a, b) => new Date(b.listedAt) - new Date(a.listedAt));
+    .sort(compareListingsBySourceDate);
   pruneActiveViewSources();
 
   const isFinalLiveResult = isFinal && liveResult.mode === "live";
@@ -6184,7 +6184,6 @@ function createMyPageSavedSearchRow(profile) {
     : "";
   return `
     <article class="my-page-saved-row${hasNewListings ? " has-new" : " is-quiet"}" data-saved-search-letter="${escapeHtml(searchLetter)}" data-saved-search-name="${escapeHtml(profile.name)}">
-      <span class="my-page-status-marker" aria-label="${hasNewListings ? `${newCount} new listings` : "No new listings"}"></span>
       <div class="my-page-saved-copy">
         <div class="my-page-saved-mainline">
           <button class="my-page-saved-title" type="button" data-result-action="run-saved-search" data-saved-search-id="${profileId}">
@@ -6193,25 +6192,30 @@ function createMyPageSavedSearchRow(profile) {
           ${newListingsMarkup}
         </div>
         <p class="my-page-saved-quick-meta">${escapeHtml(regionLabel)} · ${escapeHtml(terms)} · ${escapeHtml(checkedAt)}</p>
-        <details class="my-page-saved-details">
-          <summary>Details</summary>
-          <p>${escapeHtml(regionLabel)} · ${escapeHtml(sourceSummary)} · Gear Mode ${profile.gearMode === false ? "Off" : "On"}</p>
-          <p>${escapeHtml(status)}</p>
-        </details>
+        <div class="my-page-saved-controls">
+          <button class="my-page-saved-details" type="button" data-result-action="toggle-saved-details" aria-expanded="false" aria-controls="saved-details-${profileId}">
+            <span>Details</span>
+          </button>
+          <label class="my-page-alert-toggle">
+            <span>Email Alerts</span>
+            <input type="checkbox" data-my-page-alert-toggle data-saved-search-id="${profileId}"${profile.alertsEnabled ? " checked" : ""} aria-label="Email alerts for ${escapeHtml(profile.name)}">
+            <span class="my-page-alert-track" aria-hidden="true"></span>
+          </label>
+          <div class="my-page-saved-details-copy" id="saved-details-${profileId}" hidden>
+            <p>${escapeHtml(regionLabel)} · ${escapeHtml(sourceSummary)}</p>
+            <p>Gear Mode ${profile.gearMode === false ? "Off" : "On"} · ${escapeHtml(status)}</p>
+          </div>
+        </div>
       </div>
-      <div class="my-page-saved-actions">
-        <button class="my-page-text-action my-page-refine-action" type="button" data-result-action="refine-saved-search" data-saved-search-id="${profileId}">
+      <div class="my-page-saved-utility" aria-label="Saved search actions">
+        <button class="my-page-utility-action my-page-refine-action" type="button" data-result-action="refine-saved-search" data-saved-search-id="${profileId}">
           <span class="refine-icon" aria-hidden="true"></span>
           <span>Refine</span>
         </button>
-        <label class="my-page-alert-toggle">
-          <span>Email alerts</span>
-          <input type="checkbox" data-my-page-alert-toggle data-saved-search-id="${profileId}"${profile.alertsEnabled ? " checked" : ""} aria-label="Email alerts for ${escapeHtml(profile.name)}">
-          <span class="my-page-alert-track" aria-hidden="true"></span>
-        </label>
-        <button class="my-page-text-action is-danger" type="button" data-result-action="delete-saved-search" data-saved-search-id="${profileId}">
-          <span class="my-page-delete-icon" aria-hidden="true">×</span>
-          <span>Delete</span>
+        <span class="my-page-utility-divider" aria-hidden="true"></span>
+        <button class="my-page-utility-action my-page-delete-action" type="button" data-result-action="delete-saved-search" data-saved-search-id="${profileId}" aria-label="Delete saved search ${escapeHtml(profile.name)}">
+          <span class="my-page-delete-icon" aria-hidden="true"></span>
+          <span class="my-page-delete-label">Delete</span>
         </button>
       </div>
     </article>
@@ -6687,6 +6691,15 @@ function handleResultGridAction(event) {
     const profile = getSavedSearchActionProfile(button);
     if (!profile) return;
     handleSavedSearchClick(profile, button);
+  }
+
+  if (button.dataset.resultAction === "toggle-saved-details") {
+    const row = button.closest(".my-page-saved-row");
+    const detailsPanel = row?.querySelector(".my-page-saved-details-copy");
+    if (!detailsPanel) return;
+    const willExpand = button.getAttribute("aria-expanded") !== "true";
+    button.setAttribute("aria-expanded", String(willExpand));
+    detailsPanel.hidden = !willExpand;
   }
 
   if (button.dataset.resultAction === "refine-saved-search") {
@@ -8961,13 +8974,10 @@ function getLatestBrowseTime(listing, ledger = loadLedger()) {
   const entry = ledger[listing.id] || {};
   const candidates = [
     listing.listedAt,
+    entry.listedAt,
     listing.firstSeenAt,
     entry.firstSeenAt,
     entry.firstDiscoveredAt,
-    listing.lastVerifiedAt,
-    entry.lastVerifiedAt,
-    entry.lastSeenAt,
-    entry.lastFoundAt,
   ];
   for (const value of candidates) {
     const time = Date.parse(value || "");
@@ -9413,6 +9423,9 @@ function decorateFreshFindListing(listing, ledger = loadLedger(), context = null
     ...listing,
     firstSeenAt: entry.firstSeenAt || entry.firstDiscoveredAt || listing.firstSeenAt || listing.listedAt || "",
     lastVerifiedAt: entry.lastVerifiedAt || entry.lastSeenAt || entry.lastFoundAt || listing.lastVerifiedAt || "",
+    lastChangedAt: entry.lastChangedAt || "",
+    sourceDateStatus: entry.sourceDateStatus || (normalizeSourceListedAt(listing.listedAt) ? "verified" : "unknown"),
+    unchangedScanCount: Number(entry.unchangedScanCount || 0),
     freshnessStatus: entry.freshnessStatus || "active",
     curationScore: scoreFreshFindListing(listing, ledger, context),
   };
@@ -9469,7 +9482,10 @@ function createListingFromLedgerEntry(entry) {
     itemStatus: entry.itemStatus || "",
     categoryId: entry.categoryId,
     categoryPath: Array.isArray(entry.categoryPath) ? entry.categoryPath : [],
-    listedAt: entry.listedAt || entry.lastFoundAt || entry.firstDiscoveredAt || new Date().toISOString(),
+    listedAt: entry.listedAt || "",
+    firstSeenAt: entry.firstSeenAt || entry.firstDiscoveredAt || "",
+    lastChangedAt: entry.lastChangedAt || "",
+    sourceDateStatus: entry.sourceDateStatus || (normalizeSourceListedAt(entry.listedAt) ? "verified" : "unknown"),
     lastFoundAt: entry.lastFoundAt || entry.listedAt || entry.firstDiscoveredAt || "",
   };
 }
@@ -9547,7 +9563,8 @@ function isListingAcknowledged(entry) {
 }
 
 function isFreshBySourceDate(listing, entry = {}) {
-  const candidate = listing?.listedAt || entry?.listedAt || entry?.firstDiscoveredAt || "";
+  const candidate = normalizeSourceListedAt(listing?.listedAt)
+    || normalizeSourceListedAt(entry?.listedAt);
   const listedAtMs = new Date(candidate).getTime();
   if (!Number.isFinite(listedAtMs)) return false;
   return Date.now() - listedAtMs <= FRESH_LISTING_MS;
@@ -9826,8 +9843,8 @@ function escapeHtml(value) {
 function compareListings(a, b) {
   if (sortMode === "price-asc") return a.price - b.price;
   if (sortMode === "price-desc") return b.price - a.price;
-  if (sortMode === "source") return labelForSource(a.source).localeCompare(labelForSource(b.source)) || new Date(b.listedAt) - new Date(a.listedAt);
-  return new Date(b.listedAt) - new Date(a.listedAt);
+  if (sortMode === "source") return labelForSource(a.source).localeCompare(labelForSource(b.source)) || compareListingsBySourceDate(a, b);
+  return compareListingsBySourceDate(a, b);
 }
 
 function createSourceBreakdown(sourceStats) {
@@ -10482,6 +10499,9 @@ function expandSearchTerm(term) {
     const normalized = normalizeText(matchTerm.value);
     const aliases = SEARCH_TERM_ALIASES[normalized] || [];
     expanded.push(...aliases);
+    expanded.push(...globalThis.BrrtzSearchDiscovery.buildSearchDiscoveryPlan([
+      matchTerm.value,
+    ]).matchTerms);
   }
 
   return uniqueTerms(expanded);
@@ -10494,20 +10514,24 @@ function createSearchContext(terms) {
 
   const primaryTerms = expandSearchTerm(primaryTerm);
   const refinementTerms = [];
+  const sourcePrimaryTerms = [parseMatchTerm(primaryTerm).value];
+  const sourceRefinementTerms = [];
 
   cleanedTerms.slice(1).forEach((term) => {
     if (isEquivalentSearchTerm(term, primaryTerms)) {
       primaryTerms.push(...expandSearchTerm(term));
+      sourcePrimaryTerms.push(parseMatchTerm(term).value);
     } else {
       refinementTerms.push(...expandSearchTerm(term));
+      sourceRefinementTerms.push(parseMatchTerm(term).value);
     }
   });
 
   const uniquePrimaryTerms = uniqueTerms(primaryTerms);
   const uniqueRefinementTerms = uniqueTerms(refinementTerms);
-  const sourceTerms = uniqueRefinementTerms.length === 0
-    ? uniquePrimaryTerms
-    : uniquePrimaryTerms.flatMap((primary) => uniqueRefinementTerms.map((refinement) => `${parseMatchTerm(primary).value} ${parseMatchTerm(refinement).value}`));
+  const sourceTerms = sourceRefinementTerms.length === 0
+    ? sourcePrimaryTerms
+    : sourcePrimaryTerms.flatMap((primary) => sourceRefinementTerms.map((refinement) => `${primary} ${refinement}`));
 
   return {
     primaryTerms: uniquePrimaryTerms,
@@ -10517,8 +10541,12 @@ function createSearchContext(terms) {
 }
 
 function isEquivalentSearchTerm(term, primaryTerms) {
-  const normalized = normalizeText(parseMatchTerm(term).value);
-  return primaryTerms.some((primaryTerm) => normalizeText(parseMatchTerm(primaryTerm).value) === normalized);
+  const candidateTerms = new Set(
+    expandSearchTerm(term).map((candidate) => normalizeText(parseMatchTerm(candidate).value)),
+  );
+  return primaryTerms.some((primaryTerm) => (
+    candidateTerms.has(normalizeText(parseMatchTerm(primaryTerm).value))
+  ));
 }
 
 function listingMatchesSearchContext(listing, searchContext) {
@@ -10544,7 +10572,7 @@ function getListingSearchContextText(listing) {
 }
 
 function createSourceSearchTerms(terms) {
-  return uniqueTerms(terms.flatMap((term) => createSourceSearchTermVariants(parseMatchTerm(term).value)));
+  return uniqueTerms(terms.map((term) => parseMatchTerm(term).value));
 }
 
 function createSourceSearchTermVariants(term) {
@@ -10632,6 +10660,10 @@ function sanitizeListingLedger(value) {
 }
 
 function sanitizeListingLedgerEntry(id, entry) {
+  const listedAt = entry.sourceDateStatus === "verified"
+    ? normalizeSourceListedAt(entry.listedAt)
+    : "";
+
   return {
     ...entry,
     id: typeof entry.id === "string" && entry.id.trim() ? entry.id : id,
@@ -10645,6 +10677,14 @@ function sanitizeListingLedgerEntry(id, entry) {
     itemStatus: typeof entry.itemStatus === "string" ? entry.itemStatus : "",
     categoryId: typeof entry.categoryId === "string" ? entry.categoryId : "",
     categoryPath: cleanStringArray(entry.categoryPath),
+    listedAt,
+    sourceDateStatus: listedAt ? "verified" : "unknown",
+    contentSignature: typeof entry.contentSignature === "string" ? entry.contentSignature : "",
+    changeCount: Math.max(0, Number(entry.changeCount || 0)),
+    scanCount: Math.max(0, Number(entry.scanCount || 0)),
+    unchangedScanCount: Math.max(0, Number(entry.unchangedScanCount || 0)),
+    presentationCount: Math.max(0, Number(entry.presentationCount || 0)),
+    priceHistory: Array.isArray(entry.priceHistory) ? entry.priceHistory.slice(-8) : [],
     profileNames: normalizeStoredList(entry.profileNames),
   };
 }
@@ -10684,7 +10724,8 @@ function recordListingDiscoveries(profile, listings) {
 
   listings.forEach((listing) => {
     ledger[listing.id] = createLedgerEntry(listing, ledger[listing.id], {
-      lastFoundAt: now,
+      observedAt: now,
+      presented: true,
       profileName: profile.name,
     });
   });
@@ -10695,7 +10736,7 @@ function recordListingDiscoveries(profile, listings) {
 function recordListingSnapshot(listing) {
   const ledger = loadLedger();
   ledger[listing.id] = createLedgerEntry(listing, ledger[listing.id], {
-    lastFoundAt: ledger[listing.id]?.lastFoundAt || new Date().toISOString(),
+    observed: false,
     profileName: currentProfile.name,
   });
   saveLedger(ledger);
@@ -10705,8 +10746,13 @@ function createLedgerEntry(listing, previous = {}, options = {}) {
   const now = new Date().toISOString();
   const profileNames = new Set(normalizeStoredList(previous.profileNames));
   if (options.profileName) profileNames.add(options.profileName);
-  const lastSeenAt = options.lastFoundAt || now;
   const unavailable = isUnavailableListing(listing);
+  const freshness = evolveListingFreshnessState(listing, previous, {
+    now,
+    observedAt: options.observedAt || options.lastFoundAt,
+    observed: options.observed,
+    presented: options.presented,
+  });
 
   return {
     ...previous,
@@ -10722,12 +10768,7 @@ function createLedgerEntry(listing, previous = {}, options = {}) {
     itemStatus: listing.itemStatus || previous.itemStatus || "",
     categoryId: listing.categoryId || previous.categoryId || "",
     categoryPath: Array.isArray(listing.categoryPath) ? listing.categoryPath : previous.categoryPath || [],
-    listedAt: listing.listedAt || previous.listedAt || "",
-    firstDiscoveredAt: previous.firstDiscoveredAt || now,
-    firstSeenAt: previous.firstSeenAt || previous.firstDiscoveredAt || now,
-    lastFoundAt: options.lastFoundAt || previous.lastFoundAt || now,
-    lastSeenAt,
-    lastVerifiedAt: lastSeenAt,
+    ...freshness,
     freshnessStatus: unavailable ? "unavailable" : "active",
     profileNames: [...profileNames],
   };
@@ -10740,7 +10781,7 @@ function acknowledgeListings(listings, options = {}) {
   listings.forEach((listing) => {
     if (!listing?.id) return;
     ledger[listing.id] = createLedgerEntry(listing, ledger[listing.id], {
-      lastFoundAt: ledger[listing.id]?.lastFoundAt || now,
+      observed: false,
       profileName: currentProfile.name,
     });
     ledger[listing.id].acknowledgedAt = ledger[listing.id].acknowledgedAt || now;

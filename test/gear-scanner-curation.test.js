@@ -7,7 +7,10 @@ import fs from "node:fs";
 
 import "../gear-scanner-curation.js";
 
-const { classifyGearScannerListing } = globalThis.BrrtzGearScannerCuration;
+const {
+  classifyGearScannerListing,
+  scoreFreshFindListing,
+} = globalThis.BrrtzGearScannerCuration;
 const fixtures = JSON.parse(
   fs.readFileSync(new URL("./fixtures/gear-scanner-curation.json", import.meta.url), "utf8")
 );
@@ -42,4 +45,18 @@ test("real gear listings stay included", () => {
     assert.equal(result.hardExcluded, false, `Expected no hard exclude: ${title} :: ${result.reasons.join("; ")}`);
     assert.equal(result.include, true, `Expected included (score ${result.score}): ${title} :: ${result.reasons.join("; ")}`);
   });
+});
+
+test("repeated unchanged listings lose freshness rank without becoming noise", () => {
+  const listing = makeListing("Moog Voyager Synthesizer", 999);
+  const firstSeenAt = new Date().toISOString();
+  const freshScore = scoreFreshFindListing(listing, {
+    [listing.id]: { firstSeenAt, unchangedScanCount: 0 },
+  });
+  const repeatedScore = scoreFreshFindListing(listing, {
+    [listing.id]: { firstSeenAt, unchangedScanCount: 10 },
+  });
+
+  assert.ok(Math.abs((freshScore - repeatedScore) - 12) < 0.001);
+  assert.equal(classifyGearScannerListing(listing).include, true);
 });

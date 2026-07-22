@@ -882,6 +882,7 @@ function scoreFreshFindListing(listing, ledger = resolveLedger(), context = null
     if (Number.isFinite(ageHours)) {
       score += Math.max(0, 18 - ageHours / 2);
     }
+    score -= Math.min(Math.max(0, Number(entry.unchangedScanCount || 0) - 1) * 2, 12);
   }
 
   return score;

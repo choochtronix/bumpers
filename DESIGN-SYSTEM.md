@@ -41,6 +41,21 @@ There is exactly ONE source of visual truth: **`tokens/brrtz-tokens.css`** (mirr
 
 The file is a strict superset of the current `design-system.css` (same variable names + compat aliases), so it is drop-in safe today.
 
+### Local token checks
+
+After updating the token JSON or generated CSS, run:
+
+```sh
+npm run design:sync
+npm run design:check
+```
+
+`design:sync` keeps the marketplace source-token namespace in `design-system.css`
+aligned with `tokens/brrtz-tokens.json`. It does not replace the external design
+system generator. `design:check` catches unresolved custom properties, unresolved
+source-token references, duplicated AEO brand colors, and AEO pages that fail to
+load the shared token layer before `aeo.css`.
+
 ## 3. Architecture
 
 Three layers inside the token file:

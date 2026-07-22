@@ -5,11 +5,21 @@ import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { networkInterfaces } from "node:os";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
+import "./search-discovery.js";
+import "./listing-freshness.js";
 import { attachNormalizedListings } from "./src/agents/listingNormalizerAgent.js";
 import { agentToolsObject } from "./src/aeo/agentTools.js";
 import { runSourceHealthAgent } from "./src/agents/sourceHealthAgent.js";
 import { appendSourceHealthLogs, readSourceHealthState } from "./src/lib/sourceHealthStore.js";
 import { getCheckableSources, SOURCE_REGISTRY } from "./src/sources/sourceRegistry.js";
+
+const {
+  compareListingsBySourceDate,
+  normalizeSourceListedAt,
+} = globalThis.BrrtzListingFreshness;
+const {
+  selectSearchDiscoveryTerms,
+} = globalThis.BrrtzSearchDiscovery;
 
 const PORT = Number(process.env.PORT || 5173);
 const HOST = process.env.HOST || "0.0.0.0";
@@ -1925,7 +1935,7 @@ async function handleSearch(url, response) {
     collectFilteredListings(sourceResult.listings, listingsById, excludes, maxPrice);
   }
 
-  const listings = [...listingsById.values()].sort((a, b) => new Date(b.listedAt) - new Date(a.listedAt));
+  const listings = [...listingsById.values()].sort(compareListingsBySourceDate);
   await hydrateRakumaThumbnails(listings.filter((listing) => listing.source === "rakuma"));
   const normalizedListings = attachNormalizedListings(listings, {
     regionId,
@@ -2117,7 +2127,7 @@ async function handleBrowse(url, response) {
     });
   }
 
-  const listings = [...listingsById.values()].sort((a, b) => new Date(b.listedAt) - new Date(a.listedAt));
+  const listings = [...listingsById.values()].sort(compareListingsBySourceDate);
   const normalizedListings = attachNormalizedListings(listings, {
     regionId,
     currency: regionCurrency,
@@ -2454,7 +2464,12 @@ function getGuitarCenterUsedCategoryPath(term = "", categoryIntent = "") {
 async function searchSourceTerms(source, terms, searchFn, options = {}) {
   const listingsById = new Map();
   const errors = [];
-  const searchedTerms = terms.slice(0, options.maxTerms ?? 5);
+  const queryPlan = selectSearchDiscoveryTerms(terms, {
+    source,
+    maxTerms: options.maxTerms ?? 5,
+    maxGeneratedTerms: options.maxGeneratedTerms ?? 1,
+  });
+  const searchedTerms = queryPlan.terms;
   const termDelayMs = options.termDelayMs ?? 700;
 
   for (const [index, term] of searchedTerms.entries()) {
@@ -2488,6 +2503,15 @@ async function searchSourceTerms(source, terms, searchFn, options = {}) {
       source,
       status: errors.length === searchedTerms.length ? "error" : errors.length > 0 ? "partial" : "ok",
       searchedTerms,
+      queryPlan: {
+        inputTerms: queryPlan.inputTerms,
+        generatedTermCount: queryPlan.generatedTermCount,
+        selectedVariants: queryPlan.selectedVariants.map(({ term, reason, locale }) => ({
+          term,
+          reason,
+          locale,
+        })),
+      },
       rawCount: listingsById.size,
     },
   };
@@ -3502,7 +3526,9 @@ function parseDigimart(html) {
       price,
       condition,
       shop,
-      listedAt: registeredDate ? `${registeredDate.replaceAll("/", "-")}T00:00:00+09:00` : new Date().toISOString(),
+      listedAt: normalizeSourceListedAt(
+        registeredDate ? `${registeredDate.replaceAll("/", "-")}T00:00:00+09:00` : "",
+      ),
       url: normalizeUrl(href),
       image,
     };
@@ -3512,7 +3538,7 @@ function parseDigimart(html) {
 function parseFiveG(html) {
   const searchResultList = matchOne(html, /<ul class="product-list productlist-list row">([\s\S]*?)<\/ul>/) || "";
   const blocks = searchResultList.match(/<li class="product-list__unit productlist-list__unit[\s\S]*?<\/li>/g) || [];
-  const listedAt = new Date().toISOString();
+  const listedAt = "";
 
   return blocks.map((block) => {
     const href = readAttributeFromPattern(block, /<a[^>]+href="([^"]+)"[^>]+class="product-list__link"/i)
@@ -3541,7 +3567,7 @@ function parseFiveG(html) {
 
 function parseQsic(html) {
   const blocks = html.match(/<li class="c-item-list__item">[\s\S]*?<\/li>/g) || [];
-  const listedAt = new Date().toISOString();
+  const listedAt = "";
 
   return blocks.map((block) => {
     const href = readAttributeFromPattern(block, /<a[^>]+href="([^"]+)"/i);
@@ -3575,7 +3601,7 @@ function parseImplant4(html) {
   const collectionStart = html.indexOf('<div class="product-list product-list--collection">');
   const collectionHtml = collectionStart >= 0 ? html.slice(collectionStart) : html;
   const blocks = splitHtmlBlocks(collectionHtml, /<div class="product-item product-item--vertical\b/g);
-  const listedAt = new Date().toISOString();
+  const listedAt = "";
 
   return blocks.map((block) => {
     const href = readAttributeFromPattern(block, /<a[^>]+href="([^"]+)"[^>]+class="product-item__title/i)
@@ -3635,7 +3661,7 @@ function parseJimoty(html) {
       price,
       condition: closeLabel || "Listed",
       shop: ["Jimoty", area, category].filter(Boolean).join(" · "),
-      listedAt: parseJapaneseMonthDay(createdAt) || new Date().toISOString(),
+      listedAt: normalizeSourceListedAt(parseJapaneseMonthDay(createdAt)),
       url,
       image,
       categoryPath: category ? [category] : [],
@@ -3664,7 +3690,7 @@ function parseOffmall(html) {
       price,
       condition: rank || (isFresh ? "New arrival" : "Listed"),
       shop: "OFFMALL / Hard Off",
-      listedAt: new Date().toISOString(),
+      listedAt: "",
       url: normalizeUrl(href, OFFMALL_BASE_URL),
       image,
     };
@@ -3673,7 +3699,7 @@ function parseOffmall(html) {
 
 function parseRakuma(html) {
   const blocks = html.match(/<div class="item">\s*<div class="item-box">[\s\S]*?(?=<div class="item">\s*<div class="item-box">|<\/section>)/g) || [];
-  const listedAt = new Date().toISOString();
+  const listedAt = "";
 
   return blocks.map((block) => {
     const href = normalizeUrl(
@@ -3782,7 +3808,7 @@ function parseMercari(cards) {
       price,
       condition: isAuction ? "Mercari auction" : "Listed",
       shop: "Mercari",
-      listedAt: new Date().toISOString(),
+      listedAt: "",
       url: href,
       image: normalizeUrl(card.image, MERCARI_BASE_URL),
     };
@@ -3795,7 +3821,7 @@ function parseCraigslistRegion(html, options) {
   const baseUrl = options.baseUrl || CRAIGSLIST_SFBAY_BASE_URL;
   const structuredListings = parseCraigslistStructuredListings(html, baseUrl);
   const blocks = splitHtmlBlocks(html, /<li class="cl-static-search-result"(?=[\s>])/g);
-  const listedAt = new Date().toISOString();
+  const listedAt = "";
 
   return blocks.map((block, index) => {
     const href = normalizeUrl(readAttributeFromPattern(block, /<a[^>]+href="([^"]+)"/i), baseUrl);
@@ -3824,7 +3850,7 @@ function parseCraigslistMarkdown(markdown, options) {
   const sourceId = options.sourceId || "craigslist";
   const label = options.label || "Craigslist";
   const baseUrl = options.baseUrl || CRAIGSLIST_SFBAY_BASE_URL;
-  const listedAt = new Date().toISOString();
+  const listedAt = "";
   const imageByListingUrl = new Map();
   const imagePattern = /\[!\[[^\]]*]\((https:\/\/images\.craigslist\.org\/[^)\s]+)\)]\((https:\/\/[^)\s]+\/(\d+)\.html)\)/g;
   const titlePattern = /\[([^\]\n]+)]\((https:\/\/[^)\s]+\/(\d+)\.html)\)/g;
@@ -3984,7 +4010,7 @@ function parseReverb(data, options = {}) {
       price: parseReverbPrice(item.price),
       condition,
       shop: cleanText(String(item.shop_name || "")),
-      listedAt: item.published_at || item.created_at || new Date().toISOString(),
+      listedAt: normalizeSourceListedAt(item.published_at || item.created_at),
       url: normalizeUrl(item._links?.web?.href || `/item/${rawId}`, REVERB_BASE_URL),
       image: normalizeUrl(
         item.photos?.[0]?._links?.large_crop?.href
@@ -4026,7 +4052,7 @@ function parseEbayBrowse(data, options = {}) {
       price: parseEbayPrice(item.price),
       condition,
       shop: cleanText(String(item.seller?.username || "")),
-      listedAt: item.itemCreationDate || item.itemOriginDate || new Date().toISOString(),
+      listedAt: normalizeSourceListedAt(item.itemCreationDate || item.itemOriginDate),
       url: normalizeUrl(item.itemWebUrl || "", baseUrl),
       image: normalizeUrl(
         item.image?.imageUrl
@@ -4043,7 +4069,7 @@ function parseEbayBrowse(data, options = {}) {
 
 function parseShopifySuggestProducts(data, options = {}, term = "") {
   const sourceId = options.sourceId || "shopify";
-  const listedAt = new Date().toISOString();
+  const listedAt = "";
   const products = data?.resources?.results?.products || [];
 
   return products.map((product) => {
@@ -4086,7 +4112,7 @@ function parseShopifySuggestProducts(data, options = {}, term = "") {
 
 function parseStarvingMusician(html, term = "") {
   const blocks = splitHtmlBlocks(html, /<a href="\/product\//g).slice(0, 48);
-  const listedAt = new Date().toISOString();
+  const listedAt = "";
 
   return blocks.map((block) => {
     const href = readAttributeFromPattern(block, /<a[^>]+href="([^"]+)"/i);
@@ -4127,7 +4153,7 @@ function parseStarvingMusician(html, term = "") {
 
 function parseGelbMusic(html, term = "") {
   const blocks = splitHtmlBlocks(html, /<li class="product"(?=[\s>])/g).slice(0, 48);
-  const listedAt = new Date().toISOString();
+  const listedAt = "";
 
   return blocks.map((block) => {
     const url = normalizeRelativeUrl(readAttributeFromPattern(block, /<h4 class="card-title">[\s\S]*?<a[^>]+href="([^"]+)"/i), GELB_MUSIC_BASE_URL);
@@ -4173,7 +4199,7 @@ function parseGelbMusic(html, term = "") {
 function parseMainDrag(html) {
   const productList = matchOne(html, /<div class="product-list product-list--collection">([\s\S]*?)<div class="pagination/i) || html;
   const blocks = splitHtmlBlocks(productList, /<div class="product-item\b/g).slice(0, 36);
-  const listedAt = new Date().toISOString();
+  const listedAt = "";
 
   return blocks.map((block) => {
     const href = readAttributeFromPattern(block, /<a[^>]+class="product-item__image-wrapper[^"]*"[^>]+href="([^"]+)"/i)
@@ -4276,7 +4302,7 @@ function rogueListingMatchesTerm(listing, term) {
 
 function parseRogueMusic(html, search = {}) {
   const blocks = splitHtmlBlocks(html, /<div class="box" itemprop="itemListElement"(?=[\s>])/g).slice(0, 80);
-  const listedAt = new Date().toISOString();
+  const listedAt = "";
 
   return blocks.map((block) => {
     const detailUrl = normalizeRelativeUrl(readAttributeFromPattern(block, /<link[^>]+itemprop="url"[^>]+href="([^"]+)"/i), ROGUE_MUSIC_BASE_URL);
@@ -4310,7 +4336,7 @@ function parseRogueMusic(html, search = {}) {
 
 function parseThreeWave(html) {
   const blocks = splitHtmlBlocks(html, /<li class="product"(?=[\s>])/g).slice(0, 48);
-  const listedAt = new Date().toISOString();
+  const listedAt = "";
 
   return blocks.map((block) => {
     const rawId = matchOne(block, /data-test="card-([^"]+)"/i)
@@ -4346,7 +4372,7 @@ function parseShopifySearchCards(html, options = {}) {
   const sourceId = options.sourceId || "shopify";
   const baseUrl = options.baseUrl || "";
   const blocks = splitHtmlBlocks(html, /<(?:li|div)[^>]+class="[^"]*(?:grid__item|product-card-wrapper)[^"]*"/g).slice(0, 36);
-  const listedAt = new Date().toISOString();
+  const listedAt = "";
 
   return blocks.map((block) => {
     const href = readAttributeFromPattern(block, /<h3[^>]+class="card__heading[^"]*"[\s\S]*?<a[^>]+href="([^"]+)"/i)
@@ -4379,7 +4405,7 @@ function parseShopifySearchCards(html, options = {}) {
 
 function parseToneTweakersSearch(html) {
   const blocks = splitHtmlBlocks(html, /<article class="result [^"]*item-product\b/g).slice(0, 36);
-  const listedAt = new Date().toISOString();
+  const listedAt = "";
 
   return blocks.map((block) => {
     const url = normalizeRelativeUrl(readAttributeFromPattern(block, /<p class="title">[\s\S]*?<a[^>]+href="([^"]+)"/i)
@@ -4537,7 +4563,7 @@ function parseYahooFleamarket(html) {
       price: Number(item.price || 0),
       condition: formatYahooFleamarketCondition(item),
       shop: "Yahoo Fleamarket",
-      listedAt: item.openTime || new Date().toISOString(),
+      listedAt: normalizeSourceListedAt(item.openTime),
       url: normalizeUrl(`/item/${rawId}`, YAHOO_FLEAMARKET_BASE_URL),
       image: normalizeUrl(item.thumbnailImageUrl || "", YAHOO_FLEAMARKET_BASE_URL),
       categoryId: item.category?.id ? String(item.category.id) : "",
@@ -4580,7 +4606,7 @@ function parseYahooAuctions(html) {
       price,
       condition: createYahooAuctionCondition(bidCount, remainingTime, endTime),
       shop: "Yahoo Auctions",
-      listedAt: unixTimestampToIso(startTime) || new Date().toISOString(),
+      listedAt: normalizeSourceListedAt(unixTimestampToIso(startTime)),
       url: href,
       image,
       categoryId,
@@ -4832,7 +4858,7 @@ function splitParam(value) {
 function createSourceSearchTerms(terms) {
   const seen = new Set();
   return terms
-    .flatMap((term) => createSourceSearchTermVariants(parseMatchTerm(term).value))
+    .map((term) => parseMatchTerm(term).value)
     .filter((term) => {
       const normalized = normalizeText(term);
       if (!normalized || seen.has(normalized)) return false;

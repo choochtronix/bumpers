@@ -6,6 +6,8 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
+    "design:sync": "node scripts/sync-design-tokens.mjs",
+    "design:check": "node scripts/design-system-check.mjs",
     "aeo:check": "node scripts/aeo-check.mjs",
     "aeo:check:prod": "node scripts/aeo-check.mjs https://brrtz.com",
     "jobs:source-health": "node src/jobs/runSourceHealth.js",
