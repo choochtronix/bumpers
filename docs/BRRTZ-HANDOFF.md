@@ -440,6 +440,38 @@ chromium.launch({
 
 Do not silently switch browser verification back to a missing bundled binary.
 
+### Private Codex History Backup
+
+Windows Task Scheduler runs `Brrtz - Backup Codex History` at user sign-in and
+nightly at 2:00 AM. The installed script is:
+
+```text
+D:\SHARED\Brrtz Backups\Tools\Backup-Codex-History.ps1
+```
+
+The maintained source is `scripts/backup-codex-history.ps1`. Backups live at:
+
+```text
+D:\SHARED\Brrtz Backups\Codex
+```
+
+The backup uses one immutable baseline, an incrementally refreshed `Current`
+mirror, and dated append-only session snapshots. It includes task sessions,
+task indexes, selected app-state metadata, attachments, and visualizations. It
+explicitly excludes authentication files, sandbox secrets, browser sessions,
+caches, and temporary runtime data. Live SQLite files are skipped while Codex
+is open and captured by a later run when Codex is closed.
+
+To check the latest run:
+
+```powershell
+Get-ScheduledTaskInfo -TaskName "Brrtz - Backup Codex History"
+Get-Content "D:\SHARED\Brrtz Backups\Codex\backup.log" -Tail 20
+```
+
+Never add these private archives to GitHub. Restore only with Codex closed and
+after preserving the current `C:\Users\hanzj\.codex` directory.
+
 ## Validation Commands
 
 Choose checks according to the change surface. Before a broad beta-facing
