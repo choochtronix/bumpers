@@ -1825,10 +1825,12 @@ let settingsReturnFocus = null;
 let savedPopoverAnchorElement = null;
 let savedPopoverAnchorMode = "header";
 let savedSearchAutoSyncTimer = 0;
+let pendingSavedSearchAutoSync = null;
 let profileAutoSyncTimer = 0;
 let saveConfirmationTimer = 0;
 let isSavedSearchAutoSyncing = false;
 let isProfileAutoSyncing = false;
+let refiningSavedSearchId = "";
 let myPageFilterText = "";
 let myPageSortMode = "az";
 let eventsBound = false;
@@ -2391,10 +2393,10 @@ function bindEvents() {
   document.addEventListener("touchstart", primeSearchChirpAudio, { capture: true, passive: true });
   searchForm.addEventListener("submit", (event) => {
     event.preventDefault();
-    if (!refineSearchModal.hidden) {
-      syncRefineTermsToPrimary();
-    }
-    currentProfile = applySearchEasterEggs(readProfileFromForm(), { syncForm: true, playSound: true });
+    const draftProfile = refineSearchModal.hidden
+      ? readProfileFromForm()
+      : getDraftProfileFromRefineModal();
+    currentProfile = applySearchEasterEggs(draftProfile, { syncForm: true, playSound: true });
     renderRefineSummary();
     closeRefineSearchModal({ restoreFocus: false });
     runSearch();
@@ -3975,6 +3977,8 @@ function handleExcludeTagRemoveClick(event) {
 
 function openRefineSearchModal(event) {
   refineSearchReturnFocus = event?.currentTarget || document.activeElement;
+  const storedProfile = currentProfile?.id ? getSavedSearchById(currentProfile.id) : null;
+  refiningSavedSearchId = storedProfile?.id || "";
   if (!refineTermsInput.value.trim()) {
     syncPrimaryTermsToRefine();
   }
@@ -3994,6 +3998,7 @@ function closeRefineSearchModal(options = {}) {
   const { restoreFocus = true } = options;
   if (refineSearchModal.hidden) return;
   refineSearchModal.hidden = true;
+  refiningSavedSearchId = "";
   document.body.classList.remove("modal-open");
   updateMobileSearchOverlayVisibility();
   if (restoreFocus) refineSearchReturnFocus?.focus();
@@ -4006,13 +4011,26 @@ function handleRefineSearchModalEdit() {
 
 function getDraftProfileFromRefineModal() {
   syncRefineTermsToPrimary();
-  const draftProfile = {
+  let draftProfile = {
     ...readProfileFromForm(),
     regionId: appSettings.regionId,
   };
   const draftTerm = normalizeSearchTermChip(refineTermInput?.value || "");
-  return draftTerm
+  draftProfile = draftTerm
     ? { ...draftProfile, terms: uniqueTerms([...draftProfile.terms, draftTerm]) }
+    : draftProfile;
+  const storedProfile = refiningSavedSearchId
+    ? getSavedSearchById(refiningSavedSearchId)
+    : null;
+
+  return storedProfile
+    ? {
+      ...storedProfile,
+      ...draftProfile,
+      id: storedProfile.id,
+      name: storedProfile.name,
+      createdAt: storedProfile.createdAt,
+    }
     : draftProfile;
 }
 
@@ -4020,13 +4038,31 @@ function updateRefineSaveSearchButton() {
   if (!saveRefineSearchButton) return;
   const draftProfile = getDraftProfileFromRefineModal();
   const hasSearchTerms = draftProfile.terms.length > 0;
-  const isSaved = hasSearchTerms && Boolean(findMatchingSavedSearchByProfile(draftProfile));
+  const storedProfile = refiningSavedSearchId
+    ? getSavedSearchById(refiningSavedSearchId)
+    : null;
+  const isSaved = hasSearchTerms && Boolean(
+    storedProfile
+      ? profilesMatchSearch(storedProfile, draftProfile)
+      : findMatchingSavedSearchByProfile(draftProfile),
+  );
+  const isEditing = hasSearchTerms && Boolean(storedProfile) && !isSaved;
+  const label = isSaved
+    ? 'Saved <span aria-hidden="true">✓</span>'
+    : isEditing
+      ? "Save changes"
+      : "Save this search";
+  const accessibleLabel = isSaved
+    ? "Current search is saved"
+    : isEditing
+      ? "Save changes to this search"
+      : "Save this search";
 
   saveRefineSearchButton.disabled = !hasSearchTerms;
   saveRefineSearchButton.classList.toggle("is-saved", isSaved);
-  saveRefineSearchButton.innerHTML = isSaved ? 'Saved <span aria-hidden="true">✓</span>' : "Save this search";
-  saveRefineSearchButton.title = isSaved ? "Current search is saved" : "Save this search";
-  saveRefineSearchButton.setAttribute("aria-label", isSaved ? "Current search is saved" : "Save this search");
+  saveRefineSearchButton.innerHTML = label;
+  saveRefineSearchButton.title = accessibleLabel;
+  saveRefineSearchButton.setAttribute("aria-label", accessibleLabel);
 }
 
 function saveSearchFromRefineModal(event) {
@@ -4038,12 +4074,19 @@ function saveSearchFromRefineModal(event) {
   }
 
   const draftProfile = getDraftProfileFromRefineModal();
-  const existingProfile = findMatchingSavedSearchByProfile(draftProfile);
+  const storedProfile = refiningSavedSearchId
+    ? getSavedSearchById(refiningSavedSearchId)
+    : null;
+  const existingProfile = storedProfile || findMatchingSavedSearchByProfile(draftProfile);
 
-  if (existingProfile) {
+  if (existingProfile && profilesMatchSearch(existingProfile, draftProfile)) {
     currentProfile = hydrateProfile(existingProfile);
     updateQuickSaveSearchButton();
     updateRefineSaveSearchButton();
+    queueSavedSearchAutoSync("refine-save-search", {
+      announce: true,
+      profileName: currentProfile.name,
+    });
     showSaveConfirmationToast(currentProfile, { alreadySaved: true });
     return;
   }
@@ -4051,7 +4094,10 @@ function saveSearchFromRefineModal(event) {
   currentProfile = saveProfile(draftProfile);
   renderSavedSearches();
   setActiveTitle(currentProfile.name);
-  queueSavedSearchAutoSync("refine-save-search");
+  queueSavedSearchAutoSync("refine-save-search", {
+    announce: true,
+    profileName: currentProfile.name,
+  });
   updateQuickSaveSearchButton();
   updateRefineSaveSearchButton();
   showSaveConfirmationToast(currentProfile);
@@ -4297,13 +4343,15 @@ function profilesMatchSearch(firstProfile, secondProfile) {
   const first = hydrateProfile(firstProfile);
   const second = hydrateProfile(secondProfile);
 
-  return arraysMatch(first.terms, second.terms)
+  return first.regionId === second.regionId
+    && arraysMatch(first.terms, second.terms)
     && arraysMatch(first.excludes, second.excludes)
     && arraysMatch(first.noiseTerms, second.noiseTerms)
     && arraysMatch([...first.sources].sort(), [...second.sources].sort())
     && Number(first.maxPrice || 0) === Number(second.maxPrice || 0)
     && first.categoryIntent === second.categoryIntent
-    && first.alertMode === second.alertMode;
+    && first.alertMode === second.alertMode
+    && first.alertsEnabled === second.alertsEnabled;
 }
 
 function findMatchingSavedSearchByProfile(candidateProfile) {
@@ -4328,6 +4376,10 @@ function saveCurrentSearchQuick(event) {
   if (existingProfile) {
     currentProfile = hydrateProfile(existingProfile);
     updateQuickSaveSearchButton();
+    queueSavedSearchAutoSync("quick-save-search", {
+      announce: true,
+      profileName: currentProfile.name,
+    });
     showSaveConfirmationToast(currentProfile, { alreadySaved: true });
     return;
   }
@@ -4335,7 +4387,10 @@ function saveCurrentSearchQuick(event) {
   currentProfile = saveProfile(draftProfile);
   renderSavedSearches();
   setActiveTitle(currentProfile.name);
-  queueSavedSearchAutoSync("quick-save-search");
+  queueSavedSearchAutoSync("quick-save-search", {
+    announce: true,
+    profileName: currentProfile.name,
+  });
   showSaveConfirmationToast(currentProfile);
 }
 
@@ -4368,8 +4423,12 @@ function closeSaveSearchModal(options = {}) {
 
 function saveCurrentSearchFromModal() {
   const savedName = saveSearchName.value.trim() || suggestSearchName(splitLines(document.querySelector("#terms").value));
+  const storedProfile = currentProfile?.id ? getSavedSearchById(currentProfile.id) : null;
   currentProfile = {
+    ...storedProfile,
     ...readProfileFromForm(),
+    id: storedProfile?.id,
+    createdAt: storedProfile?.createdAt,
     name: savedName,
     regionId: appSettings.regionId,
     alertMode: saveSearchAlert.value,
@@ -4379,13 +4438,20 @@ function saveCurrentSearchFromModal() {
   currentProfile = saveProfile(currentProfile);
   renderSavedSearches();
   setActiveTitle(currentProfile.name);
-  queueSavedSearchAutoSync("save-search");
+  queueSavedSearchAutoSync("save-search", {
+    announce: true,
+    profileName: currentProfile.name,
+  });
   closeSaveSearchModal();
   showSaveConfirmationToast(currentProfile);
 }
 
 function showSaveConfirmationToast(profile, options = {}) {
-  const prefix = options.alreadySaved ? "Already saved" : "Saved";
+  const prefix = options.alreadySaved
+    ? "Already saved"
+    : authState.user?.id
+      ? "Saving to your account"
+      : "Saved on this device";
   showStatusToast({
     icon: "★",
     message: `${prefix}: ${profile?.name || "Search"}`,
@@ -4831,12 +4897,16 @@ async function hydrateAuthUser() {
 
   try {
     await pullCloudProfilePreferences({ silent: true, surfaceErrors: true });
+    await reconcileCloudSavedSearches({
+      allowEmpty: true,
+      silent: true,
+    });
     authState.accountNotice = "";
   } catch (error) {
-    console.warn("Could not sync profile preferences yet.", error);
+    console.warn("Could not sync account data yet.", error);
     authState.accountNotice = error instanceof Error
       ? error.message
-      : "Signed in, but cloud sync needs attention.";
+      : "Signed in, but account sync needs attention.";
   }
 }
 
@@ -5672,33 +5742,90 @@ function isTimestampAfter(candidate, reference, toleranceMs = 0) {
 
 function queueSavedSearchAutoSync(reason = "saved-search-change", options = {}) {
   if (!authState.user?.id) {
-    setSavedSearchTransferStatus("Saved locally. Sign in to sync across devices.");
+    setSavedSearchTransferStatus("Saved on this device. Sign in to save it to your account.");
     return;
   }
 
   clearTimeout(savedSearchAutoSyncTimer);
-  setSavedSearchTransferStatus("Auto-sync queued.");
+  setSavedSearchTransferStatus("Saving to your account...");
   savedSearchAutoSyncTimer = window.setTimeout(() => {
     runSavedSearchAutoSync(reason, options);
-  }, options.delay ?? 1800);
+  }, options.delay ?? 250);
 }
 
 async function runSavedSearchAutoSync(reason = "saved-search-change", options = {}) {
-  if (isSavedSearchAutoSyncing || !authState.user?.id) return;
+  if (!authState.user?.id) return;
+  if (isSavedSearchAutoSyncing) {
+    pendingSavedSearchAutoSync = mergeSavedSearchAutoSyncRequest(
+      pendingSavedSearchAutoSync,
+      { reason, options },
+    );
+    return;
+  }
   isSavedSearchAutoSyncing = true;
 
   try {
-    await pushCloudSavedSearches({
-      auto: true,
+    await reconcileCloudSavedSearches({
       allowEmpty: Boolean(options.allowEmpty),
-      checkConflicts: true,
-      rethrow: true,
+      silent: true,
     });
+    setSavedSearchTransferStatus("Saved searches are up to date in your account.");
+    if (options.announce) {
+      showStatusToast({
+        icon: "✓",
+        message: `Saved to your account: ${options.profileName || "Search"}`,
+        showView: true,
+      });
+    }
   } catch (error) {
     console.warn(`Saved-search auto-sync failed after ${reason}.`, error);
+    const message = "Saved on this device. Account sync needs attention.";
+    setSavedSearchTransferStatus(message);
+    if (options.announce) {
+      showStatusToast({
+        icon: "!",
+        message,
+        showView: true,
+      });
+    }
   } finally {
     isSavedSearchAutoSyncing = false;
+    if (pendingSavedSearchAutoSync) {
+      const pendingRequest = pendingSavedSearchAutoSync;
+      pendingSavedSearchAutoSync = null;
+      runSavedSearchAutoSync(pendingRequest.reason, pendingRequest.options);
+    }
   }
+}
+
+function mergeSavedSearchAutoSyncRequest(currentRequest, nextRequest) {
+  if (!currentRequest) return nextRequest;
+  return {
+    reason: nextRequest.reason || currentRequest.reason,
+    options: {
+      ...currentRequest.options,
+      ...nextRequest.options,
+      allowEmpty: Boolean(currentRequest.options?.allowEmpty || nextRequest.options?.allowEmpty),
+      announce: Boolean(currentRequest.options?.announce || nextRequest.options?.announce),
+      profileName: nextRequest.options?.profileName || currentRequest.options?.profileName,
+    },
+  };
+}
+
+async function reconcileCloudSavedSearches(options = {}) {
+  await pullCloudSavedSearches({
+    preferNewest: true,
+    rethrow: true,
+    silent: true,
+    skipConfirm: true,
+  });
+  return pushCloudSavedSearches({
+    auto: true,
+    allowEmpty: Boolean(options.allowEmpty),
+    checkConflicts: false,
+    rethrow: true,
+    silent: options.silent !== false,
+  });
 }
 
 function queueProfileAutoSync(reason = "profile-preference-change", options = {}) {
@@ -10730,7 +10857,10 @@ function createSavedSearchRepository({ storageKey }) {
   function save(profile) {
     const savedAt = new Date().toISOString();
     const existingProfiles = list();
-    const existingProfile = existingProfiles.find((item) => item.name === profile.name);
+    const existingProfile = (profile.id
+      ? existingProfiles.find((item) => item.id === profile.id)
+      : null)
+      || existingProfiles.find((item) => item.name === profile.name);
     const hydratedProfile = hydrateProfile({
       ...existingProfile,
       ...profile,
@@ -10744,7 +10874,10 @@ function createSavedSearchRepository({ storageKey }) {
         lastLocalChangeAt: savedAt,
       },
     });
-    const profiles = existingProfiles.filter((item) => item.name !== hydratedProfile.name);
+    const profiles = existingProfiles.filter((item) => (
+      item.id !== hydratedProfile.id
+      && item.name !== hydratedProfile.name
+    ));
     write([hydratedProfile, ...profiles]);
     return hydratedProfile;
   }
