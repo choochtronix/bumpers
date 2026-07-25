@@ -11,6 +11,7 @@ import { attachNormalizedListings } from "./src/agents/listingNormalizerAgent.js
 import { agentToolsObject } from "./src/aeo/agentTools.js";
 import { runSourceHealthAgent } from "./src/agents/sourceHealthAgent.js";
 import { appendSourceHealthLogs, readSourceHealthState } from "./src/lib/sourceHealthStore.js";
+import { createBrrtzMcpHandler } from "./src/mcp/brrtzMcpServer.js";
 import { getCheckableSources, SOURCE_REGISTRY } from "./src/sources/sourceRegistry.js";
 
 const {
@@ -283,7 +284,7 @@ const LLMS_TXT_LINES = [
   "- [ARP 2600](https://brrtz.com/gear/arp-2600): Model-intent page.",
   "- [Roland TR-808](https://brrtz.com/gear/roland-tr-808): Model-intent page.",
   "- [Agent connector spec](https://brrtz.com/agent-connector): Draft connector spec.",
-  "- [Draft agent tools JSON](https://brrtz.com/agent-tools.json): Machine-readable planned tools.",
+  "- [Agent tools JSON](https://brrtz.com/agent-tools.json): Machine-readable live and planned tools.",
   "",
   "## Supported Region IDs",
   "",
@@ -291,6 +292,7 @@ const LLMS_TXT_LINES = [
   "- `bay-area`",
   "- `los-angeles`",
   "- `east-coast`",
+  "- `uk`",
   "",
   "## Supported Category IDs",
   "",
@@ -316,21 +318,27 @@ const LLMS_TXT_LINES = [
   "",
   "Arbitrary `/search` URLs are accessible to users and agents, but traditional search engines may receive `noindex,follow` to avoid infinite crawl space.",
   "",
-  "## Planned Connector Direction",
+  "## MCP Connector",
   "",
-  "Brrtz is being prepared for a future Model Context Protocol style connector.",
+  "Brrtz exposes a public read-only Model Context Protocol endpoint at `https://brrtz.com/mcp`.",
   "",
-  "Planned tools:",
+  "Live beta tools:",
   "",
   "- `search_gear`",
   "- `get_regions`",
   "- `get_sources`",
+  "",
+  "Planned user-authorized tools:",
   "- `save_search`",
   "- `watch_listing`",
   "- `get_new_matches`",
   "",
-  "See [the draft connector spec](https://brrtz.com/agent-connector) and [machine-readable draft](https://brrtz.com/agent-tools.json).",
+  "See [the connector spec](https://brrtz.com/agent-connector) and [machine-readable tool manifest](https://brrtz.com/agent-tools.json).",
 ];
+
+const handleBrrtzMcpRequest = createBrrtzMcpHandler({
+  searchGear: searchMcpGear,
+});
 
 createServer(async (request, response) => {
   try {
@@ -360,6 +368,11 @@ createServer(async (request, response) => {
         "cache-control": "no-store",
       });
       response.end(`${JSON.stringify(agentToolsObject, null, 2)}\n`);
+      return;
+    }
+
+    if (url.pathname === "/mcp") {
+      await handleBrrtzMcpRequest(request, response);
       return;
     }
 
@@ -4846,6 +4859,27 @@ function sendJson(response, status, payload) {
     "cache-control": "no-store",
   });
   response.end(JSON.stringify(payload));
+}
+
+async function searchMcpGear(input) {
+  const params = new URLSearchParams({
+    terms: input.terms.join("|"),
+    region: input.region,
+    categoryIntent: input.category,
+    sources: input.sources.join("|"),
+    excludes: input.excludes.join("|"),
+  });
+  if (Number.isFinite(input.maxPrice) && input.maxPrice > 0) {
+    params.set("maxPrice", String(input.maxPrice));
+  }
+
+  const response = await fetch(`http://127.0.0.1:${PORT}/api/search?${params.toString()}`, {
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    throw new Error(`Brrtz search failed with HTTP ${response.status}.`);
+  }
+  return response.json();
 }
 
 function splitParam(value) {

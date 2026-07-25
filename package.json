@@ -20,6 +20,11 @@
     "curation:noise-inbox": "node scripts/curation-noise-inbox-report.js"
   },
   "dependencies": {
-    "playwright": "^1.60.0"
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "playwright": "^1.60.0",
+    "zod": "^4.4.3"
+  },
+  "overrides": {
+    "@hono/node-server": "2.0.10"
   }
 }

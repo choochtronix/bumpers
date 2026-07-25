@@ -4,15 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Brrtz Agent Connector Spec</title>
-    <meta name="description" content="Draft Brrtz agent connector spec for future MCP tools, permission boundaries, and gear search workflows." />
+    <meta name="description" content="Brrtz MCP connector guide for public gear search tools, permission boundaries, and future account workflows." />
     <link rel="canonical" href="https://brrtz.com/agent-connector" />
     <meta property="og:title" content="Brrtz Agent Connector Spec" />
-    <meta property="og:description" content="Draft Brrtz connector plan for future ChatGPT, Claude, and MCP-capable gear search agents." />
+    <meta property="og:description" content="Brrtz connector guide for ChatGPT, Claude, and other MCP-capable gear search agents." />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://brrtz.com/agent-connector" />
     <meta property="og:image" content="https://brrtz.com/assets/social/brrtz-og.svg" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:description" content="Draft Brrtz agent connector spec for future MCP tools, permission boundaries, and gear search workflows." />
+    <meta name="twitter:description" content="Brrtz MCP connector guide for public gear search tools, permission boundaries, and future account workflows." />
     <link rel="icon" type="image/svg+xml" href="/assets/ICONS-site/b-favicon.svg" />
     <link rel="stylesheet" href="/design-system.css" />
     <link rel="stylesheet" href="/aeo.css" />
@@ -21,7 +21,7 @@
         "@context": "https://schema.org",
         "@type": "TechArticle",
         "headline": "Brrtz Agent Connector Spec",
-        "description": "Draft connector plan for future Brrtz agent tools and permissions.",
+        "description": "Brrtz MCP connector guide for live public gear search tools and future account permissions.",
         "url": "https://brrtz.com/agent-connector",
         "about": [
           "Model Context Protocol",
@@ -49,11 +49,11 @@
 
       <main class="aeo-page">
         <section class="aeo-hero">
-          <p class="aeo-kicker">Draft connector spec</p>
+          <p class="aeo-kicker">MCP connector spec</p>
           <h1>Brrtz can become an <span class="aeo-gradient">agent-callable gear layer</span>.</h1>
-          <p class="aeo-lede">This page defines the intended connector shape before implementation: tool names, user permissions, boundaries, and the minimum useful workflows for ChatGPT, Claude, and other MCP-capable agents.</p>
+          <p class="aeo-lede">This page defines the live public connector tools, future account permissions, boundaries, and useful workflows for ChatGPT, Claude, and other MCP-capable agents.</p>
           <div class="aeo-link-list">
-            <a class="aeo-pill-link" href="/agent-tools.json">Machine-readable draft</a>
+            <a class="aeo-pill-link" href="/agent-tools.json">Machine-readable tools</a>
             <a class="aeo-pill-link" href="/for-agents">Agent brief</a>
             <a class="aeo-pill-link" href="/llms.txt">llms.txt</a>
           </div>
@@ -61,11 +61,11 @@
 
         <section class="aeo-section">
           <h2>Current status</h2>
-          <p>This is a draft planning spec. The public beta supports shareable Brrtz search URLs today. The connector tools below are not live yet and should be treated as the intended contract for a post-beta MCP server.</p>
+          <p>The public beta supports shareable Brrtz search URLs and a read-only MCP endpoint at <code>https://brrtz.com/mcp</code>. Public search, region, and source tools are live; account-specific and write tools remain planned until OAuth authorization is added.</p>
         </section>
 
         <section class="aeo-section">
-          <h2>Candidate tools</h2>
+          <h2>Connector tools</h2>
           <div class="aeo-table-wrap">
             <table class="aeo-table">
               <thead>

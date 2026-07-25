@@ -1,31 +1,32 @@
 export const agentToolsObject = {
-  "schemaVersion": "0.2.0",
-  "lastUpdated": "2026-06-26",
-  "name": "Brrtz Agent Tool Draft",
+  "schemaVersion": "0.3.0",
+  "lastUpdated": "2026-07-25",
+  "name": "Brrtz Agent Tools",
   "summary": "Brrtz is a free beta gear radar for finding used synthesizers, drum machines, samplers, modular, effects, and pro audio across regional marketplaces — with particular strength in Japanese sources like Yahoo Auctions and Mercari — always linking buyers back to the original listing.",
-  "status": "draft",
-  "isLiveConnector": false,
+  "status": "live_beta",
+  "isLiveConnector": true,
   "homepage": "https://brrtz.com/",
+  "mcpEndpoint": "https://brrtz.com/mcp",
   "humanAgentGuide": "https://brrtz.com/for-agents",
   "connectorSpec": "https://brrtz.com/agent-connector",
   "currentSearchUrlPattern": "https://brrtz.com/search?region={region}&category={category}&q={query}",
-  "supportedRegions": ["japan", "bay-area", "los-angeles", "east-coast"],
+  "supportedRegions": ["japan", "bay-area", "los-angeles", "east-coast", "uk"],
   "supportedCategories": ["all", "synthesizers", "drum-machines", "samplers", "modular", "effects-pedals", "pro-audio"],
   "currentCapabilities": [
+    "Search current public used-gear listings through the read-only search_gear MCP tool.",
+    "Read supported regions and public source coverage through the get_regions and get_sources MCP tools.",
     "Open shareable Brrtz search URLs with region, category, and query parameters.",
     "Read crawlable region, source, gear model, and agent guide pages.",
     "Use llms.txt for public Brrtz context and boundaries."
   ],
   "plannedCapabilities": [
-    "Search used gear through a future connector.",
-    "Read supported regions and sources through connector tools.",
     "Save searches and watch listings with explicit user authorization.",
     "Fetch new matches for a user's saved search with explicit user authorization."
   ],
   "tools": [
     {
       "name": "search_gear",
-      "status": "planned",
+      "status": "live_beta",
       "permission": "read_only",
       "description": "Search Brrtz for used gear by terms, region, category, source selection, max price, and exclude terms. This tool does not modify user data.",
       "inputSchema": {
@@ -33,7 +34,7 @@ export const agentToolsObject = {
         "required": ["terms"],
         "properties": {
           "terms": { "type": "array", "items": { "type": "string" } },
-          "region": { "type": "string", "enum": ["japan", "bay-area", "los-angeles", "east-coast"] },
+          "region": { "type": "string", "enum": ["japan", "bay-area", "los-angeles", "east-coast", "uk"] },
           "category": { "type": "string", "enum": ["all", "synthesizers", "drum-machines", "samplers", "modular", "effects-pedals", "pro-audio"] },
           "sources": { "type": "array", "items": { "type": "string" } },
           "maxPrice": { "type": "number" },
@@ -42,7 +43,7 @@ export const agentToolsObject = {
       },
       "outputSchema": {
         "type": "object",
-        "required": ["listings", "sourceWarnings"],
+        "required": ["listings", "sourceWarnings", "searchUrl", "searchedAt", "resultCount"],
         "properties": {
           "listings": {
             "type": "array",
@@ -62,13 +63,16 @@ export const agentToolsObject = {
               }
             }
           },
-          "sourceWarnings": { "type": "array", "items": { "type": "string" } }
+          "sourceWarnings": { "type": "array", "items": { "type": "string" } },
+          "searchUrl": { "type": "string" },
+          "searchedAt": { "type": "string" },
+          "resultCount": { "type": "number" }
         }
       }
     },
     {
       "name": "get_regions",
-      "status": "planned",
+      "status": "live_beta",
       "permission": "read_only",
       "description": "Return supported Brrtz regions, currency, status, and source coverage. This tool does not modify user data.",
       "inputSchema": { "type": "object", "properties": {} },
@@ -95,13 +99,13 @@ export const agentToolsObject = {
     },
     {
       "name": "get_sources",
-      "status": "planned",
+      "status": "live_beta",
       "permission": "read_only",
       "description": "Return source IDs, labels, regions, source type, and live or assist-style access posture. This tool does not modify user data.",
       "inputSchema": {
         "type": "object",
         "properties": {
-          "region": { "type": "string", "enum": ["japan", "bay-area", "los-angeles", "east-coast"] }
+          "region": { "type": "string", "enum": ["japan", "bay-area", "los-angeles", "east-coast", "uk"] }
         }
       },
       "outputSchema": {

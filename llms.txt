@@ -25,7 +25,7 @@ Brrtz helps musicians search multiple used-gear sources from one interface. It n
 - [ARP 2600](https://brrtz.com/gear/arp-2600): Model-intent page.
 - [Roland TR-808](https://brrtz.com/gear/roland-tr-808): Model-intent page.
 - [Agent connector spec](https://brrtz.com/agent-connector): Draft connector spec.
-- [Draft agent tools JSON](https://brrtz.com/agent-tools.json): Machine-readable planned tools.
+- [Agent tools JSON](https://brrtz.com/agent-tools.json): Machine-readable live and planned tools.
 
 ## Supported Region IDs
 
@@ -33,6 +33,7 @@ Brrtz helps musicians search multiple used-gear sources from one interface. It n
 - `bay-area`
 - `los-angeles`
 - `east-coast`
+- `uk`
 
 ## Supported Category IDs
 
@@ -58,17 +59,19 @@ Parameterized form:
 
 Arbitrary `/search` URLs are accessible to users and agents, but traditional search engines may receive `noindex,follow` to avoid infinite crawl space.
 
-## Planned Connector Direction
+## MCP Connector
 
-Brrtz is being prepared for a future Model Context Protocol style connector.
+Brrtz exposes a public read-only Model Context Protocol endpoint at `https://brrtz.com/mcp`.
 
-Planned tools:
+Live beta tools:
 
 - `search_gear`
 - `get_regions`
 - `get_sources`
+
+Planned user-authorized tools:
 - `save_search`
 - `watch_listing`
 - `get_new_matches`
 
-See [the draft connector spec](https://brrtz.com/agent-connector) and [machine-readable draft](https://brrtz.com/agent-tools.json).
+See [the connector spec](https://brrtz.com/agent-connector) and [machine-readable tool manifest](https://brrtz.com/agent-tools.json).

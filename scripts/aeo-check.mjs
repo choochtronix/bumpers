@@ -145,7 +145,7 @@ function assertMarkdownLlms(body) {
   assert(!normalizedBody.includes("# Brrtz >"), "/llms.txt should not flatten H1 and blockquote onto one line");
   assert(!normalizedBody.includes("## Boundaries and Safety -"), "/llms.txt should not flatten Boundaries heading and list item");
   assert(normalizedBody.includes("- [Home and app]"), "/llms.txt should include Markdown public URL links");
-  for (const section of ["## Boundaries and Safety", "## Public URLs", "## Supported Region IDs", "## Supported Category IDs", "## Search URL Pattern", "## Planned Connector Direction"]) {
+  for (const section of ["## Boundaries and Safety", "## Public URLs", "## Supported Region IDs", "## Supported Category IDs", "## Search URL Pattern", "## MCP Connector"]) {
     assert(normalizedBody.includes(`\n${section}\n`), `/llms.txt missing separate H2 section ${section}`);
   }
   for (const url of ["https://brrtz.com/", "https://brrtz.com/about", "https://brrtz.com/regions", "https://brrtz.com/sources", "https://brrtz.com/for-agents", "https://brrtz.com/gear", "https://brrtz.com/agent-connector", "https://brrtz.com/agent-tools.json"]) {
@@ -168,7 +168,8 @@ function assertAgentToolsJsonRoundTrip(rawBody, payload) {
 function assertAgentTools(payload) {
   assert(payload.schemaVersion, "/agent-tools.json missing schemaVersion");
   assert(payload.lastUpdated, "/agent-tools.json missing lastUpdated");
-  assert(payload.isLiveConnector === false, "/agent-tools.json should mark isLiveConnector false");
+  assert(payload.isLiveConnector === true, "/agent-tools.json should mark the public read-only MCP connector live");
+  assert(payload.mcpEndpoint === "https://brrtz.com/mcp", "/agent-tools.json should publish the canonical MCP endpoint");
   assert(payload.currentSearchUrlPattern === "https://brrtz.com/search?region={region}&category={category}&q={query}", "/agent-tools.json must use exact region-first currentSearchUrlPattern");
   assert(Array.isArray(payload.currentCapabilities), "/agent-tools.json missing currentCapabilities");
   assert(Array.isArray(payload.plannedCapabilities), "/agent-tools.json missing plannedCapabilities");
@@ -178,10 +179,13 @@ function assertAgentTools(payload) {
   const tools = new Map((payload.tools || []).map((tool) => [tool.name, tool]));
   for (const toolName of expectedTools) {
     const tool = tools.get(toolName);
-    assert(tool, `/agent-tools.json missing planned tool ${toolName}`);
+    assert(tool, `/agent-tools.json missing tool ${toolName}`);
     for (const field of ["name", "status", "permission", "description", "inputSchema", "outputSchema"]) {
       assert(tool[field], `/agent-tools.json ${toolName} missing ${field}`);
     }
+  }
+  for (const toolName of ["search_gear", "get_regions", "get_sources"]) {
+    assert(tools.get(toolName)?.status === "live_beta", `/agent-tools.json ${toolName} should be live_beta`);
   }
 }
 
