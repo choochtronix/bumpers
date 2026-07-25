@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Use Brrtz in ChatGPT</title>
+    <meta name="description" content="Connect the Brrtz Gear Radar app to ChatGPT and search public used synth and pro-audio listings from a conversation." />
+    <link rel="canonical" href="https://brrtz.com/chatgpt" />
+    <meta property="og:title" content="Use Brrtz in ChatGPT" />
+    <meta property="og:description" content="A quick guide to connecting Brrtz Gear Radar and searching used music gear from ChatGPT." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://brrtz.com/chatgpt" />
+    <meta property="og:image" content="https://brrtz.com/assets/social/brrtz-og.svg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:description" content="Connect Brrtz Gear Radar and search used music gear from ChatGPT." />
+    <link rel="icon" type="image/svg+xml" href="/assets/ICONS-site/b-favicon.svg" />
+    <link rel="stylesheet" href="/design-system.css" />
+    <link rel="stylesheet" href="/aeo.css" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "HowTo",
+        "name": "How to use Brrtz in ChatGPT",
+        "description": "Connect the public read-only Brrtz Gear Radar MCP app to ChatGPT and search used synth and pro-audio listings.",
+        "totalTime": "PT1M",
+        "step": [
+          {
+            "@type": "HowToStep",
+            "name": "Open ChatGPT plugins",
+            "text": "Open ChatGPT on the web and go to Plugins or Apps in Settings."
+          },
+          {
+            "@type": "HowToStep",
+            "name": "Add Brrtz Gear Radar",
+            "text": "Create a custom app using https://brrtz.com/mcp with No Auth."
+          },
+          {
+            "@type": "HowToStep",
+            "name": "Ask for gear",
+            "text": "Select Brrtz Gear Radar from the plus menu in a chat and describe the gear you want."
+          }
+        ]
+      }
+    </script>
+  </head>
+  <body>
+    <div class="aeo-shell">
+      <header class="aeo-header">
+        <a class="aeo-logo" href="/" aria-label="Brrtz home"></a>
+        <nav class="aeo-nav" aria-label="Brrtz pages">
+          <a href="/about">About</a>
+          <a href="/sources">Sources</a>
+          <a href="/for-agents">For agents</a>
+          <a href="/search?q=moog">Search Brrtz</a>
+        </nav>
+      </header>
+
+      <main class="aeo-page">
+        <section class="aeo-hero chatgpt-hero">
+          <p class="aeo-kicker">ChatGPT + Brrtz</p>
+          <h1>Ask ChatGPT to <span class="aeo-gradient">find the gear</span>.</h1>
+          <p class="aeo-lede">Connect Brrtz once. Then search public used synth and pro-audio listings without leaving your conversation.</p>
+          <div class="chatgpt-actions">
+            <a class="aeo-primary-action" href="https://chatgpt.com/plugins" target="_blank" rel="noreferrer">Open ChatGPT plugins <span aria-hidden="true">&rarr;</span></a>
+            <a class="aeo-secondary-action" href="#setup">See the 60-second setup</a>
+          </div>
+          <p class="chatgpt-note">No Brrtz login required. Public searches only. ChatGPT web currently required.</p>
+        </section>
+
+        <section class="chatgpt-example" aria-labelledby="example-title">
+          <p class="aeo-eyebrow">What it feels like</p>
+          <h2 id="example-title">Just ask for the thing.</h2>
+          <div class="chatgpt-prompt">
+            <span class="chatgpt-speaker">You</span>
+            <p>&ldquo;Use Brrtz to find a Moog Voyager in Japan under &yen;450,000. Skip manuals, parts, and accessories.&rdquo;</p>
+          </div>
+          <div class="chatgpt-result">
+            <span class="chatgpt-speaker">ChatGPT + Brrtz</span>
+            <p>Searches current Brrtz sources, compares matching listings, and returns prices, sources, and links to the original listings.</p>
+          </div>
+        </section>
+
+        <section class="aeo-section chatgpt-setup" id="setup">
+          <p class="aeo-eyebrow">Set up once</p>
+          <h2>Connect Brrtz in about a minute.</h2>
+          <ol class="chatgpt-steps">
+            <li>
+              <span class="chatgpt-step-number" aria-hidden="true">1</span>
+              <div>
+                <h3>Open ChatGPT on the web</h3>
+                <p>Go to <strong>Settings &rarr; Plugins</strong> or <strong>Apps</strong>. Turn on Developer mode if ChatGPT asks.</p>
+              </div>
+            </li>
+            <li>
+              <span class="chatgpt-step-number" aria-hidden="true">2</span>
+              <div>
+                <h3>Create the Brrtz app</h3>
+                <p>Name it <strong>Brrtz Gear Radar</strong>, choose <strong>No Auth</strong>, and use this server URL:</p>
+                <div class="chatgpt-copy-row">
+                  <code>https://brrtz.com/mcp</code>
+                  <button class="aeo-copy-action" type="button" data-copy-value="https://brrtz.com/mcp">Copy URL</button>
+                </div>
+              </div>
+            </li>
+            <li>
+              <span class="chatgpt-step-number" aria-hidden="true">3</span>
+              <div>
+                <h3>Start a new chat</h3>
+                <p>Select <strong>Brrtz Gear Radar</strong> from the <strong>+</strong> menu, then ask for the gear you want.</p>
+              </div>
+            </li>
+          </ol>
+          <p class="chatgpt-copy-status" role="status" aria-live="polite"></p>
+        </section>
+
+        <section class="aeo-section">
+          <p class="aeo-eyebrow">Try one</p>
+          <h2>Prompts that work well</h2>
+          <div class="chatgpt-prompt-list">
+            <button type="button" data-copy-value="Use Brrtz to find a Moog Voyager in Japan under 450,000 yen. Exclude manuals, parts, and accessories.">
+              <span>Moog Voyager in Japan</span>
+              <small>Price limit + noise filtering</small>
+            </button>
+            <button type="button" data-copy-value="Use Brrtz to find current ARP 2600 listings across every supported region. Group the results by region and show the original listing links.">
+              <span>ARP 2600 everywhere</span>
+              <small>Compare supported regions</small>
+            </button>
+            <button type="button" data-copy-value="Ask Brrtz which public sources are available in the UK, then search those sources for used analog synthesizers.">
+              <span>Explore UK sources</span>
+              <small>Discover sources, then search</small>
+            </button>
+          </div>
+        </section>
+
+        <section class="aeo-grid" aria-label="Brrtz ChatGPT connector details">
+          <article class="aeo-card">
+            <h2>Read-only</h2>
+            <p>The current connector searches public listings. It cannot change your Brrtz account, saved searches, or watchlist.</p>
+          </article>
+          <article class="aeo-card">
+            <h2>Source-first</h2>
+            <p>Every result points back to Brrtz or the original marketplace. Brrtz is not the seller.</p>
+          </article>
+          <article class="aeo-card">
+            <h2>Web beta</h2>
+            <p>Custom MCP apps currently work in ChatGPT on the web. Mobile app support is not available yet.</p>
+          </article>
+        </section>
+
+        <section class="aeo-section chatgpt-directory-note">
+          <p class="aeo-eyebrow">One-click install</p>
+          <h2>Public directory listing is the next step.</h2>
+          <p>Brrtz is currently a developer-mode app, so each user adds the trusted public endpoint once. After OpenAI approves Brrtz for the ChatGPT app directory, this page can link directly to the public app listing.</p>
+          <div class="aeo-link-list">
+            <a class="aeo-pill-link" href="https://help.openai.com/en/articles/12584461-developer-mode-and-full-mcp-connectors-in-chatgpt-beta" target="_blank" rel="noreferrer">OpenAI setup help</a>
+            <a class="aeo-pill-link" href="https://help.openai.com/en/articles/11487775-connectors-in" target="_blank" rel="noreferrer">About apps in ChatGPT</a>
+            <a class="aeo-pill-link" href="/agent-connector">Brrtz connector details</a>
+          </div>
+        </section>
+      </main>
+
+      <footer class="aeo-footer">
+        <span>Public beta gear radar</span>
+        <span>&copy; 2026 Brrtz</span>
+      </footer>
+    </div>
+
+    <script>
+      document.addEventListener("click", async (event) => {
+        const control = event.target.closest("[data-copy-value]");
+        if (!control) return;
+
+        const value = control.dataset.copyValue;
+        const status = document.querySelector(".chatgpt-copy-status");
+        try {
+          await navigator.clipboard.writeText(value);
+          if (status) status.textContent = "Copied. Paste it into ChatGPT.";
+          const originalText = control.dataset.originalText || control.textContent.trim();
+          control.dataset.originalText = originalText;
+          if (control.matches(".aeo-copy-action")) control.textContent = "Copied";
+        } catch {
+          if (status) status.textContent = `Copy this: ${value}`;
+        }
+      });
+    </script>
+  </body>
+</html>

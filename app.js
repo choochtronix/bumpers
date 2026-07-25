@@ -4721,23 +4721,6 @@ async function handleHeaderAccountPopoverClick(event) {
     return;
   }
 
-  if (action === "alerts") {
-    openMyPageView();
-    window.requestAnimationFrame(() => {
-      const firstAlertToggle = document.querySelector("[data-my-page-alert-toggle]");
-      if (!firstAlertToggle) {
-        showStatusToast({
-          icon: "!",
-          message: "Save a search to turn on email alerts.",
-        });
-        return;
-      }
-      firstAlertToggle.scrollIntoView({ behavior: "smooth", block: "center" });
-      firstAlertToggle.focus({ preventScroll: true });
-    });
-    return;
-  }
-
   if (action === "settings") {
     openSettingsModal({ currentTarget: headerAccountTrigger }, {
       tabName: "account",

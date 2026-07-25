@@ -33,6 +33,7 @@ const requiredSitemapUrls = [
   "https://brrtz.com/regions/east-coast",
   "https://brrtz.com/sources",
   "https://brrtz.com/for-agents",
+  "https://brrtz.com/chatgpt",
   "https://brrtz.com/gear",
   "https://brrtz.com/gear/moog-minimoog",
   "https://brrtz.com/gear/arp-2600",
