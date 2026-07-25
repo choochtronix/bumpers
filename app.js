@@ -1525,6 +1525,7 @@ const STORAGE_KEYS = {
   listingLedger: "bumpers.listingLedger",
   freshFindCache: "bumpers.freshFindCache",
   feedbackRules: "bumpers.feedbackRules",
+  savedResultsDrawerOpen: "bumpers.savedResultsDrawerOpen",
 };
 
 const SAVED_SEARCH_SCHEMA_VERSION = 2;
@@ -1700,12 +1701,6 @@ const paginationControls = document.querySelector("#paginationControls");
 const paginationSummary = document.querySelector("#paginationSummary");
 const paginationPage = document.querySelector("#paginationPage");
 const template = document.querySelector("#listingTemplate");
-const alertTemplate = document.querySelector("#alertTemplate");
-const alertPanel = document.querySelector(".alert-panel");
-const alertList = document.querySelector("#alertList");
-const alertCount = document.querySelector("#alertCount");
-const alertDetail = document.querySelector("#alertDetail");
-const alertTitle = document.querySelector("#alertTitle");
 const searchMasthead = document.querySelector(".search-masthead");
 const topbar = document.querySelector(".topbar");
 const filterBar = document.querySelector(".filter-bar");
@@ -1719,6 +1714,14 @@ const liveStatus = document.querySelector("#liveStatus");
 const qualityModeButtons = document.querySelectorAll("[data-quality]");
 const sortModeSelect = document.querySelector("#sortMode");
 const resultViewButtons = document.querySelectorAll("[data-result-view]");
+const openSavedResultsDrawerButton = document.querySelector("#openSavedResultsDrawer");
+const savedResultsTriggerCount = document.querySelector("#savedResultsTriggerCount");
+const savedResultsDrawer = document.querySelector("#savedResultsDrawer");
+const savedResultsDrawerBackdrop = document.querySelector("#savedResultsDrawerBackdrop");
+const closeSavedResultsDrawerButton = document.querySelector("#closeSavedResultsDrawer");
+const savedResultsDrawerFilter = document.querySelector("#savedResultsDrawerFilter");
+const savedResultsDrawerList = document.querySelector("#savedResultsDrawerList");
+const manageSavedResultsDrawerButton = document.querySelector("#manageSavedResultsDrawer");
 const openSavedSearchesButton = document.querySelector("#openSavedSearches");
 const savedSearchPopover = document.querySelector("#savedSearchPopover");
 const savedWatchingFilter = document.querySelector("#savedWatchingFilter");
@@ -1833,6 +1836,9 @@ let isProfileAutoSyncing = false;
 let refiningSavedSearchId = "";
 let myPageFilterText = "";
 let myPageSortMode = "az";
+let savedResultsDrawerFilterText = "";
+let savedResultsDrawerReturnFocus = null;
+let savedResultsDrawerPreferenceRestored = false;
 let eventsBound = false;
 let searchChirpAudioCtx = null;
 
@@ -2447,6 +2453,13 @@ function bindEvents() {
   refineSearchModal.addEventListener("change", handleRefineSearchModalEdit);
 
   openSavedSearchesButton.addEventListener("click", openMyPageView);
+  openSavedResultsDrawerButton?.addEventListener("click", toggleSavedResultsDrawer);
+  closeSavedResultsDrawerButton?.addEventListener("click", closeSavedResultsDrawer);
+  savedResultsDrawerBackdrop?.addEventListener("click", closeSavedResultsDrawer);
+  savedResultsDrawerFilter?.addEventListener("input", handleSavedResultsDrawerFilter);
+  savedResultsDrawerList?.addEventListener("click", handleSavedResultsDrawerSelection);
+  savedResultsDrawer?.addEventListener("keydown", handleSavedResultsDrawerKeydown);
+  manageSavedResultsDrawerButton?.addEventListener("click", openSavedSearchManagement);
   document.addEventListener("click", handleSavedPopoverOutsideClick);
   quickSaveSearchButton?.addEventListener("click", saveCurrentSearchQuick);
   document.querySelector("#openSaveSearch").addEventListener("click", openSaveSearchModal);
@@ -2628,6 +2641,7 @@ function bindEvents() {
   document.addEventListener("touchmove", closeListingActionMenusOnScroll, { passive: true, capture: true });
   window.addEventListener("resize", requestMobileSearchOverlayUpdate);
   window.addEventListener("resize", refreshSavedSearchPopoverPosition);
+  window.addEventListener("resize", handleSavedResultsDrawerResize);
   window.addEventListener("resize", closeListingActionMenus);
   window.addEventListener("focus", handleAuthSessionWake);
   window.addEventListener("online", handleAuthSessionWake);
@@ -2639,6 +2653,7 @@ function bindEvents() {
     if (event.key !== "Escape") return;
     closeRegionPopover();
     closeSavedSearchPopover();
+    closeSavedResultsDrawer();
     if (!refineSearchModal.hidden) closeRefineSearchModal();
     if (!saveSearchModal.hidden) closeSaveSearchModal();
     if (!settingsModal.hidden) closeSettingsModal();
@@ -4494,6 +4509,198 @@ function viewSavedSearchFromToast() {
   openMyPageView({ focusTarget: openSavedSearchesButton });
 }
 
+function getSavedResultsDrawerMode() {
+  if (window.matchMedia?.("(max-width: 720px)").matches ?? window.innerWidth <= 720) return "mobile";
+  if (window.matchMedia?.("(min-width: 1920px)").matches ?? window.innerWidth >= 1920) return "docked";
+  return "overlay";
+}
+
+function isSavedResultsDrawerAvailable(profiles = loadProfiles()) {
+  return profiles.length > 0
+    && searchState.mode !== "idle"
+    && getCurrentAppView() !== APP_VIEW_MY_PAGE
+    && filterMode !== "watching"
+    && !isBrowseExpanded;
+}
+
+function updateSavedResultsDrawerAvailability(options = {}) {
+  if (!openSavedResultsDrawerButton || !savedResultsDrawer) return;
+
+  const profiles = loadProfiles().map(hydrateProfile);
+  const isAvailable = isSavedResultsDrawerAvailable(profiles);
+  openSavedResultsDrawerButton.hidden = !isAvailable;
+  savedResultsTriggerCount.textContent = String(profiles.length);
+
+  if (!isAvailable) {
+    closeSavedResultsDrawer({ restoreFocus: false, persist: false });
+    savedResultsDrawerPreferenceRestored = false;
+    return;
+  }
+
+  renderSavedResultsDrawer(profiles);
+  if (!savedResultsDrawer.hidden) {
+    syncSavedResultsDrawerMode();
+    return;
+  }
+
+  const shouldRestore = options.restorePreference !== false
+    && !savedResultsDrawerPreferenceRestored
+    && getSavedResultsDrawerMode() !== "mobile"
+    && localStorage.getItem(STORAGE_KEYS.savedResultsDrawerOpen) === "true";
+  savedResultsDrawerPreferenceRestored = true;
+  if (shouldRestore) openSavedResultsDrawer({ restoreFocus: false, persist: false });
+}
+
+function renderSavedResultsDrawer(profiles = loadProfiles().map(hydrateProfile)) {
+  if (!savedResultsDrawerList) return;
+
+  const query = normalizeText(savedResultsDrawerFilterText);
+  const visibleProfiles = profiles
+    .filter((profile) => {
+      if (!query) return true;
+      return normalizeText([profile.name, ...(profile.terms || [])].join(" ")).includes(query);
+    })
+    .sort((first, second) => {
+      const newDifference = Number(second.lastNewCount || 0) - Number(first.lastNewCount || 0);
+      if (newDifference !== 0) return newDifference;
+      return String(first.name || "").localeCompare(String(second.name || ""), undefined, { sensitivity: "base" });
+    });
+
+  if (visibleProfiles.length === 0) {
+    savedResultsDrawerList.innerHTML = `
+      <div class="saved-results-drawer-empty">
+        <strong>No matching saved searches.</strong>
+        <span>Try a shorter filter.</span>
+      </div>
+    `;
+    return;
+  }
+
+  savedResultsDrawerList.innerHTML = visibleProfiles.map((profile) => {
+    const profileId = String(profile.id || profile.name);
+    const newCount = Number(profile.lastNewCount || 0);
+    const hasNew = newCount > 0;
+    const isCurrent = profilesMatchSearch(profile, currentProfile);
+    const regionLabel = getRegionById(getProfileHomeRegionId(profile)).label;
+    return `
+      <button class="saved-results-drawer-row${hasNew ? " has-new" : " is-quiet"}${isCurrent ? " is-current" : ""}" type="button" data-saved-results-id="${escapeHtml(profileId)}"${isCurrent ? ' aria-current="true"' : ""}>
+        <span class="saved-results-drawer-marker${hasNew ? " is-active" : ""}" aria-hidden="true"><span></span></span>
+        <span class="saved-results-drawer-copy">
+          <strong>${escapeHtml(profile.name)}</strong>
+          <small>${escapeHtml(regionLabel)}</small>
+        </span>
+        <span class="saved-results-drawer-count${hasNew ? " has-new" : ""}">${hasNew ? `${newCount} new` : "No new"}</span>
+      </button>
+    `;
+  }).join("");
+}
+
+function toggleSavedResultsDrawer(event) {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+  if (savedResultsDrawer?.hidden) {
+    openSavedResultsDrawer({ currentTarget: event?.currentTarget });
+  } else {
+    closeSavedResultsDrawer();
+  }
+}
+
+function openSavedResultsDrawer(options = {}) {
+  if (!savedResultsDrawer || !isSavedResultsDrawerAvailable()) return;
+
+  savedResultsDrawerReturnFocus = options.currentTarget || document.activeElement;
+  closeSavedSearchPopover();
+  renderSavedResultsDrawer();
+  savedResultsDrawer.hidden = false;
+  document.body.classList.add("saved-results-drawer-open");
+  openSavedResultsDrawerButton?.setAttribute("aria-expanded", "true");
+  syncSavedResultsDrawerMode();
+
+  if (options.persist !== false && getSavedResultsDrawerMode() !== "mobile") {
+    localStorage.setItem(STORAGE_KEYS.savedResultsDrawerOpen, "true");
+  }
+
+  const focusTarget = getSavedResultsDrawerMode() === "mobile"
+    ? closeSavedResultsDrawerButton
+    : savedResultsDrawerFilter;
+  focusTarget?.focus?.();
+  updateMobileBottomNavState();
+}
+
+function closeSavedResultsDrawer(options = {}) {
+  if (!savedResultsDrawer) return;
+  const restoreFocus = options.restoreFocus !== false;
+  const wasOpen = !savedResultsDrawer.hidden;
+  savedResultsDrawer.hidden = true;
+  if (savedResultsDrawerBackdrop) savedResultsDrawerBackdrop.hidden = true;
+  document.body.classList.remove("saved-results-drawer-open", "saved-results-drawer-mobile-open");
+  openSavedResultsDrawerButton?.setAttribute("aria-expanded", "false");
+
+  if (options.persist !== false && getSavedResultsDrawerMode() !== "mobile") {
+    localStorage.setItem(STORAGE_KEYS.savedResultsDrawerOpen, "false");
+  }
+
+  if (wasOpen && restoreFocus) savedResultsDrawerReturnFocus?.focus?.();
+  savedResultsDrawerReturnFocus = null;
+  updateMobileBottomNavState();
+}
+
+function syncSavedResultsDrawerMode() {
+  if (!savedResultsDrawer || savedResultsDrawer.hidden) return;
+  const mode = getSavedResultsDrawerMode();
+  const isMobile = mode === "mobile";
+  const isDocked = mode === "docked";
+  savedResultsDrawer.dataset.drawerMode = mode;
+  savedResultsDrawer.setAttribute("aria-modal", String(!isDocked));
+  if (savedResultsDrawerBackdrop) savedResultsDrawerBackdrop.hidden = isDocked;
+  document.body.classList.toggle("saved-results-drawer-mobile-open", isMobile);
+}
+
+function handleSavedResultsDrawerResize() {
+  if (savedResultsDrawer?.hidden) return;
+  syncSavedResultsDrawerMode();
+}
+
+function handleSavedResultsDrawerFilter(event) {
+  savedResultsDrawerFilterText = event.target.value || "";
+  renderSavedResultsDrawer();
+}
+
+function handleSavedResultsDrawerSelection(event) {
+  const button = event.target.closest("[data-saved-results-id]");
+  if (!button) return;
+  const profile = getSavedSearchById(button.dataset.savedResultsId);
+  if (!profile) return;
+
+  const changesRegion = getProfileHomeRegionId(profile) !== appSettings.regionId;
+  if (getSavedResultsDrawerMode() === "mobile" || changesRegion) {
+    closeSavedResultsDrawer({ restoreFocus: false, persist: false });
+  }
+  handleSavedSearchClick(profile, button);
+}
+
+function handleSavedResultsDrawerKeydown(event) {
+  if (event.key === "Escape") {
+    event.preventDefault();
+    closeSavedResultsDrawer();
+    return;
+  }
+  if (event.target === savedResultsDrawerFilter || event.metaKey || event.ctrlKey || event.altKey) return;
+  if (!/^[a-z0-9]$/i.test(event.key)) return;
+
+  const firstMatch = [...savedResultsDrawerList.querySelectorAll("[data-saved-results-id]")]
+    .find((button) => normalizeText(button.querySelector("strong")?.textContent || "").startsWith(normalizeText(event.key)));
+  if (!firstMatch) return;
+  event.preventDefault();
+  firstMatch.focus();
+  firstMatch.scrollIntoView({ block: "nearest" });
+}
+
+function openSavedSearchManagement() {
+  closeSavedResultsDrawer({ restoreFocus: false });
+  openMyPageView({ focusTarget: openSavedSearchesButton });
+}
+
 function handleMobileBottomNavClick(event) {
   const button = event.target.closest("[data-mobile-nav]");
   if (!button) return;
@@ -4510,6 +4717,14 @@ function handleMobileBottomNavClick(event) {
 
   if (navTarget === "saved") {
     if (!settingsModal.hidden) closeSettingsModal({ restoreFocus: false });
+    if (isSavedResultsDrawerAvailable()) {
+      if (savedResultsDrawer.hidden) {
+        openSavedResultsDrawer({ currentTarget: button });
+      } else {
+        closeSavedResultsDrawer();
+      }
+      return;
+    }
     openMyPageView({ currentTarget: button });
     return;
   }
@@ -4536,7 +4751,7 @@ function updateMobileBottomNavState() {
 
   const activeTarget = !settingsModal.hidden
     ? "settings"
-    : getCurrentAppView() === APP_VIEW_MY_PAGE || !savedSearchPopover.hidden
+    : getCurrentAppView() === APP_VIEW_MY_PAGE || !savedSearchPopover.hidden || !savedResultsDrawer?.hidden
       ? "saved"
       : filterMode === "watching"
         ? "watchlist"
@@ -6560,6 +6775,7 @@ function renderResults(options = {}) {
   browseCardRenderId += 1;
   const renderContext = options.renderContext || createListingRenderContext();
   const watching = renderContext.watching;
+  updateSavedResultsDrawerAvailability();
   if (getCurrentAppView() === APP_VIEW_MY_PAGE) {
     renderMyPageView();
     return;
@@ -6595,7 +6811,6 @@ function renderResults(options = {}) {
   resultGrid.classList.toggle("is-gear-browser-frame", false);
   resultGrid.classList.toggle("is-my-page", false);
   renderSourceFilters(resultSource, { renderContext });
-  renderAlertPanel(featuredHomeResults, { renderContext });
 
   if (visibleResults.length > 0) {
     if (isShowingFeaturedHome) {
@@ -6633,9 +6848,6 @@ function setSearchChromeVisible(visible) {
 
   sourceFilterList.innerHTML = "";
   sourceAssistPanel.hidden = true;
-  alertPanel.hidden = true;
-  alertPanel.classList.remove("is-featured-home");
-  alertList.innerHTML = "";
   paginationControls.hidden = true;
   paginationSummary.textContent = "";
   paginationPage.textContent = "";
@@ -6935,7 +7147,6 @@ function renderWatchlistResultsView(watching, renderContext = createListingRende
   resultGrid.classList.toggle("is-gear-browser-frame", false);
   resultGrid.classList.toggle("is-my-page", false);
   renderSourceFilters(watchedListings, { renderContext, ignoreQuality: true });
-  renderAlertPanel([], { renderContext });
 
   resultGrid.appendChild(createWatchlistResultsHeader(visibleListings.length, watchedListings.length));
 
@@ -7028,7 +7239,6 @@ function renderHomeView(watching, renderContext = createListingRenderContext()) 
   resultGrid.classList.toggle("is-gear-browser-frame", false);
   resultGrid.classList.toggle("is-my-page", false);
   renderSourceFilters(homeResults, { renderContext });
-  renderAlertPanel([], { renderContext });
 
   if (browseResults.length > 0 || browseCategoryStatus === "loading" || browseCategoryStatus === "error") {
     resultGrid.appendChild(createFeaturedHomeSection(browseResults, { variant: "browse", renderContext }));
@@ -7105,7 +7315,6 @@ function renderBrowseExpandedView(watching, renderContext = createListingRenderC
   resultGrid.classList.toggle("is-gear-browser-frame", true);
   resultGrid.classList.toggle("is-my-page", false);
   renderSourceFilters(browseListings, { renderContext });
-  renderAlertPanel([], { renderContext });
 
   resultGrid.appendChild(createGearBrowserScene());
   resultGrid.appendChild(createBrowseExpandedHeader(visibleListings.length, browseListings.length));
@@ -7448,7 +7657,6 @@ function capitalize(value) {
 
 function getResultFilterLabel(mode) {
   return {
-    new: "New to me",
     fresh: "Fresh",
     maybe: "Maybe",
     watching: "Watching",
@@ -7745,7 +7953,6 @@ function getVisibleResults(watching, baseResults = currentResults, options = {})
   return baseResults
     .filter((listing) => !isListingHiddenByFeedback(listing, renderContext))
     .filter((listing) => {
-      if (filterMode === "new") return isListingMarkedNew(listing, renderContext);
       if (filterMode === "fresh") return isListingFresh(listing, renderContext);
       if (filterMode === "maybe") return formatGearConfidence(listing, renderContext).level === "maybe-gear";
       if (filterMode === "watching") return collectionHas(watching, listing.id);
@@ -7754,7 +7961,7 @@ function getVisibleResults(watching, baseResults = currentResults, options = {})
     .filter((listing) => !isUnavailableListing(listing))
     .filter((listing) => activeViewSources.size === 0 || activeViewSources.has(listing.source))
     .filter((listing) => qualityFilter === "all" || isCleanGearListing(listing, renderContext))
-    .sort(compareListings);
+    .sort((first, second) => compareListings(first, second, renderContext));
 }
 
 function renderSourceFilters(baseResults = currentResults, options = {}) {
@@ -8020,7 +8227,6 @@ function getSourceFilteredBaseResults(baseResults = currentResults, options = {}
   return baseResults
     .filter((listing) => !isListingHiddenByFeedback(listing, renderContext))
     .filter((listing) => {
-      if (filterMode === "new") return isListingMarkedNew(listing, renderContext);
       if (filterMode === "fresh") return isListingFresh(listing, renderContext);
       if (filterMode === "maybe") return formatGearConfidence(listing, renderContext).level === "maybe-gear";
       if (filterMode === "watching") return collectionHas(watching, listing.id);
@@ -8439,8 +8645,8 @@ function renderListingNewnessBadges(fragment, newness) {
   const newPill = fragment.querySelector(".new-pill");
 
   if (newPill) {
-    newPill.textContent = "New";
     newPill.title = getListingNewnessTitle(newness);
+    newPill.setAttribute("aria-label", `New listing. ${getListingNewnessTitle(newness)}`);
   }
 }
 
@@ -8707,89 +8913,6 @@ async function fetchRakumaThumbnailForListing(url) {
 
 function isPlaceholderImage(image) {
   return !image || image.startsWith("data:image/svg+xml");
-}
-
-function renderAlertPanel(featuredHomeResults = [], options = {}) {
-  if (searchState.mode === "idle") {
-    alertPanel.hidden = true;
-    alertPanel.classList.remove("is-featured-home");
-    alertList.innerHTML = "";
-    alertCount.textContent = "0";
-    alertDetail.textContent = "No scan yet";
-    return;
-  }
-
-  alertPanel.classList.remove("is-featured-home");
-  alertTitle.textContent = "New to You";
-  const renderContext = options.renderContext || createListingRenderContext();
-  const alertListings = getCurrentAlertListings(renderContext).filter((listing) => qualityFilter === "all" || isCleanGearListing(listing, renderContext));
-  alertList.innerHTML = "";
-  alertCount.textContent = alertListings.length;
-  alertDetail.textContent = createAlertDetail(alertListings.length);
-
-  if (isSearching || searchState.mode === "idle" || alertListings.length === 0) {
-    alertPanel.hidden = true;
-    return;
-  }
-
-  alertPanel.hidden = false;
-  alertListings.slice(0, 6).forEach((listing) => {
-    alertList.appendChild(renderAlertItem(listing));
-  });
-}
-
-function renderAlertItem(listing, options = {}) {
-  const fragment = alertTemplate.content.cloneNode(true);
-  const item = fragment.querySelector(".alert-item");
-  const source = SOURCES.find((item) => item.id === listing.source);
-  const imageLink = fragment.querySelector(".alert-thumb");
-  const image = fragment.querySelector("img");
-  const openLink = fragment.querySelector(".alert-open");
-  const isFeaturedHome = Boolean(options.isFeaturedHome);
-
-  item.classList.toggle("is-featured-home-item", isFeaturedHome);
-  if (isFeaturedHome) {
-    item.tabIndex = 0;
-    item.setAttribute("role", "link");
-    item.setAttribute("aria-label", `Open ${listing.title}`);
-  }
-  imageLink.href = listing.url;
-  image.src = listing.image;
-  image.alt = listing.title;
-  hydrateRenderedRakumaImage(listing, image);
-  renderSourceAvatar(fragment.querySelector(".source-avatar"), source, listing.source);
-  fragment.querySelector(".source-chip").textContent = source?.label || listing.source;
-  fragment.querySelector(".alert-price").textContent = formatPrice(listing.price);
-  fragment.querySelector("h4").textContent = listing.title;
-  openLink.href = listing.url;
-  imageLink.addEventListener("click", (event) => handlePrimaryListingOpen(event, listing.url));
-  openLink.addEventListener("click", (event) => handlePrimaryListingOpen(event, listing.url));
-
-  if (isFeaturedHome) {
-    item.addEventListener("click", (event) => {
-      if (event.target.closest("a, button")) return;
-      acknowledgeListings([listing], { viewed: true });
-      openExternalListing(listing.url);
-      renderResults();
-    });
-    item.addEventListener("keydown", (event) => {
-      if (event.key !== "Enter" && event.key !== " ") return;
-      event.preventDefault();
-      acknowledgeListings([listing], { viewed: true });
-      openExternalListing(listing.url);
-      renderResults();
-    });
-  }
-
-  return fragment;
-}
-
-function createAlertDetail(count) {
-  if (isSearching) return "Scanning now";
-  if (searchState.mode === "idle") return "No scan yet";
-  if (searchState.mode !== "live") return searchState.message;
-  if (count === 1) return "1 unseen listing";
-  return `${count} unseen listings`;
 }
 
 function createBrowseCategoryDetailMarkup(options = {}) {
@@ -9125,7 +9248,11 @@ function createFeaturedHomeLoadingCard(listing) {
         ${loadingCopyMarkup}
       </div>
     </div>
-    <span class="new-pill">New</span>
+    <span class="new-pill" role="img" aria-label="New listing">
+      <svg viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+        <path d="M16 1.5Q17 1.5 17.5 3L19.3 9.2L24.8 5.6Q26 4.8 26.7 5.6Q27.4 6.4 26.5 7.6L22.4 12.7L28.8 14.5Q30.3 15 30.3 16Q30.3 17 28.8 17.5L22.4 19.3L26.5 24.4Q27.4 25.6 26.7 26.4Q26 27.2 24.8 26.4L19.3 22.8L17.5 29Q17 30.5 16 30.5Q15 30.5 14.5 29L12.7 22.8L7.2 26.4Q6 27.2 5.3 26.4Q4.6 25.6 5.5 24.4L9.6 19.3L3.2 17.5Q1.7 17 1.7 16Q1.7 15 3.2 14.5L9.6 12.7L5.5 7.6Q4.6 6.4 5.3 5.6Q6 4.8 7.2 5.6L12.7 9.2L14.5 3Q15 1.5 16 1.5Z" />
+      </svg>
+    </span>
     <div class="listing-body loading-body" aria-hidden="true">
       <span class="loading-line loading-line-title"></span>
       <span class="loading-line loading-line-title loading-line-title-alt"></span>
@@ -9622,7 +9749,7 @@ function prepareBrandBrowseListings(listings, options = {}) {
     .filter((listing) => !isListingHiddenByFeedback(listing, qualityContext))
     .filter((listing) => !isUnavailableListing(listing))
     .filter((listing) => qualityFilter === "all" || isCleanGearListing(listing, qualityContext))
-    .sort(compareListings)
+    .sort((first, second) => compareListings(first, second, qualityContext))
     .slice(0, limit)
     .map((listing) => decorateFreshFindListing(listing, ledger, qualityContext));
 }
@@ -9642,7 +9769,10 @@ function prepareLatestBrowseListings(listings, options = {}) {
     .filter((listing) => !isUnavailableListing(listing))
     .filter((listing) => !isStaleFreshFind(listing, ledger))
     .filter((listing) => qualityFilter === "all" || isCleanGearListing(listing, qualityContext))
-    .sort((a, b) => getLatestBrowseTime(b, ledger) - getLatestBrowseTime(a, ledger))
+    .sort((first, second) => (
+      compareListingsByNewness(first, second, qualityContext)
+      || getLatestBrowseTime(second, ledger) - getLatestBrowseTime(first, ledger)
+    ))
     .slice(0, limit)
     .map((listing) => decorateFreshFindListing(listing, ledger, qualityContext));
 }
@@ -10528,7 +10658,13 @@ function escapeHtml(value) {
   }[character]));
 }
 
-function compareListings(a, b) {
+function compareListingsByNewness(a, b, renderContext = null) {
+  return Number(isListingMarkedNew(b, renderContext)) - Number(isListingMarkedNew(a, renderContext));
+}
+
+function compareListings(a, b, renderContext = null) {
+  const newnessOrder = compareListingsByNewness(a, b, renderContext);
+  if (newnessOrder !== 0) return newnessOrder;
   if (sortMode === "price-asc") return a.price - b.price;
   if (sortMode === "price-desc") return b.price - a.price;
   if (sortMode === "source") return labelForSource(a.source).localeCompare(labelForSource(b.source)) || compareListingsBySourceDate(a, b);
@@ -10566,6 +10702,7 @@ function renderSavedSearches() {
   if (profiles.length === 0) {
     savedSearches.innerHTML = `<div class="empty-state">Save your current search to pin it here.</div>`;
     updateQuickSaveSearchButton();
+    updateSavedResultsDrawerAvailability();
     if (getCurrentAppView() === APP_VIEW_MY_PAGE) renderMyPageView();
     return;
   }
@@ -10607,6 +10744,7 @@ function renderSavedSearches() {
     savedSearches.appendChild(item);
   });
   updateQuickSaveSearchButton();
+  updateSavedResultsDrawerAvailability();
   if (getCurrentAppView() === APP_VIEW_MY_PAGE) renderMyPageView();
 }
 

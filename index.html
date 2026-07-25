@@ -19,7 +19,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="design-system.css?v=mobile-sheet-20260704" />
-    <link rel="stylesheet" href="styles.css?v=mobile-sheet-20260704" />
+    <link rel="stylesheet" href="styles.css?v=new-badge-20260725" />
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -256,6 +256,12 @@
             <span class="source-filter-heading"><span class="source-quality-status" id="sourceQualityStatus" hidden><button class="source-quality-link" id="openSourceQualitySettings" type="button" aria-label="Open Search Quality settings" aria-pressed="true"><span>Gear Mode On</span><span class="source-quality-check" aria-hidden="true">✓</span></button></span></span>
             <div class="source-filter-list" id="sourceFilterList"></div>
             <div class="source-row-meta">
+              <button class="saved-results-trigger" id="openSavedResultsDrawer" type="button" aria-controls="savedResultsDrawer" aria-expanded="false" aria-label="Open saved searches" title="Saved searches" hidden>
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+                  <path d="M7 4.5C7 3.67 7.67 3 8.5 3H15.5C16.33 3 17 3.67 17 4.5V20L12 17L7 20V4.5Z" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <span id="savedResultsTriggerCount">0</span>
+              </button>
               <div class="result-view-toggle" id="resultViewToggle" role="group" aria-label="Result view">
                 <button class="result-view-button is-active" type="button" data-result-view="grid" aria-pressed="true" title="Card view">
                   <span class="result-view-icon result-view-icon-grid" aria-hidden="true"></span>
@@ -289,7 +295,6 @@
           <section class="controls" aria-label="Result controls">
             <div class="segmented" id="urgencyFilter" role="tablist" aria-label="Listing filter">
               <button class="active" type="button" data-filter="all">All</button>
-              <button type="button" data-filter="new">New to me</button>
               <button type="button" data-filter="fresh">Fresh</button>
               <button type="button" data-filter="maybe">Maybe</button>
               <button type="button" data-filter="watching">Watching</button>
@@ -300,20 +305,6 @@
               <button id="copyDigest" type="button" title="Copy email digest" aria-label="Copy email digest">✉</button>
             </div>
           </section>
-        </section>
-
-        <section class="alert-panel" aria-labelledby="alertTitle">
-          <div class="alert-panel-header">
-            <div>
-              <p class="eyebrow">Daily Radar</p>
-              <h3 id="alertTitle">New Finds</h3>
-            </div>
-            <div class="alert-summary">
-              <strong id="alertCount">0</strong>
-              <span id="alertDetail">No scan yet</span>
-            </div>
-          </div>
-          <div class="alert-list" id="alertList" aria-live="polite"></div>
         </section>
 
         <section class="result-grid" id="resultGrid" aria-live="polite"></section>
@@ -328,6 +319,28 @@
         </nav>
       </main>
     </div>
+
+    <div class="saved-results-drawer-backdrop" id="savedResultsDrawerBackdrop" hidden></div>
+    <aside class="saved-results-drawer" id="savedResultsDrawer" role="dialog" aria-modal="false" aria-labelledby="savedResultsDrawerTitle" tabindex="-1" hidden>
+      <header class="saved-results-drawer-header">
+        <div>
+          <p class="eyebrow">Quick switch</p>
+          <h2 id="savedResultsDrawerTitle">Saved Searches</h2>
+        </div>
+        <button class="saved-results-drawer-close" id="closeSavedResultsDrawer" type="button" aria-label="Close saved searches">&times;</button>
+      </header>
+      <label class="saved-results-drawer-filter">
+        <span class="sr-only">Filter saved searches</span>
+        <input id="savedResultsDrawerFilter" type="search" placeholder="Filter saved searches" autocomplete="off" autocapitalize="off" spellcheck="false" />
+      </label>
+      <nav class="saved-results-drawer-list" id="savedResultsDrawerList" aria-label="Saved searches"></nav>
+      <footer class="saved-results-drawer-footer">
+        <button id="manageSavedResultsDrawer" type="button">
+          <span>Manage saved searches</span>
+          <span aria-hidden="true">&rarr;</span>
+        </button>
+      </footer>
+    </aside>
 
     <nav class="mobile-bottom-nav" id="mobileBottomNav" aria-label="Primary mobile navigation">
       <button class="mobile-bottom-nav-item is-active" type="button" data-mobile-nav="home" aria-label="Go home" aria-pressed="true">
@@ -855,7 +868,11 @@ stand
         <div class="image-stage">
           <a class="image-link" target="_blank" rel="noreferrer">
             <img alt="" loading="lazy" />
-            <span class="new-pill">New</span>
+            <span class="new-pill" role="img" aria-label="New listing">
+              <svg viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+                <path d="M16 1.5Q17 1.5 17.5 3L19.3 9.2L24.8 5.6Q26 4.8 26.7 5.6Q27.4 6.4 26.5 7.6L22.4 12.7L28.8 14.5Q30.3 15 30.3 16Q30.3 17 28.8 17.5L22.4 19.3L26.5 24.4Q27.4 25.6 26.7 26.4Q26 27.2 24.8 26.4L19.3 22.8L17.5 29Q17 30.5 16 30.5Q15 30.5 14.5 29L12.7 22.8L7.2 26.4Q6 27.2 5.3 26.4Q4.6 25.6 5.5 24.4L9.6 19.3L3.2 17.5Q1.7 17 1.7 16Q1.7 15 3.2 14.5L9.6 12.7L5.5 7.6Q4.6 6.4 5.3 5.6Q6 4.8 7.2 5.6L12.7 9.2L14.5 3Q15 1.5 16 1.5Z" />
+              </svg>
+            </span>
             <span class="source-avatar"></span>
           </a>
           <button class="watch-button" type="button" title="Watch listing" aria-label="Watch listing">♡</button>
@@ -896,23 +913,6 @@ stand
       </article>
     </template>
 
-    <template id="alertTemplate">
-      <article class="alert-item">
-        <a class="alert-thumb" target="_blank" rel="noreferrer">
-          <img alt="" loading="lazy" />
-          <span class="source-avatar"></span>
-          <span class="alert-price"></span>
-        </a>
-        <div class="alert-copy">
-          <div class="listing-meta">
-            <span class="source-chip"></span>
-          </div>
-          <h4></h4>
-        </div>
-        <a class="alert-open" target="_blank" rel="noreferrer">Open</a>
-      </article>
-    </template>
-
     <script>
       window.__brrtzAppReady = false;
       document.addEventListener("submit", (event) => {
@@ -925,6 +925,6 @@ stand
   <script src="listing-freshness.js?v=new-badge-1"></script>
     <script src="gear-scanner-curation.js?v=curation-module-1"></script>
     <script src="auth-session.js?v=persistent-auth-1"></script>
-  <script src="app.js?v=persistent-auth-new-badge-1"></script>
+  <script src="app.js?v=new-badge-20260725"></script>
   </body>
 </html>
