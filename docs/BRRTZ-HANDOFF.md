@@ -567,6 +567,7 @@ Start here, then follow the specialist document for the task:
 | Saved-search schema | `docs/saved-search-cloud-schema.md` |
 | External services | `docs/account-services-register.md` |
 | Newness rules | `docs/newness-model.md` |
+| Gear Scanner pagination | `docs/gear-scanner-pagination.md` |
 | Noise curation | `docs/this-is-noise-curation-process.md` |
 | Beta QA | `docs/beta-qa-loop.md` |
 | Design system | `DESIGN-SYSTEM.md` |

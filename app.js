@@ -56,7 +56,10 @@ const FEATURED_HOME_LIMIT = 12;
 const BROWSE_HOME_INITIAL_LIMIT = 18;
 const BROWSE_HOME_LIMIT = BROWSE_HOME_INITIAL_LIMIT * 2;
 const BROWSE_EXPANDED_LIMIT = 240;
+// Phase 2 will replace this finite pool with per-source pagination cursors.
 const BROWSE_CARD_RENDER_CHUNK_SIZE = 6;
+const BROWSE_INFINITE_INITIAL_LIMIT = 24;
+const BROWSE_INFINITE_BATCH_SIZE = 24;
 const BROWSE_HOME_CURATION_CANDIDATE_LIMIT = 48;
 const APP_VIEW_PARAM = "view";
 const APP_VIEW_SYNTH_BROWSER = "synth-browser";
@@ -1656,9 +1659,16 @@ let browseCategoryUpdatedAt = "";
 let browseCategoryRequestId = 0;
 let browseCategorySelectionTimer = 0;
 let browseCategoryAbortController = null;
+let browseCategoryLoadMoreAbortController = null;
+let browseCategoryNextCursor = "";
+let browseCategoryHasMore = false;
+let browseCategoryLoadingMore = false;
 let browseCategoryPostLoadTaskId = 0;
 let browseCardRenderId = 0;
 let browsePreparedListingsCache = null;
+let browseInfiniteVisibleCount = BROWSE_INFINITE_INITIAL_LIMIT;
+let browseInfiniteObserver = null;
+let browseInfiniteRenderState = null;
 let browseCategoryBrandSlug = "";
 let browseBrandResultView = "gallery";
 let gearBrowserScenePreviousStatus = browseCategoryStatus;
@@ -1714,7 +1724,7 @@ const liveStatus = document.querySelector("#liveStatus");
 const qualityModeButtons = document.querySelectorAll("[data-quality]");
 const sortModeSelect = document.querySelector("#sortMode");
 const resultViewButtons = document.querySelectorAll("[data-result-view]");
-const openSavedResultsDrawerButton = document.querySelector("#openSavedResultsDrawer");
+const openSavedResultsDrawerButton = document.querySelector("#openSavedSearches");
 const savedResultsTriggerCount = document.querySelector("#savedResultsTriggerCount");
 const savedResultsDrawer = document.querySelector("#savedResultsDrawer");
 const savedResultsDrawerBackdrop = document.querySelector("#savedResultsDrawerBackdrop");
@@ -1722,7 +1732,7 @@ const closeSavedResultsDrawerButton = document.querySelector("#closeSavedResults
 const savedResultsDrawerFilter = document.querySelector("#savedResultsDrawerFilter");
 const savedResultsDrawerList = document.querySelector("#savedResultsDrawerList");
 const manageSavedResultsDrawerButton = document.querySelector("#manageSavedResultsDrawer");
-const openSavedSearchesButton = document.querySelector("#openSavedSearches");
+const openSavedSearchesButton = openSavedResultsDrawerButton;
 const savedSearchPopover = document.querySelector("#savedSearchPopover");
 const savedWatchingFilter = document.querySelector("#savedWatchingFilter");
 const quickSaveSearchButton = document.querySelector("#quickSaveSearch");
@@ -2452,7 +2462,6 @@ function bindEvents() {
   refineSearchModal.addEventListener("input", handleRefineSearchModalEdit);
   refineSearchModal.addEventListener("change", handleRefineSearchModalEdit);
 
-  openSavedSearchesButton.addEventListener("click", openMyPageView);
   openSavedResultsDrawerButton?.addEventListener("click", toggleSavedResultsDrawer);
   closeSavedResultsDrawerButton?.addEventListener("click", closeSavedResultsDrawer);
   savedResultsDrawerBackdrop?.addEventListener("click", closeSavedResultsDrawer);
@@ -4516,11 +4525,7 @@ function getSavedResultsDrawerMode() {
 }
 
 function isSavedResultsDrawerAvailable(profiles = loadProfiles()) {
-  return profiles.length > 0
-    && searchState.mode !== "idle"
-    && getCurrentAppView() !== APP_VIEW_MY_PAGE
-    && filterMode !== "watching"
-    && !isBrowseExpanded;
+  return getCurrentAppView() !== APP_VIEW_MY_PAGE;
 }
 
 function updateSavedResultsDrawerAvailability(options = {}) {
@@ -4529,7 +4534,10 @@ function updateSavedResultsDrawerAvailability(options = {}) {
   const profiles = loadProfiles().map(hydrateProfile);
   const isAvailable = isSavedResultsDrawerAvailable(profiles);
   openSavedResultsDrawerButton.hidden = !isAvailable;
-  savedResultsTriggerCount.textContent = String(profiles.length);
+  if (savedResultsTriggerCount) {
+    savedResultsTriggerCount.textContent = String(profiles.length);
+    savedResultsTriggerCount.hidden = profiles.length === 0;
+  }
 
   if (!isAvailable) {
     closeSavedResultsDrawer({ restoreFocus: false, persist: false });
@@ -6772,6 +6780,8 @@ function renderResults(options = {}) {
     return;
   }
 
+  disconnectBrowseInfiniteObserver();
+  browseInfiniteRenderState = null;
   browseCardRenderId += 1;
   const renderContext = options.renderContext || createListingRenderContext();
   const watching = renderContext.watching;
@@ -7300,10 +7310,15 @@ function renderBrowseExpandedView(watching, renderContext = createListingRenderC
   const allBrowseListings = getBrowseCategoryExpandedListings({ renderContext });
   const activeBrand = getActiveBrowseBrand();
   const browseListings = getBrandFilteredBrowseListings(allBrowseListings);
-  const visibleListings = getVisibleResults(watching, browseListings, { renderContext });
-  const totalPages = getTotalPages(visibleListings.length);
-  currentPage = Math.min(currentPage, totalPages);
-  const pageListings = paginateResults(visibleListings);
+  const visibleListings = getVisibleResults(watching, browseListings, {
+    renderContext,
+    preferSourceDate: true,
+  });
+  const initialVisibleCount = Math.min(
+    Math.max(BROWSE_INFINITE_INITIAL_LIMIT, browseInfiniteVisibleCount),
+    visibleListings.length,
+  );
+  const initialListings = visibleListings.slice(0, initialVisibleCount);
   const renderId = ++browseCardRenderId;
   const effectiveResultView = activeBrand ? sanitizeResultView(browseBrandResultView) : appSettings.resultView;
 
@@ -7328,7 +7343,20 @@ function renderBrowseExpandedView(watching, renderContext = createListingRenderC
       ? null
       : createBrowseExpandedLoadingState({ compact: true, detail: "Preparing latest cards." });
     if (preparingLoader) resultGrid.appendChild(preparingLoader);
-    appendBrowseListingCardsInChunks(pageListings, renderId, { loaderToRemove: preparingLoader, renderContext });
+    appendBrowseListingCardsInChunks(initialListings, renderId, {
+      loaderToRemove: preparingLoader,
+      renderContext,
+      onComplete: () => {
+        initializeBrowseInfiniteScroll({
+          listings: visibleListings,
+          watching,
+          renderedCount: initialListings.length,
+          renderedListings: initialListings,
+          renderContext,
+          renderId,
+        });
+      },
+    });
   } else if (browseCategoryStatus !== "loading" && activeBrand) {
     resultGrid.insertAdjacentHTML("beforeend", `
       <div class="empty-state browse-expanded-empty">
@@ -7347,7 +7375,7 @@ function renderBrowseExpandedView(watching, renderContext = createListingRenderC
     `);
   }
 
-  renderPagination(visibleListings.length, totalPages);
+  renderPagination(0, 1);
   renderQualityModeControls();
   renderResultViewControls(false, activeBrand ? effectiveResultView : "");
   renderTopWatchingControl();
@@ -7407,6 +7435,7 @@ function createBrowseCategoryLoadingLabel() {
 function appendBrowseListingCardsInChunks(listings, renderId, options = {}) {
   let index = 0;
   const loaderToRemove = options.loaderToRemove || null;
+  const beforeNode = options.beforeNode || null;
   const renderContext = options.renderContext || createListingRenderContext();
 
   const appendNextChunk = () => {
@@ -7418,14 +7447,214 @@ function appendBrowseListingCardsInChunks(listings, renderId, options = {}) {
     const fragment = document.createDocumentFragment();
     const end = Math.min(index + BROWSE_CARD_RENDER_CHUNK_SIZE, listings.length);
     for (; index < end; index += 1) {
-      fragment.appendChild(renderListing(listings[index], { renderContext }));
+      fragment.appendChild(renderListing(listings[index], {
+        renderContext,
+        browseListingKey: getBrowseListingKey(listings[index]),
+      }));
     }
-    resultGrid.appendChild(fragment);
+    if (beforeNode?.isConnected) {
+      resultGrid.insertBefore(fragment, beforeNode);
+    } else {
+      resultGrid.appendChild(fragment);
+    }
     loaderToRemove?.remove();
-    if (index < listings.length) requestAnimationFrame(appendNextChunk);
+    if (index < listings.length) {
+      requestAnimationFrame(appendNextChunk);
+    } else {
+      options.onComplete?.();
+    }
   };
 
   requestAnimationFrame(appendNextChunk);
+}
+
+function initializeBrowseInfiniteScroll(options = {}) {
+  if (options.renderId !== browseCardRenderId || !isBrowseExpanded) return;
+
+  const sentinel = document.createElement("div");
+  sentinel.className = "browse-infinite-sentinel";
+  sentinel.setAttribute("role", "status");
+  sentinel.setAttribute("aria-live", "polite");
+  resultGrid.appendChild(sentinel);
+
+  browseInfiniteRenderState = {
+    listings: options.listings || [],
+    watching: options.watching || [],
+    renderedCount: options.renderedCount || 0,
+    renderedIds: new Set((options.renderedListings || []).map(getBrowseListingKey)),
+    renderContext: options.renderContext || createListingRenderContext(),
+    renderId: options.renderId,
+    sentinel,
+    loading: false,
+  };
+  browseInfiniteVisibleCount = browseInfiniteRenderState.renderedCount;
+  updateBrowseInfiniteSentinel();
+  observeBrowseInfiniteSentinel();
+}
+
+function observeBrowseInfiniteSentinel() {
+  disconnectBrowseInfiniteObserver();
+  const state = browseInfiniteRenderState;
+  if (!state || state.loading || !hasMoreBrowseInfiniteListings(state) || !state.sentinel?.isConnected) return;
+
+  if (!("IntersectionObserver" in window)) {
+    state.sentinel.classList.add("requires-action");
+    return;
+  }
+
+  const prefetchDistance = Math.max(window.innerHeight * 2, 900);
+  browseInfiniteObserver = new IntersectionObserver((entries) => {
+    if (!entries.some((entry) => entry.isIntersecting)) return;
+    loadNextBrowseInfiniteBatch();
+  }, {
+    rootMargin: `${Math.round(prefetchDistance)}px 0px`,
+  });
+  browseInfiniteObserver.observe(state.sentinel);
+}
+
+function disconnectBrowseInfiniteObserver() {
+  browseInfiniteObserver?.disconnect();
+  browseInfiniteObserver = null;
+}
+
+function loadNextBrowseInfiniteBatch() {
+  const state = browseInfiniteRenderState;
+  if (!state || state.loading || state.renderId !== browseCardRenderId || !state.sentinel?.isConnected) return;
+  const unrenderedListings = getUnrenderedBrowseInfiniteListings(state);
+  if (unrenderedListings.length === 0 && canLoadNextBrowseSourcePage()) {
+    loadNextBrowseSourcePage(state);
+    return;
+  }
+  if (unrenderedListings.length === 0) {
+    updateBrowseInfiniteSentinel();
+    return;
+  }
+
+  state.loading = true;
+  disconnectBrowseInfiniteObserver();
+  updateBrowseInfiniteSentinel();
+
+  const nextListings = unrenderedListings.slice(0, BROWSE_INFINITE_BATCH_SIZE);
+  appendBrowseListingCardsInChunks(nextListings, state.renderId, {
+    beforeNode: state.sentinel,
+    renderContext: state.renderContext,
+    onComplete: () => {
+      if (state !== browseInfiniteRenderState || state.renderId !== browseCardRenderId) return;
+      nextListings.forEach((listing) => state.renderedIds.add(getBrowseListingKey(listing)));
+      state.renderedCount = state.renderedIds.size;
+      reconcileBrowseInfiniteCardOrder(state);
+      state.loading = false;
+      browseInfiniteVisibleCount = state.renderedCount;
+      updateBrowseInfiniteSentinel();
+      observeBrowseInfiniteSentinel();
+    },
+  });
+}
+
+async function loadNextBrowseSourcePage(state) {
+  if (state !== browseInfiniteRenderState || state.renderId !== browseCardRenderId) return;
+  state.loading = true;
+  disconnectBrowseInfiniteObserver();
+  updateBrowseInfiniteSentinel();
+
+  try {
+    await loadNextBrowseCategoryPage();
+    if (state !== browseInfiniteRenderState || state.renderId !== browseCardRenderId) return;
+    state.listings = getCurrentBrowseVisibleListings(state.watching, state.renderContext);
+  } catch (error) {
+    if (error?.name !== "AbortError") {
+      console.warn("Unable to load older Gear Scanner listings.", error);
+      browseCategoryHasMore = false;
+      browseCategoryNextCursor = "";
+    }
+  } finally {
+    if (state !== browseInfiniteRenderState || state.renderId !== browseCardRenderId) return;
+    state.loading = false;
+    if (getUnrenderedBrowseInfiniteListings(state).length > 0) {
+      loadNextBrowseInfiniteBatch();
+    } else {
+      updateBrowseInfiniteSentinel();
+      observeBrowseInfiniteSentinel();
+    }
+  }
+}
+
+function getCurrentBrowseVisibleListings(watching, renderContext) {
+  const allBrowseListings = getBrowseCategoryExpandedListings({ renderContext });
+  const browseListings = getBrandFilteredBrowseListings(allBrowseListings);
+  return getVisibleResults(watching, browseListings, {
+    renderContext,
+    preferSourceDate: true,
+  });
+}
+
+function getBrowseListingKey(listing = {}) {
+  return listing.id || listing.url || "";
+}
+
+function getUnrenderedBrowseInfiniteListings(state) {
+  return state.listings.filter((listing) => !state.renderedIds.has(getBrowseListingKey(listing)));
+}
+
+function reconcileBrowseInfiniteCardOrder(state) {
+  if (!state?.sentinel?.isConnected) return;
+  const cards = [...resultGrid.querySelectorAll("[data-browse-listing-key]")];
+  if (cards.length < 2) return;
+
+  const cardByKey = new Map(cards.map((card) => [card.dataset.browseListingKey, card]));
+  const anchor = cards.find((card) => card.getBoundingClientRect().bottom > 0) || null;
+  const anchorTop = anchor?.getBoundingClientRect().top;
+  const fragment = document.createDocumentFragment();
+
+  state.listings.forEach((listing) => {
+    const card = cardByKey.get(getBrowseListingKey(listing));
+    if (card) fragment.appendChild(card);
+  });
+  resultGrid.insertBefore(fragment, state.sentinel);
+
+  if (anchor && Number.isFinite(anchorTop)) {
+    const offset = anchor.getBoundingClientRect().top - anchorTop;
+    if (Math.abs(offset) > 1) window.scrollBy(0, offset);
+  }
+}
+
+function canLoadNextBrowseSourcePage() {
+  return browseCategoryHasMore
+    && Boolean(browseCategoryNextCursor)
+    && !browseCategoryLoadingMore
+    && !getActiveBrowseBrand();
+}
+
+function hasMoreBrowseInfiniteListings(state) {
+  return getUnrenderedBrowseInfiniteListings(state).length > 0 || canLoadNextBrowseSourcePage();
+}
+
+function updateBrowseInfiniteSentinel() {
+  const state = browseInfiniteRenderState;
+  if (!state?.sentinel) return;
+
+  const remainingCount = getUnrenderedBrowseInfiniteListings(state).length;
+  const hasMore = remainingCount > 0 || canLoadNextBrowseSourcePage();
+  state.sentinel.classList.toggle("is-loading", state.loading);
+  state.sentinel.classList.toggle("is-complete", !hasMore);
+
+  if (!hasMore) {
+    state.sentinel.innerHTML = `
+      <span>You're caught up.</span>
+      <button type="button" data-result-action="rescan-gear-scanner" data-rescan-expanded="true">Rescan</button>
+    `;
+    return;
+  }
+
+  const statusLabel = state.loading
+    ? (remainingCount > 0 ? "Loading more gear..." : "Scanning older listings...")
+    : (remainingCount > 0 ? `${remainingCount} more listings ready` : "Load older listings");
+  state.sentinel.innerHTML = `
+    <button type="button" data-result-action="load-more-browse" aria-label="Load more Gear Scanner listings">
+      <span class="browse-infinite-pulse" aria-hidden="true"></span>
+      <span>${statusLabel}</span>
+    </button>
+  `;
 }
 
 function createBrowseHomeLoadingState() {
@@ -7509,6 +7738,11 @@ function handleResultGridAction(event) {
   if (button.dataset.resultAction === "rescan-gear-scanner") {
     event.preventDefault?.();
     rescanGearScannerSearch({ expanded: button.dataset.rescanExpanded === "true" });
+  }
+
+  if (button.dataset.resultAction === "load-more-browse") {
+    event.preventDefault?.();
+    loadNextBrowseInfiniteBatch();
   }
 
   if (button.dataset.resultAction === "open-brand-browser") {
@@ -7844,6 +8078,9 @@ function getPaginationResults(watching = loadSet(STORAGE_KEYS.watching), options
 
 function resetPagination() {
   currentPage = 1;
+  browseInfiniteVisibleCount = BROWSE_INFINITE_INITIAL_LIMIT;
+  disconnectBrowseInfiniteObserver();
+  browseInfiniteRenderState = null;
 }
 
 function renderPendingSourceCards() {
@@ -7961,7 +8198,13 @@ function getVisibleResults(watching, baseResults = currentResults, options = {})
     .filter((listing) => !isUnavailableListing(listing))
     .filter((listing) => activeViewSources.size === 0 || activeViewSources.has(listing.source))
     .filter((listing) => qualityFilter === "all" || isCleanGearListing(listing, renderContext))
-    .sort((first, second) => compareListings(first, second, renderContext));
+    .sort((first, second) => {
+      if (options.preferSourceDate && sortMode === "newest") {
+        return compareListingsBySourceDate(first, second)
+          || compareListingsByNewness(first, second, renderContext);
+      }
+      return compareListings(first, second, renderContext);
+    });
 }
 
 function renderSourceFilters(baseResults = currentResults, options = {}) {
@@ -8350,6 +8593,9 @@ function renderListing(listing, options = {}) {
   const listSourceAvatar = document.createElement("span");
   listSourceAvatar.className = "source-avatar list-source-avatar";
   card.appendChild(listSourceAvatar);
+  if (options.browseListingKey) {
+    card.dataset.browseListingKey = options.browseListingKey;
+  }
 
   if (listingBody && priceRow && listingActionMenu) {
     listingBody.insertBefore(listingActionMenu, priceRow.nextSibling);
@@ -9430,7 +9676,10 @@ function getBrowseCategoryExpandedListings(options = {}) {
     if (!preparedCache.expanded) {
       preparedCache.expanded = getActiveBrowseBrand()
         ? prepareBrandBrowseListings(browseCategoryListings, { limit: BROWSE_EXPANDED_LIMIT, renderContext })
-        : prepareLatestBrowseListings(browseCategoryListings, { limit: BROWSE_EXPANDED_LIMIT, renderContext });
+        : prepareLatestBrowseListings(browseCategoryListings, {
+          limit: Math.max(BROWSE_EXPANDED_LIMIT, browseCategoryListings.length),
+          renderContext,
+        });
     }
     return preparedCache.expanded;
   }
@@ -9482,9 +9731,12 @@ function ensureBrowseCategoryListings() {
   browseCategoryBrandSlug = activeBrowseBrandSlug ? sanitizePopularBrandSlug(activeBrowseBrandSlug) : "";
 
   fetchBrowseCategoryListings(requestedCategoryIntent, { signal: abortController.signal })
-    .then((listings) => {
+    .then((pageResult) => {
       if (requestId !== browseCategoryRequestId || requestedCategoryIntent !== browseCategoryIntent) return;
+      const listings = pageResult.listings;
       browseCategoryListings = listings;
+      browseCategoryNextCursor = pageResult.pagination.nextCursor;
+      browseCategoryHasMore = pageResult.pagination.hasMore;
       clearBrowsePreparedListingsCache();
       browseCategoryStatus = listings.length > 0 ? "live" : "empty";
       if (searchState.mode === "idle") {
@@ -9537,7 +9789,10 @@ async function fetchBrowseCategoryListings(categoryIntent, options = {}) {
   const activeBrand = getActiveBrowseBrand();
   const brandRecipe = getPopularBrandRecipe(activeBrand);
   if (activeBrand && brandRecipe) {
-    return fetchBrandBrowseListings(activeBrand, brandRecipe, categoryIntent, options);
+    return {
+      listings: await fetchBrandBrowseListings(activeBrand, brandRecipe, categoryIntent, options),
+      pagination: createEmptyBrowsePagination(),
+    };
   }
 
   const params = new URLSearchParams({
@@ -9546,13 +9801,14 @@ async function fetchBrowseCategoryListings(categoryIntent, options = {}) {
     excludes: STARTER_FRESH_FIND_EXCLUDES.join("|"),
     maxPrice: "0",
   });
+  if (options.cursor) params.set("cursor", options.cursor);
   const response = await fetch(`/api/browse?${params.toString()}`, { cache: "no-store", signal: options.signal });
   if (!response.ok) throw new Error(`Browse failed with ${response.status}`);
 
   const payload = await response.json();
   const listings = Array.isArray(payload.listings) ? payload.listings : [];
   const qualityContext = createGearQualityContext();
-  return listings
+  const filteredListings = listings
     .filter((listing) => !isUnavailableListing(listing))
     .filter((listing) => qualityFilter === "all" || isCleanGearListing(listing, qualityContext))
     .filter((listing) => !hasStarterFreshFindNoise(listing))
@@ -9560,6 +9816,28 @@ async function fetchBrowseCategoryListings(categoryIntent, options = {}) {
       ...listing,
       isBrowseCategoryListing: true,
     }));
+  return {
+    listings: filteredListings,
+    pagination: normalizeBrowsePagination(payload.meta?.pagination),
+  };
+}
+
+function createEmptyBrowsePagination() {
+  return {
+    hasMore: false,
+    nextCursor: "",
+    page: 1,
+    source: "",
+  };
+}
+
+function normalizeBrowsePagination(value = {}) {
+  return {
+    hasMore: value?.hasMore === true && Boolean(value?.nextCursor),
+    nextCursor: String(value?.nextCursor || ""),
+    page: Math.max(1, Number(value?.page) || 1),
+    source: String(value?.source || ""),
+  };
 }
 
 async function fetchBrandBrowseListings(brand, brandRecipe, categoryIntent, options = {}) {
@@ -9614,10 +9892,73 @@ function cancelBrowseCategoryLoad() {
     browseCategoryAbortController.abort();
     browseCategoryAbortController = null;
   }
+  resetBrowseCategoryPaginationState();
   browseCategoryRequestId += 1;
   browseCategoryPostLoadTaskId += 1;
   browseCardRenderId += 1;
   clearBrowsePreparedListingsCache();
+}
+
+function resetBrowseCategoryPaginationState() {
+  if (browseCategoryLoadMoreAbortController) {
+    browseCategoryLoadMoreAbortController.abort();
+    browseCategoryLoadMoreAbortController = null;
+  }
+  browseCategoryNextCursor = "";
+  browseCategoryHasMore = false;
+  browseCategoryLoadingMore = false;
+}
+
+async function loadNextBrowseCategoryPage() {
+  if (
+    browseCategoryLoadingMore
+    || !browseCategoryHasMore
+    || !browseCategoryNextCursor
+    || getActiveBrowseBrand()
+  ) {
+    return { addedCount: 0 };
+  }
+
+  const requestId = browseCategoryRequestId;
+  const requestedCategoryIntent = browseCategoryIntent;
+  const requestedCursor = browseCategoryNextCursor;
+  const abortController = new AbortController();
+  if (browseCategoryLoadMoreAbortController) browseCategoryLoadMoreAbortController.abort();
+  browseCategoryLoadMoreAbortController = abortController;
+  browseCategoryLoadingMore = true;
+
+  try {
+    const pageResult = await fetchBrowseCategoryListings(requestedCategoryIntent, {
+      cursor: requestedCursor,
+      signal: abortController.signal,
+    });
+    if (
+      requestId !== browseCategoryRequestId
+      || requestedCategoryIntent !== browseCategoryIntent
+      || requestedCursor !== browseCategoryNextCursor
+    ) {
+      return { addedCount: 0 };
+    }
+
+    const listingsById = new Map(
+      browseCategoryListings.map((listing) => [listing.id || listing.url, listing]),
+    );
+    const previousCount = listingsById.size;
+    pageResult.listings.forEach((listing) => {
+      listingsById.set(listing.id || listing.url, listing);
+    });
+    browseCategoryListings = [...listingsById.values()].sort(compareListingsBySourceDate);
+    browseCategoryNextCursor = pageResult.pagination.nextCursor;
+    browseCategoryHasMore = pageResult.pagination.hasMore;
+    browseCategoryStatus = browseCategoryListings.length > 0 ? "live" : "empty";
+    clearBrowsePreparedListingsCache();
+    return { addedCount: listingsById.size - previousCount };
+  } finally {
+    if (browseCategoryLoadMoreAbortController === abortController) {
+      browseCategoryLoadMoreAbortController = null;
+      browseCategoryLoadingMore = false;
+    }
+  }
 }
 
 function scheduleBrowseCategoryPostLoadWork(categoryIntent, listings) {

@@ -13,6 +13,12 @@ import { runSourceHealthAgent } from "./src/agents/sourceHealthAgent.js";
 import { appendSourceHealthLogs, readSourceHealthState } from "./src/lib/sourceHealthStore.js";
 import { createBrrtzMcpHandler } from "./src/mcp/brrtzMcpServer.js";
 import { getCheckableSources, SOURCE_REGISTRY } from "./src/sources/sourceRegistry.js";
+import {
+  createBrowseCursor,
+  getBrowsePageStart,
+  getNextBrowsePageState,
+  parseBrowseCursor,
+} from "./src/browse/browsePagination.js";
 
 const {
   compareListingsBySourceDate,
@@ -1978,9 +1984,21 @@ async function handleBrowse(url, response) {
   const brandTermLimit = Number.isFinite(requestedBrandTermLimit) && requestedBrandTermLimit > 0
     ? Math.min(Math.floor(requestedBrandTermLimit), BRAND_BROWSE_TERM_LIMIT)
     : Math.min(browseBrandTerms.length || 0, BRAND_BROWSE_TERM_LIMIT);
+  const cursorValue = url.searchParams.get("cursor") || "";
+  const cursorResult = parseBrowseCursor(cursorValue, { regionId, categoryIntent });
+  const supportsDeepPagination = regionId === "japan" && browseBrandTerms.length === 0;
+  if (!cursorResult.ok || (cursorValue && !supportsDeepPagination)) {
+    sendJson(response, 400, {
+      error: "invalid_browse_cursor",
+      message: "The Gear Scanner cursor does not match this region and category.",
+    });
+    return;
+  }
+  const browsePage = cursorResult.state?.page || 1;
   const sourceStats = [];
   const errors = [];
   const listingsById = new Map();
+  let deepPaginationHasMore = false;
 
   if (regionId === "japan") {
     if (browseBrandTerms.length > 0) {
@@ -2006,18 +2024,26 @@ async function handleBrowse(url, response) {
         const browseTerms = getYahooAuctionsBrowseTerms(browseIntent);
 
         try {
-          const listings = categoryId
-            ? await browseYahooAuctionsCategory(browseIntent)
-            : await browseYahooAuctionsCategoryTerms(browseIntent);
+          const pageResult = categoryId
+            ? await browseYahooAuctionsCategory(browseIntent, {
+              page: browsePage,
+              includePagination: true,
+            })
+            : await browseYahooAuctionsCategoryTerms(browseIntent, {
+              page: browsePage,
+              includePagination: true,
+            });
           return {
-            listings,
+            listings: pageResult.listings,
+            hasMore: pageResult.hasMore,
             stat: {
               source: "yahoo-auctions",
               status: "ok",
               searchedTerms: browseTerms,
               categoryIntent: browseIntent,
               categoryId,
-              rawCount: listings.length,
+              page: browsePage,
+              rawCount: pageResult.listings.length,
             },
           };
         } catch (error) {
@@ -2044,6 +2070,7 @@ async function handleBrowse(url, response) {
         if (result.error) {
           errors.push(result.error);
         } else {
+          deepPaginationHasMore = deepPaginationHasMore || result.hasMore;
           collectFilteredListings(result.listings, listingsById, excludes, maxPrice);
         }
       }
@@ -2146,6 +2173,18 @@ async function handleBrowse(url, response) {
     currency: regionCurrency,
   });
   const meta = createSearchMeta(startedAt, sourceStats, errors, [], { categoryIntent });
+  const nextPageState = getNextBrowsePageState({
+    page: browsePage,
+    resultCount: deepPaginationHasMore ? YAHOO_AUCTIONS_PAGE_SIZE : 0,
+    pageSize: YAHOO_AUCTIONS_PAGE_SIZE,
+  });
+  const nextCursor = supportsDeepPagination && nextPageState.hasMore
+    ? createBrowseCursor({
+      regionId,
+      categoryIntent,
+      page: nextPageState.nextPage,
+    })
+    : "";
 
   sendJson(response, 200, {
     listings: normalizedListings,
@@ -2153,6 +2192,13 @@ async function handleBrowse(url, response) {
       ...meta,
       mode: "browse",
       region: regionId,
+      pagination: {
+        source: supportsDeepPagination ? "yahoo-auctions" : "",
+        page: browsePage,
+        pageSize: supportsDeepPagination ? YAHOO_AUCTIONS_PAGE_SIZE : 0,
+        hasMore: Boolean(nextCursor),
+        nextCursor,
+      },
     },
   });
 }
@@ -3412,37 +3458,53 @@ function isUnavailableLine(searchableLine) {
 async function searchYahooAuctions(term, options = {}) {
   const listingsById = new Map();
   const categorySweeps = getYahooAuctionsCategorySweeps(term, options.categoryIntent);
+  let hasMore = false;
 
   for (const categoryId of categorySweeps) {
-    const html = await fetchYahooAuctionsSearch(term, categoryId);
-    parseYahooAuctions(html).forEach((listing) => listingsById.set(listing.id, listing));
+    const html = await fetchYahooAuctionsSearch(term, categoryId, { page: options.page });
+    const listings = parseYahooAuctions(html);
+    hasMore = hasMore || listings.length >= YAHOO_AUCTIONS_PAGE_SIZE;
+    listings.forEach((listing) => listingsById.set(listing.id, listing));
 
     if (categoryId !== categorySweeps.at(-1)) {
       await wait(400);
     }
   }
 
-  return [...listingsById.values()];
+  const listings = [...listingsById.values()];
+  return options.includePagination ? { listings, hasMore } : listings;
 }
 
-async function browseYahooAuctionsCategory(categoryIntent = DEFAULT_CATEGORY_INTENT) {
+async function browseYahooAuctionsCategory(categoryIntent = DEFAULT_CATEGORY_INTENT, options = {}) {
   const categoryId = getYahooAuctionsBrowseCategoryId(categoryIntent);
-  if (!categoryId) return [];
+  if (!categoryId) {
+    return options.includePagination ? { listings: [], hasMore: false } : [];
+  }
 
-  const html = await fetchYahooAuctionsSearch("", categoryId);
-  return parseYahooAuctions(html).map((listing) => ({
+  const html = await fetchYahooAuctionsSearch("", categoryId, { page: options.page });
+  const parsedListings = parseYahooAuctions(html);
+  const listings = parsedListings.map((listing) => ({
     ...listing,
     categoryIntent: sanitizeCategoryIntent(categoryIntent),
   }));
+  return options.includePagination
+    ? { listings, hasMore: parsedListings.length >= YAHOO_AUCTIONS_PAGE_SIZE }
+    : listings;
 }
 
-async function browseYahooAuctionsCategoryTerms(categoryIntent = DEFAULT_CATEGORY_INTENT) {
+async function browseYahooAuctionsCategoryTerms(categoryIntent = DEFAULT_CATEGORY_INTENT, options = {}) {
   const listingsById = new Map();
   const browseTerms = getYahooAuctionsBrowseTerms(categoryIntent);
+  let hasMore = false;
 
   for (const [index, term] of browseTerms.entries()) {
-    const listings = await searchYahooAuctions(term, { categoryIntent });
-    listings.forEach((listing) => listingsById.set(listing.id, {
+    const pageResult = await searchYahooAuctions(term, {
+      categoryIntent,
+      page: options.page,
+      includePagination: true,
+    });
+    hasMore = hasMore || pageResult.hasMore;
+    pageResult.listings.forEach((listing) => listingsById.set(listing.id, {
       ...listing,
       categoryIntent: sanitizeCategoryIntent(categoryIntent),
     }));
@@ -3452,7 +3514,8 @@ async function browseYahooAuctionsCategoryTerms(categoryIntent = DEFAULT_CATEGOR
     }
   }
 
-  return [...listingsById.values()];
+  const listings = [...listingsById.values()];
+  return options.includePagination ? { listings, hasMore } : listings;
 }
 
 async function searchYahooFleamarket(term) {
@@ -3488,7 +3551,7 @@ function getYahooAuctionsCategorySweeps(term, categoryIntent = DEFAULT_CATEGORY_
   return [...new Set(categorySweeps)];
 }
 
-async function fetchYahooAuctionsSearch(term, categoryId = "") {
+async function fetchYahooAuctionsSearch(term, categoryId = "", options = {}) {
   const url = new URL("/search/search", YAHOO_AUCTIONS_BASE_URL);
   if (term) {
     url.searchParams.set("p", term);
@@ -3496,7 +3559,7 @@ async function fetchYahooAuctionsSearch(term, categoryId = "") {
   }
   url.searchParams.set("exflg", "1");
   if (categoryId) url.searchParams.set("auccat", categoryId);
-  url.searchParams.set("b", "1");
+  url.searchParams.set("b", String(getBrowsePageStart(options.page, YAHOO_AUCTIONS_PAGE_SIZE)));
   url.searchParams.set("n", String(YAHOO_AUCTIONS_PAGE_SIZE));
   url.searchParams.set("s1", "new");
   url.searchParams.set("o1", "d");
