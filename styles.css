@@ -974,11 +974,16 @@ body[data-theme="dark"] .quick-search-input {
   align-items: center;
   justify-content: flex-end;
   min-height: 16px;
-  margin-top: -8px;
+  margin-top: 0;
   padding-inline: clamp(16px, 2.2vw, 28px);
 }
 
 .quick-search-save-link {
+  display: inline-flex;
+  min-width: 112px;
+  min-height: 16px;
+  align-items: center;
+  justify-content: flex-end;
   border: 0;
   background: transparent;
   color: var(--muted);
@@ -1009,8 +1014,6 @@ body[data-theme="dark"] .quick-search-input {
 }
 
 .quick-search-save-link.is-saved {
-  position: relative;
-  top: -5px;
   color: var(--brand-gradient-start);
 }
 
@@ -7412,6 +7415,25 @@ body[data-theme="dark"] .browse-view-all-button:hover {
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
 }
 
+.result-grid.is-browse-expanded.is-gear-browser-frame.is-gallery-view {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  align-items: start;
+  column-width: auto;
+  column-gap: 14px;
+  row-gap: 14px;
+}
+
+.result-grid.is-browse-expanded.is-gear-browser-frame.is-gallery-view > :not(.listing-card) {
+  grid-column: 1 / -1;
+  margin-bottom: 0;
+}
+
+.result-grid.is-browse-expanded.is-gear-browser-frame.is-gallery-view .listing-card {
+  display: block;
+  margin-bottom: 0;
+}
+
 .browse-infinite-sentinel {
   grid-column: 1 / -1;
   column-span: all;
@@ -10101,9 +10123,27 @@ body[data-theme="dark"] .refine-backdrop {
     column-gap: 10px;
   }
 
+  .result-grid.is-browse-expanded.is-gallery-view {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-width: auto;
+    column-gap: 10px;
+    row-gap: 10px;
+  }
+
+  .result-grid.is-browse-expanded.is-gallery-view > :not(.listing-card) {
+    grid-column: 1 / -1;
+    margin-bottom: 0;
+  }
+
   .result-grid.is-gallery-view .listing-card {
     margin-bottom: 10px;
     border-radius: 12px;
+  }
+
+  .result-grid.is-browse-expanded.is-gallery-view .listing-card {
+    display: block;
+    margin-bottom: 0;
   }
 
   .result-grid.is-gallery-view .image-link,
