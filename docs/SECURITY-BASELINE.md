@@ -1,6 +1,6 @@
 # Brrtz Security Baseline
 
-Last reviewed: 2026-07-26
+Last reviewed: 2026-07-28
 
 This document is the non-secret security baseline for Brrtz. It records the
 system's external dependencies, sensitive data, current protections, known
@@ -151,6 +151,12 @@ server-side model call, so there is no Brrtz-side OpenAI token billing path.
 - `.env` and `.env.local` are ignored by Git; only `.env.example` is tracked.
 - Supabase service-role operations occur in `server.js`, not browser code.
 - Browser authentication uses the Supabase anon/publishable key as intended.
+- Auth callback parameters are removed from the visible URL after successful
+  exchange or a permanent provider error. Retryable network failures retain
+  the callback long enough for the user to reload and retry.
+- Password recovery uses Supabase's recovery session before accepting a new
+  password. The browser sends it directly to Supabase Auth; the Brrtz Node
+  server and cloud profile do not receive or store it.
 - Saved-search and profile RLS policy SQL exists for user-owned rows.
 - Operations and job routes require `BUMPERS_JOB_TOKEN` when configured.
 - Operations routes fall back to loopback-only access when no job token exists.

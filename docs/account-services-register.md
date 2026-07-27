@@ -281,9 +281,11 @@ Sender name: Brrtz
 3. Supabase sends the email through Resend SMTP.
 4. Resend sends from `login@brrtz.com`.
 5. User clicks the magic link and receives a Supabase session.
-6. Brrtz server verifies that session with Supabase.
-7. If invite mode is enabled, Brrtz checks the user's email against `alpha_invites`.
-8. User can sync saved searches, watched listings, feedback, and preferences.
+6. Brrtz immediately shows the signed-in account before background sync finishes.
+7. Brrtz server verifies that session with Supabase.
+8. If invite mode is enabled, Brrtz checks the user's email against `alpha_invites`.
+9. User can create a password for later sign-in without email.
+10. User can sync saved searches, watched listings, feedback, and preferences.
 
 ## Production / Beta Friend Launch Checklist
 

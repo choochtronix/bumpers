@@ -2333,6 +2333,56 @@ body.modal-open .save-confirmation-toast.is-visible {
   padding: 18px 18px 0;
 }
 
+.settings-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.settings-header-actions .icon-action {
+  width: 44px;
+  height: 44px;
+}
+
+.settings-account-state {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--button-bg);
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--text-caption);
+  font-weight: var(--weight-bold);
+  transition: border-color var(--motion-fast), color var(--motion-fast);
+}
+
+.settings-account-state:hover,
+.settings-account-state:focus-visible {
+  border-color: var(--accent);
+  color: var(--ink);
+}
+
+.settings-account-state-dot {
+  width: var(--space-2);
+  height: var(--space-2);
+  flex: 0 0 auto;
+  border-radius: var(--radius-pill);
+  background: var(--muted);
+}
+
+.settings-account-state.is-signed-in {
+  color: var(--ink);
+}
+
+.settings-account-state.is-signed-in .settings-account-state-dot {
+  background: var(--color-green);
+}
+
 .settings-tabs {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -2661,11 +2711,31 @@ body[data-theme="dark"] .settings-section-icon {
   gap: var(--space-3);
 }
 
+.account-text-action {
+  width: fit-content;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--text-caption);
+  font-weight: var(--weight-bold);
+}
+
+.account-text-action:hover,
+.account-text-action:focus-visible {
+  color: var(--ink);
+}
+
 .account-password-setup {
   display: grid;
   gap: var(--space-3);
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--line);
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--panel-soft);
 }
 
 .account-password-setup h4,
@@ -2673,8 +2743,23 @@ body[data-theme="dark"] .settings-section-icon {
   margin: 0;
 }
 
-.account-password-setup > .secondary-action {
-  justify-self: start;
+.account-password-setup > .primary-action {
+  width: 100%;
+}
+
+.account-sync-controls {
+  display: grid;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--line);
+}
+
+.account-signed-in-profile {
+  border-color: color-mix(in srgb, var(--color-green) 46%, var(--line));
+}
+
+.account-signed-in-check {
+  color: var(--color-green);
 }
 
 @media (max-width: 700px) {
@@ -2684,8 +2769,14 @@ body[data-theme="dark"] .settings-section-icon {
     grid-template-columns: 1fr;
   }
 
-  .account-password-setup > .secondary-action {
-    width: 100%;
+  .settings-account-state {
+    max-width: 148px;
+  }
+
+  .settings-account-state span:last-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 
@@ -11549,6 +11640,26 @@ body[data-theme="dark"] .refine-backdrop {
     height: var(--control-mobile-nav-icon-size);
     flex: 0 0 auto;
     stroke: currentColor;
+  }
+
+  .mobile-account-check {
+    position: absolute;
+    top: var(--space-1);
+    right: calc(50% - var(--space-5));
+    display: grid;
+    width: 16px;
+    height: 16px;
+    place-items: center;
+    border-radius: var(--radius-pill);
+    background: var(--color-green);
+    color: var(--color-control-on-ink);
+    font-size: var(--text-micro);
+    font-weight: var(--weight-black);
+    line-height: 1;
+  }
+
+  .mobile-account-check[hidden] {
+    display: none;
   }
 
   .mobile-bottom-nav-item:hover,

@@ -272,6 +272,9 @@ Pass 2 added:
 - Resilient session restore that keeps the saved login during temporary network or Supabase outages.
 - Password creation after a verified magic-link login.
 - Returning-user email and password sign-in without another email round trip.
+- Password recovery from the signed-out Account panel.
+- Immediate callback confirmation before cloud profile and saved-search sync
+  completes.
 
 No additional environment variables or auth provider are required for password sign-in. Keep the Email provider enabled in Supabase Authentication settings. The first magic-link login verifies ownership of the email address; after that, the signed-in user can create a password from Settings -> Account.
 
@@ -282,6 +285,43 @@ Expected account flow:
 3. That browser remains signed in through its stored, rotating refresh token.
 4. On another browser, the user signs in with email and password.
 5. If the password is forgotten, the user can use the email sign-in link again and create a new password.
+
+Password recovery flow:
+
+1. Enter the account email and choose `Forgot password?`.
+2. Open the newest reset email.
+3. Brrtz returns directly to Account -> `Choose a new password`.
+4. Save the password. The current browser remains signed in.
+
+### Mobile email-link reliability
+
+Supabase email links can be consumed by email-provider link scanners before the
+user opens them. Prefer a custom Magic Link template that sends the user to
+Brrtz with a token hash, which the browser exchanges with a POST request:
+
+```html
+<a href="{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=email">
+  Sign in to Brrtz
+</a>
+```
+
+Use the same pattern for the Reset Password template:
+
+```html
+<a href="{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=recovery">
+  Reset your Brrtz password
+</a>
+```
+
+Keep Resend click tracking disabled for auth emails. If a provider still
+prefetches and consumes links, add `{{ .Token }}` to the email and implement the
+email-OTP fallback described in the official Supabase email-template guidance.
+
+An email app may open Brrtz in its own embedded browser instead of the user's
+existing Safari tab. Web storage is intentionally isolated between those
+browser contexts. Brrtz therefore makes successful callback state explicit and
+immediately offers password setup; it cannot transfer a browser session into a
+separate Safari context.
 
 Brrtz stores only Supabase access and refresh tokens in browser local storage. Passwords are sent directly to Supabase Auth over HTTPS and are never stored in Brrtz local storage, cloud profile data, logs, or application files.
 

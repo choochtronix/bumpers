@@ -236,7 +236,13 @@ Current account behavior:
 
 - First-time users can verify by email link.
 - Returning users can use a password once configured.
+- Password recovery sends a Supabase recovery link and returns directly to the
+  new-password form.
 - Browser sessions persist through `auth-session.js`.
+- Auth callbacks open the Account tab and show signed-in state immediately;
+  cloud sync must not delay the login confirmation.
+- Mobile Settings shows a signed-in badge because the desktop account avatar is
+  hidden at the mobile breakpoint.
 - The signed-in avatar exposes account shortcuts and sign out.
 - Local fallback mode remains available when Supabase is not configured.
 

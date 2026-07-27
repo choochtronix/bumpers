@@ -1548,7 +1548,11 @@ let authState = {
   config: null,
   session: null,
   user: null,
+  callbackDetected: false,
+  callbackPresented: false,
+  callbackType: "",
   callbackError: null,
+  callbackRetryable: false,
   accountNotice: "",
   lastSyncedAt: "",
 };
@@ -1817,9 +1821,16 @@ const accountConfirmPasswordInput = document.querySelector("#accountConfirmPassw
 const accountEmailDisplay = document.querySelector("#accountEmailDisplay");
 const accountStatus = document.querySelector("#accountStatus");
 const accountSyncDetail = document.querySelector("#accountSyncDetail");
+const settingsAccountStateButton = document.querySelector("#settingsAccountState");
+const settingsAccountStateLabel = document.querySelector("#settingsAccountStateLabel");
+const mobileSettingsNavItem = document.querySelector('[data-mobile-nav="settings"]');
+const mobileAccountCheck = mobileSettingsNavItem?.querySelector(".mobile-account-check");
 const sendSignInLinkButton = document.querySelector("#sendSignInLink");
 const signInWithPasswordButton = document.querySelector("#signInWithPassword");
+const forgotAccountPasswordButton = document.querySelector("#forgotAccountPassword");
 const updateAccountPasswordButton = document.querySelector("#updateAccountPassword");
+const accountPasswordTitle = document.querySelector("#accountPasswordTitle");
+const accountPasswordDescription = document.querySelector("#accountPasswordDescription");
 const syncAccountSavedSearchesButton = document.querySelector("#syncAccountSavedSearches");
 const signOutAccountButton = document.querySelector("#signOutAccount");
 const cloudProfileEmail = document.querySelector("#cloudProfileEmail");
@@ -2531,8 +2542,10 @@ function bindEvents() {
   bindBrandGradientControlEvents();
   applyBrandGradientButton?.addEventListener("click", applyBrandGradientFromControls);
   resetBrandGradientButton?.addEventListener("click", resetBrandGradient);
+  settingsAccountStateButton?.addEventListener("click", handleSettingsAccountStateClick);
   sendSignInLinkButton?.addEventListener("click", handleAccountSignInShell);
   signInWithPasswordButton?.addEventListener("click", handleAccountPasswordSignIn);
+  forgotAccountPasswordButton?.addEventListener("click", handleAccountPasswordRecovery);
   updateAccountPasswordButton?.addEventListener("click", handleAccountPasswordUpdate);
   accountEmailInput?.addEventListener("keydown", handleAccountSignInKeydown);
   accountPasswordInput?.addEventListener("keydown", handleAccountSignInKeydown);
@@ -4857,6 +4870,7 @@ function handleSettingsTabKeydown(event) {
 function renderAccountShell(account = null) {
   const isSignedIn = Boolean(account?.email);
   renderHeaderAccountState(account);
+  renderSettingsAccountState(account);
   if (signedOutAccountPanel) signedOutAccountPanel.hidden = isSignedIn;
   if (signedInAccountPanel) signedInAccountPanel.hidden = !isSignedIn;
   if (accountEmailDisplay) accountEmailDisplay.textContent = account?.email || CLOUD_EMULATOR_USER.email;
@@ -4866,6 +4880,49 @@ function renderAccountShell(account = null) {
       : getSignedOutAccountStatus();
   }
   renderAccountSyncDetail();
+}
+
+function renderSettingsAccountState(account = null) {
+  const email = String(account?.email || "").trim();
+  const isSignedIn = Boolean(email);
+  const isRecovery = authState.callbackType === "recovery";
+
+  if (settingsAccountStateButton) {
+    settingsAccountStateButton.classList.toggle("is-signed-in", isSignedIn);
+    settingsAccountStateButton.setAttribute(
+      "aria-label",
+      isSignedIn ? `View signed-in account for ${email}` : "Open account sign in",
+    );
+  }
+  if (settingsAccountStateLabel) {
+    settingsAccountStateLabel.textContent = isSignedIn ? "Signed in" : "Not signed in";
+  }
+  if (mobileSettingsNavItem) {
+    mobileSettingsNavItem.classList.toggle("is-signed-in", isSignedIn);
+    mobileSettingsNavItem.setAttribute(
+      "aria-label",
+      isSignedIn ? `Open settings. Signed in as ${email}` : "Open settings. Not signed in",
+    );
+  }
+  if (mobileAccountCheck) mobileAccountCheck.hidden = !isSignedIn;
+
+  if (accountPasswordTitle) {
+    accountPasswordTitle.textContent = isRecovery ? "Choose a new password" : "Password sign-in";
+  }
+  if (accountPasswordDescription) {
+    accountPasswordDescription.textContent = isRecovery
+      ? "Your recovery link is verified. Set a new password to finish."
+      : "Create a password once, then use Safari or your password manager to sign in without opening email.";
+  }
+  if (updateAccountPasswordButton) {
+    updateAccountPasswordButton.textContent = isRecovery ? "Save new password" : "Create or update password";
+  }
+}
+
+function handleSettingsAccountStateClick() {
+  setActiveSettingsTab("account", { focus: true });
+  const focusTarget = authState.user?.email ? updateAccountPasswordButton : accountEmailInput;
+  focusTarget?.focus?.();
 }
 
 function getAccountInitial(email = "") {
@@ -5039,21 +5096,36 @@ function getSignedOutAccountStatus() {
   if (authState.callbackError) return authState.callbackError;
   if (!authState.config) return "Checking account sign-in setup...";
   if (!authState.config.enabled) return "Add SUPABASE_ANON_KEY to enable email sign-in.";
-  return "Enter your email and Brrtz will send a Supabase sign-in link.";
+  return "Sign in with your password, or use an email link for your first visit.";
 }
 
 async function initializeAuth() {
   clearAuthRefreshTimer();
   authState.config = await fetchAuthConfig();
   authState.lastSyncedAt = readCloudSyncMeta().lastSyncedAt || "";
-  authState.session = await readAuthSessionFromCallback() || readStoredAuthSession();
-  authState.user = null;
+  let callbackSession = null;
+
+  try {
+    callbackSession = await readAuthSessionFromCallback();
+  } catch (error) {
+    console.warn("Could not finish auth callback.", error);
+    authState.callbackError = "Brrtz could not finish signing in. Check your connection and reload this page.";
+    authState.callbackRetryable = true;
+  }
+
+  authState.session = callbackSession || readStoredAuthSession();
+  authState.user = getCachedAuthUser(authState.session);
+  renderAccountShell(authState.user);
+  if (authState.callbackDetected && (authState.user || authState.callbackError)) {
+    presentAuthCallbackResult();
+  }
 
   if (authState.session && authState.config?.enabled) {
     await hydrateAuthUser();
   }
 
   renderAccountShell(authState.user);
+  presentAuthCallbackResult();
 }
 
 async function fetchAuthConfig() {
@@ -5084,6 +5156,7 @@ async function hydrateAuthUser() {
     };
     storeAuthSession(authState.session);
     authState.accountNotice = "";
+    renderAccountShell(authState.user);
   } catch (error) {
     console.warn("Could not restore auth session.", error);
     if (isPermanentAuthError(error)) {
@@ -5120,7 +5193,10 @@ async function readAuthSessionFromCallback() {
   const params = getAuthCallbackParams();
   if (!params) return null;
 
-  if (params.has("error")) {
+  authState.callbackDetected = true;
+  authState.callbackType = params.get("type") || "";
+
+  if (params.has("error") || params.has("error_code")) {
     authState.callbackError = formatAuthCallbackError(params);
     clearAuthCallbackUrl();
     return null;
@@ -5136,7 +5212,7 @@ async function readAuthSessionFromCallback() {
       token_type: params.get("token_type"),
     });
 
-  clearAuthCallbackUrl();
+  if (!authState.callbackRetryable) clearAuthCallbackUrl();
 
   if (!session) return null;
   storeAuthSession(session);
@@ -5145,7 +5221,13 @@ async function readAuthSessionFromCallback() {
 
 function getAuthCallbackParams() {
   const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
-  if (hasAuthCallbackParams(hashParams)) return hashParams;
+  if (hasAuthCallbackParams(hashParams)) {
+    if (!hashParams.has("type")) {
+      const action = new URLSearchParams(window.location.search).get("auth_action");
+      if (action) hashParams.set("type", action);
+    }
+    return hashParams;
+  }
 
   const queryParams = new URLSearchParams(window.location.search);
   if (hasAuthCallbackParams(queryParams)) return queryParams;
@@ -5164,14 +5246,21 @@ async function verifySupabaseMagicLinkCallback(params) {
   const tokenHash = params.get("token_hash");
   if (!tokenHash) return null;
 
-  const response = await fetch(`${getSupabaseAuthBaseUrl()}/verify`, {
-    method: "POST",
-    headers: getSupabaseAnonHeaders(),
-    body: JSON.stringify({
-      token_hash: tokenHash,
-      type: params.get("type") || "email",
-    }),
-  });
+  let response;
+  try {
+    response = await fetch(`${getSupabaseAuthBaseUrl()}/verify`, {
+      method: "POST",
+      headers: getSupabaseAnonHeaders(),
+      body: JSON.stringify({
+        token_hash: tokenHash,
+        type: params.get("type") || "email",
+      }),
+    });
+  } catch {
+    authState.callbackRetryable = true;
+    authState.callbackError = "Brrtz could not reach the sign-in service. Check your connection, then reload this page to retry.";
+    return null;
+  }
 
   if (!response.ok) {
     const errorPayload = await readJsonResponse(response);
@@ -5199,6 +5288,7 @@ function clearAuthCallbackUrl() {
     "error",
     "error_code",
     "error_description",
+    "auth_action",
   ].forEach((name) => queryParams.delete(name));
 
   const nextQuery = queryParams.toString();
@@ -5214,6 +5304,32 @@ function formatAuthCallbackError(params) {
   }
 
   return `${description} (${code})`;
+}
+
+function presentAuthCallbackResult() {
+  if (!authState.callbackDetected || authState.callbackPresented) return;
+  authState.callbackPresented = true;
+
+  const isSignedIn = Boolean(authState.user?.email);
+  const isRecovery = authState.callbackType === "recovery";
+  if (isSignedIn) {
+    authState.accountNotice = isRecovery
+      ? "Recovery link verified. Choose a new password to finish."
+      : `Signed in as ${authState.user.email}. This device will remember you.`;
+    renderAccountShell(authState.user);
+  }
+
+  openSettingsModal({ currentTarget: mobileSettingsNavItem || settingsAccountStateButton }, {
+    tabName: "account",
+    focusTarget: isSignedIn ? updateAccountPasswordButton : accountEmailInput,
+  });
+
+  if (isSignedIn && !isRecovery) {
+    showStatusToast({
+      icon: "✓",
+      message: `Signed in as ${authState.user.email}`,
+    });
+  }
 }
 
 function readStoredAuthSession() {
@@ -5388,7 +5504,9 @@ async function fetchSupabaseUser(accessToken) {
 }
 
 async function sendSupabaseMagicLink(email) {
-  const response = await fetch(`${getSupabaseAuthBaseUrl()}/otp`, {
+  const endpoint = new URL(`${getSupabaseAuthBaseUrl()}/otp`);
+  endpoint.searchParams.set("redirect_to", getAuthRedirectUrl());
+  const response = await fetch(endpoint, {
     method: "POST",
     headers: getSupabaseAnonHeaders(),
     body: JSON.stringify({
@@ -5397,9 +5515,6 @@ async function sendSupabaseMagicLink(email) {
       data: {
         app: "Brrtz",
       },
-      options: {
-        email_redirect_to: getAuthRedirectUrl(),
-      },
     }),
   });
 
@@ -5407,6 +5522,25 @@ async function sendSupabaseMagicLink(email) {
     const errorPayload = await readJsonResponse(response);
     const message = errorPayload?.msg || errorPayload?.message || "Supabase could not send that sign-in link.";
     throw new Error(message);
+  }
+}
+
+async function sendSupabasePasswordRecovery(email) {
+  const endpoint = new URL(`${getSupabaseAuthBaseUrl()}/recover`);
+  endpoint.searchParams.set("redirect_to", getAuthRedirectUrl());
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: getSupabaseAnonHeaders(),
+    body: JSON.stringify({ email }),
+  });
+
+  if (!response.ok) {
+    const errorPayload = await readJsonResponse(response);
+    const message = getAuthPayloadMessage(errorPayload, "Supabase could not send a password reset email.");
+    throw createAuthRequestError(message, {
+      status: response.status,
+      code: errorPayload?.error_code || errorPayload?.code || errorPayload?.error,
+    });
   }
 }
 
@@ -5521,6 +5655,7 @@ function handleAuthVisibilityChange() {
 function setAccountSignInControlsDisabled(disabled) {
   if (signInWithPasswordButton) signInWithPasswordButton.disabled = disabled;
   if (sendSignInLinkButton) sendSignInLinkButton.disabled = disabled;
+  if (forgotAccountPasswordButton) forgotAccountPasswordButton.disabled = disabled;
   if (accountEmailInput) accountEmailInput.disabled = disabled;
   if (accountPasswordInput) accountPasswordInput.disabled = disabled;
 }
@@ -5564,8 +5699,44 @@ async function handleAccountPasswordSignIn() {
     if (accountPasswordInput) accountPasswordInput.value = "";
     renderAccountShell(authState.user);
     accountStatus.textContent = "Signed in. This browser will remember your account.";
+    showStatusToast({
+      icon: "✓",
+      message: `Signed in as ${authState.user.email}`,
+    });
   } catch (error) {
     accountStatus.textContent = error instanceof Error ? error.message : "Could not sign in.";
+  } finally {
+    setAccountSignInControlsDisabled(false);
+  }
+}
+
+async function handleAccountPasswordRecovery() {
+  const email = accountEmailInput?.value.trim();
+  authState.accountNotice = "";
+
+  if (!email) {
+    accountStatus.textContent = "Enter your email address first.";
+    accountEmailInput?.focus();
+    return;
+  }
+  if (!authState.config?.enabled) {
+    accountStatus.textContent = "Password recovery is not configured yet.";
+    return;
+  }
+
+  setAccountSignInControlsDisabled(true);
+  accountStatus.textContent = "Sending password reset email...";
+  try {
+    await sendSupabasePasswordRecovery(email);
+    accountStatus.textContent = `Check ${email} for a password reset link.`;
+    showStatusToast({
+      icon: "✓",
+      message: `Password reset sent to ${email}`,
+    });
+  } catch (error) {
+    accountStatus.textContent = error instanceof Error
+      ? error.message
+      : "Could not send a password reset email.";
   } finally {
     setAccountSignInControlsDisabled(false);
   }
@@ -5600,7 +5771,16 @@ async function handleAccountPasswordUpdate() {
     storeAuthSession(authState.session);
     accountNewPasswordInput.value = "";
     accountConfirmPasswordInput.value = "";
-    accountStatus.textContent = "Password sign-in is ready for your other browsers and devices.";
+    authState.callbackType = "";
+    authState.callbackDetected = false;
+    authState.callbackPresented = false;
+    authState.accountNotice = "Password ready. This device stays signed in.";
+    renderAccountShell(authState.user);
+    accountStatus.textContent = "Password ready. Next time, Safari or your password manager can fill it for you.";
+    showStatusToast({
+      icon: "✓",
+      message: "Password updated",
+    });
   } catch (error) {
     if (isPermanentAuthError(error)) {
       clearInvalidCloudSession("For security, use a fresh email link before changing your password.");
@@ -5674,7 +5854,8 @@ function getSupabaseAuthHeaders(accessToken) {
 
 function getAuthRedirectUrl() {
   const configuredRedirect = authState.config?.redirectTo || window.location.origin;
-  return `${configuredRedirect.replace(/\/+$/, "")}${window.location.pathname}`;
+  const redirectUrl = new URL(window.location.pathname, `${configuredRedirect.replace(/\/+$/, "")}/`);
+  return redirectUrl.toString();
 }
 
 async function readJsonResponse(response) {

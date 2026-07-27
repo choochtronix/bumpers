@@ -19,7 +19,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="design-system.css?v=mobile-sheet-20260704" />
-    <link rel="stylesheet" href="styles.css?v=infinite-browse-20260725" />
+    <link rel="stylesheet" href="styles.css?v=mobile-auth-20260728" />
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -363,6 +363,7 @@
           <path d="M12 15.25A3.25 3.25 0 1 0 12 8.75A3.25 3.25 0 0 0 12 15.25Z" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
           <path d="M19.25 13.35V10.65L16.9 10.25C16.72 9.68 16.49 9.14 16.2 8.65L17.58 6.7L15.3 4.42L13.35 5.8C12.86 5.51 12.32 5.28 11.75 5.1L11.35 2.75H8.65L8.25 5.1C7.68 5.28 7.14 5.51 6.65 5.8L4.7 4.42L2.42 6.7L3.8 8.65C3.51 9.14 3.28 9.68 3.1 10.25L0.75 10.65V13.35L3.1 13.75C3.28 14.32 3.51 14.86 3.8 15.35L2.42 17.3L4.7 19.58L6.65 18.2C7.14 18.49 7.68 18.72 8.25 18.9L8.65 21.25H11.35L11.75 18.9C12.32 18.72 12.86 18.49 13.35 18.2L15.3 19.58L17.58 17.3L16.2 15.35C16.49 14.86 16.72 14.32 16.9 13.75L19.25 13.35Z" transform="translate(2)" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
         </svg>
+        <span class="mobile-account-check" aria-hidden="true" hidden>✓</span>
         <span>Settings</span>
       </button>
     </nav>
@@ -595,7 +596,13 @@ stand
                 <span>Settings</span>
               </h2>
             </div>
-            <button class="icon-action" id="closeSettings" type="button" aria-label="Close settings">×</button>
+            <div class="settings-header-actions">
+              <button class="settings-account-state" id="settingsAccountState" type="button">
+                <span class="settings-account-state-dot" aria-hidden="true"></span>
+                <span id="settingsAccountStateLabel">Not signed in</span>
+              </button>
+              <button class="icon-action" id="closeSettings" type="button" aria-label="Close settings">×</button>
+            </div>
           </div>
 
           <div class="settings-tabs" role="tablist" aria-label="Settings sections">
@@ -765,7 +772,7 @@ stand
                   <div class="account-auth-fields">
                     <label>
                       <span>Email</span>
-                      <input id="accountEmailInput" type="email" autocomplete="email" placeholder="you@example.com" />
+                      <input id="accountEmailInput" type="email" inputmode="email" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="you@example.com" />
                     </label>
                     <label>
                       <span>Password</span>
@@ -776,24 +783,19 @@ stand
                     <button class="primary-action" id="signInWithPassword" type="button">Sign in</button>
                     <button class="secondary-action" id="sendSignInLink" type="button">Email me a sign-in link</button>
                   </div>
-                  <p class="settings-sync-detail">First time here? Use the email link once to verify your address, then create a password from this Account tab.</p>
+                  <button class="account-text-action" id="forgotAccountPassword" type="button">Forgot password?</button>
+                  <p class="settings-sync-detail">First time here? Use the email link once. Brrtz keeps this device signed in, and you can create a password for other devices.</p>
                 </div>
 
                 <div class="account-panel account-panel-signed-in" id="signedInAccountPanel" hidden>
-                  <div class="settings-cloud-profile">
-                    <span>Signed in as</span>
+                  <div class="settings-cloud-profile account-signed-in-profile">
+                    <span><span class="account-signed-in-check" aria-hidden="true">✓</span> Signed in</span>
                     <strong id="accountEmailDisplay">Sign in to save searches and watched gear.</strong>
                   </div>
-                  <div class="settings-actions">
-                    <button class="secondary-action" id="syncAccountSavedSearches" type="button">Sync now</button>
-                    <button class="secondary-action" id="signOutAccount" type="button">Sign out</button>
-                  </div>
-                  <p class="settings-sync-detail">Sync now merges this browser with Brrtz cloud so saved searches, watched gear, and preferences stay aligned.</p>
-                  <p class="settings-sync-detail" id="accountSyncDetail">Last synced: never</p>
                   <div class="account-password-setup" aria-labelledby="accountPasswordTitle">
                     <div>
                       <h4 id="accountPasswordTitle">Password sign-in</h4>
-                      <p class="settings-sync-detail">Create or update a password for signing in on another browser without opening email.</p>
+                      <p class="settings-sync-detail" id="accountPasswordDescription">Create a password once, then use Safari or your password manager to sign in without opening email.</p>
                     </div>
                     <div class="account-password-fields">
                       <label>
@@ -805,7 +807,15 @@ stand
                         <input id="accountConfirmPasswordInput" type="password" autocomplete="new-password" minlength="8" placeholder="Repeat password" />
                       </label>
                     </div>
-                    <button class="secondary-action" id="updateAccountPassword" type="button">Create or update password</button>
+                    <button class="primary-action" id="updateAccountPassword" type="button">Create password</button>
+                  </div>
+                  <div class="account-sync-controls">
+                    <div class="settings-actions">
+                      <button class="secondary-action" id="syncAccountSavedSearches" type="button">Sync now</button>
+                      <button class="secondary-action" id="signOutAccount" type="button">Sign out</button>
+                    </div>
+                    <p class="settings-sync-detail">Account data syncs automatically. Use Sync now after changing devices if something looks out of date.</p>
+                    <p class="settings-sync-detail" id="accountSyncDetail">Last synced: never</p>
                   </div>
                 </div>
 
@@ -922,6 +932,6 @@ stand
   <script src="listing-freshness.js?v=new-badge-1"></script>
     <script src="gear-scanner-curation.js?v=curation-module-1"></script>
     <script src="auth-session.js?v=persistent-auth-1"></script>
-  <script src="app.js?v=deep-browse-20260725"></script>
+  <script src="app.js?v=mobile-auth-20260728"></script>
   </body>
 </html>
