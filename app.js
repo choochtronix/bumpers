@@ -5046,7 +5046,7 @@ async function initializeAuth() {
   clearAuthRefreshTimer();
   authState.config = await fetchAuthConfig();
   authState.lastSyncedAt = readCloudSyncMeta().lastSyncedAt || "";
-  authState.session = readAuthSessionFromCallback() || readStoredAuthSession();
+  authState.session = await readAuthSessionFromCallback() || readStoredAuthSession();
   authState.user = null;
 
   if (authState.session && authState.config?.enabled) {
@@ -5116,30 +5116,93 @@ async function hydrateAuthUser() {
   }
 }
 
-function readAuthSessionFromCallback() {
-  if (!window.location.hash.includes("access_token") && !window.location.hash.includes("error=")) return null;
-
-  const params = new URLSearchParams(window.location.hash.slice(1));
+async function readAuthSessionFromCallback() {
+  const params = getAuthCallbackParams();
+  if (!params) return null;
 
   if (params.has("error")) {
     authState.callbackError = formatAuthCallbackError(params);
-    window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+    clearAuthCallbackUrl();
     return null;
   }
 
-  const session = normalizeAuthSession({
-    access_token: params.get("access_token"),
-    refresh_token: params.get("refresh_token"),
-    expires_at: params.get("expires_at"),
-    expires_in: params.get("expires_in"),
-    token_type: params.get("token_type"),
-  });
+  const session = params.has("token_hash")
+    ? await verifySupabaseMagicLinkCallback(params)
+    : normalizeAuthSession({
+      access_token: params.get("access_token"),
+      refresh_token: params.get("refresh_token"),
+      expires_at: params.get("expires_at"),
+      expires_in: params.get("expires_in"),
+      token_type: params.get("token_type"),
+    });
 
-  window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+  clearAuthCallbackUrl();
 
   if (!session) return null;
   storeAuthSession(session);
   return session;
+}
+
+function getAuthCallbackParams() {
+  const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  if (hasAuthCallbackParams(hashParams)) return hashParams;
+
+  const queryParams = new URLSearchParams(window.location.search);
+  if (hasAuthCallbackParams(queryParams)) return queryParams;
+
+  return null;
+}
+
+function hasAuthCallbackParams(params) {
+  return params.has("access_token")
+    || params.has("token_hash")
+    || params.has("error")
+    || params.has("error_code");
+}
+
+async function verifySupabaseMagicLinkCallback(params) {
+  const tokenHash = params.get("token_hash");
+  if (!tokenHash) return null;
+
+  const response = await fetch(`${getSupabaseAuthBaseUrl()}/verify`, {
+    method: "POST",
+    headers: getSupabaseAnonHeaders(),
+    body: JSON.stringify({
+      token_hash: tokenHash,
+      type: params.get("type") || "email",
+    }),
+  });
+
+  if (!response.ok) {
+    const errorPayload = await readJsonResponse(response);
+    const callbackParams = new URLSearchParams({
+      error: errorPayload?.error || "auth_error",
+      error_description: errorPayload?.msg || errorPayload?.message || "Supabase could not complete sign-in.",
+    });
+    authState.callbackError = formatAuthCallbackError(callbackParams);
+    return null;
+  }
+
+  return normalizeAuthSession(await response.json());
+}
+
+function clearAuthCallbackUrl() {
+  const queryParams = new URLSearchParams(window.location.search);
+  [
+    "access_token",
+    "refresh_token",
+    "expires_at",
+    "expires_in",
+    "token_type",
+    "token_hash",
+    "type",
+    "error",
+    "error_code",
+    "error_description",
+  ].forEach((name) => queryParams.delete(name));
+
+  const nextQuery = queryParams.toString();
+  window.history.replaceState(null, "", `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}`);
 }
 
 function formatAuthCallbackError(params) {
