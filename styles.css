@@ -476,6 +476,7 @@ a {
   color: var(--ink);
   cursor: pointer;
   font: inherit;
+  text-decoration: none;
   text-align: left;
 }
 
@@ -786,6 +787,16 @@ a {
 
 .brand-logo-stage h1 {
   position: relative;
+  display: grid;
+  gap: var(--space-1);
+  justify-items: start;
+}
+
+.brand-descriptor {
+  color: var(--ink);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-heavy);
+  line-height: 1.2;
 }
 
 .brand p,
@@ -8595,7 +8606,11 @@ body[data-theme="dark"] .browse-expanded-loader-copy {
 }
 
 .brand p {
-  display: none;
+  display: block;
+  max-width: 52ch;
+  margin-top: var(--space-1);
+  font-size: var(--text-caption);
+  line-height: 1.35;
 }
 
 .header-actions {

@@ -7,6 +7,8 @@ const bannedStrings = [
   ["alpha@bumpers", ".local"].join(""),
   ["local@bumpers", ".dev"].join(""),
   "Brrtz Japan gear radar",
+  "My WordPress Site",
+  "Welcome to WordPress",
   ["Â®", "ion"].join(""),
 ];
 
@@ -48,6 +50,15 @@ const gearPages = [
   ["/gear/roland-tr-808", ["Used", "Roland TR-808", "listings"]],
 ];
 
+const publicAeoPages = [
+  "/about",
+  "/regions",
+  "/regions/japan",
+  "/sources",
+  "/for-agents",
+  "/gear",
+];
+
 await main();
 
 async function main() {
@@ -84,9 +95,23 @@ async function main() {
   }
 
   const home = await fetchText("/");
-  assert(home.body.includes("Brrtz beta gear radar"), "/ should use region-neutral beta gear radar branding");
+  assertHomepageIdentity(home.body);
   assert(!home.body.includes("Japan gear radar"), "/ should not imply Brrtz is Japan-only");
   assert(!home.body.includes("View via Buyee"), "/ should not expose generic Buyee copy in the crawler-visible shell");
+
+  for (const path of publicAeoPages) {
+    const page = await fetchText(path);
+    assertStatus(page, 200, path);
+    assertContentType(page, "text/html", path);
+    assertNoBannedStrings(page.body, path);
+    assert(page.body.includes("<h1"), `${path} should contain a primary H1`);
+    assert(page.body.includes('rel="canonical"'), `${path} should contain a canonical URL`);
+  }
+
+  const legacyWordPressPage = await fetchText("/category/uncategorized/");
+  assertStatus(legacyWordPressPage, 404, "/category/uncategorized/");
+  assertNoBannedStrings(legacyWordPressPage.body, "/category/uncategorized/");
+  assert(!sitemap.body.includes("/category/uncategorized/"), "/sitemap.xml should not include the legacy WordPress category URL");
 
   const search = await fetchText("/search?region=bay-area&category=synthesizers&q=moog%20voyager");
   assert(search.body.includes("Search Brrtz for Moog Voyager in the Bay Area"), "/search should render query-aware H1 fallback");
@@ -109,6 +134,78 @@ async function main() {
   }
 
   console.log(`AEO checks passed for ${baseUrl}`);
+}
+
+function assertHomepageIdentity(body) {
+  assert(extractTagContent(body, "title") === "Brrtz Gear Radar — Used Synth &amp; Pro Audio Search", "/ title should use the canonical Brrtz Gear Radar identity");
+  assert(extractLinkHref(body, "canonical") === "https://brrtz.com/", "/ canonical should be https://brrtz.com/");
+  assert(extractMetaContent(body, "property", "og:site_name") === "Brrtz", "/ og:site_name should be Brrtz");
+  assert(extractMetaContent(body, "property", "og:url") === "https://brrtz.com/", "/ og:url should match the canonical homepage");
+
+  const h1Matches = [...body.matchAll(/<h1\b[^>]*>([\s\S]*?)<\/h1>/gi)];
+  assert(h1Matches.length === 1, `/ should contain exactly one H1, received ${h1Matches.length}`);
+  const h1 = h1Matches[0]?.[1] || "";
+  assert(/<span class="brand-descriptor">\s*Brrtz Gear Radar\s*<\/span>/.test(h1), "/ H1 should visibly identify Brrtz Gear Radar");
+  assert(!/class="[^"]*sr-only[^"]*"[^>]*>\s*Brrtz Gear Radar/.test(h1), "/ H1 identity should not be screen-reader-only");
+  assert(body.includes('<h2 id="activeTitle">Search used gear</h2>'), "/ should retain the Search used gear operational heading");
+  assert(body.includes("Free used-gear search across regional marketplaces, with original-listing links."), "/ should include the compact product description");
+
+  const nodes = extractJsonLdNodes(body);
+  const websites = nodes.filter((node) => node?.["@type"] === "WebSite");
+  const organizations = nodes.filter((node) => node?.["@type"] === "Organization");
+  const applications = nodes.filter((node) => node?.["@type"] === "WebApplication");
+
+  assert(websites.length === 1, `/ should contain exactly one WebSite entity, received ${websites.length}`);
+  assert(organizations.length === 1, `/ should contain exactly one Organization entity, received ${organizations.length}`);
+  assert(applications.length === 1, `/ should preserve exactly one WebApplication entity, received ${applications.length}`);
+
+  const website = websites[0];
+  assert(website["@id"] === "https://brrtz.com/#website", "WebSite should use the canonical #website ID");
+  assert(website.name === "Brrtz", "WebSite.name should be Brrtz");
+  assert(website.url === "https://brrtz.com/", "WebSite.url should be the canonical homepage");
+  assert(Array.isArray(website.alternateName), "WebSite.alternateName should be an array");
+  assert(website.alternateName.includes("Brrtz Gear Radar"), "WebSite.alternateName should include Brrtz Gear Radar");
+  assert(website.alternateName.includes("brrtz.com"), "WebSite.alternateName should include brrtz.com");
+  assert(website.publisher?.["@id"] === "https://brrtz.com/#organization", "WebSite.publisher should reference the canonical Organization");
+
+  const organization = organizations[0];
+  assert(organization["@id"] === "https://brrtz.com/#organization", "Organization should use the canonical #organization ID");
+  assert(organization.name === "Brrtz", "Organization.name should be Brrtz");
+  assert(organization.alternateName === "Brrtz Gear Radar", "Organization.alternateName should be Brrtz Gear Radar");
+  assert(organization.url === "https://brrtz.com/", "Organization.url should be the canonical homepage");
+  assert(!Object.hasOwn(organization, "sameAs"), "Organization should omit sameAs until authoritative profiles exist");
+
+  const application = applications[0];
+  assert(application.name === "Brrtz", "WebApplication.name should remain Brrtz");
+  assert(application.publisher?.["@id"] === "https://brrtz.com/#organization", "WebApplication.publisher should reference the canonical Organization");
+
+  for (const node of [...websites, ...organizations, ...applications]) {
+    assert(node.name === "Brrtz", `${node["@type"]}.name should not conflict with the canonical Brrtz name`);
+  }
+}
+
+function extractJsonLdNodes(body) {
+  const scripts = [...body.matchAll(/<script\b[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/gi)];
+  return scripts.flatMap((match) => {
+    const payload = JSON.parse(match[1]);
+    return Array.isArray(payload?.["@graph"]) ? payload["@graph"] : [payload];
+  });
+}
+
+function extractTagContent(body, tagName) {
+  return body.match(new RegExp(`<${tagName}\\b[^>]*>([\\s\\S]*?)<\\/${tagName}>`, "i"))?.[1]?.trim() || "";
+}
+
+function extractMetaContent(body, attribute, value) {
+  const escapedValue = value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const tag = body.match(new RegExp(`<meta\\b(?=[^>]*\\b${attribute}="${escapedValue}")[^>]*>`, "i"))?.[0] || "";
+  return tag.match(/\bcontent="([^"]*)"/i)?.[1] || "";
+}
+
+function extractLinkHref(body, rel) {
+  const escapedRel = rel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const tag = body.match(new RegExp(`<link\\b(?=[^>]*\\brel="${escapedRel}")[^>]*>`, "i"))?.[0] || "";
+  return tag.match(/\bhref="([^"]*)"/i)?.[1] || "";
 }
 
 async function fetchText(path) {
