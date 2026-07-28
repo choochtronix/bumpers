@@ -8771,23 +8771,32 @@ body[data-theme="dark"] .watching-trigger:focus-visible {
   border-color: var(--color-brand-hot);
 }
 
+body[data-theme="dark"] .header-actions .account-trigger.is-signed-in,
+body[data-theme="dark"] .header-actions .account-trigger.is-signed-in:hover,
+body[data-theme="dark"] .header-actions .account-trigger.is-signed-in:focus-visible,
+body[data-theme="dark"] .header-actions .account-trigger.is-signed-in[aria-expanded="true"] {
+  border-color: var(--color-brand-hot);
+  background: var(--color-brand-hot);
+  color: var(--color-control-on-ink);
+}
+
 .account-trigger:active {
   transform: translateY(0) scale(0.96);
 }
 
 .account-avatar-check {
   position: absolute;
-  right: -3px;
-  bottom: -3px;
+  right: calc(var(--space-1) * -1);
+  bottom: calc(var(--space-1) * -1);
   display: grid;
-  width: 17px;
-  height: 17px;
+  width: calc(var(--space-4) + var(--space-1));
+  height: calc(var(--space-4) + var(--space-1));
   place-items: center;
   border: 1px solid var(--line);
   border-radius: var(--radius-pill);
   background: var(--panel);
   color: var(--color-green);
-  font-size: var(--text-micro);
+  font-size: var(--text-caption);
   font-weight: var(--weight-black);
   line-height: 1;
 }
