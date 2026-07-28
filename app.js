@@ -5169,7 +5169,7 @@ async function hydrateAuthUser() {
     renderAccountShell(authState.user);
   } catch (error) {
     console.warn("Could not restore auth session.", error);
-    if (isPermanentAuthError(error)) {
+    if (shouldDiscardAuthSession(error)) {
       clearStoredAuthSession();
       authState.session = null;
       authState.user = null;
@@ -5368,7 +5368,7 @@ function clearStoredAuthSession() {
   localStorage.removeItem(STORAGE_KEYS.authSession);
 }
 
-function clearInvalidCloudSession(message = "Your cloud session could not be verified. Sign out and sign in again.") {
+function clearInvalidAuthSession(message = "Your sign-in could not be verified. Sign in again.") {
   authSessionRevision += 1;
   clearStoredAuthSession();
   authState.session = null;
@@ -5379,6 +5379,15 @@ function clearInvalidCloudSession(message = "Your cloud session could not be ver
 
 function isCloudAuthSessionError(message = "") {
   return /cloud session could not be verified|sign-in session expired|sign in is required/i.test(message);
+}
+
+function preserveAuthSessionAfterCloudError(message = "") {
+  if (!isCloudAuthSessionError(message)) return message;
+
+  authState.user = authState.user || getCachedAuthUser(authState.session);
+  scheduleAuthRefreshRetry();
+  renderAccountShell(authState.user);
+  return "Signed in, but cloud sync needs to reconnect. Brrtz will retry automatically.";
 }
 
 function normalizeAuthSession(rawSession) {
@@ -5401,6 +5410,12 @@ function createAuthRequestError(message, options = {}) {
 
 function isPermanentAuthError(error) {
   return Boolean(error?.authPermanent);
+}
+
+function shouldDiscardAuthSession(error) {
+  return AUTH_SESSION?.shouldDiscardAuthSession("supabase-auth", {
+    permanent: isPermanentAuthError(error),
+  }) || false;
 }
 
 function getAuthPayloadMessage(payload, fallback) {
@@ -5647,8 +5662,8 @@ async function maintainAuthSession(options = {}) {
     renderAccountShell(authState.user);
   } catch (error) {
     console.warn(`Could not maintain auth session (${options.reason || "wake"}).`, error);
-    if (isPermanentAuthError(error)) {
-      clearInvalidCloudSession("Your saved sign-in expired. Use your password or request a fresh email link.");
+    if (shouldDiscardAuthSession(error)) {
+      clearInvalidAuthSession("Your saved sign-in expired. Use your password or request a fresh email link.");
       return;
     }
     authState.user = cachedUser;
@@ -5797,8 +5812,8 @@ async function handleAccountPasswordUpdate() {
       message: "Password updated",
     });
   } catch (error) {
-    if (isPermanentAuthError(error)) {
-      clearInvalidCloudSession("For security, use a fresh email link before changing your password.");
+    if (shouldDiscardAuthSession(error)) {
+      clearInvalidAuthSession("For security, use a fresh email link before changing your password.");
     } else {
       accountStatus.textContent = error instanceof Error ? error.message : "Could not update password.";
     }
@@ -5995,7 +6010,7 @@ async function syncAccountCloudData() {
     authState.accountNotice = /^Cannot read properties/i.test(errorMessage)
       ? `Account sync failed while ${syncStep}. ${errorMessage}`
       : errorMessage;
-    if (isCloudAuthSessionError(authState.accountNotice)) clearInvalidCloudSession(authState.accountNotice);
+    authState.accountNotice = preserveAuthSessionAfterCloudError(authState.accountNotice);
     setAccountStatus(authState.accountNotice);
   } finally {
     setCloudSyncButtonsDisabled(false);
@@ -6014,11 +6029,11 @@ async function pullCloudProfilePreferences(options = {}) {
     return payload;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Could not pull profile preferences.";
-    if (isCloudAuthSessionError(message)) clearInvalidCloudSession(message);
-    if (!options.silent) setAccountStatus(message);
-    if (options.surfaceErrors) throw error instanceof Error ? error : new Error(message);
+    const accountMessage = preserveAuthSessionAfterCloudError(message);
+    if (!options.silent) setAccountStatus(accountMessage);
+    if (options.surfaceErrors) throw new Error(accountMessage);
     if (options.silent) return null;
-    throw error;
+    throw new Error(accountMessage);
   }
 }
 
@@ -6039,11 +6054,11 @@ async function pushCloudProfilePreferences(options = {}) {
     return payload;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Could not push profile preferences.";
-    if (isCloudAuthSessionError(message)) clearInvalidCloudSession(message);
-    if (!options.silent) setAccountStatus(message);
-    if (options.surfaceErrors) throw new Error(message);
+    const accountMessage = preserveAuthSessionAfterCloudError(message);
+    if (!options.silent) setAccountStatus(accountMessage);
+    if (options.surfaceErrors) throw new Error(accountMessage);
     if (options.silent) return null;
-    throw error;
+    throw new Error(accountMessage);
   }
 }
 
@@ -6356,10 +6371,9 @@ async function pullCloudSavedSearches(options = {}) {
     return { count: cloudProfiles.length, mergedCount: importPreview.mergedProfiles.length };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Could not pull from cloud sync.";
-    authState.accountNotice = message;
-    if (isCloudAuthSessionError(message)) clearInvalidCloudSession(message);
-    setAccountStatus(message);
-    setSavedSearchTransferStatus(message);
+    authState.accountNotice = preserveAuthSessionAfterCloudError(message);
+    setAccountStatus(authState.accountNotice);
+    setSavedSearchTransferStatus(authState.accountNotice);
     if (options.rethrow) throw error;
   } finally {
     setCloudSyncButtonsDisabled(false);
@@ -6414,10 +6428,9 @@ async function pushCloudSavedSearches(options = {}) {
     return { count: profiles.length };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Could not push to cloud sync.";
-    authState.accountNotice = message;
-    if (isCloudAuthSessionError(message)) clearInvalidCloudSession(message);
-    setAccountStatus(message);
-    setSavedSearchTransferStatus(message);
+    authState.accountNotice = preserveAuthSessionAfterCloudError(message);
+    setAccountStatus(authState.accountNotice);
+    setSavedSearchTransferStatus(authState.accountNotice);
     if (options.rethrow) throw error;
   } finally {
     setCloudSyncButtonsDisabled(false);

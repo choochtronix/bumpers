@@ -63,11 +63,16 @@ function isPermanentAuthFailure(status, payload = {}) {
   return /invalid.?grant|invalid.?token|refresh.?token|session.?not.?found|bad.?jwt/.test(`${code} ${message}`);
 }
 
+function shouldDiscardAuthSession(source = "", options = {}) {
+  return source === "supabase-auth" && Boolean(options.permanent);
+}
+
 globalThis.BrrtzAuthSession = {
   getAuthRefreshDelay,
   isPermanentAuthFailure,
   normalizeAuthSession,
   normalizeAuthUser,
   readAuthUserFromAccessToken,
+  shouldDiscardAuthSession,
   shouldRefreshAuthSession,
 };

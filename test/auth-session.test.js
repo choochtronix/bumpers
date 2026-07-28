@@ -8,6 +8,7 @@ const {
   isPermanentAuthFailure,
   normalizeAuthSession,
   readAuthUserFromAccessToken,
+  shouldDiscardAuthSession,
   shouldRefreshAuthSession,
 } = globalThis.BrrtzAuthSession;
 
@@ -61,4 +62,10 @@ test("distinguishes revoked sessions from temporary service failures", () => {
   assert.equal(isPermanentAuthFailure(400, { error_code: "refresh_token_not_found" }), true);
   assert.equal(isPermanentAuthFailure(429, { message: "rate limited" }), false);
   assert.equal(isPermanentAuthFailure(503, { message: "temporarily unavailable" }), false);
+});
+
+test("only permanent Supabase auth failures can discard a saved session", () => {
+  assert.equal(shouldDiscardAuthSession("supabase-auth", { permanent: true }), true);
+  assert.equal(shouldDiscardAuthSession("supabase-auth", { permanent: false }), false);
+  assert.equal(shouldDiscardAuthSession("cloud-sync", { permanent: true }), false);
 });
