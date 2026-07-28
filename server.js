@@ -31,6 +31,7 @@ const {
 const PORT = Number(process.env.PORT || 5173);
 const HOST = process.env.HOST || "0.0.0.0";
 const ROOT = fileURLToPath(new URL(".", import.meta.url));
+const PLAYWRIGHT_SYSTEM_CHROME = "/usr/bin/google-chrome-stable";
 loadLocalEnvFiles([".env.local", ".env"]);
 const CLOUD_DATA_FILE = join(ROOT, "data", "cloud-saved-searches.json");
 const SUPABASE_URL = process.env.SUPABASE_URL || "";
@@ -2793,7 +2794,7 @@ async function searchMercari(term) {
 async function getMercariBrowser() {
   if (!mercariBrowserPromise) {
     mercariBrowserPromise = import("playwright")
-      .then(({ chromium }) => chromium.launch({ headless: true }))
+      .then(({ chromium }) => chromium.launch(getPlaywrightLaunchOptions()))
       .catch((error) => {
         mercariBrowserPromise = undefined;
         throw error;
@@ -2801,6 +2802,15 @@ async function getMercariBrowser() {
   }
 
   return mercariBrowserPromise;
+}
+
+function getPlaywrightLaunchOptions() {
+  const options = { headless: true };
+  if (existsSync(PLAYWRIGHT_SYSTEM_CHROME)) {
+    options.executablePath = PLAYWRIGHT_SYSTEM_CHROME;
+    options.args = ["--no-sandbox"];
+  }
+  return options;
 }
 
 async function closeMercariBrowser() {

@@ -88,6 +88,10 @@ async function main() {
   assertXmlContentType(sitemap, "/sitemap.xml");
   assertXmlSitemap(sitemap.body);
 
+  const legacyWordPressCategory = await fetchText("/category/uncategorized/");
+  assert([404, 410].includes(legacyWordPressCategory.status), "/category/uncategorized/ should return a real 404 or 410");
+  assertNoBannedStrings(legacyWordPressCategory.body, "/category/uncategorized/");
+
   for (const path of ["/", "/search?region=bay-area&category=synthesizers&q=moog%20voyager"]) {
     const page = await fetchText(path);
     assertStatus(page, 200, path);
@@ -295,6 +299,74 @@ function assertXmlSitemap(body) {
   for (const url of requiredSitemapUrls) {
     assert(body.includes(`<loc>${url}</loc>`), `/sitemap.xml missing ${url}`);
   }
+  assert(!body.includes("/category/uncategorized/"), "/sitemap.xml should not include the legacy WordPress category URL");
+}
+
+function assertHomepageBrandSignals(body) {
+  assert(body.includes("<title>Brrtz Gear Radar"), "/ title should begin with Brrtz Gear Radar");
+  assert(body.includes('<link rel="canonical" href="https://brrtz.com/"'), "/ should emit canonical homepage URL");
+  assert(body.includes('<meta property="og:site_name" content="Brrtz"'), "/ should emit og:site_name as Brrtz");
+  assert(body.includes("Brrtz Gear Radar"), "/ should include visible Brrtz Gear Radar identity copy");
+  assert(body.includes("Search used gear"), "/ should retain the operational Search used gear heading");
+  assert(!body.includes("meta name=\"keywords\""), "/ should not emit meta keywords");
+
+  const h1Texts = extractTagTexts(body, "h1");
+  assert(h1Texts.length === 1, `/ should contain exactly one h1, found ${h1Texts.length}`);
+  assert(h1Texts[0].includes("Brrtz Gear Radar"), "/ h1 should represent Brrtz Gear Radar");
+
+  const jsonLdBlocks = extractJsonLdBlocks(body);
+  const graphNodes = jsonLdBlocks.flatMap((block) => {
+    const payload = JSON.parse(block);
+    return Array.isArray(payload["@graph"]) ? payload["@graph"] : [payload];
+  });
+
+  const websiteNodes = graphNodes.filter((node) => node?.["@type"] === "WebSite" && node?.["@id"] === "https://brrtz.com/#website");
+  assert(websiteNodes.length === 1, `/ should contain exactly one canonical WebSite node, found ${websiteNodes.length}`);
+  const website = websiteNodes[0];
+  assert(website.name === "Brrtz", "/ WebSite.name should be Brrtz");
+  assert(website.url === "https://brrtz.com/", "/ WebSite.url should be the canonical root URL");
+  assert(Array.isArray(website.alternateName), "/ WebSite.alternateName should be an array");
+  assert(website.alternateName.includes("Brrtz Gear Radar"), "/ WebSite.alternateName should include Brrtz Gear Radar");
+  assert(website.alternateName.includes("brrtz.com"), "/ WebSite.alternateName should include brrtz.com");
+
+  const organizationNodes = graphNodes.filter((node) => node?.["@type"] === "Organization" && node?.["@id"] === "https://brrtz.com/#organization");
+  assert(organizationNodes.length === 1, `/ should contain exactly one canonical Organization node, found ${organizationNodes.length}`);
+  const organization = organizationNodes[0];
+  assert(organization.name === "Brrtz", "/ Organization.name should be Brrtz");
+  assert(organization.alternateName === "Brrtz Gear Radar", "/ Organization.alternateName should be Brrtz Gear Radar");
+  assert(organization.url === "https://brrtz.com/", "/ Organization.url should be the canonical root URL");
+  assert(!Object.hasOwn(organization, "sameAs"), "/ Organization.sameAs should be omitted until authoritative external profiles exist");
+
+  const conflictingIdentityNodes = graphNodes.filter((node) => {
+    if (!node || node["@id"] === "https://brrtz.com/#organization" || node["@id"] === "https://brrtz.com/#website") return false;
+    return node.name === "Brrtz Gear Radar" || node.name === "Brrtz Search" || node.name === "Brrtz Marketplace";
+  });
+  assert(conflictingIdentityNodes.length === 0, "/ should not create competing Brrtz identity nodes");
+}
+
+function extractJsonLdBlocks(body) {
+  const blocks = [];
+  const pattern = /<script\s+type="application\/ld\+json">\s*([\s\S]*?)\s*<\/script>/gi;
+  let match;
+  while ((match = pattern.exec(body))) {
+    blocks.push(match[1]);
+  }
+  assert(blocks.length > 0, "Expected at least one JSON-LD block");
+  return blocks;
+}
+
+function extractTagTexts(body, tagName) {
+  const pattern = new RegExp(`<${tagName}[^>]*>([\\s\\S]*?)<\\/${tagName}>`, "gi");
+  const texts = [];
+  let match;
+  while ((match = pattern.exec(body))) {
+    texts.push(stripHtml(match[1]).replace(/\s+/g, " ").trim());
+  }
+  return texts.filter(Boolean);
+}
+
+function stripHtml(value) {
+  return String(value || "").replace(/<[^>]+>/g, " ");
 }
 
 function assertXmlContentType(result, label) {

@@ -66,6 +66,14 @@ const APP_VIEW_SYNTH_BROWSER = "synth-browser";
 const APP_VIEW_WATCHLIST = "watchlist";
 const APP_VIEW_MY_PAGE = "my-page";
 const APP_BRAND_PARAM = "brand";
+const SEARCH_QUERY_PARAM = "q";
+const SEARCH_REGION_PARAM = "region";
+const SEARCH_CATEGORY_PARAM = "category";
+const SEARCH_SOURCES_PARAM = "sources";
+const SEARCH_SOURCE_PARAM = "source";
+const SEARCH_SORT_PARAM = "sort";
+const SEARCH_RESULT_VIEW_PARAM = "resultView";
+const SORT_MODES = new Set(["newest", "price-asc", "price-desc", "source"]);
 const POPULAR_BRANDS = [
   {
     name: "Moog",
@@ -1900,11 +1908,12 @@ function runStartupStep(label, action) {
 
 function applyStartupSearchUrlParams() {
   const params = new URLSearchParams(window.location.search);
-  const query = params.get("q") || params.get("terms") || "";
+  if (params.get(APP_VIEW_PARAM)) return false;
+  const query = params.get(SEARCH_QUERY_PARAM) || params.get("terms") || "";
   const terms = splitLines(query);
   if (terms.length === 0) return false;
 
-  const regionParam = params.get("region") || params.get("regionId") || "";
+  const regionParam = params.get(SEARCH_REGION_PARAM) || params.get("regionId") || "";
   const nextRegionId = regionParam ? sanitizeRegionId(regionParam) : appSettings.regionId;
   if (nextRegionId !== appSettings.regionId) {
     appSettings = hydrateSettings({ ...appSettings, regionId: nextRegionId });
@@ -1912,14 +1921,23 @@ function applyStartupSearchUrlParams() {
     resetRegionRuntimeState();
   }
 
-  const categoryParam = params.get("category") || params.get("categoryIntent") || "";
+  const categoryParam = params.get(SEARCH_CATEGORY_PARAM) || params.get("categoryIntent") || "";
+  const urlSources = getSearchSourcesFromUrlParams(params, nextRegionId);
+  const resultViewParam = params.get(SEARCH_RESULT_VIEW_PARAM) || "";
+  const sortParam = params.get(SEARCH_SORT_PARAM) || "";
+  if (resultViewParam) {
+    appSettings = hydrateSettings({ ...appSettings, resultView: sanitizeResultView(resultViewParam) });
+    localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(appSettings));
+  }
+  if (SORT_MODES.has(sortParam)) sortMode = sortParam;
+  if (sortModeSelect) sortModeSelect.value = sortMode;
   currentProfile = hydrateProfile({
     ...createFreshProfile(),
     name: getFormProfileName(terms),
     regionId: appSettings.regionId,
     terms,
     categoryIntent: sanitizeCategoryIntent(categoryParam, appSettings.regionId),
-    sources: getRegionSourceIds(appSettings.regionId),
+    sources: urlSources,
   });
   return true;
 }
@@ -2426,6 +2444,7 @@ function bindEvents() {
     currentProfile = applySearchEasterEggs(draftProfile, { syncForm: true, playSound: true });
     renderRefineSummary();
     closeRefineSearchModal({ restoreFocus: false });
+    syncSearchUrl(currentProfile);
     runSearch();
   });
   termsInput.addEventListener("input", handlePrimaryTermsInput);
@@ -2639,6 +2658,7 @@ function bindEvents() {
 
   sortModeSelect.addEventListener("change", () => {
     sortMode = sortModeSelect.value;
+    if (currentProfile.terms.length > 0) syncSearchUrl(currentProfile, { replace: true });
     resetPagination();
     renderResults({ force: true });
   });
@@ -2763,7 +2783,7 @@ function resetHomeView(event) {
   clearScheduledSearchResultApply();
   deferredResultsRender = false;
   activeBrowseBrandSlug = "";
-  setAppView(null);
+  clearSearchUrl();
   isBrowseExpanded = false;
   searchRunId += 1;
   currentProfile = createFreshProfile();
@@ -2782,6 +2802,28 @@ function resetHomeView(event) {
   scrollPageTop();
 }
 
+function clearSearchUrl(options = {}) {
+  const url = new URL(window.location.href);
+  [
+    APP_VIEW_PARAM,
+    APP_BRAND_PARAM,
+    SEARCH_QUERY_PARAM,
+    "terms",
+    SEARCH_REGION_PARAM,
+    "regionId",
+    SEARCH_CATEGORY_PARAM,
+    "categoryIntent",
+    SEARCH_SOURCES_PARAM,
+    SEARCH_SOURCE_PARAM,
+    SEARCH_SORT_PARAM,
+    SEARCH_RESULT_VIEW_PARAM,
+  ].forEach((param) => url.searchParams.delete(param));
+  const nextUrl = `${url.pathname}${url.search}${url.hash}`;
+  if (nextUrl === `${window.location.pathname}${window.location.search}${window.location.hash}`) return;
+  const method = options.replace ? "replaceState" : "pushState";
+  window.history[method]({ view: "" }, "", nextUrl);
+}
+
 function getCurrentAppView() {
   const params = new URLSearchParams(window.location.search);
   return params.get(APP_VIEW_PARAM) || "";
@@ -2791,6 +2833,42 @@ function getCurrentBrowseBrandSlug() {
   if (getCurrentAppView() !== APP_VIEW_SYNTH_BROWSER) return "";
   const params = new URLSearchParams(window.location.search);
   return sanitizePopularBrandSlug(params.get(APP_BRAND_PARAM));
+}
+
+function getSearchSourcesFromUrlParams(params, regionId = appSettings.regionId) {
+  const commaSeparatedSources = splitLines(params.get(SEARCH_SOURCES_PARAM) || "");
+  const repeatedSources = params.getAll(SEARCH_SOURCE_PARAM).flatMap(splitLines);
+  return hydrateSourceSelection([...commaSeparatedSources, ...repeatedSources], regionId);
+}
+
+function syncSearchUrl(profile, options = {}) {
+  const terms = uniqueTerms(profile?.terms || []);
+  if (terms.length === 0) return;
+
+  const regionId = sanitizeRegionId(profile.regionId || appSettings.regionId);
+  const defaultSources = getRegionSourceIds(regionId);
+  const selectedSources = hydrateSourceSelection(profile.sources, regionId);
+  const url = new URL(window.location.href);
+
+  url.searchParams.delete(APP_VIEW_PARAM);
+  url.searchParams.delete(APP_BRAND_PARAM);
+  url.searchParams.set(SEARCH_QUERY_PARAM, terms.join("\n"));
+  url.searchParams.set(SEARCH_REGION_PARAM, regionId);
+  url.searchParams.set(SEARCH_CATEGORY_PARAM, sanitizeCategoryIntent(profile.categoryIntent, regionId));
+  url.searchParams.set(SEARCH_RESULT_VIEW_PARAM, sanitizeResultView(appSettings.resultView));
+  url.searchParams.set(SEARCH_SORT_PARAM, SORT_MODES.has(sortMode) ? sortMode : "newest");
+  url.searchParams.delete(SEARCH_SOURCE_PARAM);
+
+  if (arraysMatch(selectedSources.slice().sort(), defaultSources.slice().sort())) {
+    url.searchParams.delete(SEARCH_SOURCES_PARAM);
+  } else {
+    url.searchParams.set(SEARCH_SOURCES_PARAM, selectedSources.join(","));
+  }
+
+  const nextUrl = `${url.pathname}${url.search}${url.hash}`;
+  if (nextUrl === `${window.location.pathname}${window.location.search}${window.location.hash}`) return;
+  const method = options.replace ? "replaceState" : "pushState";
+  window.history[method]({ view: "", search: terms[0] || "" }, "", nextUrl);
 }
 
 function setAppView(view, options = {}) {
@@ -2817,7 +2895,43 @@ function setAppView(view, options = {}) {
 }
 
 function handleAppViewPopState() {
+  if (applyStartupSearchUrlParams()) {
+    isBrowseExpanded = false;
+    activeBrowseBrandSlug = "";
+    if (filterMode === "watching") filterMode = "all";
+    fillForm(currentProfile);
+    renderRefineSummary();
+    syncFilterModeButtons();
+    resetPagination();
+    runSearch();
+    return;
+  }
+
   const nextView = getCurrentAppView();
+  if (!nextView) {
+    selectInteractionActive = false;
+    clearScheduledSearchResultApply();
+    deferredResultsRender = false;
+    activeBrowseBrandSlug = "";
+    isBrowseExpanded = false;
+    searchRunId += 1;
+    currentProfile = createFreshProfile();
+    fillForm(currentProfile);
+    activeViewSources.clear();
+    filterMode = "all";
+    syncFilterModeButtons();
+    currentResults = [];
+    currentDiscoveryIds = new Set();
+    currentNewForSearchIds = new Set();
+    closeSavedSearchPopover();
+    closeRefineSearchModal({ restoreFocus: false });
+    closeSaveSearchModal({ restoreFocus: false });
+    closeSettingsModal({ restoreFocus: false });
+    resetToIdleSearch();
+    scrollPageTop();
+    return;
+  }
+
   isBrowseExpanded = nextView === APP_VIEW_SYNTH_BROWSER;
   activeBrowseBrandSlug = nextView === APP_VIEW_SYNTH_BROWSER ? getCurrentBrowseBrandSlug() : "";
   if (nextView === APP_VIEW_WATCHLIST) {
@@ -3164,6 +3278,7 @@ function handleRegionQuickSelectChange(event) {
     : createFreshProfile();
   fillForm(currentProfile);
   if (shouldRunSearchAfterSwitch) {
+    syncSearchUrl(currentProfile);
     runSearch();
   } else {
     resetToIdleSearch();
@@ -4533,8 +4648,7 @@ function viewSavedSearchFromToast() {
 
 function getSavedResultsDrawerMode() {
   if (window.matchMedia?.("(max-width: 720px)").matches ?? window.innerWidth <= 720) return "mobile";
-  if (window.matchMedia?.("(min-width: 1920px)").matches ?? window.innerWidth >= 1920) return "docked";
-  return "overlay";
+  return "docked";
 }
 
 function isSavedResultsDrawerAvailable(profiles = loadProfiles()) {
@@ -4641,9 +4755,7 @@ function openSavedResultsDrawer(options = {}) {
     localStorage.setItem(STORAGE_KEYS.savedResultsDrawerOpen, "true");
   }
 
-  const focusTarget = getSavedResultsDrawerMode() === "mobile"
-    ? closeSavedResultsDrawerButton
-    : savedResultsDrawerFilter;
+  const focusTarget = closeSavedResultsDrawerButton || savedResultsDrawer;
   focusTarget?.focus?.();
   updateMobileBottomNavState();
 }
@@ -8280,6 +8392,7 @@ function setResultView(mode = "grid") {
     resultView,
   };
   localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(appSettings));
+  if (currentProfile.terms.length > 0) syncSearchUrl(currentProfile, { replace: true });
   renderResults();
   queueProfileAutoSync("result-view");
 }
