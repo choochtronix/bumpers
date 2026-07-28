@@ -28,6 +28,19 @@ test("normalizes and retains the refresh token and cached user", () => {
   assert.deepEqual(session.user, { id: "user-1", email: "beta@brrtz.com" });
 });
 
+test("normalizes a Supabase response with a nested session", () => {
+  const session = normalizeAuthSession({
+    session: {
+      access_token: createUnsignedToken({ sub: "user-nested", email: "nested@brrtz.com" }),
+      refresh_token: "refresh-nested",
+      expires_in: 3600,
+    },
+  }, { now: 1_000_000 });
+
+  assert.equal(session.refresh_token, "refresh-nested");
+  assert.deepEqual(session.user, { id: "user-nested", email: "nested@brrtz.com" });
+});
+
 test("reads cached display identity from an access token", () => {
   const token = createUnsignedToken({ sub: "user-2", email: "saved@brrtz.com" });
   assert.deepEqual(readAuthUserFromAccessToken(token), {

@@ -22,17 +22,18 @@ function readAuthUserFromAccessToken(accessToken = "") {
 }
 
 function normalizeAuthSession(rawSession, options = {}) {
-  if (!rawSession?.access_token) return null;
+  const session = rawSession?.session || rawSession;
+  if (!session?.access_token) return null;
   const now = Number(options.now || Date.now());
-  const expiresAt = Number(rawSession.expires_at)
-    || Math.floor(now / 1000) + Number(rawSession.expires_in || 3600);
+  const expiresAt = Number(session.expires_at)
+    || Math.floor(now / 1000) + Number(session.expires_in || 3600);
 
   return {
-    access_token: rawSession.access_token,
-    refresh_token: rawSession.refresh_token || "",
+    access_token: session.access_token,
+    refresh_token: session.refresh_token || "",
     expires_at: expiresAt,
-    token_type: rawSession.token_type || "bearer",
-    user: normalizeAuthUser(rawSession.user) || readAuthUserFromAccessToken(rawSession.access_token),
+    token_type: session.token_type || "bearer",
+    user: normalizeAuthUser(session.user) || readAuthUserFromAccessToken(session.access_token),
   };
 }
 

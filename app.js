@@ -5212,10 +5212,8 @@ async function readAuthSessionFromCallback() {
       token_type: params.get("token_type"),
     });
 
+  if (session) storeAuthSession(session);
   if (!authState.callbackRetryable) clearAuthCallbackUrl();
-
-  if (!session) return null;
-  storeAuthSession(session);
   return session;
 }
 
@@ -5262,17 +5260,21 @@ async function verifySupabaseMagicLinkCallback(params) {
     return null;
   }
 
+  const payload = await readJsonResponse(response);
   if (!response.ok) {
-    const errorPayload = await readJsonResponse(response);
     const callbackParams = new URLSearchParams({
-      error: errorPayload?.error || "auth_error",
-      error_description: errorPayload?.msg || errorPayload?.message || "Supabase could not complete sign-in.",
+      error: payload?.error || "auth_error",
+      error_description: payload?.msg || payload?.message || "Supabase could not complete sign-in.",
     });
     authState.callbackError = formatAuthCallbackError(callbackParams);
     return null;
   }
 
-  return normalizeAuthSession(await response.json());
+  const session = normalizeAuthSession(payload);
+  if (!session) {
+    authState.callbackError = "Supabase verified the link but did not return a usable sign-in session. Request a fresh reset email and try the newest link.";
+  }
+  return session;
 }
 
 function clearAuthCallbackUrl() {
@@ -5292,7 +5294,11 @@ function clearAuthCallbackUrl() {
   ].forEach((name) => queryParams.delete(name));
 
   const nextQuery = queryParams.toString();
-  window.history.replaceState(null, "", `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}`);
+  try {
+    window.history.replaceState(null, "", `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}`);
+  } catch (error) {
+    console.warn("Could not clean auth callback URL.", error);
+  }
 }
 
 function formatAuthCallbackError(params) {
@@ -5716,7 +5722,6 @@ async function handleAccountPasswordRecovery() {
 
   if (!email) {
     accountStatus.textContent = "Enter your email address first.";
-    accountEmailInput?.focus();
     return;
   }
   if (!authState.config?.enabled) {
