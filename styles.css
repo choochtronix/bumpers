@@ -8786,7 +8786,7 @@ body[data-theme="dark"] .watching-trigger:focus-visible {
   border: 1px solid var(--line);
   border-radius: var(--radius-pill);
   background: var(--panel);
-  color: var(--color-brand-hot);
+  color: var(--color-green);
   font-size: var(--text-micro);
   font-weight: var(--weight-black);
   line-height: 1;
@@ -11529,28 +11529,30 @@ body[data-theme="dark"] .refine-backdrop {
   }
 
   .app-header .header-actions {
-    width: 0;
-    min-width: 0;
+    width: auto;
+    min-width: var(--control-header-utility-size);
     gap: 0;
     margin-left: 0;
     overflow: visible;
-    pointer-events: none;
-  }
-
-  .app-header .saved-menu {
-    width: 0;
-    height: 0;
     pointer-events: auto;
   }
 
-  .app-header .account-menu {
+  .app-header .saved-menu {
     display: none;
+  }
+
+  .app-header .account-menu {
+    display: block;
   }
 
   .app-header .saved-trigger,
   .app-header .watching-trigger,
   .app-header .theme-toggle {
     display: none;
+  }
+
+  .app-header .account-trigger {
+    display: inline-grid;
   }
 
   body.saved-popover-bottom-anchor .saved-popover {
@@ -11642,23 +11644,18 @@ body[data-theme="dark"] .refine-backdrop {
     stroke: currentColor;
   }
 
-  .mobile-account-check {
+  .mobile-account-status {
     position: absolute;
-    top: var(--space-1);
-    right: calc(50% - var(--space-5));
-    display: grid;
-    width: 16px;
-    height: 16px;
-    place-items: center;
+    top: var(--space-2);
+    right: calc(50% - var(--space-4));
+    display: block;
+    width: var(--space-2);
+    height: var(--space-2);
     border-radius: var(--radius-pill);
     background: var(--color-green);
-    color: var(--color-control-on-ink);
-    font-size: var(--text-micro);
-    font-weight: var(--weight-black);
-    line-height: 1;
   }
 
-  .mobile-account-check[hidden] {
+  .mobile-account-status[hidden] {
     display: none;
   }
 

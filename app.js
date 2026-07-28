@@ -1824,7 +1824,7 @@ const accountSyncDetail = document.querySelector("#accountSyncDetail");
 const settingsAccountStateButton = document.querySelector("#settingsAccountState");
 const settingsAccountStateLabel = document.querySelector("#settingsAccountStateLabel");
 const mobileSettingsNavItem = document.querySelector('[data-mobile-nav="settings"]');
-const mobileAccountCheck = mobileSettingsNavItem?.querySelector(".mobile-account-check");
+const mobileAccountStatus = mobileSettingsNavItem?.querySelector(".mobile-account-status");
 const sendSignInLinkButton = document.querySelector("#sendSignInLink");
 const signInWithPasswordButton = document.querySelector("#signInWithPassword");
 const forgotAccountPasswordButton = document.querySelector("#forgotAccountPassword");
@@ -4904,7 +4904,7 @@ function renderSettingsAccountState(account = null) {
       isSignedIn ? `Open settings. Signed in as ${email}` : "Open settings. Not signed in",
     );
   }
-  if (mobileAccountCheck) mobileAccountCheck.hidden = !isSignedIn;
+  if (mobileAccountStatus) mobileAccountStatus.hidden = !isSignedIn;
 
   if (accountPasswordTitle) {
     accountPasswordTitle.textContent = isRecovery ? "Choose a new password" : "Password sign-in";
@@ -4971,6 +4971,16 @@ function closeHeaderAccountPopover(options = {}) {
 function handleHeaderAccountTrigger(event) {
   event.preventDefault();
   event.stopPropagation();
+
+  const isMobile = window.matchMedia?.("(max-width: 720px)").matches ?? window.innerWidth <= 720;
+  if (isMobile) {
+    closeHeaderAccountPopover({ restoreFocus: false });
+    openSettingsModal(event, {
+      tabName: "account",
+      focusTarget: authState.user?.email ? updateAccountPasswordButton : accountEmailInput,
+    });
+    return;
+  }
 
   if (!authState.user?.email) {
     openSettingsModal(event, {
