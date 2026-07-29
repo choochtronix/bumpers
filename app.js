@@ -1537,6 +1537,7 @@ const STORAGE_KEYS = {
   freshFindCache: "bumpers.freshFindCache",
   feedbackRules: "bumpers.feedbackRules",
   savedResultsDrawerOpen: "bumpers.savedResultsDrawerOpen",
+  welcomeDismissed: "bumpers.welcomeDismissed",
 };
 
 const SAVED_SEARCH_SCHEMA_VERSION = 2;
@@ -1833,6 +1834,12 @@ const settingsAccountStateButton = document.querySelector("#settingsAccountState
 const settingsAccountStateLabel = document.querySelector("#settingsAccountStateLabel");
 const mobileSettingsNavItem = document.querySelector('[data-mobile-nav="settings"]');
 const mobileAccountStatus = mobileSettingsNavItem?.querySelector(".mobile-account-status");
+const signInWithGoogleButton = document.querySelector("#signInWithGoogle");
+const welcomeModal = document.querySelector("#welcomeModal");
+const closeWelcomeModalButton = document.querySelector("#closeWelcomeModal");
+const welcomeContinueGoogleButton = document.querySelector("#welcomeContinueGoogle");
+const welcomeEmailSignInButton = document.querySelector("#welcomeEmailSignIn");
+const welcomeStartSearchingButton = document.querySelector("#welcomeStartSearching");
 const sendSignInLinkButton = document.querySelector("#sendSignInLink");
 const signInWithPasswordButton = document.querySelector("#signInWithPassword");
 const forgotAccountPasswordButton = document.querySelector("#forgotAccountPassword");
@@ -1860,6 +1867,7 @@ let savedSearchAutoSyncTimer = 0;
 let pendingSavedSearchAutoSync = null;
 let profileAutoSyncTimer = 0;
 let saveConfirmationTimer = 0;
+let welcomeModalTimer = 0;
 let isSavedSearchAutoSyncing = false;
 let isProfileAutoSyncing = false;
 let refiningSavedSearchId = "";
@@ -2562,6 +2570,14 @@ function bindEvents() {
   applyBrandGradientButton?.addEventListener("click", applyBrandGradientFromControls);
   resetBrandGradientButton?.addEventListener("click", resetBrandGradient);
   settingsAccountStateButton?.addEventListener("click", handleSettingsAccountStateClick);
+  signInWithGoogleButton?.addEventListener("click", handleAccountGoogleSignIn);
+  welcomeContinueGoogleButton?.addEventListener("click", handleWelcomeGoogleSignIn);
+  welcomeEmailSignInButton?.addEventListener("click", handleWelcomeEmailSignIn);
+  welcomeStartSearchingButton?.addEventListener("click", dismissWelcomeModal);
+  closeWelcomeModalButton?.addEventListener("click", dismissWelcomeModal);
+  welcomeModal?.addEventListener("click", (event) => {
+    if (event.target === welcomeModal) dismissWelcomeModal();
+  });
   sendSignInLinkButton?.addEventListener("click", handleAccountSignInShell);
   signInWithPasswordButton?.addEventListener("click", handleAccountPasswordSignIn);
   forgotAccountPasswordButton?.addEventListener("click", handleAccountPasswordRecovery);
@@ -4981,6 +4997,7 @@ function handleSettingsTabKeydown(event) {
 
 function renderAccountShell(account = null) {
   const isSignedIn = Boolean(account?.email);
+  if (isSignedIn) dismissWelcomeModal({ persist: true });
   renderHeaderAccountState(account);
   renderSettingsAccountState(account);
   if (signedOutAccountPanel) signedOutAccountPanel.hidden = isSignedIn;
@@ -5248,6 +5265,67 @@ async function initializeAuth() {
 
   renderAccountShell(authState.user);
   presentAuthCallbackResult();
+  scheduleWelcomeModal();
+}
+
+function scheduleWelcomeModal() {
+  if (!welcomeModal) return;
+  window.clearTimeout(welcomeModalTimer);
+  welcomeModalTimer = window.setTimeout(maybeShowWelcomeModal, 450);
+}
+
+function hasDismissedWelcomeModal() {
+  return localStorage.getItem(STORAGE_KEYS.welcomeDismissed) === "true";
+}
+
+function markWelcomeModalDismissed() {
+  localStorage.setItem(STORAGE_KEYS.welcomeDismissed, "true");
+}
+
+function maybeShowWelcomeModal() {
+  if (!welcomeModal || authState.user?.email || authState.callbackDetected || hasDismissedWelcomeModal()) return;
+  welcomeModal.hidden = false;
+  document.body.classList.add("modal-open", "welcome-modal-open");
+  welcomeStartSearchingButton?.focus?.();
+}
+
+function dismissWelcomeModal(options = {}) {
+  if (!welcomeModal || welcomeModal.hidden) return;
+  window.clearTimeout(welcomeModalTimer);
+  const { persist = true } = options;
+  welcomeModal.hidden = true;
+  document.body.classList.remove("modal-open", "welcome-modal-open");
+  if (persist) markWelcomeModalDismissed();
+}
+
+function handleWelcomeEmailSignIn(event) {
+  dismissWelcomeModal();
+  openSettingsModal(event, { tabName: "account", focusTarget: accountEmailInput });
+}
+
+function handleWelcomeGoogleSignIn() {
+  authState.accountNotice = "";
+  if (!authState.config?.enabled) {
+    showStatusToast({
+      icon: "!",
+      message: "Google sign-in is not configured yet. Open Settings to check Account setup.",
+    });
+    return;
+  }
+
+  markWelcomeModalDismissed();
+  welcomeContinueGoogleButton?.setAttribute("aria-busy", "true");
+  if (welcomeContinueGoogleButton) welcomeContinueGoogleButton.disabled = true;
+  try {
+    signInWithSupabaseOAuth("google");
+  } catch (error) {
+    welcomeContinueGoogleButton?.removeAttribute("aria-busy");
+    if (welcomeContinueGoogleButton) welcomeContinueGoogleButton.disabled = false;
+    showStatusToast({
+      icon: "!",
+      message: error instanceof Error ? error.message : "Could not start Google sign-in.",
+    });
+  }
 }
 
 async function fetchAuthConfig() {
@@ -5796,6 +5874,7 @@ function handleAuthVisibilityChange() {
 }
 
 function setAccountSignInControlsDisabled(disabled) {
+  if (signInWithGoogleButton) signInWithGoogleButton.disabled = disabled;
   if (signInWithPasswordButton) signInWithPasswordButton.disabled = disabled;
   if (sendSignInLinkButton) sendSignInLinkButton.disabled = disabled;
   if (forgotAccountPasswordButton) forgotAccountPasswordButton.disabled = disabled;
@@ -6005,6 +6084,36 @@ async function readJsonResponse(response) {
     return await response.json();
   } catch (error) {
     return null;
+  }
+}
+
+function signInWithSupabaseOAuth(provider) {
+  if (!authState.config?.enabled) {
+    throw createAuthRequestError("Account sign-in is not configured yet.");
+  }
+
+  const endpoint = new URL(`${getSupabaseAuthBaseUrl()}/authorize`);
+  endpoint.searchParams.set("provider", provider);
+  endpoint.searchParams.set("redirect_to", getAuthRedirectUrl());
+  window.location.assign(endpoint.toString());
+}
+
+function handleAccountGoogleSignIn() {
+  authState.accountNotice = "";
+  if (!authState.config?.enabled) {
+    accountStatus.textContent = "Google sign-in is not configured yet. Check Supabase auth settings.";
+    return;
+  }
+
+  setAccountSignInControlsDisabled(true);
+  signInWithGoogleButton?.setAttribute("aria-busy", "true");
+  accountStatus.textContent = "Opening Google sign-in...";
+  try {
+    signInWithSupabaseOAuth("google");
+  } catch (error) {
+    signInWithGoogleButton?.removeAttribute("aria-busy");
+    setAccountSignInControlsDisabled(false);
+    accountStatus.textContent = error instanceof Error ? error.message : "Could not start Google sign-in.";
   }
 }
 

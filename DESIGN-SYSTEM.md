@@ -103,3 +103,22 @@ Three layers inside the token file:
 ## 6. Component + pattern specs
 
 The visual spec (tokens rendered, component anatomy, listing card in grid/list view, source badge system, curation layouts) lives in **`BRRTZ Design System.dc.html`** in this project — open it in a browser. Values shown there are generated from the same token source.
+
+### Iconography — account and utility menus
+
+These conventions should be mirrored in the Figma Brrtz Design System file under
+the shared navigation/menu icon components:
+
+- **Account dropdown row icons:** 31px icon box, `1.6px` stroke, no fill, rounded
+  line joins/caps. The larger scale is intentional for quick-read menu scanning.
+- **Account settings icon:** sprocket surrounding an avatar/person mark. Use the
+  same 31px icon box and `1.6px` stroke as the other account dropdown icons.
+- **Saved-search drawer close icon:** close-panel icon, 30px glyph inside a
+  44px tap target. The icon is standalone with no visible rounded container.
+- **Hover/focus behavior:** menu rows inherit the existing Brrtz hover convention:
+  subtle surface shift plus `var(--color-brand-hot)` icon/text color. The close
+  panel icon uses the same hot-magenta hover/focus color while retaining its
+  invisible 44px hit area.
+- **Figma sync note:** when the Figma file is available to edit, update or create
+  components named `Icon / Account Settings`, `Icon / Close Panel`, and
+  `Menu / Account Action Row` to match these production values.

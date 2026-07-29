@@ -80,7 +80,7 @@ body.saved-results-drawer-open:not(.saved-results-drawer-mobile-open) .app-shell
 .saved-results-drawer-header h2 {
   margin: 0;
   font-size: var(--text-title);
-  font-weight: var(--weight-bold);
+  font-weight: var(--weight-medium);
   letter-spacing: 0;
   line-height: 1.05;
 }
@@ -93,9 +93,9 @@ body.saved-results-drawer-open:not(.saved-results-drawer-mobile-open) .app-shell
   justify-content: center;
   flex: 0 0 auto;
   padding: 0;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-control);
-  background: var(--button-bg);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
   color: var(--ink);
   cursor: pointer;
   font: inherit;
@@ -110,13 +110,21 @@ body.saved-results-drawer-open:not(.saved-results-drawer-mobile-open) .app-shell
 
 .saved-results-drawer-close:hover,
 .saved-results-drawer-close:focus-visible {
-  border-color: var(--color-brand-hot);
   color: var(--color-brand-hot);
 }
 
 .saved-results-drawer-close:focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
+}
+
+.saved-results-drawer-close svg {
+  width: 30px;
+  height: 30px;
+}
+
+.saved-results-drawer-close svg * {
+  stroke-width: 1.6;
 }
 
 .saved-results-drawer-filter {
@@ -2401,6 +2409,101 @@ body.modal-open .save-confirmation-toast.is-visible {
   box-shadow: var(--shadow);
 }
 
+.welcome-backdrop {
+  align-items: center;
+  justify-items: center;
+  background: color-mix(in srgb, var(--bg) 90%, transparent);
+  backdrop-filter: none;
+}
+
+.welcome-modal {
+  position: relative;
+  display: grid;
+  width: min(760px, 100%);
+  gap: var(--space-4);
+  padding: clamp(var(--space-5), 5vw, var(--space-7));
+}
+
+.welcome-close {
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-4);
+}
+
+.welcome-logo {
+  display: block;
+  width: clamp(170px, 32vw, 270px);
+  aspect-ratio: 4 / 1.08;
+  background: var(--brand-gradient);
+  -webkit-mask: url("assets/ICONS-site/bumpers_logo.svg") center / contain no-repeat;
+  mask: url("assets/ICONS-site/bumpers_logo.svg") center / contain no-repeat;
+}
+
+.welcome-eyebrow {
+  margin: var(--space-2) 0 0;
+  color: var(--muted);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-heavy);
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.welcome-modal h2 {
+  max-width: 9ch;
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--text-display);
+  font-weight: var(--weight-heavy);
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+.welcome-modal p {
+  max-width: 15ch;
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-headline);
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+.welcome-modal .welcome-support {
+  max-width: 36rem;
+  font-size: var(--text-emphasis);
+  font-weight: var(--weight-medium);
+}
+
+.welcome-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.welcome-skip {
+  justify-self: start;
+}
+
+@media (max-width: 720px) {
+  .welcome-modal {
+    align-self: end;
+    width: 100%;
+    padding: var(--space-5);
+  }
+
+  .welcome-modal h2 {
+    max-width: 8ch;
+  }
+
+  .welcome-modal p {
+    max-width: 100%;
+  }
+
+  .welcome-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
 .modal form {
   display: grid;
   gap: 16px;
@@ -2802,6 +2905,54 @@ body[data-theme="dark"] .settings-section-icon {
 
 .account-panel .primary-action {
   width: 100%;
+}
+
+.social-auth-button {
+  display: inline-flex;
+  width: 100%;
+  min-height: 56px;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--button-bg);
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--text-body);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0;
+  transition:
+    border-color var(--motion-fast),
+    box-shadow var(--motion-fast),
+    transform var(--motion-fast);
+}
+
+.social-auth-button:hover,
+.social-auth-button:focus-visible {
+  border-color: var(--color-brand-hot);
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-brand-hot) 22%, transparent);
+}
+
+.social-auth-button:active {
+  transform: translateY(1px);
+}
+
+.social-auth-mark {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--panel);
+  color: var(--ink);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-black);
+  line-height: 1;
 }
 
 .account-panel-signed-in {
@@ -9077,7 +9228,7 @@ body[data-theme="dark"] .account-popover-avatar {
   min-height: var(--control-header-utility-size);
   align-items: center;
   gap: var(--space-3);
-  padding: 0 var(--space-4);
+  padding: var(--space-2) var(--space-4);
   border: 0;
   border-top: 1px solid var(--line);
   background: transparent;
@@ -9091,9 +9242,13 @@ body[data-theme="dark"] .account-popover-avatar {
 }
 
 .account-popover-action svg {
-  width: 20px;
-  height: 20px;
+  width: 31px;
+  height: 31px;
   flex: 0 0 auto;
+}
+
+.account-popover-action svg * {
+  stroke-width: 1.6;
 }
 
 .account-popover-action:hover,

@@ -193,8 +193,9 @@
               </button>
               <button class="account-popover-action" type="button" role="menuitem" data-account-action="settings">
                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
-                  <circle cx="12" cy="8" r="3.3" stroke="currentColor" stroke-width="2.2" />
-                  <path d="M5 20C5.72 16.45 8.2 14.5 12 14.5C15.8 14.5 18.28 16.45 19 20" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
+                  <path d="M19.25 13.3V10.7L17.25 10.32C17.08 9.78 16.86 9.27 16.58 8.8L17.74 7.12L15.88 5.26L14.2 6.42C13.73 6.14 13.22 5.92 12.68 5.75L12.3 3.75H9.7L9.32 5.75C8.78 5.92 8.27 6.14 7.8 6.42L6.12 5.26L4.26 7.12L5.42 8.8C5.14 9.27 4.92 9.78 4.75 10.32L2.75 10.7V13.3L4.75 13.68C4.92 14.22 5.14 14.73 5.42 15.2L4.26 16.88L6.12 18.74L7.8 17.58C8.27 17.86 8.78 18.08 9.32 18.25L9.7 20.25H12.3L12.68 18.25C13.22 18.08 13.73 17.86 14.2 17.58L15.88 18.74L17.74 16.88L16.58 15.2C16.86 14.73 17.08 14.22 17.25 13.68L19.25 13.3Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                  <circle cx="11" cy="10" r="2.35" stroke="currentColor" stroke-width="1.8" />
+                  <path d="M6.8 16.35C7.38 13.95 8.82 12.72 11 12.72C13.18 12.72 14.62 13.95 15.2 16.35" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
                 </svg>
                 <span>Account settings</span>
               </button>
@@ -331,7 +332,13 @@
           <span class="sr-only">Brrtz</span>
           <h2 id="savedResultsDrawerTitle">Saved Searches</h2>
         </div>
-        <button class="saved-results-drawer-close" id="closeSavedResultsDrawer" type="button" aria-label="Close saved searches">&times;</button>
+        <button class="saved-results-drawer-close" id="closeSavedResultsDrawer" type="button" aria-label="Close saved searches">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+            <rect x="4" y="5" width="16" height="14" rx="2.5" stroke="currentColor" stroke-width="2" />
+            <path d="M9 5V19" stroke="currentColor" stroke-width="2" />
+            <path d="M15.2 10L13.2 12L15.2 14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
       </header>
       <label class="saved-results-drawer-filter">
         <span class="sr-only">Filter saved searches</span>
@@ -397,6 +404,25 @@
     <button class="back-to-top" id="backToTop" type="button" aria-label="Back to top" title="Back to top" hidden>
       <span aria-hidden="true">↑</span>
     </button>
+
+    <div class="modal-backdrop welcome-backdrop" id="welcomeModal" hidden>
+      <section class="modal welcome-modal" role="dialog" aria-modal="true" aria-labelledby="welcomeTitle" aria-describedby="welcomeDescription">
+        <button class="icon-action welcome-close" id="closeWelcomeModal" type="button" aria-label="Close welcome">×</button>
+        <span class="welcome-logo" aria-hidden="true"></span>
+        <p class="welcome-eyebrow">Beta gear radar</p>
+        <h2 id="welcomeTitle">Welcome to Brrtz</h2>
+        <p id="welcomeDescription">Search used synths, drum machines, samplers, modular, effects, and pro audio across regional marketplaces.</p>
+        <p class="welcome-support">Sign in to save searches, watch gear, and get alerts. No account needed to start digging.</p>
+        <div class="welcome-actions">
+          <button class="social-auth-button welcome-google-action" id="welcomeContinueGoogle" type="button">
+            <span class="social-auth-mark" aria-hidden="true">G</span>
+            <span>Continue with Google</span>
+          </button>
+          <button class="secondary-action" id="welcomeEmailSignIn" type="button">Email me a sign-in link</button>
+        </div>
+        <button class="account-text-action welcome-skip" id="welcomeStartSearching" type="button">Start searching now</button>
+      </section>
+    </div>
 
     <div class="modal-backdrop refine-backdrop" id="refineSearchModal" hidden>
       <section class="modal refine-modal" role="dialog" aria-modal="true" aria-labelledby="refineSearchTitle">
@@ -779,6 +805,10 @@ stand
                 </div>
 
                 <div class="account-panel" id="signedOutAccountPanel">
+                  <button class="social-auth-button" id="signInWithGoogle" type="button">
+                    <span class="social-auth-mark" aria-hidden="true">G</span>
+                    <span>Continue with Google</span>
+                  </button>
                   <div class="account-auth-fields">
                     <label>
                       <span>Email</span>
