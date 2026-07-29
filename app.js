@@ -8975,6 +8975,7 @@ function renderListing(listing, options = {}) {
   const feedbackStatus = getListingFeedbackStatus(listing, feedback);
   const isFeaturedHome = Boolean(options.isFeaturedHome);
   const newness = getListingNewness(listing, renderContext);
+  const primaryListingUrl = getPrimaryListingUrl(listing);
   const sourceAvatar = fragment.querySelector(".source-avatar");
   const listSourceAvatar = document.createElement("span");
   listSourceAvatar.className = "source-avatar list-source-avatar";
@@ -8997,7 +8998,7 @@ function renderListing(listing, options = {}) {
     card.setAttribute("role", "link");
     card.setAttribute("aria-label", `Open ${listing.title}`);
   }
-  imageLink.href = listing.url;
+  imageLink.href = primaryListingUrl;
   prepareBrandFallbackImage(image, listing, getActiveBrowseBrand());
   image.src = getDisplayListingImage(listing);
   image.alt = listing.title;
@@ -9014,9 +9015,9 @@ function renderListing(listing, options = {}) {
   fragment.querySelector(".price-row strong").textContent = listing.priceLabel || formatPrice(listing.price);
   fragment.querySelector(".price-row span").textContent = "";
   renderAuctionDetails(fragment.querySelector(".auction-detail-row"), listing);
-  openLink.href = listing.url;
-  imageLink.addEventListener("click", (event) => handlePrimaryListingOpen(event, listing.url));
-  openLink.addEventListener("click", (event) => handlePrimaryListingOpen(event, listing.url));
+  openLink.href = primaryListingUrl;
+  imageLink.addEventListener("click", (event) => handlePrimaryListingOpen(event, primaryListingUrl, listing));
+  openLink.addEventListener("click", (event) => handlePrimaryListingOpen(event, primaryListingUrl, listing));
   sourceOpenLink.href = listing.url;
   renderSourceAvatar(sourceOpenIcon, source, listing.source);
   if (sourceOpenLabel) sourceOpenLabel.textContent = source?.label || "Listing";
@@ -9094,14 +9095,14 @@ function renderListing(listing, options = {}) {
     card.addEventListener("click", (event) => {
       if (event.target.closest("a, button")) return;
       acknowledgeListings([listing], { viewed: true });
-      openExternalListing(listing.url);
+      openExternalListing(primaryListingUrl);
       renderResults();
     });
     card.addEventListener("keydown", (event) => {
       if (event.key !== "Enter" && event.key !== " ") return;
       event.preventDefault();
       acknowledgeListings([listing], { viewed: true });
-      openExternalListing(listing.url);
+      openExternalListing(primaryListingUrl);
       renderResults();
     });
   }
@@ -9255,10 +9256,10 @@ function openExternalListing(url) {
   if (openedWindow) openedWindow.opener = null;
 }
 
-function handlePrimaryListingOpen(event, url) {
+function handlePrimaryListingOpen(event, url, listingOverride = null) {
   if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
   event.preventDefault();
-  const listing = currentResults.find((item) => item.url === url);
+  const listing = listingOverride || currentResults.find((item) => getPrimaryListingUrl(item) === url || item.url === url);
   if (listing) acknowledgeListings([listing], { viewed: true });
   openExternalListing(url);
   if (listing) renderResults();
@@ -9413,6 +9414,16 @@ function configureBuyeeLink(link, listing) {
   } else {
     link.textContent = "View via Buyee";
   }
+}
+
+function getPrimaryListingUrl(listing) {
+  const buyeeUrl = createBuyeeUrl(listing);
+  if (buyeeUrl && isJapanListing(listing)) return buyeeUrl;
+  return listing.url;
+}
+
+function isJapanListing(listing) {
+  return !listing.region || listing.region === "japan";
 }
 
 function createBuyeeUrl(listing) {

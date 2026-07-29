@@ -135,7 +135,6 @@
                   <span class="brand-descriptor">Brrtz Gear Radar</span>
                 </h1>
               </div>
-              <p>Free used-gear search across regional marketplaces, with original-listing links.</p>
             </div>
           </a>
           <div class="region-selector" id="regionSelector">
@@ -215,7 +214,7 @@
         <form class="search-form" id="searchForm">
           <div class="search-terms-field">
             <span>Search</span>
-            <input class="terms-state-field quick-search-input" id="terms" type="search" autocomplete="off" enterkeyhint="search" placeholder=" " aria-label="Search for gear" aria-controls="quickSearchSuggestions" aria-expanded="false" />
+            <input class="terms-state-field quick-search-input" id="terms" type="search" autocomplete="off" enterkeyhint="search" placeholder=" " aria-label="Search for gear" aria-describedby="searchContextRail" aria-controls="quickSearchSuggestions" aria-expanded="false" />
             <div class="quick-search-placeholder" id="quickSearchPlaceholder" aria-hidden="true">
               <span class="quick-search-placeholder-terms">
                 <span class="quick-search-placeholder-text">Search used synths and drum machines</span>
@@ -231,6 +230,7 @@
             <div class="quick-search-suggestions" id="quickSearchSuggestions" aria-label="Synth model suggestions" hidden></div>
           </div>
           <div class="quick-search-link-row">
+            <p class="search-context-rail" id="searchContextRail">Free used-gear search across regional marketplaces, with original-listing links.</p>
             <button class="quick-search-save-link" id="quickSaveSearch" type="button" disabled>Save this search</button>
           </div>
 
@@ -640,54 +640,6 @@ stand
                   <span class="toggle-track" aria-hidden="true"></span>
                 </label>
 
-                <div class="brand-gradient-lab" aria-labelledby="brandGradientTitle">
-                  <div class="brand-gradient-lab-copy">
-                    <h4 id="brandGradientTitle">Brand gradient</h4>
-                    <span class="brand-gradient-preview" id="brandGradientPreview" aria-hidden="true"></span>
-                  </div>
-                  <div class="brand-gradient-picker-grid">
-                    <div class="brand-gradient-stop">
-                      <span class="brand-gradient-stop-title">Start color</span>
-                      <div class="brand-gradient-picker-row">
-                        <label class="brand-gradient-color-control">
-                          <span>Pick</span>
-                          <input id="brandGradientStartColor" type="color" value="#ff00ff" data-brand-gradient-color="start" aria-label="Pick start gradient color" />
-                        </label>
-                        <label class="brand-gradient-hex-control">
-                          <span>Hex</span>
-                          <input id="brandGradientStart" type="text" inputmode="text" autocomplete="off" spellcheck="false" placeholder="#ff00ff" />
-                        </label>
-                      </div>
-                      <div class="brand-gradient-rgb-fields" aria-label="Start RGB values">
-                        <label><span>R</span><input id="brandGradientStartR" type="number" inputmode="numeric" min="0" max="255" step="1" data-brand-gradient-rgb="start" data-rgb-channel="r" aria-label="Start red value" /></label>
-                        <label><span>G</span><input id="brandGradientStartG" type="number" inputmode="numeric" min="0" max="255" step="1" data-brand-gradient-rgb="start" data-rgb-channel="g" aria-label="Start green value" /></label>
-                        <label><span>B</span><input id="brandGradientStartB" type="number" inputmode="numeric" min="0" max="255" step="1" data-brand-gradient-rgb="start" data-rgb-channel="b" aria-label="Start blue value" /></label>
-                      </div>
-                    </div>
-                    <div class="brand-gradient-stop">
-                      <span class="brand-gradient-stop-title">End color</span>
-                      <div class="brand-gradient-picker-row">
-                        <label class="brand-gradient-color-control">
-                          <span>Pick</span>
-                          <input id="brandGradientEndColor" type="color" value="#0072ff" data-brand-gradient-color="end" aria-label="Pick end gradient color" />
-                        </label>
-                        <label class="brand-gradient-hex-control">
-                          <span>Hex</span>
-                          <input id="brandGradientEnd" type="text" inputmode="text" autocomplete="off" spellcheck="false" placeholder="#0072ff" />
-                        </label>
-                      </div>
-                      <div class="brand-gradient-rgb-fields" aria-label="End RGB values">
-                        <label><span>R</span><input id="brandGradientEndR" type="number" inputmode="numeric" min="0" max="255" step="1" data-brand-gradient-rgb="end" data-rgb-channel="r" aria-label="End red value" /></label>
-                        <label><span>G</span><input id="brandGradientEndG" type="number" inputmode="numeric" min="0" max="255" step="1" data-brand-gradient-rgb="end" data-rgb-channel="g" aria-label="End green value" /></label>
-                        <label><span>B</span><input id="brandGradientEndB" type="number" inputmode="numeric" min="0" max="255" step="1" data-brand-gradient-rgb="end" data-rgb-channel="b" aria-label="End blue value" /></label>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="settings-actions brand-gradient-actions">
-                    <button class="secondary-action" id="applyBrandGradient" type="button">Apply</button>
-                    <button class="secondary-action" id="resetBrandGradient" type="button" aria-label="Reset brand gradient to start #ff00ff and end #0072ff" title="Reset to #ff00ff → #0072ff">Reset Gradient</button>
-                  </div>
-                </div>
               </div>
 
               <div class="settings-section" aria-labelledby="searchQualitySettingsTitle">
@@ -757,6 +709,57 @@ stand
                   <span>JPY per USD</span>
                   <input id="jpyPerUsd" type="number" min="1" step="0.01" inputmode="decimal" />
                 </label>
+              </div>
+
+              <div class="settings-section" aria-labelledby="brandGradientTitle">
+                <div class="brand-gradient-lab" aria-labelledby="brandGradientTitle">
+                  <div class="brand-gradient-lab-copy">
+                    <h4 id="brandGradientTitle">Brand gradient</h4>
+                    <span class="brand-gradient-preview" id="brandGradientPreview" aria-hidden="true"></span>
+                  </div>
+                  <div class="brand-gradient-picker-grid">
+                    <div class="brand-gradient-stop">
+                      <span class="brand-gradient-stop-title">Start color</span>
+                      <div class="brand-gradient-picker-row">
+                        <label class="brand-gradient-color-control">
+                          <span>Pick</span>
+                          <input id="brandGradientStartColor" type="color" value="#ff00ff" data-brand-gradient-color="start" aria-label="Pick start gradient color" />
+                        </label>
+                        <label class="brand-gradient-hex-control">
+                          <span>Hex</span>
+                          <input id="brandGradientStart" type="text" inputmode="text" autocomplete="off" spellcheck="false" placeholder="#ff00ff" />
+                        </label>
+                      </div>
+                      <div class="brand-gradient-rgb-fields" aria-label="Start RGB values">
+                        <label><span>R</span><input id="brandGradientStartR" type="number" inputmode="numeric" min="0" max="255" step="1" data-brand-gradient-rgb="start" data-rgb-channel="r" aria-label="Start red value" /></label>
+                        <label><span>G</span><input id="brandGradientStartG" type="number" inputmode="numeric" min="0" max="255" step="1" data-brand-gradient-rgb="start" data-rgb-channel="g" aria-label="Start green value" /></label>
+                        <label><span>B</span><input id="brandGradientStartB" type="number" inputmode="numeric" min="0" max="255" step="1" data-brand-gradient-rgb="start" data-rgb-channel="b" aria-label="Start blue value" /></label>
+                      </div>
+                    </div>
+                    <div class="brand-gradient-stop">
+                      <span class="brand-gradient-stop-title">End color</span>
+                      <div class="brand-gradient-picker-row">
+                        <label class="brand-gradient-color-control">
+                          <span>Pick</span>
+                          <input id="brandGradientEndColor" type="color" value="#0072ff" data-brand-gradient-color="end" aria-label="Pick end gradient color" />
+                        </label>
+                        <label class="brand-gradient-hex-control">
+                          <span>Hex</span>
+                          <input id="brandGradientEnd" type="text" inputmode="text" autocomplete="off" spellcheck="false" placeholder="#0072ff" />
+                        </label>
+                      </div>
+                      <div class="brand-gradient-rgb-fields" aria-label="End RGB values">
+                        <label><span>R</span><input id="brandGradientEndR" type="number" inputmode="numeric" min="0" max="255" step="1" data-brand-gradient-rgb="end" data-rgb-channel="r" aria-label="End red value" /></label>
+                        <label><span>G</span><input id="brandGradientEndG" type="number" inputmode="numeric" min="0" max="255" step="1" data-brand-gradient-rgb="end" data-rgb-channel="g" aria-label="End green value" /></label>
+                        <label><span>B</span><input id="brandGradientEndB" type="number" inputmode="numeric" min="0" max="255" step="1" data-brand-gradient-rgb="end" data-rgb-channel="b" aria-label="End blue value" /></label>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="settings-actions brand-gradient-actions">
+                    <button class="secondary-action" id="applyBrandGradient" type="button">Apply</button>
+                    <button class="secondary-action" id="resetBrandGradient" type="button" aria-label="Reset brand gradient to start #ff00ff and end #0072ff" title="Reset to #ff00ff → #0072ff">Reset Gradient</button>
+                  </div>
+                </div>
               </div>
             </section>
 
