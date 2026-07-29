@@ -424,6 +424,21 @@
       </section>
     </div>
 
+    <div class="modal-backdrop auth-success-backdrop" id="authSuccessModal" hidden>
+      <section class="modal auth-success-modal" role="dialog" aria-modal="true" aria-labelledby="authSuccessTitle" aria-describedby="authSuccessDescription">
+        <button class="icon-action auth-success-close" id="closeAuthSuccessModal" type="button" aria-label="Close sign-in confirmation">×</button>
+        <span class="auth-success-logo" aria-hidden="true"></span>
+        <p class="auth-success-eyebrow">Signed in</p>
+        <h2 id="authSuccessTitle">You’re in.</h2>
+        <p id="authSuccessDescription">Brrtz is ready. Your saved searches, watched gear, and alert settings can stay with this account.</p>
+        <p class="auth-success-account" id="authSuccessAccountEmail"></p>
+        <div class="auth-success-actions">
+          <button class="primary-action" id="authSuccessStartSearching" type="button">Start searching</button>
+          <button class="secondary-action" id="authSuccessOpenAccount" type="button">Account settings</button>
+        </div>
+      </section>
+    </div>
+
     <div class="modal-backdrop refine-backdrop" id="refineSearchModal" hidden>
       <section class="modal refine-modal" role="dialog" aria-modal="true" aria-labelledby="refineSearchTitle">
         <div class="refine-panel">

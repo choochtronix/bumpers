@@ -1840,6 +1840,11 @@ const closeWelcomeModalButton = document.querySelector("#closeWelcomeModal");
 const welcomeContinueGoogleButton = document.querySelector("#welcomeContinueGoogle");
 const welcomeEmailSignInButton = document.querySelector("#welcomeEmailSignIn");
 const welcomeStartSearchingButton = document.querySelector("#welcomeStartSearching");
+const authSuccessModal = document.querySelector("#authSuccessModal");
+const closeAuthSuccessModalButton = document.querySelector("#closeAuthSuccessModal");
+const authSuccessStartSearchingButton = document.querySelector("#authSuccessStartSearching");
+const authSuccessOpenAccountButton = document.querySelector("#authSuccessOpenAccount");
+const authSuccessAccountEmail = document.querySelector("#authSuccessAccountEmail");
 const sendSignInLinkButton = document.querySelector("#sendSignInLink");
 const signInWithPasswordButton = document.querySelector("#signInWithPassword");
 const forgotAccountPasswordButton = document.querySelector("#forgotAccountPassword");
@@ -2577,6 +2582,12 @@ function bindEvents() {
   closeWelcomeModalButton?.addEventListener("click", dismissWelcomeModal);
   welcomeModal?.addEventListener("click", (event) => {
     if (event.target === welcomeModal) dismissWelcomeModal();
+  });
+  authSuccessStartSearchingButton?.addEventListener("click", dismissAuthSuccessModal);
+  closeAuthSuccessModalButton?.addEventListener("click", dismissAuthSuccessModal);
+  authSuccessOpenAccountButton?.addEventListener("click", handleAuthSuccessOpenAccount);
+  authSuccessModal?.addEventListener("click", (event) => {
+    if (event.target === authSuccessModal) dismissAuthSuccessModal();
   });
   sendSignInLinkButton?.addEventListener("click", handleAccountSignInShell);
   signInWithPasswordButton?.addEventListener("click", handleAccountPasswordSignIn);
@@ -5328,6 +5339,31 @@ function handleWelcomeGoogleSignIn() {
   }
 }
 
+function openAuthSuccessModal() {
+  if (!authSuccessModal) return;
+  dismissWelcomeModal({ persist: true });
+  if (authSuccessAccountEmail) authSuccessAccountEmail.textContent = authState.user?.email || "";
+  authSuccessModal.hidden = false;
+  document.body.classList.add("modal-open", "auth-success-modal-open");
+  authSuccessStartSearchingButton?.focus?.();
+}
+
+function dismissAuthSuccessModal(options = {}) {
+  if (!authSuccessModal || authSuccessModal.hidden) return;
+  const { restoreFocus = true } = options;
+  authSuccessModal.hidden = true;
+  document.body.classList.remove("modal-open", "auth-success-modal-open");
+  if (restoreFocus) termsInput?.focus?.();
+}
+
+function handleAuthSuccessOpenAccount(event) {
+  dismissAuthSuccessModal({ restoreFocus: false });
+  openSettingsModal(event, {
+    tabName: "account",
+    focusTarget: updateAccountPasswordButton,
+  });
+}
+
 async function fetchAuthConfig() {
   try {
     const response = await fetch("/api/auth/config", { cache: "no-store" });
@@ -5525,17 +5561,15 @@ function presentAuthCallbackResult() {
     renderAccountShell(authState.user);
   }
 
+  if (isSignedIn && !isRecovery) {
+    openAuthSuccessModal();
+    return;
+  }
+
   openSettingsModal({ currentTarget: mobileSettingsNavItem || settingsAccountStateButton }, {
     tabName: "account",
     focusTarget: isSignedIn ? updateAccountPasswordButton : accountEmailInput,
   });
-
-  if (isSignedIn && !isRecovery) {
-    showStatusToast({
-      icon: "✓",
-      message: `Signed in as ${authState.user.email}`,
-    });
-  }
 }
 
 function readStoredAuthSession() {
@@ -9125,12 +9159,14 @@ function renderListing(listing, options = {}) {
   fragment.querySelector(".price-row span").textContent = "";
   renderAuctionDetails(fragment.querySelector(".auction-detail-row"), listing);
   openLink.href = primaryListingUrl;
-  imageLink.addEventListener("click", (event) => handlePrimaryListingOpen(event, primaryListingUrl, listing));
-  openLink.addEventListener("click", (event) => handlePrimaryListingOpen(event, primaryListingUrl, listing));
+  imageLink.addEventListener("click", (event) => handleListingAnchorOpen(event, listing));
+  openLink.addEventListener("click", (event) => handleListingAnchorOpen(event, listing));
   sourceOpenLink.href = listing.url;
+  sourceOpenLink.addEventListener("click", (event) => handleListingAnchorOpen(event, listing));
   renderSourceAvatar(sourceOpenIcon, source, listing.source);
   if (sourceOpenLabel) sourceOpenLabel.textContent = source?.label || "Listing";
   configureBuyeeLink(buyeeOpenLink, listing);
+  buyeeOpenLink.addEventListener("click", (event) => handleListingAnchorOpen(event, listing));
   renderWatchButtonState(watchButton, watching.has(listing.id));
   renderWatchMenuActionState(watchMenuAction, watching.has(listing.id));
   gearButton.classList.toggle("is-active", feedbackStatus === "gear");
@@ -9213,6 +9249,13 @@ function renderListing(listing, options = {}) {
       acknowledgeListings([listing], { viewed: true });
       openExternalListing(primaryListingUrl);
       renderResults();
+    });
+  } else {
+    card.addEventListener("click", (event) => {
+      if (event.defaultPrevented || isListingCardInteractiveTap(event.target)) return;
+      recordListingOpen(listing);
+      openExternalListing(primaryListingUrl);
+      scheduleListingOpenRender();
     });
   }
 
@@ -9365,13 +9408,23 @@ function openExternalListing(url) {
   if (openedWindow) openedWindow.opener = null;
 }
 
-function handlePrimaryListingOpen(event, url, listingOverride = null) {
-  if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-  event.preventDefault();
-  const listing = listingOverride || currentResults.find((item) => getPrimaryListingUrl(item) === url || item.url === url);
-  if (listing) acknowledgeListings([listing], { viewed: true });
-  openExternalListing(url);
-  if (listing) renderResults();
+function handleListingAnchorOpen(event, listing) {
+  if (event.defaultPrevented || !listing) return;
+  recordListingOpen(listing);
+  scheduleListingOpenRender();
+}
+
+function recordListingOpen(listing) {
+  acknowledgeListings([listing], { viewed: true });
+}
+
+function scheduleListingOpenRender() {
+  window.setTimeout(() => renderResults(), 0);
+}
+
+function isListingCardInteractiveTap(target) {
+  return target instanceof Element
+    && Boolean(target.closest("a[href], button, input, textarea, select, summary, [role='button'], .open-menu"));
 }
 
 function createListingTitlePreview(title) {
