@@ -7717,6 +7717,7 @@ function renderBrowseExpandedView(watching, renderContext = createListingRenderC
 
   resultGrid.appendChild(createGearBrowserScene());
   resultGrid.appendChild(createBrowseExpandedHeader(visibleListings.length, browseListings.length));
+  resultGrid.appendChild(createBrowseExpandedResultsContext(visibleListings.length));
 
   if (browseCategoryStatus === "loading") {
     resultGrid.appendChild(createBrowseExpandedLoadingState({ compact: visibleListings.length > 0 }));
@@ -9589,13 +9590,6 @@ function createFeaturedHomeHeader(count, options = {}) {
     const optionsMarkup = BROWSE_CATEGORY_INTENTS.map((intent) => `
       <option value="${escapeHtml(intent.id)}" ${intent.id === browseCategoryIntent ? "selected" : ""}>${escapeHtml(intent.label)}</option>
     `).join("");
-    const browseFreshness = formatBrowseFreshnessDetail(browseCacheUpdatedAt);
-    const browseDetailMarkup = createBrowseCategoryDetailMarkup({
-      count,
-      freshness: browseFreshness,
-      loading: browseCategoryStatus === "loading",
-      error: browseCategoryStatus === "error" ? browseCategoryError || "Browse mode is warming up" : "",
-    });
     const browseHeadlineLoadingMarkup = createBrowseHeadlineLoadingMarkup();
     header.innerHTML = `
       <div class="browse-header-copy">
@@ -9610,7 +9604,6 @@ function createFeaturedHomeHeader(count, options = {}) {
             <button class="browse-view-all-button" type="button" data-result-action="open-browse-expanded">See All</button>
           </div>
         </div>
-        <span>${browseDetailMarkup}</span>
       </div>
     `;
     return header;
@@ -9647,12 +9640,6 @@ function createBrowseExpandedHeader(visibleCount, totalCount) {
     const brandOptionsMarkup = POPULAR_BRANDS.map((brand) => `
       <option value="${escapeHtml(brand.slug)}" ${brand.slug === activeBrand.slug ? "selected" : ""}>${escapeHtml(brand.name)}</option>
     `).join("");
-    const brandDetailMarkup = browseCategoryStatus === "loading"
-      ? `<span class="browse-detail-rest browse-loading-detail">Searching the expanse for ${escapeHtml(activeBrand.name)}</span>`
-      : browseCategoryStatus === "error"
-        ? escapeHtml(browseCategoryError || "Brand browser is warming up")
-        : `<span class="browse-category-label">${escapeHtml(activeBrand.name)}</span><span class="browse-detail-rest"> has ${escapeHtml(`${visibleCount} curated ${visibleCount === 1 ? "listing" : "listings"}`)}</span>`;
-
     header.innerHTML = `
       <div class="browse-header-copy">
         <div class="browse-title-row">
@@ -9665,7 +9652,6 @@ function createBrowseExpandedHeader(visibleCount, totalCount) {
             ${createGearScannerRescanButton({ expanded: true })}
           </div>
         </div>
-        <span>${brandDetailMarkup}</span>
       </div>
     `;
     return header;
@@ -9674,13 +9660,6 @@ function createBrowseExpandedHeader(visibleCount, totalCount) {
   const optionsMarkup = BROWSE_CATEGORY_INTENTS.map((intent) => `
     <option value="${escapeHtml(intent.id)}" ${intent.id === browseCategoryIntent ? "selected" : ""}>${escapeHtml(intent.label)}</option>
   `).join("");
-  const freshness = formatBrowseFreshnessDetail(getBrowseCategoryFreshness());
-  const browseDetailMarkup = createBrowseCategoryDetailMarkup({
-    count: visibleCount,
-    freshness,
-    loading: browseCategoryStatus === "loading",
-    error: browseCategoryStatus === "error" ? browseCategoryError || "Browse mode is warming up" : "",
-  });
   const browseHeadlineLoadingMarkup = createBrowseHeadlineLoadingMarkup();
 
   header.innerHTML = `
@@ -9695,10 +9674,44 @@ function createBrowseExpandedHeader(visibleCount, totalCount) {
           ${createGearScannerRescanButton({ expanded: true })}
         </div>
       </div>
-      <span>${browseDetailMarkup}</span>
     </div>
   `;
   return header;
+}
+
+function createBrowseHomeResultsContext(count, browseCacheUpdatedAt = "") {
+  return createBrowseResultsContextElement(createBrowseCategoryDetailMarkup({
+    count,
+    freshness: formatBrowseFreshnessDetail(browseCacheUpdatedAt),
+    loading: browseCategoryStatus === "loading",
+    error: browseCategoryStatus === "error" ? browseCategoryError || "Browse mode is warming up" : "",
+  }));
+}
+
+function createBrowseExpandedResultsContext(visibleCount) {
+  const activeBrand = getActiveBrowseBrand();
+  if (activeBrand) {
+    const brandDetailMarkup = browseCategoryStatus === "loading"
+      ? `<span class="browse-detail-rest browse-loading-detail">Searching the expanse for ${escapeHtml(activeBrand.name)}</span>`
+      : browseCategoryStatus === "error"
+        ? escapeHtml(browseCategoryError || "Brand browser is warming up")
+        : `<span class="browse-category-label">${escapeHtml(activeBrand.name)}</span><span class="browse-detail-rest"> has ${escapeHtml(`${visibleCount} curated ${visibleCount === 1 ? "listing" : "listings"}`)}</span>`;
+    return createBrowseResultsContextElement(brandDetailMarkup, { expanded: true });
+  }
+
+  return createBrowseResultsContextElement(createBrowseCategoryDetailMarkup({
+    count: visibleCount,
+    freshness: formatBrowseFreshnessDetail(getBrowseCategoryFreshness()),
+    loading: browseCategoryStatus === "loading",
+    error: browseCategoryStatus === "error" ? browseCategoryError || "Browse mode is warming up" : "",
+  }), { expanded: true });
+}
+
+function createBrowseResultsContextElement(markup, options = {}) {
+  const context = document.createElement("div");
+  context.className = `browse-results-context${options.expanded ? " is-expanded-context" : ""}`;
+  context.innerHTML = markup;
+  return context;
 }
 
 function createGearScannerRescanButton(options = {}) {
@@ -9753,6 +9766,7 @@ function createFeaturedHomeSection(listings, options = {}) {
   if (variant === "browse") {
     const preview = document.createElement("div");
     preview.className = "gear-browser-preview";
+    preview.appendChild(createBrowseHomeResultsContext(listings.length, browseCacheUpdatedAt));
 
     const carousel = document.createElement("div");
     carousel.className = "featured-home-carousel gear-browser-double-carousel gear-browser-live-carousel";
