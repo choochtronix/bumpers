@@ -5342,7 +5342,11 @@ function handleWelcomeGoogleSignIn() {
 function openAuthSuccessModal() {
   if (!authSuccessModal) return;
   dismissWelcomeModal({ persist: true });
-  if (authSuccessAccountEmail) authSuccessAccountEmail.textContent = authState.user?.email || "";
+  if (authSuccessAccountEmail) {
+    authSuccessAccountEmail.textContent = authState.user?.email
+      ? `Signed in as ${authState.user.email}`
+      : "";
+  }
   authSuccessModal.hidden = false;
   document.body.classList.add("modal-open", "auth-success-modal-open");
   authSuccessStartSearchingButton?.focus?.();
