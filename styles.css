@@ -2592,7 +2592,10 @@ body.modal-open .save-confirmation-toast.is-visible {
   min-width: min(100%, 190px);
 }
 
-#authSuccessStartSearching {
+#authSuccessStartSearching,
+.account-text-action.welcome-skip {
+  appearance: none;
+  -webkit-appearance: none;
   width: fit-content;
   min-width: 0;
   height: 36px;
@@ -2602,15 +2605,19 @@ body.modal-open .save-confirmation-toast.is-visible {
   border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--color-brand-hot) 8%, transparent);
   color: var(--color-brand-hot);
+  outline: none;
   box-shadow: none;
 }
 
 #authSuccessStartSearching:hover,
-#authSuccessStartSearching:focus-visible {
+#authSuccessStartSearching:focus-visible,
+.account-text-action.welcome-skip:hover,
+.account-text-action.welcome-skip:focus-visible {
   border-color: var(--color-brand-hot);
   background: color-mix(in srgb, var(--color-brand-hot) 14%, transparent);
   color: var(--color-brand-hot);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-brand-hot) 18%, transparent);
+  outline: none;
+  box-shadow: none;
 }
 
 #authSuccessOpenAccount {
