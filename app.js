@@ -11713,6 +11713,7 @@ function activateSavedSearch(profile, options = {}) {
     applyActiveRegion(targetRegionId);
   }
 
+  leaveWatchlistModeForSavedSearch();
   currentProfile = createProfileForRegion(profile, targetRegionId, { duplicate });
   if (duplicate) {
     currentProfile = saveProfile(currentProfile);
@@ -11725,6 +11726,15 @@ function activateSavedSearch(profile, options = {}) {
   closeSavedRegionChoiceModal({ restoreFocus: false });
   setAppView(null);
   runSearch();
+}
+
+function leaveWatchlistModeForSavedSearch() {
+  if (filterMode !== "watching") return;
+  filterMode = "all";
+  activeViewSources.clear();
+  resetPagination();
+  syncFilterModeButtons();
+  renderTopWatchingControl();
 }
 
 function applyActiveRegion(regionId) {
