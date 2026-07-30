@@ -2583,6 +2583,8 @@ body.modal-open .save-confirmation-toast.is-visible {
 .auth-success-actions {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
   gap: var(--space-3);
   margin-top: var(--space-2);
 }
@@ -2590,6 +2592,10 @@ body.modal-open .save-confirmation-toast.is-visible {
 .auth-success-actions .primary-action,
 .auth-success-actions .secondary-action {
   min-width: min(100%, 190px);
+  height: 42px;
+  min-height: 42px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-pill);
 }
 
 #authSuccessStartSearching,
@@ -2598,9 +2604,6 @@ body.modal-open .save-confirmation-toast.is-visible {
   -webkit-appearance: none;
   width: fit-content;
   min-width: 0;
-  height: 36px;
-  min-height: 36px;
-  padding: 0 var(--space-3);
   border: 1px solid color-mix(in srgb, var(--color-brand-hot) 42%, var(--line));
   border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--color-brand-hot) 8%, transparent);
@@ -2618,6 +2621,12 @@ body.modal-open .save-confirmation-toast.is-visible {
   color: var(--color-brand-hot);
   outline: none;
   box-shadow: none;
+}
+
+.account-text-action.welcome-skip {
+  height: 36px;
+  min-height: 36px;
+  padding: 0 var(--space-3);
 }
 
 #authSuccessOpenAccount {
