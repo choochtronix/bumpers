@@ -1633,6 +1633,7 @@ const defaultProfile = {
   alertsEnabled: false,
   sources: hydrateRegionSources(ACTIVE_REGION.sources),
 };
+const SAVED_RESULTS_DRAWER_STARTER_SEARCH_ID = "starter:moog";
 
 let appSettings = loadSettings();
 let currentProfile = createFreshProfile();
@@ -1881,6 +1882,7 @@ let myPageSortMode = "az";
 let savedResultsDrawerFilterText = "";
 let savedResultsDrawerReturnFocus = null;
 let savedResultsDrawerPreferenceRestored = false;
+let savedResultsDrawerIntroDismissed = false;
 let eventsBound = false;
 let searchChirpAudioCtx = null;
 
@@ -2583,7 +2585,7 @@ function bindEvents() {
   welcomeModal?.addEventListener("click", (event) => {
     if (event.target === welcomeModal) dismissWelcomeModal();
   });
-  authSuccessStartSearchingButton?.addEventListener("click", dismissAuthSuccessModal);
+  authSuccessStartSearchingButton?.addEventListener("click", handleAuthSuccessStartSearching);
   closeAuthSuccessModalButton?.addEventListener("click", dismissAuthSuccessModal);
   authSuccessOpenAccountButton?.addEventListener("click", handleAuthSuccessOpenAccount);
   authSuccessModal?.addEventListener("click", (event) => {
@@ -4729,6 +4731,24 @@ function renderSavedResultsDrawer(profiles = loadProfiles().map(hydrateProfile))
     });
 
   if (visibleProfiles.length === 0) {
+    if (profiles.length === 0 && !query) {
+      const starterProfile = createSavedResultsDrawerStarterProfile();
+      savedResultsDrawerList.innerHTML = `
+        ${savedResultsDrawerIntroDismissed ? "" : `
+          <div class="saved-results-drawer-empty saved-results-drawer-intro">
+            <span>Run a search here, then save it for quick access.</span>
+            <button class="saved-results-drawer-intro-close" type="button" data-saved-results-action="dismiss-intro" aria-label="Dismiss saved searches tip">×</button>
+          </div>
+        `}
+        ${createSavedResultsDrawerRow(starterProfile, {
+          countLabel: "Try",
+          isStarter: true,
+          metaLabel: `${getRegionById(getProfileHomeRegionId(starterProfile)).label} starter search`,
+        })}
+      `;
+      return;
+    }
+
     savedResultsDrawerList.innerHTML = `
       <div class="saved-results-drawer-empty">
         <strong>No matching saved searches.</strong>
@@ -4738,23 +4758,44 @@ function renderSavedResultsDrawer(profiles = loadProfiles().map(hydrateProfile))
     return;
   }
 
-  savedResultsDrawerList.innerHTML = visibleProfiles.map((profile) => {
-    const profileId = String(profile.id || profile.name);
-    const newCount = Number(profile.lastNewCount || 0);
-    const hasNew = newCount > 0;
-    const isCurrent = profilesMatchSearch(profile, currentProfile);
-    const regionLabel = getRegionById(getProfileHomeRegionId(profile)).label;
-    return `
-      <button class="saved-results-drawer-row${hasNew ? " has-new" : " is-quiet"}${isCurrent ? " is-current" : ""}" type="button" data-saved-results-id="${escapeHtml(profileId)}"${isCurrent ? ' aria-current="true"' : ""}>
-        <span class="saved-results-drawer-marker${hasNew ? " is-active" : ""}" aria-hidden="true"><span></span></span>
-        <span class="saved-results-drawer-copy">
-          <strong>${escapeHtml(profile.name)}</strong>
-          <small>${escapeHtml(regionLabel)}</small>
-        </span>
-        <span class="saved-results-drawer-count${hasNew ? " has-new" : ""}">${hasNew ? `${newCount} new` : "No new"}</span>
-      </button>
-    `;
-  }).join("");
+  savedResultsDrawerList.innerHTML = visibleProfiles.map((profile) => createSavedResultsDrawerRow(profile)).join("");
+}
+
+function createSavedResultsDrawerStarterProfile() {
+  const brand = getPopularBrandBySlug("moog");
+  const recipe = getPopularBrandRecipe(brand);
+  return hydrateProfile({
+    id: SAVED_RESULTS_DRAWER_STARTER_SEARCH_ID,
+    name: "Moog",
+    regionId: appSettings.regionId,
+    terms: ["Moog"],
+    excludes: recipe?.excludes || defaultProfile.excludes,
+    noiseTerms: recipe?.noiseTerms || defaultProfile.noiseTerms,
+    categoryIntent: getRegionDefaultCategoryIntent(appSettings.regionId),
+    maxPrice: getRegionDefaultMaxPrice(appSettings.regionId),
+    sources: getRegionSourceIds(appSettings.regionId),
+    lastScanStatus: "starter",
+  });
+}
+
+function createSavedResultsDrawerRow(profile, options = {}) {
+  const profileId = String(profile.id || profile.name);
+  const newCount = Number(profile.lastNewCount || 0);
+  const hasNew = newCount > 0;
+  const isStarter = Boolean(options.isStarter);
+  const isCurrent = !isStarter && profilesMatchSearch(profile, currentProfile);
+  const regionLabel = options.metaLabel || getRegionById(getProfileHomeRegionId(profile)).label;
+  const countLabel = options.countLabel || (hasNew ? `${newCount} new` : "No new");
+  return `
+    <button class="saved-results-drawer-row${hasNew ? " has-new" : " is-quiet"}${isCurrent ? " is-current" : ""}${isStarter ? " is-starter" : ""}" type="button" data-saved-results-id="${escapeHtml(profileId)}"${isCurrent ? ' aria-current="true"' : ""}>
+      <span class="saved-results-drawer-marker${hasNew || isStarter ? " is-active" : ""}" aria-hidden="true"><span></span></span>
+      <span class="saved-results-drawer-copy">
+        <strong>${escapeHtml(profile.name)}</strong>
+        <small>${escapeHtml(regionLabel)}</small>
+      </span>
+      <span class="saved-results-drawer-count${hasNew || isStarter ? " has-new" : ""}">${escapeHtml(countLabel)}</span>
+    </button>
+  `;
 }
 
 function toggleSavedResultsDrawer(event) {
@@ -4827,6 +4868,13 @@ function handleSavedResultsDrawerFilter(event) {
 }
 
 function handleSavedResultsDrawerSelection(event) {
+  const actionButton = event.target.closest("[data-saved-results-action]");
+  if (actionButton?.dataset.savedResultsAction === "dismiss-intro") {
+    savedResultsDrawerIntroDismissed = true;
+    renderSavedResultsDrawer();
+    return;
+  }
+
   const button = event.target.closest("[data-saved-results-id]");
   if (!button) return;
   const profile = getSavedSearchById(button.dataset.savedResultsId);
@@ -5358,6 +5406,12 @@ function dismissAuthSuccessModal(options = {}) {
   authSuccessModal.hidden = true;
   document.body.classList.remove("modal-open", "auth-success-modal-open");
   if (restoreFocus) termsInput?.focus?.();
+}
+
+function handleAuthSuccessStartSearching(event) {
+  event?.preventDefault?.();
+  closeSavedResultsDrawer({ restoreFocus: false, persist: false });
+  dismissAuthSuccessModal({ restoreFocus: false });
 }
 
 function handleAuthSuccessOpenAccount(event) {
@@ -7625,6 +7679,10 @@ function formatSavedSearchCheckedAt(profile) {
 
 function getSavedSearchById(searchId) {
   const normalizedId = String(searchId || "");
+  if (normalizedId === SAVED_RESULTS_DRAWER_STARTER_SEARCH_ID) {
+    return createSavedResultsDrawerStarterProfile();
+  }
+
   return loadProfiles()
     .map(hydrateProfile)
     .find((profile) => String(profile.id || profile.name) === normalizedId);
@@ -9408,14 +9466,49 @@ function normalizeImageFluxListingImage(imageUrl = "") {
 }
 
 function openExternalListing(url) {
+  if (shouldOpenBuyeeInCurrentTab(url)) {
+    window.location.assign(url);
+    return;
+  }
+
   const openedWindow = window.open(url, "_blank", "noopener,noreferrer");
   if (openedWindow) openedWindow.opener = null;
 }
 
 function handleListingAnchorOpen(event, listing) {
   if (event.defaultPrevented || !listing) return;
+  const href = event.currentTarget?.href || "";
+  if (shouldOpenBuyeeInCurrentTab(href)) {
+    event.preventDefault();
+    recordListingOpen(listing);
+    scheduleListingOpenRender();
+    window.location.assign(href);
+    return;
+  }
+
   recordListingOpen(listing);
   scheduleListingOpenRender();
+}
+
+function shouldOpenBuyeeInCurrentTab(url) {
+  return isLikelyIOSDevice() && isBuyeeListingUrl(url);
+}
+
+function isLikelyIOSDevice() {
+  const platform = navigator.platform || "";
+  const userAgent = navigator.userAgent || "";
+  return /iPad|iPhone|iPod/.test(platform)
+    || (/Mac/.test(platform) && navigator.maxTouchPoints > 1)
+    || /iPad|iPhone|iPod/.test(userAgent);
+}
+
+function isBuyeeListingUrl(url) {
+  try {
+    const parsed = new URL(url, window.location.href);
+    return parsed.hostname === "buyee.jp" && parsed.pathname.startsWith("/item/");
+  } catch {
+    return false;
+  }
 }
 
 function recordListingOpen(listing) {
@@ -9574,11 +9667,16 @@ function configureBuyeeLink(link, listing) {
 
   link.hidden = false;
   link.href = buyeeUrl;
+  if (shouldOpenBuyeeInCurrentTab(buyeeUrl)) {
+    link.removeAttribute("target");
+  } else {
+    link.target = "_blank";
+  }
   const label = link.querySelector(".menu-action-label");
   if (label) {
-    label.textContent = "View via Buyee";
+    label.textContent = shouldOpenBuyeeInCurrentTab(buyeeUrl) ? "Open in Buyee" : "View via Buyee";
   } else {
-    link.textContent = "View via Buyee";
+    link.textContent = shouldOpenBuyeeInCurrentTab(buyeeUrl) ? "Open in Buyee" : "View via Buyee";
   }
 }
 
@@ -9735,7 +9833,7 @@ function createBrowseCategoryDetailMarkup(options = {}) {
   const categoryTitle = getCategoryIntentLabel(browseCategoryIntent);
 
   if (loading) {
-    return `<span class="browse-detail-rest browse-loading-detail">Searching the expanse for ${escapeHtml(categoryTitle)}</span>`;
+    return `<span class="browse-detail-rest browse-loading-detail">Searching the Expanse for ${escapeHtml(categoryTitle)}</span>`;
   }
 
   if (error) {
@@ -9869,7 +9967,7 @@ function createBrowseExpandedResultsContext(visibleCount) {
   const activeBrand = getActiveBrowseBrand();
   if (activeBrand) {
     const brandDetailMarkup = browseCategoryStatus === "loading"
-      ? `<span class="browse-detail-rest browse-loading-detail">Searching the expanse for ${escapeHtml(activeBrand.name)}</span>`
+      ? `<span class="browse-detail-rest browse-loading-detail">Searching the Expanse for ${escapeHtml(activeBrand.name)}</span>`
       : browseCategoryStatus === "error"
         ? escapeHtml(browseCategoryError || "Brand browser is warming up")
         : `<span class="browse-category-label">${escapeHtml(activeBrand.name)}</span><span class="browse-detail-rest"> has ${escapeHtml(`${visibleCount} curated ${visibleCount === 1 ? "listing" : "listings"}`)}</span>`;
