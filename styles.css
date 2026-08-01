@@ -2708,17 +2708,17 @@ body.modal-open .save-confirmation-toast.is-visible {
 
 #authSuccessOpenAccount {
   width: fit-content;
-  border-color: var(--ink);
+  border-color: var(--brrtz-ink);
   border-radius: var(--radius-pill);
   background: transparent;
-  color: var(--ink);
+  color: var(--brrtz-ink);
 }
 
 #authSuccessOpenAccount:hover,
 #authSuccessOpenAccount:focus-visible {
-  border-color: var(--ink);
-  background: color-mix(in srgb, var(--ink) 8%, transparent);
-  color: var(--ink);
+  border-color: var(--brrtz-ink);
+  background: color-mix(in srgb, var(--brrtz-ink) 8%, transparent);
+  color: var(--brrtz-ink);
 }
 
 @media (max-width: 720px) {
