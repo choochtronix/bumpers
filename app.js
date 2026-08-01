@@ -9388,7 +9388,19 @@ function toggleListingWatch(listing, options = {}) {
   queueProfileAutoSync("watch-listing");
   renderWatchButtonState(options.watchButton, isWatching);
   renderWatchMenuActionState(options.watchMenuAction, isWatching);
+  showWatchlistStatusToast(listing, isWatching);
   return isWatching;
+}
+
+function showWatchlistStatusToast(listing, isWatching) {
+  const title = String(listing?.title || "Listing").replace(/\s+/g, " ").trim();
+  const shortTitle = title.length > 42 ? `${title.slice(0, 39).trimEnd()}...` : title;
+  showStatusToast({
+    icon: isWatching ? "♥" : "♡",
+    message: isWatching
+      ? `Added to watchlist: ${shortTitle}`
+      : `Removed from watchlist: ${shortTitle}`,
+  });
 }
 
 function renderWatchMenuActionState(button, isWatching) {
