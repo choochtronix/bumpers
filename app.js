@@ -9330,6 +9330,7 @@ function dismissListingAsNoise(card, listing) {
   acknowledgeListings([listing], { dismissed: true });
   animateListingDismiss(card, () => {
     card?.remove();
+    renderResults({ force: true });
   });
 }
 
