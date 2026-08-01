@@ -9466,7 +9466,7 @@ function normalizeImageFluxListingImage(imageUrl = "") {
 }
 
 function openExternalListing(url) {
-  if (shouldOpenBuyeeInCurrentTab(url)) {
+  if (shouldOpenBuyeeInCurrentTab(url) || isLikelyIOSDevice()) {
     window.location.assign(url);
     return;
   }
@@ -9681,8 +9681,6 @@ function configureBuyeeLink(link, listing) {
 }
 
 function getPrimaryListingUrl(listing) {
-  const buyeeUrl = createBuyeeUrl(listing);
-  if (buyeeUrl && isJapanListing(listing)) return buyeeUrl;
   return listing.url;
 }
 
