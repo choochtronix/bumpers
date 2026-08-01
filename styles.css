@@ -2667,6 +2667,18 @@ body.modal-open .save-confirmation-toast.is-visible {
   box-shadow: none;
 }
 
+#authSuccessStartSearching {
+  border-color: transparent;
+  background: var(--brand-gradient);
+  color: var(--source-ink-on-color);
+}
+
+#welcomeStartSearching {
+  border-color: transparent;
+  background: var(--brand-gradient);
+  color: var(--source-ink-on-color);
+}
+
 #authSuccessStartSearching:hover,
 #authSuccessStartSearching:focus-visible,
 .account-text-action.welcome-skip:hover,
@@ -2678,6 +2690,16 @@ body.modal-open .save-confirmation-toast.is-visible {
   box-shadow: none;
 }
 
+#authSuccessStartSearching:hover,
+#authSuccessStartSearching:focus-visible,
+#welcomeStartSearching:hover,
+#welcomeStartSearching:focus-visible {
+  border-color: transparent;
+  background: var(--brand-gradient);
+  color: var(--source-ink-on-color);
+  filter: brightness(1.04);
+}
+
 .account-text-action.welcome-skip {
   height: 36px;
   min-height: 36px;
@@ -2686,7 +2708,17 @@ body.modal-open .save-confirmation-toast.is-visible {
 
 #authSuccessOpenAccount {
   width: fit-content;
+  border-color: var(--ink);
   border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--ink);
+}
+
+#authSuccessOpenAccount:hover,
+#authSuccessOpenAccount:focus-visible {
+  border-color: var(--ink);
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+  color: var(--ink);
 }
 
 @media (max-width: 720px) {
@@ -3239,17 +3271,18 @@ body[data-theme="dark"] .settings-section-icon {
 .account-text-action.welcome-skip {
   min-height: 36px;
   padding: 0 var(--space-3);
-  border: 1px solid color-mix(in srgb, var(--color-brand-hot) 42%, var(--line));
+  border: 1px solid transparent;
   border-radius: var(--radius-pill);
-  background: color-mix(in srgb, var(--color-brand-hot) 8%, transparent);
-  color: var(--color-brand-hot);
+  background: var(--brand-gradient);
+  color: var(--source-ink-on-color);
 }
 
 .account-text-action.welcome-skip:hover,
 .account-text-action.welcome-skip:focus-visible {
-  border-color: var(--color-brand-hot);
-  background: color-mix(in srgb, var(--color-brand-hot) 14%, transparent);
-  color: var(--color-brand-hot);
+  border-color: transparent;
+  background: var(--brand-gradient);
+  color: var(--source-ink-on-color);
+  filter: brightness(1.04);
 }
 
 .account-password-setup {
