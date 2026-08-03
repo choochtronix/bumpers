@@ -9877,49 +9877,14 @@ function normalizeImageFluxListingImage(imageUrl = "") {
 }
 
 function openExternalListing(url) {
-  if (shouldOpenBuyeeInCurrentTab(url) || isLikelyIOSDevice()) {
-    window.location.assign(url);
-    return;
-  }
-
   const openedWindow = window.open(url, "_blank", "noopener,noreferrer");
   if (openedWindow) openedWindow.opener = null;
 }
 
 function handleListingAnchorOpen(event, listing) {
   if (event.defaultPrevented || !listing) return;
-  const href = event.currentTarget?.href || "";
-  if (shouldOpenBuyeeInCurrentTab(href)) {
-    event.preventDefault();
-    recordListingOpen(listing);
-    scheduleListingOpenRender();
-    window.location.assign(href);
-    return;
-  }
-
   recordListingOpen(listing);
   scheduleListingOpenRender();
-}
-
-function shouldOpenBuyeeInCurrentTab(url) {
-  return isLikelyIOSDevice() && isBuyeeListingUrl(url);
-}
-
-function isLikelyIOSDevice() {
-  const platform = navigator.platform || "";
-  const userAgent = navigator.userAgent || "";
-  return /iPad|iPhone|iPod/.test(platform)
-    || (/Mac/.test(platform) && navigator.maxTouchPoints > 1)
-    || /iPad|iPhone|iPod/.test(userAgent);
-}
-
-function isBuyeeListingUrl(url) {
-  try {
-    const parsed = new URL(url, window.location.href);
-    return parsed.hostname === "buyee.jp" && parsed.pathname.startsWith("/item/");
-  } catch {
-    return false;
-  }
 }
 
 function recordListingOpen(listing) {
@@ -10078,16 +10043,12 @@ function configureBuyeeLink(link, listing) {
 
   link.hidden = false;
   link.href = buyeeUrl;
-  if (shouldOpenBuyeeInCurrentTab(buyeeUrl)) {
-    link.removeAttribute("target");
-  } else {
-    link.target = "_blank";
-  }
+  link.target = "_blank";
   const label = link.querySelector(".menu-action-label");
   if (label) {
-    label.textContent = shouldOpenBuyeeInCurrentTab(buyeeUrl) ? "Open in Buyee" : "View via Buyee";
+    label.textContent = "View via Buyee";
   } else {
-    link.textContent = shouldOpenBuyeeInCurrentTab(buyeeUrl) ? "Open in Buyee" : "View via Buyee";
+    link.textContent = "View via Buyee";
   }
 }
 
