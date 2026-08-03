@@ -509,9 +509,13 @@ shoes</textarea>
           </label>
 
           <div class="form-grid">
-            <label>
+            <label class="max-price-field">
               <span>Max price</span>
-              <input id="maxPrice" form="searchForm" type="number" value="2000000" min="0" step="1000" />
+              <div class="price-input-wrap">
+                <span class="price-input-currency" id="maxPriceCurrency">JPY</span>
+                <input id="maxPrice" form="searchForm" type="text" inputmode="numeric" value="2,000,000" aria-describedby="maxPriceHint" />
+              </div>
+              <small class="field-hint" id="maxPriceHint">Japanese yen. Use 0 for no price cap.</small>
             </label>
             <label>
               <span>Alert</span>
@@ -644,12 +648,11 @@ stand
       <button class="save-toast-close" id="closeSaveConfirmationToast" type="button" aria-label="Dismiss saved search confirmation">×</button>
     </div>
 
-    <div class="modal-backdrop" id="settingsModal" hidden>
-      <section class="modal settings-modal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+    <section class="settings-page" id="settingsModal" aria-labelledby="settingsTitle" hidden>
+      <div class="settings-modal">
         <form id="settingsForm">
           <div class="modal-header">
             <div>
-              <p class="eyebrow">Global</p>
               <h2 id="settingsTitle" class="settings-title-lockup">
                 <span class="settings-section-icon settings-section-icon-title" aria-hidden="true">
                   <svg viewBox="0 0 24 24" fill="none" focusable="false">
@@ -661,67 +664,48 @@ stand
               </h2>
             </div>
             <div class="settings-header-actions">
-              <button class="settings-account-state" id="settingsAccountState" type="button">
+              <button class="settings-account-state" id="settingsAccountState" type="button" hidden>
                 <span class="settings-account-state-dot" aria-hidden="true"></span>
                 <span id="settingsAccountStateLabel">Not signed in</span>
               </button>
-              <button class="icon-action" id="closeSettings" type="button" aria-label="Close settings">×</button>
             </div>
           </div>
 
           <div class="settings-tabs" role="tablist" aria-label="Settings sections">
-            <button class="settings-tab is-active" id="settingsTabGeneral" type="button" role="tab" aria-selected="true" aria-controls="settingsPanelGeneral" data-settings-tab="general">General</button>
-            <button class="settings-tab" id="settingsTabAccount" type="button" role="tab" aria-selected="false" aria-controls="settingsPanelAccount" data-settings-tab="account">Account</button>
-            <button class="settings-tab" id="settingsTabData" type="button" role="tab" aria-selected="false" aria-controls="settingsPanelData" data-settings-tab="data">Data</button>
+            <button class="settings-tab is-active" id="settingsTabGeneral" type="button" role="tab" aria-selected="true" aria-controls="settingsPanelGeneral" data-settings-tab="general">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+                <path d="M6 4v16" />
+                <path d="M12 4v16" />
+                <path d="M18 4v16" />
+                <path d="M3.8 8h4.4" />
+                <path d="M9.8 14h4.4" />
+                <path d="M15.8 10h4.4" />
+                <circle cx="6" cy="8" r="1.8" />
+                <circle cx="12" cy="14" r="1.8" />
+                <circle cx="18" cy="10" r="1.8" />
+              </svg>
+              <span>Search</span>
+            </button>
+            <button class="settings-tab" id="settingsTabAccount" type="button" role="tab" aria-selected="false" aria-controls="settingsPanelAccount" data-settings-tab="account">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+                <circle cx="12" cy="7.7" r="3" />
+                <path d="M5.2 20c.72-3.7 3.15-5.8 6.8-5.8s6.08 2.1 6.8 5.8" />
+              </svg>
+              <span>Account</span>
+            </button>
+            <button class="settings-tab" id="settingsTabData" type="button" role="tab" aria-selected="false" aria-controls="settingsPanelData" data-settings-tab="data">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+                <path d="M9 3.5h6" />
+                <path d="M10 3.5v5.1L5.2 18.2C4.58 19.43 5.48 21 6.86 21h10.28c1.38 0 2.28-1.57 1.66-2.8L14 8.6V3.5" />
+                <path d="M8.4 16.2h7.2" />
+              </svg>
+              <span>Beta lab</span>
+            </button>
           </div>
 
           <div class="settings-scroll">
             <section class="settings-panel is-active" id="settingsPanelGeneral" role="tabpanel" aria-labelledby="settingsTabGeneral" data-settings-panel="general">
-              <div class="settings-section" aria-labelledby="appearanceSettingsTitle">
-                <div class="settings-section-heading">
-                  <span class="settings-section-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" focusable="false">
-                      <path d="M12 3.5c-4.7 0-8.5 3.32-8.5 7.42 0 3.02 2.1 5.42 5.28 5.42h1.08c.77 0 1.24.8.9 1.48-.48.96.19 2.18 1.3 2.18h.18c4.56-.12 8.26-3.68 8.26-8.24 0-4.56-3.8-8.26-8.5-8.26Z" />
-                      <path d="M7.4 11.05h.02M9.35 7.85h.02M13.15 7.55h.02M16.35 10.05h.02" />
-                    </svg>
-                  </span>
-                  <div>
-                    <h3 id="appearanceSettingsTitle">Appearance</h3>
-                    <p>Adjust the display style for this browser.</p>
-                  </div>
-                </div>
-
-                <label class="setting-toggle">
-                  <span>Dark mode</span>
-                  <input id="themeSettingsToggle" type="checkbox" />
-                  <span class="toggle-track" aria-hidden="true"></span>
-                </label>
-
-              </div>
-
-              <div class="settings-section" aria-labelledby="searchQualitySettingsTitle">
-                <div class="settings-section-heading">
-                  <span class="settings-section-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" focusable="false">
-                      <path d="M5 20h14" />
-                      <path d="M6.5 17.5 5.2 8.2l4.5 3.1L12 4.2l2.3 7.1 4.5-3.1-1.3 9.3H6.5Z" />
-                      <path d="M8.8 14.6h6.4" />
-                    </svg>
-                  </span>
-                  <div>
-                    <h3 id="searchQualitySettingsTitle">Search Quality</h3>
-                    <p>Hide likely non-gear listings from results.</p>
-                  </div>
-                </div>
-
-                <label class="setting-toggle">
-                  <span>Gear Mode</span>
-                  <input id="gearModeSettingsToggle" type="checkbox" />
-                  <span class="toggle-track" aria-hidden="true"></span>
-                </label>
-              </div>
-
-              <div class="settings-section" aria-labelledby="regionSettingsTitle">
+              <div class="settings-section settings-search-card" aria-labelledby="regionSettingsTitle">
                 <div class="settings-section-heading">
                   <span class="settings-section-icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" focusable="false">
@@ -737,34 +721,35 @@ stand
                 </div>
 
                 <label>
-                  <span>Search region</span>
+                  <span>Region</span>
                   <select id="regionSelect"></select>
                 </label>
-              </div>
 
-              <div class="settings-section" aria-labelledby="currencySettingsTitle">
-                <div class="settings-section-heading">
-                  <span class="settings-section-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" focusable="false">
-                      <path d="M12 3v18" />
-                      <path d="M16.5 7.2c-.92-1.1-2.24-1.72-4.14-1.72-2.2 0-3.86 1.08-3.86 2.82 0 1.8 1.54 2.46 3.92 2.86 2.54.42 4.08 1.1 4.08 3.02 0 1.74-1.62 3.04-4.08 3.04-2.02 0-3.62-.64-4.92-2.02" />
-                    </svg>
+                <label class="setting-toggle currency-setting-toggle">
+                  <span>Display currency</span>
+                  <span class="currency-segment-control" aria-hidden="true">
+                    <span class="currency-segment-option currency-segment-usd">USD</span>
+                    <span class="currency-segment-option currency-segment-jpy">JPY</span>
                   </span>
-                  <div>
-                    <h3 id="currencySettingsTitle">Currency</h3>
-                    <p>Display listing prices in JPY or estimated USD. Source filters still use JPY.</p>
-                  </div>
-                </div>
-
-                <label class="setting-toggle">
-                  <span>Display USD</span>
                   <input id="currencyToggle" type="checkbox" />
                   <span class="toggle-track" aria-hidden="true"></span>
                 </label>
 
-                <label>
-                  <span>JPY per USD</span>
+                <label class="settings-rate-row">
+                  <span>Rate <small>JPY per USD</small></span>
                   <input id="jpyPerUsd" type="number" min="1" step="0.01" inputmode="decimal" />
+                </label>
+
+                <label class="setting-toggle">
+                  <span>Gear mode <small>hide non-gear listings</small></span>
+                  <input id="gearModeSettingsToggle" type="checkbox" />
+                  <span class="toggle-track" aria-hidden="true"></span>
+                </label>
+
+                <label class="setting-toggle">
+                  <span>Dark mode</span>
+                  <input id="themeSettingsToggle" type="checkbox" />
+                  <span class="toggle-track" aria-hidden="true"></span>
                 </label>
               </div>
 
@@ -835,7 +820,11 @@ stand
                   </div>
                 </div>
 
-                <div class="account-panel" id="signedOutAccountPanel">
+                <div class="account-panel account-panel-signed-out" id="signedOutAccountPanel">
+                  <div class="settings-account-summary">
+                    <strong>Sign in</strong>
+                    <span>Save searches, watched gear, alerts, and settings to your account.</span>
+                  </div>
                   <button class="social-auth-button" id="signInWithGoogle" type="button">
                     <span class="social-auth-mark social-auth-google-mark" aria-hidden="true">
                       <svg viewBox="0 0 24 24" focusable="false">
@@ -847,42 +836,47 @@ stand
                     </span>
                     <span>Continue with Google</span>
                   </button>
-                  <div class="account-auth-fields">
-                    <label>
-                      <span>Email</span>
-                      <input id="accountEmailInput" type="email" inputmode="email" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="you@example.com" />
-                    </label>
-                    <label>
-                      <span>Password</span>
-                      <input id="accountPasswordInput" type="password" autocomplete="current-password" placeholder="Your password" />
-                    </label>
-                  </div>
-                  <div class="account-auth-actions">
-                    <button class="primary-action" id="signInWithPassword" type="button">Sign in</button>
-                    <button class="secondary-action social-auth-button email-auth-button" id="sendSignInLink" type="button">
-                      <span class="social-auth-mark social-auth-email-mark" aria-hidden="true">
-                        <svg viewBox="0 0 24 24" fill="none" focusable="false">
-                          <rect x="3.5" y="5.5" width="17" height="13" rx="3" />
-                          <path d="M5 8L12 13L19 8" />
-                        </svg>
-                      </span>
-                      <span>Email me a sign-in link</span>
-                    </button>
-                  </div>
-                  <button class="account-text-action" id="forgotAccountPassword" type="button">Forgot password?</button>
-                  <p class="settings-sync-detail">First time here? Use the email link once. Brrtz keeps this device signed in, and you can create a password for other devices.</p>
+                  <details class="settings-account-drill">
+                    <summary>Email sign-in</summary>
+                    <div class="account-auth-fields">
+                      <label>
+                        <span>Email</span>
+                        <input id="accountEmailInput" type="email" inputmode="email" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="you@example.com" />
+                      </label>
+                      <label>
+                        <span>Password</span>
+                        <input id="accountPasswordInput" type="password" autocomplete="current-password" placeholder="Your password" />
+                      </label>
+                    </div>
+                    <div class="account-auth-actions">
+                      <button class="primary-action" id="signInWithPassword" type="button">Sign in</button>
+                      <button class="secondary-action social-auth-button email-auth-button" id="sendSignInLink" type="button">
+                        <span class="social-auth-mark social-auth-email-mark" aria-hidden="true">
+                          <svg viewBox="0 0 24 24" fill="none" focusable="false">
+                            <rect x="3.5" y="5.5" width="17" height="13" rx="3" />
+                            <path d="M5 8L12 13L19 8" />
+                          </svg>
+                        </span>
+                        <span>Email me a sign-in link</span>
+                      </button>
+                    </div>
+                    <button class="account-text-action" id="forgotAccountPassword" type="button">Forgot password?</button>
+                  </details>
                 </div>
 
                 <div class="account-panel account-panel-signed-in" id="signedInAccountPanel" hidden>
-                  <div class="settings-cloud-profile account-signed-in-profile">
-                    <span><span class="account-signed-in-check" aria-hidden="true">✓</span> Signed in</span>
+                  <div class="settings-account-row settings-account-email-row" role="button" tabindex="0">
+                    <span>
+                      <strong>Signed in</strong>
+                      <small id="accountSyncDetail">Last synced: never</small>
+                    </span>
                     <strong id="accountEmailDisplay">Sign in to save searches and watched gear.</strong>
                   </div>
-                  <div class="account-password-setup" aria-labelledby="accountPasswordTitle">
-                    <div>
-                      <h4 id="accountPasswordTitle">Password sign-in</h4>
-                      <p class="settings-sync-detail" id="accountPasswordDescription">Create a password once, then use Safari or your password manager to sign in without opening email.</p>
-                    </div>
+                  <details class="settings-account-drill account-password-setup" aria-labelledby="accountPasswordTitle">
+                    <summary>
+                      <span id="accountPasswordTitle">Password sign-in</span>
+                      <small id="accountPasswordDescription">Create or update password</small>
+                    </summary>
                     <div class="account-password-fields">
                       <label>
                         <span>New password</span>
@@ -894,14 +888,16 @@ stand
                       </label>
                     </div>
                     <button class="primary-action" id="updateAccountPassword" type="button">Create password</button>
-                  </div>
-                  <div class="account-sync-controls">
+                  </details>
+                  <div class="account-sync-controls settings-account-row">
+                    <span>
+                      <strong>Saved searches</strong>
+                      <small>Export, import, or force cloud sync.</small>
+                    </span>
                     <div class="settings-actions">
-                      <button class="secondary-action" id="syncAccountSavedSearches" type="button">Sync now</button>
+                      <button class="secondary-action" id="syncAccountSavedSearches" type="button">Sync</button>
                       <button class="secondary-action" id="signOutAccount" type="button">Sign out</button>
                     </div>
-                    <p class="settings-sync-detail">Account data syncs automatically. Use Sync now after changing devices if something looks out of date.</p>
-                    <p class="settings-sync-detail" id="accountSyncDetail">Last synced: never</p>
                   </div>
                 </div>
 
@@ -948,13 +944,9 @@ stand
             </section>
           </div>
 
-          <div class="modal-actions">
-            <button class="secondary-action" id="cancelSettings" type="button">Cancel</button>
-            <button class="primary-action" type="submit">Save settings</button>
-          </div>
         </form>
-      </section>
-    </div>
+      </div>
+    </section>
 
     <template id="listingTemplate">
       <article class="listing-card">

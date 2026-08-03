@@ -61,10 +61,27 @@ const BROWSE_CARD_RENDER_CHUNK_SIZE = 6;
 const BROWSE_INFINITE_INITIAL_LIMIT = 24;
 const BROWSE_INFINITE_BATCH_SIZE = 24;
 const BROWSE_HOME_CURATION_CANDIDATE_LIMIT = 48;
+const FEATURED_SCANNER_PICK_MIN_SCORE = 9;
+const FEATURED_SCANNER_PICK_TERMS = [
+  { terms: ["minimoog", "mini moog", "ミニモーグ"], score: 13 },
+  { terms: ["arp odyssey", "odyssey mk1", "odyssey mk2", "odyssey mk3"], score: 12 },
+  { terms: ["sh-101", "sh101"], score: 12 },
+  { terms: ["tr-808", "tr808", "tr-909", "tr909"], score: 13 },
+  { terms: ["prophet", "pro one", "pro-one"], score: 10 },
+  { terms: ["oberheim", "ob-x", "ob-xa", "ob-8", "xpander", "matrix 12"], score: 10 },
+  { terms: ["emulator", "emu emulator", "e-mu emulator"], score: 10 },
+  { terms: ["ms-20", "ms20"], score: 11 },
+  { terms: ["jupiter", "jupiter-4", "jupiter-6", "jupiter-8"], score: 11 },
+  { terms: ["voyager", "minimoog voyager"], score: 11 },
+  { terms: ["fizmo", "ensoniq fizmo"], score: 13 },
+  { terms: ["waldorf microwave", "microwave xt"], score: 12 },
+  { terms: ["juno", "juno-6", "juno-60", "juno-106"], score: 9 },
+];
 const APP_VIEW_PARAM = "view";
 const APP_VIEW_SYNTH_BROWSER = "synth-browser";
 const APP_VIEW_WATCHLIST = "watchlist";
 const APP_VIEW_MY_PAGE = "my-page";
+const APP_VIEW_SETTINGS = "settings";
 const APP_BRAND_PARAM = "brand";
 const SEARCH_QUERY_PARAM = "q";
 const SEARCH_REGION_PARAM = "region";
@@ -1717,6 +1734,9 @@ const excludeTagField = document.querySelector("#excludeTagField");
 const excludeTagList = document.querySelector("#excludeTagList");
 const excludeTagInput = document.querySelector("#excludeTagInput");
 const categoryIntentSelect = document.querySelector("#categoryIntent");
+const maxPriceInput = document.querySelector("#maxPrice");
+const maxPriceCurrency = document.querySelector("#maxPriceCurrency");
+const maxPriceHint = document.querySelector("#maxPriceHint");
 const quickSearchExtraTermsButton = document.querySelector("#quickSearchExtraTerms");
 const quickSearchClearButton = document.querySelector("#quickSearchClear");
 const quickSearchSuggestions = document.querySelector("#quickSearchSuggestions");
@@ -2453,6 +2473,7 @@ function bindEvents() {
   document.addEventListener("touchstart", primeSearchChirpAudio, { capture: true, passive: true });
   searchForm.addEventListener("submit", (event) => {
     event.preventDefault();
+    updateMaxPriceField();
     const draftProfile = refineSearchModal.hidden
       ? readProfileFromForm()
       : getDraftProfileFromRefineModal();
@@ -2461,6 +2482,14 @@ function bindEvents() {
     closeRefineSearchModal({ restoreFocus: false });
     syncSearchUrl(currentProfile);
     runSearch();
+  });
+  maxPriceInput?.addEventListener("input", () => {
+    maxPriceInput.value = maxPriceInput.value.replace(/[^\d,]/g, "");
+    renderRefineSummary();
+  });
+  maxPriceInput?.addEventListener("blur", () => {
+    updateMaxPriceField();
+    renderRefineSummary();
   });
   termsInput.addEventListener("input", handlePrimaryTermsInput);
   termsInput.addEventListener("keydown", handleQuickSearchKeydown);
@@ -2557,22 +2586,41 @@ function bindEvents() {
   headerAccountPopover?.addEventListener("click", handleHeaderAccountPopoverClick);
   document.addEventListener("click", handleHeaderAccountOutsideClick);
   document.addEventListener("keydown", handleHeaderAccountKeydown);
-  document.querySelector("#closeSettings").addEventListener("click", closeSettingsModal);
-  document.querySelector("#cancelSettings").addEventListener("click", closeSettingsModal);
-  settingsModal.addEventListener("click", (event) => {
-    if (event.target === settingsModal) closeSettingsModal();
+  document.querySelector("#closeSettings")?.addEventListener("click", () => {
+    window.history.pushState({ view: "" }, "", "/");
+    closeSettingsModal({ restoreFocus: false });
+    resetToIdleSearch();
   });
-  settingsForm.addEventListener("submit", (event) => {
+  document.querySelector("#cancelSettings")?.addEventListener("click", closeSettingsModal);
+  settingsForm?.addEventListener("submit", (event) => {
     event.preventDefault();
-    saveSettingsFromModal();
+    saveSettingsFromModal({ notify: true });
   });
   settingsTabs.forEach((tab) => {
-    tab.addEventListener("click", () => setActiveSettingsTab(tab.dataset.settingsTab));
+    tab.addEventListener("click", () => {
+      setActiveSettingsTab(tab.dataset.settingsTab, { scroll: getCurrentAppView() === APP_VIEW_SETTINGS });
+      if (getCurrentAppView() === APP_VIEW_SETTINGS) {
+        const hash = tab.dataset.settingsTab === "account"
+          ? "#account"
+          : tab.dataset.settingsTab === "data"
+            ? "#beta"
+            : "";
+        window.history.replaceState({ view: APP_VIEW_SETTINGS }, "", `/settings${hash}`);
+      }
+    });
     tab.addEventListener("keydown", handleSettingsTabKeydown);
   });
-  pullCloudSavedSearchesButton.addEventListener("click", pullCloudSavedSearches);
-  pushCloudSavedSearchesButton.addEventListener("click", pushCloudSavedSearches);
+  pullCloudSavedSearchesButton?.addEventListener("click", pullCloudSavedSearches);
+  pushCloudSavedSearchesButton?.addEventListener("click", pushCloudSavedSearches);
   themeSettingsToggle?.addEventListener("change", handleSettingsThemeToggle);
+  regionSelect?.addEventListener("change", () => saveSettingsFromModal({ sourceControl: regionSelect }));
+  currencyToggle?.addEventListener("change", () => saveSettingsFromModal({ sourceControl: currencyToggle }));
+  jpyPerUsdInput?.addEventListener("blur", () => saveSettingsFromModal({ sourceControl: jpyPerUsdInput }));
+  jpyPerUsdInput?.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    jpyPerUsdInput.blur();
+  });
   bindBrandGradientControlEvents();
   applyBrandGradientButton?.addEventListener("click", applyBrandGradientFromControls);
   resetBrandGradientButton?.addEventListener("click", resetBrandGradient);
@@ -2601,9 +2649,9 @@ function bindEvents() {
   accountConfirmPasswordInput?.addEventListener("keydown", handleAccountPasswordUpdateKeydown);
   syncAccountSavedSearchesButton?.addEventListener("click", syncAccountCloudData);
   signOutAccountButton?.addEventListener("click", handleAccountSignOutShell);
-  exportSavedSearchesButton.addEventListener("click", exportSavedSearches);
-  importSavedSearchesButton.addEventListener("click", () => savedSearchImportFile.click());
-  savedSearchImportFile.addEventListener("change", importSavedSearchesFromFile);
+  exportSavedSearchesButton?.addEventListener("click", exportSavedSearches);
+  importSavedSearchesButton?.addEventListener("click", () => savedSearchImportFile.click());
+  savedSearchImportFile?.addEventListener("change", importSavedSearchesFromFile);
   gearModeSettingsToggle?.addEventListener("change", handleSettingsGearModeToggle);
   openSourceQualitySettingsButton?.addEventListener("click", openSearchQualitySettings);
 
@@ -2833,6 +2881,10 @@ function resetHomeView(event) {
 
 function clearSearchUrl(options = {}) {
   const url = new URL(window.location.href);
+  if (url.pathname.replace(/\/+$/, "") === "/settings") {
+    url.pathname = "/";
+    url.hash = "";
+  }
   [
     APP_VIEW_PARAM,
     APP_BRAND_PARAM,
@@ -2854,8 +2906,31 @@ function clearSearchUrl(options = {}) {
 }
 
 function getCurrentAppView() {
+  if (window.location.pathname.replace(/\/+$/, "") === "/settings") return APP_VIEW_SETTINGS;
   const params = new URLSearchParams(window.location.search);
   return params.get(APP_VIEW_PARAM) || "";
+}
+
+function openSettingsPage(eventOrOptions = {}) {
+  eventOrOptions?.preventDefault?.();
+  eventOrOptions?.stopPropagation?.();
+  closeHeaderAccountPopover({ restoreFocus: false });
+
+  const options = eventOrOptions?.currentTarget ? { focusTarget: eventOrOptions.currentTarget } : eventOrOptions;
+  const hash = options?.tabName === "account"
+    ? "#account"
+    : options?.tabName === "beta"
+      ? "#beta"
+      : options?.hash || "";
+  const nextPath = `/settings${hash}`;
+  if (`${window.location.pathname}${window.location.hash}` !== nextPath) {
+    window.history.pushState({ view: APP_VIEW_SETTINGS }, "", nextPath);
+  }
+  renderResults({ force: true });
+  window.requestAnimationFrame(() => {
+    if (hash) document.querySelector(hash)?.scrollIntoView({ block: "start", behavior: "smooth" });
+    options?.focusTarget?.focus?.({ preventScroll: true });
+  });
 }
 
 function getCurrentBrowseBrandSlug() {
@@ -2956,7 +3031,15 @@ function handleAppViewPopState() {
     closeRefineSearchModal({ restoreFocus: false });
     closeSaveSearchModal({ restoreFocus: false });
     closeSettingsModal({ restoreFocus: false });
+    if (settingsModal) settingsModal.hidden = true;
+    document.body.classList.remove("settings-page-active");
     resetToIdleSearch();
+    scrollPageTop();
+    return;
+  }
+
+  if (nextView === APP_VIEW_SETTINGS) {
+    renderSettingsPageView();
     scrollPageTop();
     return;
   }
@@ -2985,10 +3068,12 @@ function toggleTheme(event) {
 function handleSettingsThemeToggle(event) {
   setTheme(event.target.checked ? "dark" : "light");
   pushCloudProfilePreferences({ silent: true });
+  showSettingsRowSaved(event.target);
 }
 
 function handleSettingsGearModeToggle(event) {
   setQualityMode(event.target.checked ? "clean" : "all");
+  showSettingsRowSaved(event.target);
 }
 
 function bindBrandGradientControlEvents() {
@@ -3416,6 +3501,48 @@ function getRegionDefaultMaxPrice(regionId = appSettings?.regionId) {
   return Number(getRegionById(regionId).searchDefaults?.maxPrice) || 2000000;
 }
 
+function getRegionPriceCurrency(regionId = appSettings?.regionId) {
+  return getRegionById(regionId).currency || appSettings.currency || "JPY";
+}
+
+function parsePriceInput(value) {
+  const numericValue = String(value || "").replace(/[^\d]/g, "");
+  return Number(numericValue || 0);
+}
+
+function formatPriceInputValue(value) {
+  const amount = parsePriceInput(value);
+  if (amount <= 0) return "0";
+  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(amount);
+}
+
+function updateMaxPriceField(options = {}) {
+  if (!maxPriceInput) return;
+  const amount = parsePriceInput(maxPriceInput.value);
+  if (options.format !== false) maxPriceInput.value = formatPriceInputValue(amount);
+  const filterCurrency = getRegionPriceCurrency();
+  if (maxPriceCurrency) maxPriceCurrency.textContent = filterCurrency;
+  if (maxPriceHint) maxPriceHint.textContent = getMaxPriceHelperText(amount, filterCurrency);
+}
+
+function getMaxPriceHelperText(amount, filterCurrency = getRegionPriceCurrency()) {
+  const noCapText = `Filters use ${filterCurrency}. Use 0 for no price cap.`;
+  if (amount <= 0) return noCapText;
+
+  if (filterCurrency === "JPY" && appSettings.currency === "USD" && appSettings.jpyPerUsd > 0) {
+    const usdValue = amount / appSettings.jpyPerUsd;
+    const usdText = new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      maximumFractionDigits: 0,
+    }).format(usdValue);
+    return `Filters use JPY. ¥${formatPriceInputValue(amount)} ≈ ${usdText} at your display rate.`;
+  }
+
+  if (filterCurrency === "JPY") return `Filters use JPY. ¥${formatPriceInputValue(amount)} max.`;
+  return `Filters use ${filterCurrency}. ${formatPriceInputValue(amount)} max.`;
+}
+
 function renderRegionOptions() {
   if (!regionSelect) return;
   regionSelect.innerHTML = getSelectableRegions().map((region) => {
@@ -3615,6 +3742,77 @@ function getBrandFilteredBrowseListings(listings) {
   return listings.filter((listing) => matchesPopularBrandListing(listing, brand));
 }
 
+function getFeaturedScannerPick(listings = []) {
+  let bestListing = null;
+  let bestScore = 0;
+
+  listings.forEach((listing, index) => {
+    const title = normalizeFeaturedScannerText(listing?.title);
+    if (!title || isUnavailableListing(listing)) return;
+
+    let score = getDisplayListingImage(listing) ? 2 : 0;
+    if (Number(listing.price || 0) > 0) score += 1;
+    if (currentDiscoveryIds.has(listing.id)) score += 2;
+
+    FEATURED_SCANNER_PICK_TERMS.forEach((entry) => {
+      if (entry.terms.some((term) => featuredScannerTermMatches(title, term))) {
+        score += entry.score;
+      }
+    });
+
+    score -= index * 0.01;
+    if (score > bestScore) {
+      bestScore = score;
+      bestListing = listing;
+    }
+  });
+
+  if (bestListing && bestScore >= FEATURED_SCANNER_PICK_MIN_SCORE) {
+    return bestListing;
+  }
+
+  return null;
+}
+
+function normalizeFeaturedScannerText(value) {
+  return String(value || "")
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/[‐‑‒–—]/g, "-")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function featuredScannerTermMatches(searchable, term) {
+  const normalizedTerm = normalizeFeaturedScannerText(term);
+  if (!normalizedTerm) return false;
+  if (searchable.includes(normalizedTerm)) return true;
+
+  const compactSearchable = searchable.replace(/[^a-z0-9ぁ-んァ-ヶ一-龠]/g, "");
+  const compactTerm = normalizedTerm.replace(/[^a-z0-9ぁ-んァ-ヶ一-龠]/g, "");
+  return compactTerm.length > 2 && compactSearchable.includes(compactTerm);
+}
+
+function createFeaturedScannerPickCard(listing, renderContext) {
+  const fragment = renderListing(listing, {
+    renderContext,
+    browseListingKey: getBrowseListingKey(listing),
+  });
+  const card = fragment.querySelector(".listing-card");
+  const imageStage = fragment.querySelector(".image-stage");
+  if (card) {
+    card.classList.add("featured-scanner-pick");
+    card.dataset.featuredScannerPick = "true";
+  }
+  if (imageStage && !imageStage.querySelector(".featured-scanner-pick-badge")) {
+    const badge = document.createElement("span");
+    badge.className = "featured-scanner-pick-badge";
+    badge.textContent = "Brrtz Blip";
+    imageStage.appendChild(badge);
+  }
+  return fragment;
+}
+
 function fillForm(profile) {
   const hydratedProfile = hydrateProfile(profile);
   refineTermsInput.value = hydratedProfile.terms.join("\n");
@@ -3625,7 +3823,8 @@ function fillForm(profile) {
   excludesInput.value = hydratedProfile.excludes.join("\n");
   renderExcludeTags();
   document.querySelector("#noiseTerms").value = hydratedProfile.noiseTerms.join("\n");
-  document.querySelector("#maxPrice").value = hydratedProfile.maxPrice;
+  if (maxPriceInput) maxPriceInput.value = formatPriceInputValue(hydratedProfile.maxPrice);
+  updateMaxPriceField({ format: false });
   document.querySelector("#alertMode").value = hydratedProfile.alertMode;
   document.querySelectorAll("input[name='sources']").forEach((input) => {
     input.checked = hydratedProfile.sources.includes(input.value);
@@ -3644,7 +3843,7 @@ function readProfileFromForm() {
     excludes: getExcludeTags(),
     noiseTerms: splitLines(document.querySelector("#noiseTerms").value),
     categoryIntent: sanitizeCategoryIntent(categoryIntentSelect?.value, appSettings.regionId),
-    maxPrice: Number(document.querySelector("#maxPrice").value || 0),
+    maxPrice: parsePriceInput(maxPriceInput?.value),
     alertMode: document.querySelector("#alertMode").value,
     sources: [...document.querySelectorAll("input[name='sources']:checked")].map((input) => input.value),
   };
@@ -4378,6 +4577,18 @@ function renderSearchTermsSummary() {
   renderQuickSearchSuggestions();
 }
 
+function formatNewListingCount(count) {
+  const safeCount = sanitizeCount(count);
+  if (safeCount <= 0) return "No new";
+  return safeCount > 99 ? "99+" : String(safeCount);
+}
+
+function formatNewListingLabel(count, options = {}) {
+  const safeCount = sanitizeCount(count);
+  if (safeCount <= 0) return options.emptyLabel || "No new";
+  return `${formatNewListingCount(safeCount)} New`;
+}
+
 function renderQuickSearchSuggestions() {
   if (!quickSearchSuggestions) return;
 
@@ -4785,7 +4996,7 @@ function createSavedResultsDrawerRow(profile, options = {}) {
   const isStarter = Boolean(options.isStarter);
   const isCurrent = !isStarter && profilesMatchSearch(profile, currentProfile);
   const regionLabel = options.metaLabel || getRegionById(getProfileHomeRegionId(profile)).label;
-  const countLabel = options.countLabel || (hasNew ? `${newCount} new` : "No new");
+  const countLabel = options.countLabel || formatNewListingLabel(newCount);
   return `
     <button class="saved-results-drawer-row${hasNew ? " has-new" : " is-quiet"}${isCurrent ? " is-current" : ""}${isStarter ? " is-starter" : ""}" type="button" data-saved-results-id="${escapeHtml(profileId)}"${isCurrent ? ' aria-current="true"' : ""}>
       <span class="saved-results-drawer-marker${hasNew || isStarter ? " is-active" : ""}" aria-hidden="true"><span></span></span>
@@ -4946,18 +5157,14 @@ function handleMobileBottomNavClick(event) {
 
   if (navTarget === "settings") {
     closeSavedSearchPopover();
-    if (!settingsModal.hidden) {
-      closeSettingsModal({ restoreFocus: false });
-    } else {
-      openSettingsModal({ currentTarget: button }, { focusTarget: currencyToggle });
-    }
+    openSettingsPage({ focusTarget: currencyToggle });
   }
 }
 
 function updateMobileBottomNavState() {
   if (!mobileBottomNavItems.length) return;
 
-  const activeTarget = !settingsModal.hidden
+  const activeTarget = getCurrentAppView() === APP_VIEW_SETTINGS || !settingsModal.hidden
     ? "settings"
     : getCurrentAppView() === APP_VIEW_MY_PAGE || !savedSearchPopover.hidden || !savedResultsDrawer?.hidden
       ? "saved"
@@ -4973,21 +5180,10 @@ function updateMobileBottomNavState() {
 }
 
 function openSettingsModal(event, options = {}) {
-  closeHeaderAccountPopover({ restoreFocus: false });
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
   settingsReturnFocus = event?.currentTarget || document.activeElement;
-  fillSettingsForm();
-  setSavedSearchTransferStatus("");
-  const tabName = options.tabName || "general";
-  setActiveSettingsTab(tabName, { focus: false });
-  settingsModal.hidden = false;
-  document.body.classList.add("modal-open");
-  document.body.classList.add("settings-modal-open");
-  updateMobileSearchOverlayVisibility();
-  const defaultFocusTarget = tabName === "account"
-    ? (authState.user?.email ? updateAccountPasswordButton : accountEmailInput)
-    : currencyToggle;
-  (options.focusTarget || defaultFocusTarget)?.focus?.();
-  updateMobileBottomNavState();
+  openSettingsPage(options);
 }
 
 function openRegionSettings(event) {
@@ -5004,6 +5200,7 @@ function closeSettingsModal(options = {}) {
   settingsModal.hidden = true;
   document.body.classList.remove("modal-open");
   document.body.classList.remove("settings-modal-open");
+  document.body.classList.remove("settings-page-active");
   updateMobileSearchOverlayVisibility();
   if (restoreFocus) settingsReturnFocus?.focus?.();
   settingsReturnFocus = null;
@@ -5012,6 +5209,7 @@ function closeSettingsModal(options = {}) {
 
 function fillSettingsForm() {
   renderRegionOptions();
+  normalizeSettingsPageLayout();
   if (regionSelect) regionSelect.value = sanitizeRegionId(appSettings.regionId);
   currencyToggle.checked = appSettings.currency === "USD";
   if (themeSettingsToggle) themeSettingsToggle.checked = document.body.dataset.theme === "dark";
@@ -5020,6 +5218,34 @@ function fillSettingsForm() {
   updateBrandGradientControls(appSettings.brandGradient);
   if (cloudProfileEmail) cloudProfileEmail.textContent = getCloudSyncUser().email;
   renderAccountShell(authState.user);
+}
+
+function normalizeSettingsPageLayout() {
+  const brandGradientSection = document.querySelector("#brandGradientTitle")?.closest(".settings-section");
+  const betaPanel = document.querySelector("#settingsPanelData");
+  if (brandGradientSection && betaPanel && brandGradientSection.parentElement !== betaPanel) {
+    betaPanel.prepend(brandGradientSection);
+  }
+
+  const savedSearchSection = document.querySelector("#savedSearchSyncTitle")?.closest(".settings-section");
+  const accountSection = document.querySelector("#accountSettingsTitle")?.closest(".settings-section");
+  if (savedSearchSection && accountSection && savedSearchSection.parentElement !== accountSection) {
+    accountSection.insertBefore(savedSearchSection, accountStatus || null);
+  }
+
+  const accountSyncControls = document.querySelector(".account-sync-controls");
+  if (accountSyncControls && accountSection && accountSyncControls.parentElement !== accountSection) {
+    accountSection.insertBefore(accountSyncControls, accountStatus || null);
+  }
+
+  const advancedTools = document.querySelector(".settings-advanced");
+  if (advancedTools) {
+    const debugEnabled = new URLSearchParams(window.location.search).get("debug") === "1";
+    advancedTools.hidden = !debugEnabled;
+    if (debugEnabled && betaPanel && advancedTools.parentElement !== betaPanel) {
+      betaPanel.appendChild(advancedTools);
+    }
+  }
 }
 
 function setActiveSettingsTab(tabName = "general", options = {}) {
@@ -5034,8 +5260,15 @@ function setActiveSettingsTab(tabName = "general", options = {}) {
   settingsPanels.forEach((panel) => {
     const isActive = panel.dataset.settingsPanel === nextTabName;
     panel.classList.toggle("is-active", isActive);
-    panel.hidden = !isActive;
+    panel.hidden = getCurrentAppView() === APP_VIEW_SETTINGS ? false : !isActive;
   });
+
+  if (getCurrentAppView() === APP_VIEW_SETTINGS && options.scroll) {
+    document.querySelector(`[data-settings-panel="${nextTabName}"]`)?.scrollIntoView({
+      block: "start",
+      behavior: "smooth",
+    });
+  }
 }
 
 function handleSettingsTabKeydown(event) {
@@ -5061,6 +5294,10 @@ function renderAccountShell(account = null) {
   renderSettingsAccountState(account);
   if (signedOutAccountPanel) signedOutAccountPanel.hidden = isSignedIn;
   if (signedInAccountPanel) signedInAccountPanel.hidden = !isSignedIn;
+  const savedSearchSyncSection = document.querySelector("#savedSearchSyncTitle")?.closest(".settings-section");
+  if (savedSearchSyncSection) savedSearchSyncSection.hidden = !isSignedIn;
+  const accountSyncControls = document.querySelector(".account-sync-controls");
+  if (accountSyncControls) accountSyncControls.hidden = !isSignedIn;
   if (accountEmailDisplay) accountEmailDisplay.textContent = account?.email || CLOUD_EMULATOR_USER.email;
   if (accountStatus) {
     accountStatus.textContent = isSignedIn
@@ -5247,13 +5484,13 @@ function renderAccountSyncDetail() {
   if (!accountSyncDetail) return;
 
   if (!authState.user?.id) {
-    accountSyncDetail.textContent = "Last synced: sign in to sync";
+    accountSyncDetail.textContent = "Sign in to sync";
     return;
   }
 
   accountSyncDetail.textContent = authState.lastSyncedAt
-    ? `Last synced: ${formatSyncTimestamp(authState.lastSyncedAt)}`
-    : "Last synced: never";
+    ? `Synced ${formatSyncTimestamp(authState.lastSyncedAt)}`
+    : "Synced";
 }
 
 function formatSyncTimestamp(value) {
@@ -6249,7 +6486,27 @@ function handleAccountSignOutShell() {
   signOutAccount();
 }
 
-async function saveSettingsFromModal() {
+function showSettingsRowSaved(control, message = "Saved") {
+  const row = control?.closest?.(".settings-row, .setting-toggle, label");
+  if (!row) return;
+  let status = row.querySelector(".settings-row-status");
+  if (!status) {
+    status = document.createElement("span");
+    status.className = "settings-row-status";
+    row.appendChild(status);
+  }
+  status.textContent = message;
+  status.hidden = false;
+  window.clearTimeout(Number(status.dataset.hideTimer || 0));
+  const timer = window.setTimeout(() => {
+    status.hidden = true;
+    status.textContent = "";
+    status.dataset.hideTimer = "";
+  }, 1200);
+  status.dataset.hideTimer = String(timer);
+}
+
+async function saveSettingsFromModal(options = {}) {
   const previousRegionId = sanitizeRegionId(appSettings.regionId);
   const nextRegionId = sanitizeRegionId(regionSelect?.value || previousRegionId);
   const regionChanged = previousRegionId !== nextRegionId;
@@ -6268,6 +6525,7 @@ async function saveSettingsFromModal() {
   applyBrandGradient(appSettings.brandGradient);
   qualityFilter = appSettings.gearMode ? "clean" : "all";
   localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(appSettings));
+  updateMaxPriceField({ format: false });
 
   if (regionChanged) {
     resetRegionRuntimeState();
@@ -6282,11 +6540,14 @@ async function saveSettingsFromModal() {
   }
 
   await pushCloudProfilePreferences({ silent: true });
-  closeSettingsModal();
-  showStatusToast({
-    icon: "✓",
-    message: "Settings saved",
-  });
+  if (options.sourceControl) showSettingsRowSaved(options.sourceControl);
+  if (options.close) closeSettingsModal();
+  if (options.notify) {
+    showStatusToast({
+      icon: "✓",
+      message: "Settings saved",
+    });
+  }
 }
 
 async function syncAccountCloudData() {
@@ -7331,7 +7592,9 @@ function requestMobileSearchOverlayUpdate() {
 function updateMobileSearchOverlayVisibility() {
   if (!mobileSearchOverlay) return;
 
-  if (getCurrentAppView() === APP_VIEW_MY_PAGE || document.body.classList.contains("my-page-active")) {
+  if ([APP_VIEW_MY_PAGE, APP_VIEW_SETTINGS].includes(getCurrentAppView())
+    || document.body.classList.contains("my-page-active")
+    || document.body.classList.contains("settings-page-active")) {
     mobileSearchOverlay.hidden = true;
     return;
   }
@@ -7371,6 +7634,10 @@ function renderResults(options = {}) {
   const renderContext = options.renderContext || createListingRenderContext();
   const watching = renderContext.watching;
   updateSavedResultsDrawerAvailability();
+  if (getCurrentAppView() === APP_VIEW_SETTINGS) {
+    renderSettingsPageView();
+    return;
+  }
   if (getCurrentAppView() === APP_VIEW_MY_PAGE) {
     renderMyPageView();
     return;
@@ -7436,6 +7703,10 @@ function renderResults(options = {}) {
 
 function setSearchChromeVisible(visible) {
   document.body.classList.toggle("my-page-active", !visible);
+  if (visible) {
+    if (settingsModal) settingsModal.hidden = true;
+    document.body.classList.remove("settings-page-active");
+  }
   if (searchMasthead) searchMasthead.hidden = !visible;
   if (topbar) topbar.hidden = !visible;
   if (filterBar) filterBar.hidden = !visible;
@@ -7476,8 +7747,35 @@ function openMyPageView(eventOrOptions = {}) {
   options?.focusTarget?.focus?.();
 }
 
+function renderSettingsPageView() {
+  setSearchChromeVisible(false);
+  resultGrid.innerHTML = "";
+  resultGrid.classList.toggle("is-featured-home", false);
+  resultGrid.classList.toggle("is-list-view", false);
+  resultGrid.classList.toggle("is-gallery-view", false);
+  resultGrid.classList.toggle("is-browse-expanded", false);
+  resultGrid.classList.toggle("is-gear-browser-frame", false);
+  resultGrid.classList.toggle("is-my-page", false);
+  resultGrid.classList.toggle("is-settings-page", true);
+  document.body.classList.add("settings-page-active");
+  document.body.classList.remove("modal-open", "settings-modal-open");
+  fillSettingsForm();
+  const hashTab = window.location.hash === "#account"
+    ? "account"
+    : window.location.hash === "#beta"
+      ? "data"
+      : "general";
+  setActiveSettingsTab(hashTab, { focus: false });
+  if (settingsModal) settingsModal.hidden = false;
+  renderPagination(0, 1);
+  renderQualityModeControls();
+  updateMobileBottomNavState();
+}
+
 function renderMyPageView(options = {}) {
   setSearchChromeVisible(false);
+  if (settingsModal) settingsModal.hidden = true;
+  document.body.classList.remove("settings-page-active");
   resultGrid.innerHTML = "";
   resultGrid.classList.toggle("is-featured-home", false);
   resultGrid.classList.toggle("is-list-view", false);
@@ -7617,7 +7915,7 @@ function createMyPageSavedSearchRow(profile) {
     ? `<span class="my-page-new-radar" aria-hidden="true"></span>`
     : "";
   const newListingsMarkup = newCount > 0
-    ? `<button class="my-page-new-pill" type="button" data-result-action="run-saved-search" data-saved-search-id="${profileId}" aria-label="View new results for ${escapeHtml(profile.name)}">${newCount} New</button>`
+    ? `<button class="my-page-new-pill" type="button" data-result-action="run-saved-search" data-saved-search-id="${profileId}" aria-label="View new results for ${escapeHtml(profile.name)}">${formatNewListingLabel(newCount)}</button>`
     : "";
   return `
     <article class="my-page-saved-row${hasNewListings ? " has-new" : " is-quiet"}" data-saved-search-letter="${escapeHtml(searchLetter)}" data-saved-search-name="${escapeHtml(profile.name)}">
@@ -7821,6 +8119,17 @@ function collectionHas(collection, value) {
 }
 
 function renderHomeView(watching, renderContext = createListingRenderContext()) {
+  renderHomeGearScannerFeed(watching, renderContext);
+}
+
+function renderHomeGearScannerFeed(watching, renderContext = createListingRenderContext()) {
+  isBrowseExpanded = true;
+  activeBrowseBrandSlug = "";
+  resetBrowseCategoryBrandView();
+  renderBrowseExpandedView(watching, renderContext);
+}
+
+function renderHomePreviewSections(watching, renderContext = createListingRenderContext()) {
   isBrowseExpanded = false;
   resetBrowseCategoryBrandView();
   const freshFindResults = SHOW_FRESH_FINDS_HOME_SECTION && filterMode !== "watching" ? getFreshFindHomeListings() : [];
@@ -7903,13 +8212,21 @@ function renderBrowseExpandedView(watching, renderContext = createListingRenderC
     renderContext,
     preferSourceDate: true,
   });
+  const effectiveResultView = activeBrand ? sanitizeResultView(browseBrandResultView) : appSettings.resultView;
+  const featuredScannerPick = !activeBrand && effectiveResultView === "gallery"
+    ? getFeaturedScannerPick(visibleListings)
+    : null;
+  const featuredScannerPickKey = getBrowseListingKey(featuredScannerPick);
+  const feedListings = featuredScannerPickKey
+    ? visibleListings.filter((listing) => getBrowseListingKey(listing) !== featuredScannerPickKey)
+    : visibleListings;
+  const visibleResultCount = feedListings.length + (featuredScannerPick ? 1 : 0);
   const initialVisibleCount = Math.min(
     Math.max(BROWSE_INFINITE_INITIAL_LIMIT, browseInfiniteVisibleCount),
-    visibleListings.length,
+    feedListings.length,
   );
-  const initialListings = visibleListings.slice(0, initialVisibleCount);
+  const initialListings = feedListings.slice(0, initialVisibleCount);
   const renderId = ++browseCardRenderId;
-  const effectiveResultView = activeBrand ? sanitizeResultView(browseBrandResultView) : appSettings.resultView;
 
   resultGrid.innerHTML = "";
   resultGrid.classList.toggle("is-featured-home", false);
@@ -7921,14 +8238,17 @@ function renderBrowseExpandedView(watching, renderContext = createListingRenderC
   renderSourceFilters(browseListings, { renderContext });
 
   resultGrid.appendChild(createGearBrowserScene());
-  resultGrid.appendChild(createBrowseExpandedHeader(visibleListings.length, browseListings.length));
-  resultGrid.appendChild(createBrowseExpandedResultsContext(visibleListings.length));
+  resultGrid.appendChild(createBrowseExpandedHeader(visibleResultCount, browseListings.length));
+  resultGrid.appendChild(createBrowseExpandedResultsContext(visibleResultCount));
 
   if (browseCategoryStatus === "loading") {
-    resultGrid.appendChild(createBrowseExpandedLoadingState({ compact: visibleListings.length > 0 }));
+    resultGrid.appendChild(createBrowseExpandedLoadingState({ compact: visibleResultCount > 0 }));
   }
 
-  if (visibleListings.length > 0) {
+  if (visibleResultCount > 0) {
+    if (featuredScannerPick) {
+      resultGrid.appendChild(createFeaturedScannerPickCard(featuredScannerPick, renderContext));
+    }
     const preparingLoader = browseCategoryStatus === "loading"
       ? null
       : createBrowseExpandedLoadingState({ compact: true, detail: "Preparing latest cards." });
@@ -7938,7 +8258,7 @@ function renderBrowseExpandedView(watching, renderContext = createListingRenderC
       renderContext,
       onComplete: () => {
         initializeBrowseInfiniteScroll({
-          listings: visibleListings,
+          listings: feedListings,
           watching,
           renderedCount: initialListings.length,
           renderedListings: initialListings,
@@ -8179,6 +8499,7 @@ function getCurrentBrowseVisibleListings(watching, renderContext) {
 }
 
 function getBrowseListingKey(listing = {}) {
+  if (!listing) return "";
   return listing.id || listing.url || "";
 }
 
@@ -8840,7 +9161,9 @@ function renderSourceFilters(baseResults = currentResults, options = {}) {
     button.classList.toggle("is-zero", status === "complete" && count === 0);
     button.classList.toggle("has-single-digit-count", isSingleDigitSourceCount(count, status));
     applyRandomizedSourceColor(button, source.id);
-    button.title = getSourceFilterTitle(source, count, status);
+    const sourceFilterTitle = getSourceFilterTitle(source, count, status);
+    button.title = sourceFilterTitle;
+    button.dataset.tooltip = sourceFilterTitle;
     button.setAttribute("aria-label", getSourceFilterLabel(source, count, status));
     button.setAttribute("aria-pressed", String(activeViewSources.has(source.id)));
     button.innerHTML = `
@@ -9205,6 +9528,7 @@ function renderListing(listing, options = {}) {
   }
   imageLink.href = primaryListingUrl;
   prepareBrandFallbackImage(image, listing, getActiveBrowseBrand());
+  setupListingImageState(imageLink, image, listing);
   image.src = getDisplayListingImage(listing);
   image.alt = listing.title;
   hydrateRenderedRakumaImage(listing, image);
@@ -9438,6 +9762,80 @@ function createWatchIconSvg(isWatching) {
 
 function getDisplayListingImage(listing) {
   return normalizeImageFluxListingImage(listing?.image) || listing?.image || "";
+}
+
+function setupListingImageState(imageLink, image, listing) {
+  if (!imageLink || !image) return;
+
+  const fallback = document.createElement("span");
+  fallback.className = "listing-image-fallback";
+  fallback.setAttribute("aria-hidden", "true");
+  fallback.innerHTML = `
+    <span class="listing-image-fallback-mark">B</span>
+    <span class="listing-image-fallback-copy">No image</span>
+  `;
+  imageLink.appendChild(fallback);
+
+  const setState = (state) => {
+    imageLink.classList.toggle("is-image-loading", state === "loading");
+    imageLink.classList.toggle("is-image-loaded", state === "loaded");
+    imageLink.classList.toggle("is-image-unavailable", state === "unavailable");
+  };
+
+  let timeoutId = 0;
+  const clearImageTimeout = () => {
+    if (!timeoutId) return;
+    window.clearTimeout(timeoutId);
+    timeoutId = 0;
+  };
+
+  const startImageTimeout = () => {
+    clearImageTimeout();
+    timeoutId = window.setTimeout(() => {
+      if (!image.complete || image.naturalWidth === 0) setState("unavailable");
+    }, 7000);
+  };
+
+  image.addEventListener("load", () => {
+    clearImageTimeout();
+    if (image.naturalWidth > 0) {
+      setState("loaded");
+    } else {
+      setState("unavailable");
+    }
+  });
+
+  image.addEventListener("error", () => {
+    clearImageTimeout();
+    setState("unavailable");
+  });
+
+  const initialSource = getDisplayListingImage(listing);
+  if (!initialSource) {
+    setState("unavailable");
+  } else if (image.complete) {
+    setState(image.naturalWidth > 0 ? "loaded" : "unavailable");
+  } else {
+    setState("loading");
+    startImageTimeout();
+  }
+
+  const imageObserver = new MutationObserver(() => {
+    const nextSource = image.currentSrc || image.src || "";
+    if (!nextSource) {
+      clearImageTimeout();
+      setState("unavailable");
+      return;
+    }
+    if (image.complete) {
+      clearImageTimeout();
+      setState(image.naturalWidth > 0 ? "loaded" : "unavailable");
+      return;
+    }
+    setState("loading");
+    startImageTimeout();
+  });
+  imageObserver.observe(image, { attributes: true, attributeFilter: ["src"] });
 }
 
 function prepareBrandFallbackImage(image, listing, brand) {
@@ -9954,7 +10352,6 @@ function createBrowseExpandedHeader(visibleCount, totalCount) {
         <h3><span class="feature-headline-button browse-expanded-headline">Gear <span class="browse-title-mobile-break">Scanner</span></span>${browseHeadlineLoadingMarkup}</h3>
         <div class="browse-header-actions">
           <label class="browse-category-control">
-            <span>Browse</span>
             <select id="expandedBrowseCategory" aria-label="Browse category">${optionsMarkup}</select>
           </label>
           ${createGearScannerRescanButton({ expanded: true })}
@@ -11744,12 +12141,12 @@ function renderSavedSearches() {
     const button = document.createElement("button");
     button.className = "saved-search";
     button.type = "button";
-    const newCount = hydratedProfile.lastNewCount || 0;
+  const newCount = hydratedProfile.lastNewCount || 0;
     button.innerHTML = `
       <strong class="saved-search-title"></strong>
       <span class="saved-search-region${isCurrentRegion ? "" : " is-away"}"></span>
       <span class="saved-search-matches">${hydratedProfile.lastMatchCount || 0} matches</span>
-      <span class="saved-search-new${newCount === 0 ? " is-empty" : ""}">${newCount} new</span>
+      <span class="saved-search-new${newCount === 0 ? " is-empty" : ""}">${formatNewListingLabel(newCount).toLowerCase()}</span>
     `;
     button.querySelector(".saved-search-title").textContent = hydratedProfile.name;
     button.querySelector(".saved-search-region").textContent = getSavedSearchRegionLabel(hydratedProfile, isCurrentRegion);
@@ -11828,6 +12225,8 @@ function activateSavedSearch(profile, options = {}) {
     currentProfile = saveProfile(currentProfile);
     renderSavedSearches();
     queueSavedSearchAutoSync("duplicate-region-search");
+  } else {
+    acknowledgeSavedSearchNewListings(profile);
   }
 
   fillForm(currentProfile);
@@ -11835,6 +12234,18 @@ function activateSavedSearch(profile, options = {}) {
   closeSavedRegionChoiceModal({ restoreFocus: false });
   setAppView(null);
   runSearch();
+}
+
+function acknowledgeSavedSearchNewListings(profile) {
+  const hydratedProfile = hydrateProfile(profile);
+  if (Number(hydratedProfile.lastNewCount || 0) <= 0) return;
+  saveProfile({
+    ...hydratedProfile,
+    lastNewCount: 0,
+  });
+  renderSavedResultsDrawer();
+  if (getCurrentAppView() === APP_VIEW_MY_PAGE) renderMyPageView();
+  queueSavedSearchAutoSync("saved-search-opened", { delay: 1200 });
 }
 
 function leaveWatchlistModeForSavedSearch() {
@@ -11856,6 +12267,7 @@ function applyActiveRegion(regionId) {
   localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(appSettings));
   if (regionSelect) regionSelect.value = nextRegion.id;
   resetRegionRuntimeState();
+  updateMaxPriceField({ format: false });
   renderSources();
   updateRegionBadge();
   renderSourceFilters();
@@ -11909,7 +12321,7 @@ function createProfileForRegion(profile, targetRegionId, options = {}) {
     maxPrice: shouldUseTargetPrice ? targetDefaultMaxPrice : hydratedProfile.maxPrice,
     lastScannedAt: options.duplicate ? "" : hydratedProfile.lastScannedAt,
     lastMatchCount: options.duplicate ? 0 : hydratedProfile.lastMatchCount,
-    lastNewCount: options.duplicate ? 0 : hydratedProfile.lastNewCount,
+      lastNewCount: options.duplicate ? 0 : hydratedProfile.lastNewCount,
     lastSourceCount: options.duplicate ? 0 : hydratedProfile.lastSourceCount,
     lastScanStatus: options.duplicate ? "" : hydratedProfile.lastScanStatus,
     sync: options.duplicate ? { provider: "local", status: "local" } : hydratedProfile.sync,

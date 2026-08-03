@@ -4884,6 +4884,7 @@ function resolveStaticPathname(pathname) {
     "/regions": "/regions/index.html",
     "/sources": "/sources/index.html",
     "/search": "/index.html",
+    "/settings": "/index.html",
   };
 
   const requestedPathname = pathname === "/" ? "/index.html" : pathname;
