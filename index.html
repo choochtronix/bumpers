@@ -649,6 +649,12 @@ stand
     </div>
 
     <section class="settings-page" id="settingsModal" aria-labelledby="settingsTitle" hidden>
+      <button class="settings-page-back" id="closeSettings" type="button" aria-label="Back to Brrtz" title="Back to Brrtz">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+          <path d="M15 5l-7 7 7 7" />
+          <path d="M9 12h11" />
+        </svg>
+      </button>
       <div class="settings-modal">
         <form id="settingsForm">
           <div class="modal-header">
@@ -725,19 +731,18 @@ stand
                   <select id="regionSelect"></select>
                 </label>
 
-                <label class="setting-toggle currency-setting-toggle">
+                <label class="currency-setting-row">
                   <span>Display currency</span>
-                  <span class="currency-segment-control" aria-hidden="true">
-                    <span class="currency-segment-option currency-segment-usd">USD</span>
-                    <span class="currency-segment-option currency-segment-jpy">JPY</span>
-                  </span>
-                  <input id="currencyToggle" type="checkbox" />
-                  <span class="toggle-track" aria-hidden="true"></span>
+                  <select id="currencySelect" aria-label="Display currency">
+                    <option value="USD">USD</option>
+                    <option value="JPY">JPY</option>
+                    <option value="GBP">GBP</option>
+                  </select>
                 </label>
 
                 <label class="settings-rate-row">
-                  <span>Rate <small>JPY per USD</small></span>
-                  <input id="jpyPerUsd" type="number" min="1" step="0.01" inputmode="decimal" />
+                  <span>Approx. rate <small id="currencyRateLabel">JPY per USD</small></span>
+                  <output id="currencyRateValue">¥155 / $1</output>
                 </label>
 
                 <label class="setting-toggle">

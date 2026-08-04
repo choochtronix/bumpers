@@ -1593,6 +1593,7 @@ let pendingSeenFlushTimer = 0;
 
 const DEFAULT_BRAND_GRADIENT = Object.freeze(readDefaultBrandGradientTokens());
 const RESULT_VIEW_MODES = new Set(["grid", "list", "gallery"]);
+const DEFAULT_GBP_PER_USD = 0.78;
 
 const defaultSettings = {
   regionId: ACTIVE_REGION.id || "japan",
@@ -1808,10 +1809,11 @@ const settingsModal = document.querySelector("#settingsModal");
 const settingsForm = document.querySelector("#settingsForm");
 const settingsTabs = [...document.querySelectorAll("[data-settings-tab]")];
 const settingsPanels = [...document.querySelectorAll("[data-settings-panel]")];
-const currencyToggle = document.querySelector("#currencyToggle");
+const currencySelect = document.querySelector("#currencySelect");
 const themeSettingsToggle = document.querySelector("#themeSettingsToggle");
 const gearModeSettingsToggle = document.querySelector("#gearModeSettingsToggle");
-const jpyPerUsdInput = document.querySelector("#jpyPerUsd");
+const currencyRateLabel = document.querySelector("#currencyRateLabel");
+const currencyRateValue = document.querySelector("#currencyRateValue");
 const brandGradientStartInput = document.querySelector("#brandGradientStart");
 const brandGradientEndInput = document.querySelector("#brandGradientEnd");
 const brandGradientStartColorInput = document.querySelector("#brandGradientStartColor");
@@ -2614,12 +2616,9 @@ function bindEvents() {
   pushCloudSavedSearchesButton?.addEventListener("click", pushCloudSavedSearches);
   themeSettingsToggle?.addEventListener("change", handleSettingsThemeToggle);
   regionSelect?.addEventListener("change", () => saveSettingsFromModal({ sourceControl: regionSelect }));
-  currencyToggle?.addEventListener("change", () => saveSettingsFromModal({ sourceControl: currencyToggle }));
-  jpyPerUsdInput?.addEventListener("blur", () => saveSettingsFromModal({ sourceControl: jpyPerUsdInput }));
-  jpyPerUsdInput?.addEventListener("keydown", (event) => {
-    if (event.key !== "Enter") return;
-    event.preventDefault();
-    jpyPerUsdInput.blur();
+  currencySelect?.addEventListener("change", () => {
+    updateCurrencyRateContext();
+    saveSettingsFromModal({ sourceControl: currencySelect, toastMessage: "Display currency saved" });
   });
   bindBrandGradientControlEvents();
   applyBrandGradientButton?.addEventListener("click", applyBrandGradientFromControls);
@@ -2953,6 +2952,10 @@ function syncSearchUrl(profile, options = {}) {
   const defaultSources = getRegionSourceIds(regionId);
   const selectedSources = hydrateSourceSelection(profile.sources, regionId);
   const url = new URL(window.location.href);
+  if (url.pathname.replace(/\/+$/, "") === "/settings") {
+    url.pathname = "/";
+    url.hash = "";
+  }
 
   url.searchParams.delete(APP_VIEW_PARAM);
   url.searchParams.delete(APP_BRAND_PARAM);
@@ -3529,18 +3532,76 @@ function getMaxPriceHelperText(amount, filterCurrency = getRegionPriceCurrency()
   const noCapText = `Filters use ${filterCurrency}. Use 0 for no price cap.`;
   if (amount <= 0) return noCapText;
 
-  if (filterCurrency === "JPY" && appSettings.currency === "USD" && appSettings.jpyPerUsd > 0) {
-    const usdValue = amount / appSettings.jpyPerUsd;
-    const usdText = new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      maximumFractionDigits: 0,
-    }).format(usdValue);
-    return `Filters use JPY. ¥${formatPriceInputValue(amount)} ≈ ${usdText} at your display rate.`;
+  if (filterCurrency !== appSettings.currency) {
+    const displayValue = convertCurrencyValue(amount, filterCurrency, appSettings.currency);
+    return `Filters use ${filterCurrency}. ${formatPriceInputValue(amount)} ≈ ${formatCurrencyValue(displayValue, appSettings.currency)} at your display rate.`;
   }
 
   if (filterCurrency === "JPY") return `Filters use JPY. ¥${formatPriceInputValue(amount)} max.`;
   return `Filters use ${filterCurrency}. ${formatPriceInputValue(amount)} max.`;
+}
+
+function getJpyPerUsdRate() {
+  const rate = Number(appSettings?.jpyPerUsd || defaultSettings.jpyPerUsd);
+  return Number.isFinite(rate) && rate > 0 ? rate : defaultSettings.jpyPerUsd;
+}
+
+function getGbpPerUsdRate() {
+  return DEFAULT_GBP_PER_USD;
+}
+
+function convertCurrencyValue(value, fromCurrency = getActiveRegion().currency, toCurrency = appSettings.currency) {
+  const amount = Number(value) || 0;
+  const from = String(fromCurrency || getActiveRegion().currency || "JPY").toUpperCase();
+  const to = String(toCurrency || appSettings.currency || from).toUpperCase();
+  if (from === to) return amount;
+
+  const jpyPerUsd = getJpyPerUsdRate();
+  const gbpPerUsd = getGbpPerUsdRate();
+  let usdValue = amount;
+
+  if (from === "JPY") usdValue = amount / jpyPerUsd;
+  if (from === "GBP") usdValue = amount / gbpPerUsd;
+
+  if (to === "JPY") return usdValue * jpyPerUsd;
+  if (to === "GBP") return usdValue * gbpPerUsd;
+  return usdValue;
+}
+
+function formatCurrencyValue(value, currency = appSettings.currency) {
+  const targetCurrency = String(currency || "JPY").toUpperCase();
+  const locale = targetCurrency === "GBP"
+    ? "en-GB"
+    : targetCurrency === "USD"
+      ? "en-US"
+      : "ja-JP";
+  return new Intl.NumberFormat(locale, {
+    style: "currency",
+    currency: targetCurrency,
+    maximumFractionDigits: 0,
+  }).format(Number(value) || 0);
+}
+
+function updateCurrencyRateContext() {
+  const currency = currencySelect?.value || appSettings.currency || getActiveRegion().currency || "JPY";
+  const jpyPerUsd = getJpyPerUsdRate();
+  const gbpPerUsd = getGbpPerUsdRate();
+  const jpyPerGbp = Math.round(jpyPerUsd / gbpPerUsd);
+
+  if (currencyRateLabel) {
+    currencyRateLabel.textContent = currency === "GBP"
+      ? "GBP reference"
+      : currency === "USD"
+        ? "JPY per USD"
+        : "native yen";
+  }
+
+  if (!currencyRateValue) return;
+  currencyRateValue.textContent = currency === "GBP"
+    ? `£1 ≈ $${(1 / gbpPerUsd).toFixed(2)} · ¥${jpyPerGbp}`
+    : currency === "USD"
+      ? `¥${jpyPerUsd} / $1`
+      : "JPY direct";
 }
 
 function renderRegionOptions() {
@@ -4957,6 +5018,7 @@ function renderSavedResultsDrawer(profiles = loadProfiles().map(hydrateProfile))
           metaLabel: `${getRegionById(getProfileHomeRegionId(starterProfile)).label} starter search`,
         })}
       `;
+      bindSavedResultsDrawerRows();
       return;
     }
 
@@ -4970,6 +5032,7 @@ function renderSavedResultsDrawer(profiles = loadProfiles().map(hydrateProfile))
   }
 
   savedResultsDrawerList.innerHTML = visibleProfiles.map((profile) => createSavedResultsDrawerRow(profile)).join("");
+  bindSavedResultsDrawerRows();
 }
 
 function createSavedResultsDrawerStarterProfile() {
@@ -5088,11 +5151,26 @@ function handleSavedResultsDrawerSelection(event) {
 
   const button = event.target.closest("[data-saved-results-id]");
   if (!button) return;
-  const profile = getSavedSearchById(button.dataset.savedResultsId);
+  activateSavedResultsDrawerRow(button);
+}
+
+function bindSavedResultsDrawerRows() {
+  if (!savedResultsDrawerList) return;
+  savedResultsDrawerList.querySelectorAll("[data-saved-results-id]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      activateSavedResultsDrawerRow(button);
+    });
+  });
+}
+
+function activateSavedResultsDrawerRow(button) {
+  const profile = getSavedSearchById(button?.dataset.savedResultsId);
   if (!profile) return;
 
   const changesRegion = getProfileHomeRegionId(profile) !== appSettings.regionId;
-  if (getSavedResultsDrawerMode() === "mobile" || changesRegion) {
+  if (getCurrentAppView() === APP_VIEW_SETTINGS || getSavedResultsDrawerMode() === "mobile" || changesRegion) {
     closeSavedResultsDrawer({ restoreFocus: false, persist: false });
   }
   handleSavedSearchClick(profile, button);
@@ -5157,7 +5235,7 @@ function handleMobileBottomNavClick(event) {
 
   if (navTarget === "settings") {
     closeSavedSearchPopover();
-    openSettingsPage({ focusTarget: currencyToggle });
+    openSettingsPage({ focusTarget: currencySelect });
   }
 }
 
@@ -5211,10 +5289,10 @@ function fillSettingsForm() {
   renderRegionOptions();
   normalizeSettingsPageLayout();
   if (regionSelect) regionSelect.value = sanitizeRegionId(appSettings.regionId);
-  currencyToggle.checked = appSettings.currency === "USD";
+  if (currencySelect) currencySelect.value = appSettings.currency || getActiveRegion().currency || "JPY";
+  updateCurrencyRateContext();
   if (themeSettingsToggle) themeSettingsToggle.checked = document.body.dataset.theme === "dark";
   if (gearModeSettingsToggle) gearModeSettingsToggle.checked = appSettings.gearMode;
-  jpyPerUsdInput.value = appSettings.jpyPerUsd;
   updateBrandGradientControls(appSettings.brandGradient);
   if (cloudProfileEmail) cloudProfileEmail.textContent = getCloudSyncUser().email;
   renderAccountShell(authState.user);
@@ -6511,13 +6589,16 @@ async function saveSettingsFromModal(options = {}) {
   const nextRegionId = sanitizeRegionId(regionSelect?.value || previousRegionId);
   const regionChanged = previousRegionId !== nextRegionId;
   const nextRegion = getRegionById(nextRegionId);
-  const nextRate = Number(jpyPerUsdInput.value);
+  const nextCurrency = ["USD", "JPY", "GBP"].includes(currencySelect?.value)
+    ? currencySelect.value
+    : (nextRegion.currency || appSettings.currency || defaultSettings.currency);
+  const nextRate = Number(appSettings.jpyPerUsd || defaultSettings.jpyPerUsd);
   const nextGearMode = gearModeSettingsToggle ? gearModeSettingsToggle.checked : appSettings.gearMode;
   const nextBrandGradient = readBrandGradientFromControls() || appSettings.brandGradient;
   appSettings = {
     ...appSettings,
     regionId: nextRegionId,
-    currency: regionChanged ? nextRegion.currency : (currencyToggle.checked ? "USD" : "JPY"),
+    currency: regionChanged ? nextRegion.currency : nextCurrency,
     jpyPerUsd: Number.isFinite(nextRate) && nextRate > 0 ? nextRate : defaultSettings.jpyPerUsd,
     gearMode: nextGearMode,
     brandGradient: nextBrandGradient,
@@ -6540,7 +6621,15 @@ async function saveSettingsFromModal(options = {}) {
   }
 
   await pushCloudProfilePreferences({ silent: true });
-  if (options.sourceControl) showSettingsRowSaved(options.sourceControl);
+  updateCurrencyRateContext();
+  if (options.sourceControl === currencySelect) {
+    showStatusToast({
+      icon: "✓",
+      message: options.toastMessage || "Display currency saved",
+    });
+  } else if (options.sourceControl) {
+    showSettingsRowSaved(options.sourceControl);
+  }
   if (options.close) closeSettingsModal();
   if (options.notify) {
     showStatusToast({
@@ -9541,7 +9630,7 @@ function renderListing(listing, options = {}) {
   titleElement.textContent = listing.title;
   titleElement.dataset.previewTitle = createListingTitlePreview(listing.title);
   renderShopName(fragment.querySelector(".shop-name"), listing);
-  fragment.querySelector(".price-row strong").textContent = listing.priceLabel || formatPrice(listing.price);
+  fragment.querySelector(".price-row strong").textContent = listing.priceLabel || formatPrice(listing.price, listing.currency);
   fragment.querySelector(".price-row span").textContent = "";
   renderAuctionDetails(fragment.querySelector(".auction-detail-row"), listing);
   openLink.href = primaryListingUrl;
@@ -12193,7 +12282,9 @@ function activateSavedSearch(profile, options = {}) {
   fillForm(currentProfile);
   setActiveTitle(currentProfile.name);
   closeSavedRegionChoiceModal({ restoreFocus: false });
+  closeSettingsModal({ restoreFocus: false });
   setAppView(null);
+  syncSearchUrl(currentProfile);
   runSearch();
 }
 
@@ -13108,33 +13199,11 @@ function isSeen(listingId) {
   return loadSet(STORAGE_KEYS.seen).includes(listingId);
 }
 
-function formatPrice(value) {
-  const nativeCurrency = getActiveRegion().currency || "JPY";
-
-  if (appSettings.currency === "GBP" || nativeCurrency === "GBP") {
-    const gbpValue = nativeCurrency === "GBP" ? value : value / appSettings.jpyPerUsd;
-    return new Intl.NumberFormat("en-GB", {
-      style: "currency",
-      currency: "GBP",
-      maximumFractionDigits: 0,
-    }).format(gbpValue);
-  }
-
-  if (appSettings.currency === "USD") {
-    const usdValue = nativeCurrency === "USD" ? value : value / appSettings.jpyPerUsd;
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      maximumFractionDigits: 0,
-    }).format(usdValue);
-  }
-
-  const jpyValue = nativeCurrency === "USD" ? value * appSettings.jpyPerUsd : value;
-  return new Intl.NumberFormat("ja-JP", {
-    style: "currency",
-    currency: "JPY",
-    maximumFractionDigits: 0,
-  }).format(jpyValue);
+function formatPrice(value, sourceCurrency = getActiveRegion().currency || "JPY") {
+  return formatCurrencyValue(
+    convertCurrencyValue(value, sourceCurrency, appSettings.currency),
+    appSettings.currency
+  );
 }
 
 function relativeDate(value) {
@@ -13164,7 +13233,7 @@ function createEmailDigest(profile, listings) {
 
   const lines = listings.map((listing) => {
     const source = SOURCES.find((item) => item.id === listing.source)?.label || listing.source;
-    return `${listing.title}\n${formatPrice(listing.price)} · ${source}\n${listing.url}`;
+    return `${listing.title}\n${formatPrice(listing.price, listing.currency)} · ${source}\n${listing.url}`;
   });
 
   return `Brrtz: ${profile.name}\nAlert mode: ${profile.alertMode}\n\n${lines.join("\n\n")}`;
