@@ -9754,7 +9754,8 @@ function animateListingDismiss(card, onComplete) {
   }
 
   let completed = false;
-  const finish = () => {
+  const finish = (event) => {
+    if (event && event.target !== card) return;
     if (completed) return;
     completed = true;
     card.removeEventListener("transitionend", finish);
