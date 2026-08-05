@@ -1723,6 +1723,7 @@ const brandHomeLink = document.querySelector("#brandHomeLink");
 const regionQuickSelect = document.querySelector("#regionQuickSelect");
 const regionSelector = document.querySelector("#regionSelector");
 const termsInput = document.querySelector("#terms");
+const searchTermsField = document.querySelector(".search-terms-field");
 const mobileSearchOverlay = document.querySelector("#mobileSearchOverlay");
 const mobileSearchForm = document.querySelector("#mobileSearchForm");
 const mobileSearchInput = document.querySelector("#mobileSearchInput");
@@ -1811,6 +1812,7 @@ const settingsTabs = [...document.querySelectorAll("[data-settings-tab]")];
 const settingsPanels = [...document.querySelectorAll("[data-settings-panel]")];
 const currencySelect = document.querySelector("#currencySelect");
 const themeSettingsToggle = document.querySelector("#themeSettingsToggle");
+const themeSettingsLabel = document.querySelector("#themeSettingsLabel");
 const gearModeSettingsToggle = document.querySelector("#gearModeSettingsToggle");
 const currencyRateLabel = document.querySelector("#currencyRateLabel");
 const currencyRateValue = document.querySelector("#currencyRateValue");
@@ -1841,6 +1843,8 @@ const brandGradientStopControls = {
   },
 };
 const brandGradientPreview = document.querySelector("#brandGradientPreview");
+const brandGradientToggle = document.querySelector("#brandGradientToggle");
+const brandGradientLab = document.querySelector(".brand-gradient-lab");
 const applyBrandGradientButton = document.querySelector("#applyBrandGradient");
 const resetBrandGradientButton = document.querySelector("#resetBrandGradient");
 const regionSelect = document.querySelector("#regionSelect");
@@ -2476,6 +2480,7 @@ function bindEvents() {
   searchForm.addEventListener("submit", (event) => {
     event.preventDefault();
     updateMaxPriceField();
+    triggerSearchSubmitPulse();
     const draftProfile = refineSearchModal.hidden
       ? readProfileFromForm()
       : getDraftProfileFromRefineModal();
@@ -2620,6 +2625,7 @@ function bindEvents() {
     updateCurrencyRateContext();
     saveSettingsFromModal({ sourceControl: currencySelect, toastMessage: "Display currency saved" });
   });
+  brandGradientToggle?.addEventListener("click", toggleBrandGradientControls);
   bindBrandGradientControlEvents();
   applyBrandGradientButton?.addEventListener("click", applyBrandGradientFromControls);
   resetBrandGradientButton?.addEventListener("click", resetBrandGradient);
@@ -2652,7 +2658,7 @@ function bindEvents() {
   importSavedSearchesButton?.addEventListener("click", () => savedSearchImportFile.click());
   savedSearchImportFile?.addEventListener("change", importSavedSearchesFromFile);
   gearModeSettingsToggle?.addEventListener("change", handleSettingsGearModeToggle);
-  openSourceQualitySettingsButton?.addEventListener("click", openSearchQualitySettings);
+  openSourceQualitySettingsButton?.addEventListener("click", handleQuickGearModeToggle);
 
   topWatchingFilter.addEventListener("click", openWatchlistView);
   mobileBottomNav?.addEventListener("click", handleMobileBottomNavClick);
@@ -3069,14 +3075,25 @@ function toggleTheme(event) {
 }
 
 function handleSettingsThemeToggle(event) {
-  setTheme(event.target.checked ? "dark" : "light");
+  const nextTheme = event.target.checked ? "dark" : "light";
+  setTheme(nextTheme);
   pushCloudProfilePreferences({ silent: true });
-  showSettingsRowSaved(event.target);
 }
 
 function handleSettingsGearModeToggle(event) {
   setQualityMode(event.target.checked ? "clean" : "all");
   showSettingsRowSaved(event.target);
+}
+
+function handleQuickGearModeToggle(event) {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+  const nextMode = qualityFilter === "clean" ? "all" : "clean";
+  setQualityMode(nextMode);
+  showStatusToast({
+    icon: nextMode === "clean" ? "✓" : "!",
+    message: `Gear Mode ${nextMode === "clean" ? "on" : "off"}`,
+  });
 }
 
 function bindBrandGradientControlEvents() {
@@ -3089,6 +3106,17 @@ function bindBrandGradientControlEvents() {
       input?.addEventListener("change", () => normalizeBrandGradientRgbInput(stop));
     });
   });
+}
+
+function toggleBrandGradientControls() {
+  if (!brandGradientLab || !brandGradientToggle) return;
+  const isExpanded = !brandGradientLab.classList.contains("is-expanded");
+  brandGradientLab.classList.toggle("is-expanded", isExpanded);
+  brandGradientToggle.setAttribute("aria-expanded", String(isExpanded));
+  brandGradientToggle.setAttribute(
+    "aria-label",
+    isExpanded ? "Hide brand gradient controls" : "Show brand gradient controls"
+  );
 }
 
 function handleBrandGradientHexInput(stop) {
@@ -3377,7 +3405,8 @@ function renderRegionQuickSelectOptions(activeRegionId = getActiveRegion().id) {
   }
   regionQuickSelect.value = sanitizeRegionId(activeRegionId);
   const activeRegion = getRegionById(regionQuickSelect.value);
-  regionQuickSelect.title = `Search region: ${activeRegion.label}`;
+  regionQuickSelect.dataset.tooltip = `Search region: ${activeRegion.label}`;
+  regionQuickSelect.removeAttribute("title");
 }
 
 function handleRegionQuickSelectChange(event) {
@@ -4100,6 +4129,13 @@ function submitSearchForm() {
   searchForm.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
 }
 
+function triggerSearchSubmitPulse() {
+  if (!searchTermsField) return;
+  searchTermsField.classList.remove("is-search-submit-pulse");
+  void searchTermsField.offsetWidth;
+  searchTermsField.classList.add("is-search-submit-pulse");
+}
+
 function clearQuickSearchTerms() {
   termsInput.value = "";
   refineTermsInput.value = "";
@@ -4502,7 +4538,8 @@ function updateRefineSaveSearchButton() {
   saveRefineSearchButton.disabled = !hasSearchTerms;
   saveRefineSearchButton.classList.toggle("is-saved", isSaved);
   saveRefineSearchButton.innerHTML = label;
-  saveRefineSearchButton.title = accessibleLabel;
+  saveRefineSearchButton.dataset.tooltip = accessibleLabel;
+  saveRefineSearchButton.removeAttribute("title");
   saveRefineSearchButton.setAttribute("aria-label", accessibleLabel);
 }
 
@@ -4634,7 +4671,8 @@ function renderSearchTermsSummary() {
   if (quickSearchClearButton) quickSearchClearButton.hidden = !hasTerms;
   quickSearchExtraTermsButton.textContent = `+${extraCount} ${extraCount === 1 ? "term" : "terms"}`;
   quickSearchExtraTermsButton.setAttribute("aria-label", `Edit ${extraCount} additional search ${extraCount === 1 ? "term" : "terms"} for ${primaryTerm}`);
-  quickSearchExtraTermsButton.title = "Edit additional terms";
+  quickSearchExtraTermsButton.dataset.tooltip = "Edit additional terms";
+  quickSearchExtraTermsButton.removeAttribute("title");
   renderQuickSearchSuggestions();
 }
 
@@ -4788,7 +4826,8 @@ function updateQuickSaveSearchButton() {
   quickSaveSearchButton.disabled = !hasSearchTerms;
   quickSaveSearchButton.classList.toggle("is-saved", isSaved);
   quickSaveSearchButton.textContent = isSaved ? "Saved ✓" : "Save this search";
-  quickSaveSearchButton.title = isSaved ? "Current search is saved" : "Save this search";
+  quickSaveSearchButton.dataset.tooltip = isSaved ? "Current search is saved" : "Save this search";
+  quickSaveSearchButton.removeAttribute("title");
   quickSaveSearchButton.setAttribute("aria-label", isSaved ? "Current search is saved" : "Save this search");
 }
 
@@ -5441,7 +5480,8 @@ function renderHeaderAccountState(account = null) {
 
   headerAccountTrigger.classList.toggle("is-signed-in", isSignedIn);
   headerAccountTrigger.setAttribute("aria-label", isSignedIn ? `Open account menu for ${email}` : "Sign in");
-  headerAccountTrigger.title = isSignedIn ? "Account" : "Sign in";
+  headerAccountTrigger.dataset.tooltip = isSignedIn ? "Account" : "Sign in";
+  headerAccountTrigger.removeAttribute("title");
 
   if (headerAccountPersonIcon) headerAccountPersonIcon.hidden = isSignedIn;
   if (headerAccountInitial) {
@@ -6566,22 +6606,14 @@ function handleAccountSignOutShell() {
 
 function showSettingsRowSaved(control, message = "Saved") {
   const row = control?.closest?.(".settings-row, .setting-toggle, label");
-  if (!row) return;
-  let status = row.querySelector(".settings-row-status");
-  if (!status) {
-    status = document.createElement("span");
-    status.className = "settings-row-status";
-    row.appendChild(status);
-  }
-  status.textContent = message;
-  status.hidden = false;
-  window.clearTimeout(Number(status.dataset.hideTimer || 0));
-  const timer = window.setTimeout(() => {
-    status.hidden = true;
-    status.textContent = "";
-    status.dataset.hideTimer = "";
-  }, 1200);
-  status.dataset.hideTimer = String(timer);
+  row?.querySelectorAll?.(".settings-row-status").forEach((status) => {
+    window.clearTimeout(Number(status.dataset.hideTimer || 0));
+    status.remove();
+  });
+  showStatusToast({
+    icon: "✓",
+    message,
+  });
 }
 
 async function saveSettingsFromModal(options = {}) {
@@ -6628,7 +6660,7 @@ async function saveSettingsFromModal(options = {}) {
       message: options.toastMessage || "Display currency saved",
     });
   } else if (options.sourceControl) {
-    showSettingsRowSaved(options.sourceControl);
+    showSettingsRowSaved(options.sourceControl, options.toastMessage || "Settings saved");
   }
   if (options.close) closeSettingsModal();
   if (options.notify) {
@@ -8407,8 +8439,12 @@ function createGearBrowserScene() {
   ].filter(Boolean).join(" ");
   scene.setAttribute("aria-hidden", "true");
   scene.innerHTML = `
-    <img class="gear-browser-scene-static" src="assets/animations/perspective-line-graph-gear-browser-scene-static-v01.svg" alt="" loading="eager" decoding="async" />
-    ${isAnimating || isFading ? `<img class="gear-browser-scene-active" src="assets/animations/perspective-line-graph-gear-browser-scene-v01.svg" alt="" loading="eager" decoding="async" />` : ""}
+    <img class="gear-browser-scene-static gear-browser-scene-light" src="assets/animations/perspective-line-graph-gear-browser-scene-static-v01.svg" alt="" loading="eager" decoding="async" />
+    <img class="gear-browser-scene-static gear-browser-scene-dark" src="assets/animations/perspective-line-graph-gear-browser-scene-static-dark-v01.svg" alt="" loading="eager" decoding="async" />
+    ${isAnimating || isFading ? `
+      <img class="gear-browser-scene-active gear-browser-scene-light" src="assets/animations/perspective-line-graph-gear-browser-scene-v01.svg" alt="" loading="eager" decoding="async" />
+      <img class="gear-browser-scene-active gear-browser-scene-dark" src="assets/animations/perspective-line-graph-gear-browser-scene-dark-v01.svg" alt="" loading="eager" decoding="async" />
+    ` : ""}
   `;
   return scene;
 }
@@ -8982,8 +9018,16 @@ function setQualityMode(mode) {
 function renderQualityModeControls() {
   const isGearMode = qualityFilter === "clean";
   if (gearModeSettingsToggle) gearModeSettingsToggle.checked = isGearMode;
-  if (sourceQualityStatus) sourceQualityStatus.hidden = !isGearMode;
-  openSourceQualitySettingsButton?.setAttribute("aria-pressed", String(isGearMode));
+  if (sourceQualityStatus) sourceQualityStatus.hidden = false;
+  if (openSourceQualitySettingsButton) {
+    const label = openSourceQualitySettingsButton.querySelector(".source-quality-label");
+    const check = openSourceQualitySettingsButton.querySelector(".source-quality-check");
+    openSourceQualitySettingsButton.setAttribute("aria-pressed", String(isGearMode));
+    openSourceQualitySettingsButton.setAttribute("aria-label", `Turn Gear Mode ${isGearMode ? "off" : "on"}`);
+    openSourceQualitySettingsButton.classList.toggle("is-off", !isGearMode);
+    if (label) label.textContent = `Gear Mode ${isGearMode ? "On" : "Off"}`;
+    if (check) check.hidden = !isGearMode;
+  }
   qualityModeButtons.forEach((button) => {
     const isActive = button.dataset.quality === qualityFilter;
     button.classList.toggle("active", isActive);
@@ -9251,8 +9295,8 @@ function renderSourceFilters(baseResults = currentResults, options = {}) {
     button.classList.toggle("has-single-digit-count", isSingleDigitSourceCount(count, status));
     applyRandomizedSourceColor(button, source.id);
     const sourceFilterTitle = getSourceFilterTitle(source, count, status);
-    button.title = sourceFilterTitle;
     button.dataset.tooltip = sourceFilterTitle;
+    button.removeAttribute("title");
     button.setAttribute("aria-label", getSourceFilterLabel(source, count, status));
     button.setAttribute("aria-pressed", String(activeViewSources.has(source.id)));
     button.innerHTML = `
@@ -9277,7 +9321,8 @@ function renderSourceAssistFilters() {
     button.type = "button";
     button.dataset.source = source.id;
     applyRandomizedSourceColor(button, source.id);
-    button.title = `Open prepared ${source.label} search`;
+    button.dataset.tooltip = `Open prepared ${source.label} search`;
+    button.removeAttribute("title");
     button.setAttribute("aria-label", `Open prepared ${source.label} search in a new tab`);
     button.innerHTML = `
       <span class="source-avatar source-assist-avatar" data-source="${source.id}"></span>
@@ -9301,7 +9346,7 @@ function createAllSourceFilterButton(summary) {
   button.setAttribute("aria-expanded", String(isSourceRowExpanded));
   button.setAttribute("aria-label", getSourceFilterSummaryLabel(summary));
   button.dataset.tooltip = getSourceFilterSummaryTooltip();
-  button.title = "";
+  button.removeAttribute("title");
   button.innerHTML = `
     <span class="source-filter-all-label">${summary.label}</span>
     <span class="source-filter-disclosure" aria-hidden="true"></span>
@@ -9619,6 +9664,8 @@ function renderListing(listing, options = {}) {
   prepareBrandFallbackImage(image, listing, getActiveBrowseBrand());
   setupListingImageState(imageLink, image, listing);
   image.src = getDisplayListingImage(listing);
+  const listingImageSrcset = getDisplayListingImageSrcset(listing);
+  if (listingImageSrcset) image.srcset = listingImageSrcset;
   image.alt = listing.title;
   hydrateRenderedRakumaImage(listing, image);
   renderSourceAvatar(sourceAvatar, source, listing.source);
@@ -9783,7 +9830,8 @@ function renderWatchButtonState(button, isWatching) {
   button.classList.toggle("is-watching", isWatching);
   button.replaceChildren(createWatchIconSvg(isWatching));
   button.setAttribute("aria-label", isWatching ? "Remove from watching" : "Watch listing");
-  button.title = isWatching ? "Remove from watching" : "Watch listing";
+  button.dataset.tooltip = isWatching ? "Remove from watching" : "Watch listing";
+  button.removeAttribute("title");
 }
 
 function toggleListingWatch(listing, options = {}) {
@@ -9821,7 +9869,8 @@ function renderWatchMenuActionState(button, isWatching) {
   if (!button) return;
   button.classList.toggle("is-watching", isWatching);
   button.setAttribute("aria-label", isWatching ? "Remove from watchlist" : "Add to watchlist");
-  button.title = isWatching ? "Remove from watchlist" : "Add to watchlist";
+  button.dataset.tooltip = isWatching ? "Remove from watchlist" : "Add to watchlist";
+  button.removeAttribute("title");
   const icon = button.querySelector(".watch-menu-icon");
   if (icon) icon.textContent = isWatching ? "♥" : "♡";
   const label = button.querySelector(".watch-menu-label");
@@ -9850,8 +9899,25 @@ function createWatchIconSvg(isWatching) {
   return svg;
 }
 
+const LISTING_IMAGE_DISPLAY_SIZE = 600;
+const LISTING_IMAGE_RETINA_SIZE = 1100;
+
 function getDisplayListingImage(listing) {
-  return normalizeImageFluxListingImage(listing?.image) || listing?.image || "";
+  return getEnhancedListingImage(listing?.image, LISTING_IMAGE_DISPLAY_SIZE) || listing?.image || "";
+}
+
+function getDisplayListingImageSrcset(listing) {
+  const displayImage = getDisplayListingImage(listing);
+  const retinaImage = getEnhancedListingImage(listing?.image, LISTING_IMAGE_RETINA_SIZE);
+  if (!displayImage || !retinaImage || retinaImage === displayImage) return "";
+  return `${displayImage} 1x, ${retinaImage} 2x`;
+}
+
+function getEnhancedListingImage(imageUrl = "", size = LISTING_IMAGE_DISPLAY_SIZE) {
+  return normalizeImageFluxListingImage(imageUrl)
+    || normalizeYahooListingImage(imageUrl, size)
+    || normalizeEbayListingImage(imageUrl, size)
+    || "";
 }
 
 function setupListingImageState(imageLink, image, listing) {
@@ -9925,7 +9991,7 @@ function setupListingImageState(imageLink, image, listing) {
     setState("loading");
     startImageTimeout();
   });
-  imageObserver.observe(image, { attributes: true, attributeFilter: ["src"] });
+  imageObserver.observe(image, { attributes: true, attributeFilter: ["src", "srcset"] });
 }
 
 function prepareBrandFallbackImage(image, listing, brand) {
@@ -9936,6 +10002,7 @@ function prepareBrandFallbackImage(image, listing, brand) {
     if (!isWeakListingThumbnail(image)) return;
 
     image.dataset.brandFallbackApplied = "true";
+    image.removeAttribute("srcset");
     image.src = brand.image;
     image.alt = `${brand.name} reference image for ${listing?.title || "listing"}`;
   });
@@ -9964,6 +10031,30 @@ function normalizeImageFluxListingImage(imageUrl = "") {
   } catch {
     return "";
   }
+}
+
+function normalizeYahooListingImage(imageUrl = "", size = LISTING_IMAGE_DISPLAY_SIZE) {
+  const url = String(imageUrl || "").trim();
+  if (!url.includes("auc-pctr.c.yimg.jp/")) return "";
+
+  try {
+    const parsed = new URL(url);
+    const targetSize = String(size);
+    ["w", "h", "ccw", "cch", "fw", "fh"].forEach((key) => {
+      if (parsed.searchParams.has(key)) parsed.searchParams.set(key, targetSize);
+    });
+    if (parsed.searchParams.get("pri") === "s") parsed.searchParams.set("pri", "l");
+    return parsed.toString();
+  } catch {
+    return "";
+  }
+}
+
+function normalizeEbayListingImage(imageUrl = "", size = LISTING_IMAGE_DISPLAY_SIZE) {
+  const url = String(imageUrl || "").trim();
+  if (!url.includes("i.ebayimg.com/")) return "";
+  const ebaySize = size > LISTING_IMAGE_DISPLAY_SIZE ? 1600 : 500;
+  return url.replace(/\/s-l\d+\.(jpg|jpeg|png|webp)(?=$|[?#])/i, `/s-l${ebaySize}.$1`);
 }
 
 function openExternalListing(url) {
@@ -10003,7 +10094,8 @@ function renderListingNewnessBadges(fragment, newness) {
   const newPill = fragment.querySelector(".new-pill");
 
   if (newPill) {
-    newPill.title = getListingNewnessTitle(newness);
+    newPill.dataset.tooltip = getListingNewnessTitle(newness);
+    newPill.removeAttribute("title");
     newPill.setAttribute("aria-label", `New listing. ${getListingNewnessTitle(newness)}`);
   }
 }
@@ -10457,7 +10549,7 @@ function createGearScannerRescanButton(options = {}) {
       data-result-action="rescan-gear-scanner"
       ${options.expanded ? 'data-rescan-expanded="true"' : ""}
       aria-label="${isLoading ? "Gear Scanner is rescanning" : "Rescan Gear Scanner"}"
-      title="${isLoading ? "Rescanning Gear Scanner" : "Rescan Gear Scanner"}"
+      data-tooltip="${isLoading ? "Rescanning Gear Scanner" : "Rescan Gear Scanner"}"
     >
       <svg class="browse-rescan-icon" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
         <path d="M20 11A8 8 0 0 0 6.1 5.7L4 7.8" fill="none" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round"/>
@@ -11865,7 +11957,8 @@ function isFreshBySourceDate(listing, entry = {}) {
 function updateSearchStatus() {
   liveStatus.textContent = searchState.message;
   liveStatus.dataset.state = searchState.mode;
-  liveStatus.title = searchState.detail || searchState.message;
+  liveStatus.dataset.tooltip = searchState.detail || searchState.message;
+  liveStatus.removeAttribute("title");
 }
 
 function createLiveDetail(listings, meta, errors) {
@@ -11892,7 +11985,8 @@ function renderSourceAvatar(avatar, source, fallbackId) {
   avatar.replaceChildren();
   avatar.dataset.source = source?.id || fallbackId;
   avatar.setAttribute("aria-label", `${label} listing`);
-  avatar.setAttribute("title", label);
+  avatar.dataset.tooltip = label;
+  avatar.removeAttribute("title");
   avatar.classList.toggle("has-logo", Boolean(source?.logo));
   applyRandomizedSourceColor(avatar, source?.id || fallbackId, { paintAvatar: true });
 
@@ -12209,7 +12303,8 @@ function renderSavedSearches() {
     const deleteButton = document.createElement("button");
     deleteButton.className = "saved-search-delete";
     deleteButton.type = "button";
-    deleteButton.title = `Delete ${hydratedProfile.name}`;
+    deleteButton.dataset.tooltip = `Delete ${hydratedProfile.name}`;
+    deleteButton.removeAttribute("title");
     deleteButton.setAttribute("aria-label", `Delete saved search ${hydratedProfile.name}`);
     deleteButton.textContent = "×";
     deleteButton.addEventListener("click", () => deleteSavedSearch(hydratedProfile.name));
@@ -13192,8 +13287,13 @@ function setTheme(theme) {
   const themeIcon = themeToggle?.querySelector(".theme-icon");
   if (themeIcon) themeIcon.textContent = isDark ? "☀" : "◐";
   themeToggle?.setAttribute("aria-label", isDark ? "Switch to light mode" : "Switch to dark mode");
-  themeToggle?.setAttribute("title", isDark ? "Switch to light mode" : "Switch to dark mode");
+  if (themeToggle) {
+    themeToggle.dataset.tooltip = isDark ? "Switch to light mode" : "Switch to dark mode";
+    themeToggle.removeAttribute("title");
+  }
   if (themeSettingsToggle) themeSettingsToggle.checked = isDark;
+  if (themeSettingsLabel) themeSettingsLabel.textContent = isDark ? "Dark mode on" : "Dark mode off";
+  themeSettingsToggle?.closest("label")?.setAttribute("aria-label", isDark ? "Dark mode on" : "Dark mode off");
 }
 
 function isSeen(listingId) {

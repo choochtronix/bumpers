@@ -116,7 +116,7 @@
                 <stop offset="100%" stop-color="var(--brand-gradient-start, #ff00ff)" />
               </linearGradient>
             </defs>
-            <path id="sinePath" class="brand-wave-path brand-wave-path-sine" />
+            <path id="sinePath" class="brand-wave-path brand-wave-path-sine" d="M -40 70 C 80 30 180 30 300 70 S 520 110 640 70 S 860 30 980 70 S 1120 110 1240 70" />
           </svg>
         </div>
         <div class="brand-region-cluster">
@@ -144,7 +144,7 @@
 
         <div class="header-actions">
           <div class="saved-menu">
-            <button class="saved-trigger" id="openSavedSearches" type="button" aria-haspopup="dialog" aria-controls="savedResultsDrawer" aria-expanded="false" aria-label="Open saved searches drawer" title="Saved searches">
+            <button class="saved-trigger" id="openSavedSearches" type="button" aria-haspopup="dialog" aria-controls="savedResultsDrawer" aria-expanded="false" aria-label="Open saved searches drawer" data-tooltip="Saved searches">
               <svg class="header-action-icon saved-drawer-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
                 <rect x="3" y="4" width="18" height="16" rx="2.5" stroke="currentColor" stroke-width="2.2" />
                 <path d="M9 4V20" stroke="currentColor" stroke-width="2.2" />
@@ -155,7 +155,7 @@
             <div class="saved-popover" id="savedSearchPopover" hidden>
               <div class="panel-heading">
                 <h2 id="savedTitle">Saved Searches</h2>
-                <button id="saveProfile" type="button" title="Save current search" aria-label="Save current search">＋</button>
+                <button id="saveProfile" type="button" data-tooltip="Save current search" aria-label="Save current search">＋</button>
               </div>
               <div class="saved-searches" id="savedSearches"></div>
               <button class="secondary-action saved-watch-action" id="savedWatchingFilter" type="button" aria-pressed="false">Show watched gear</button>
@@ -163,13 +163,13 @@
             </div>
           </div>
 
-          <button class="watching-trigger" id="topWatchingFilter" type="button" aria-pressed="false" aria-label="Open watchlist" title="Watchlist">
+          <button class="watching-trigger" id="topWatchingFilter" type="button" aria-pressed="false" aria-label="Open watchlist" data-tooltip="Watchlist">
             <svg class="header-action-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
               <path d="M12 20.5C12 20.5 3.5 15.3 3.5 9C3.5 6.1 5.6 4 8.2 4C9.85 4 11.25 4.95 12 6.35C12.75 4.95 14.15 4 15.8 4C18.4 4 20.5 6.1 20.5 9C20.5 15.3 12 20.5 12 20.5Z" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
             </svg>
           </button>
           <div class="account-menu" id="headerAccountMenu">
-            <button class="theme-toggle account-trigger" id="openSettings" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="headerAccountPopover" aria-label="Sign in" title="Sign in">
+            <button class="theme-toggle account-trigger" id="openSettings" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="headerAccountPopover" aria-label="Sign in" data-tooltip="Sign in">
               <svg class="account-person-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
                 <circle cx="12" cy="8" r="3.6" stroke="currentColor" stroke-width="2.2" />
                 <path d="M4.8 20C5.52 16.16 8.1 14 12 14C15.9 14 18.48 16.16 19.2 20" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
@@ -222,8 +222,8 @@
               </span>
             </div>
             <button class="quick-search-extra" id="quickSearchExtraTerms" type="button" aria-label="Edit additional search terms" hidden></button>
-            <button class="quick-search-clear" id="quickSearchClear" type="button" aria-label="Clear search terms" title="Clear search terms" hidden>×</button>
-            <button class="quick-search-refine" id="openRefineSearch" type="button" aria-label="Open refine search options" title="Refine search">
+            <button class="quick-search-clear" id="quickSearchClear" type="button" aria-label="Clear search terms" data-tooltip="Clear search terms" hidden>×</button>
+            <button class="quick-search-refine" id="openRefineSearch" type="button" aria-label="Open refine search options" data-tooltip="Refine search">
               <span class="refine-icon" aria-hidden="true"></span>
               <span class="quick-search-refine-label">Refine</span>
             </button>
@@ -263,19 +263,19 @@
 
         <section class="filter-bar" aria-label="Result filters">
           <section class="source-filter-panel" aria-label="Source filter">
-            <span class="source-filter-heading"><span class="source-quality-status" id="sourceQualityStatus" hidden><button class="source-quality-link" id="openSourceQualitySettings" type="button" aria-label="Open Search Quality settings" aria-pressed="true"><span>Gear Mode On</span><span class="source-quality-check" aria-hidden="true">✓</span></button></span></span>
+            <span class="source-filter-heading"><span class="source-quality-status" id="sourceQualityStatus" hidden><button class="source-quality-link" id="openSourceQualitySettings" type="button" aria-label="Turn Gear Mode off" aria-pressed="true"><span class="source-quality-label">Gear Mode On</span><span class="source-quality-check" aria-hidden="true">✓</span></button></span></span>
             <div class="source-filter-list" id="sourceFilterList"></div>
             <div class="source-row-meta">
               <div class="result-view-toggle" id="resultViewToggle" role="group" aria-label="Result view">
-                <button class="result-view-button is-active" type="button" data-result-view="grid" aria-pressed="true" title="Card view">
+                <button class="result-view-button is-active" type="button" data-result-view="grid" data-tooltip="Card view" aria-pressed="true">
                   <span class="result-view-icon result-view-icon-grid" aria-hidden="true"></span>
                   <span class="sr-only">Card view</span>
                 </button>
-                <button class="result-view-button" type="button" data-result-view="list" aria-pressed="false" title="List view">
+                <button class="result-view-button" type="button" data-result-view="list" data-tooltip="List view" aria-pressed="false">
                   <span class="result-view-icon result-view-icon-list" aria-hidden="true"></span>
                   <span class="sr-only">List view</span>
                 </button>
-                <button class="result-view-button" type="button" data-result-view="gallery" aria-pressed="false" title="Gallery view">
+                <button class="result-view-button" type="button" data-result-view="gallery" data-tooltip="Gallery view" aria-pressed="false">
                   <span class="result-view-icon result-view-icon-gallery" aria-hidden="true"></span>
                   <span class="sr-only">Gallery view</span>
                 </button>
@@ -305,8 +305,8 @@
             </div>
             <div class="toolbar-actions">
               <span class="live-status" id="liveStatus">Ready</span>
-              <button id="markAllSeen" type="button" title="Mark all listings as seen" aria-label="Mark all listings as seen">✓</button>
-              <button id="copyDigest" type="button" title="Copy email digest" aria-label="Copy email digest">✉</button>
+              <button id="markAllSeen" type="button" data-tooltip="Mark all listings as seen" aria-label="Mark all listings as seen">✓</button>
+              <button id="copyDigest" type="button" data-tooltip="Copy email digest" aria-label="Copy email digest">✉</button>
             </div>
           </section>
         </section>
@@ -401,8 +401,9 @@
       </div>
     </footer>
 
-    <button class="back-to-top" id="backToTop" type="button" aria-label="Back to top" title="Back to top" hidden>
-      <span aria-hidden="true">↑</span>
+    <button class="back-to-top" id="backToTop" type="button" aria-label="Back to top" data-tooltip="Back to top" hidden>
+      <span class="back-to-top-arrow" aria-hidden="true">↑</span>
+      <span class="back-to-top-label" aria-hidden="true">Back to top</span>
     </button>
 
     <div class="modal-backdrop welcome-backdrop" id="welcomeModal" hidden>
@@ -649,12 +650,19 @@ stand
     </div>
 
     <section class="settings-page" id="settingsModal" aria-labelledby="settingsTitle" hidden>
-      <button class="settings-page-back" id="closeSettings" type="button" aria-label="Back to Brrtz" title="Back to Brrtz">
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
-          <path d="M15 5l-7 7 7 7" />
-          <path d="M9 12h11" />
-        </svg>
-      </button>
+      <div class="settings-page-topbar">
+        <button class="settings-page-back" id="closeSettings" type="button" aria-label="Back to Brrtz" data-tooltip="Back to Brrtz">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+            <path d="M15 5l-7 7 7 7" />
+            <path d="M9 12h11" />
+          </svg>
+        </button>
+        <label class="settings-header-theme-toggle" aria-label="Dark mode">
+          <span id="themeSettingsLabel">Dark mode</span>
+          <input id="themeSettingsToggle" type="checkbox" />
+          <span class="toggle-track" aria-hidden="true"></span>
+        </label>
+      </div>
       <div class="settings-modal">
         <form id="settingsForm">
           <div class="modal-header">
@@ -732,8 +740,8 @@ stand
                 </label>
 
                 <label class="currency-setting-row">
-                  <span>Display currency</span>
-                  <select id="currencySelect" aria-label="Display currency">
+                  <span>Currency</span>
+                  <select id="currencySelect" aria-label="Currency">
                     <option value="USD">USD</option>
                     <option value="JPY">JPY</option>
                     <option value="GBP">GBP</option>
@@ -750,20 +758,18 @@ stand
                   <input id="gearModeSettingsToggle" type="checkbox" />
                   <span class="toggle-track" aria-hidden="true"></span>
                 </label>
-
-                <label class="setting-toggle">
-                  <span>Dark mode</span>
-                  <input id="themeSettingsToggle" type="checkbox" />
-                  <span class="toggle-track" aria-hidden="true"></span>
-                </label>
               </div>
 
               <div class="settings-section" aria-labelledby="brandGradientTitle">
                 <div class="brand-gradient-lab" aria-labelledby="brandGradientTitle">
-                  <div class="brand-gradient-lab-copy">
-                    <h4 id="brandGradientTitle">Brand gradient</h4>
+                  <button class="brand-gradient-lab-toggle" id="brandGradientToggle" type="button" aria-expanded="false" aria-controls="brandGradientControls" aria-label="Show brand gradient controls">
+                    <span class="brand-gradient-lab-copy">
+                      <span class="brand-gradient-title" id="brandGradientTitle">Brand gradient</span>
+                    </span>
                     <span class="brand-gradient-preview" id="brandGradientPreview" aria-hidden="true"></span>
-                  </div>
+                    <span class="brand-gradient-chevron" aria-hidden="true"></span>
+                  </button>
+                  <div class="brand-gradient-controls" id="brandGradientControls">
                   <div class="brand-gradient-picker-grid">
                     <div class="brand-gradient-stop">
                       <span class="brand-gradient-stop-title">Start color</span>
@@ -804,7 +810,8 @@ stand
                   </div>
                   <div class="settings-actions brand-gradient-actions">
                     <button class="secondary-action" id="applyBrandGradient" type="button">Apply</button>
-                    <button class="secondary-action" id="resetBrandGradient" type="button" aria-label="Reset brand gradient to start #ff00ff and end #0072ff" title="Reset to #ff00ff → #0072ff">Reset Gradient</button>
+                    <button class="secondary-action" id="resetBrandGradient" type="button" aria-label="Reset brand gradient to start #ff00ff and end #0072ff" data-tooltip="Reset to #ff00ff → #0072ff">Reset Gradient</button>
+                  </div>
                   </div>
                 </div>
               </div>
@@ -965,7 +972,7 @@ stand
             </span>
             <span class="source-avatar"></span>
           </a>
-          <button class="watch-button" type="button" title="Watch listing" aria-label="Watch listing">♡</button>
+          <button class="watch-button" type="button" data-tooltip="Watch listing" aria-label="Watch listing">♡</button>
         </div>
         <div class="listing-body">
           <div class="listing-meta">
@@ -979,9 +986,9 @@ stand
           </div>
           <div class="auction-detail-row" hidden></div>
           <div class="card-actions">
-            <button class="feedback-button hide-similar-button" type="button" title="Hide listings with similar noise signals" hidden>Hide similar</button>
-            <button class="feedback-button gear-button" type="button" title="Train Brrtz that this is gear" hidden>This is gear</button>
-            <button class="feedback-button noise-button" type="button" title="Train Brrtz that this is noise" hidden>This is noise</button>
+            <button class="feedback-button hide-similar-button" type="button" data-tooltip="Hide listings with similar noise signals" hidden>Hide similar</button>
+            <button class="feedback-button gear-button" type="button" data-tooltip="Train Brrtz that this is gear" hidden>This is gear</button>
+            <button class="feedback-button noise-button" type="button" data-tooltip="Train Brrtz that this is noise" hidden>This is noise</button>
             <a class="open-link" target="_blank" rel="noreferrer">Open</a>
             <div class="listing-action-menu">
               <button class="more-action-button" type="button" aria-label="More listing actions" aria-expanded="false"></button>

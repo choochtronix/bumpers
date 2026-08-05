@@ -104,6 +104,19 @@ Three layers inside the token file:
 
 The visual spec (tokens rendered, component anatomy, listing card in grid/list view, source badge system, curation layouts) lives in **`BRRTZ Design System.dc.html`** in this project — open it in a browser. Values shown there are generated from the same token source.
 
+### Tooltip convention
+
+Tooltips use the source-pill convention everywhere.
+
+- Use `data-tooltip="..."` for visible UI controls. Avoid native `title`
+  attributes because browser tooltips bypass Brrtz styling.
+- Visual treatment: compact blue pill using `var(--brand-gradient-end)` with
+  `var(--source-ink-on-color)` text, pill radius, bold 11px UI type, and the
+  shared action-menu shadow.
+- Show on hover and `:focus-visible`. Keep required instructions visible in the
+  UI instead of relying on tooltip-only text.
+- Figma component name: `Tooltip / Blue Pill`.
+
 ### Iconography — account and utility menus
 
 These conventions should be mirrored in the Figma Brrtz Design System file under

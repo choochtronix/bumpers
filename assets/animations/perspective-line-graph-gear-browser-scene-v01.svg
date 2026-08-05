@@ -3,7 +3,7 @@
   <desc id="desc">Transparent panoramic SVG scene with open sky above a one point perspective ground grid and a searching magnifying glass.</desc>
   <style>
     :root {
-      color: #111827;
+      color: #DBCCDB;
     }
 
     svg {
@@ -14,22 +14,23 @@
     .lens {
       fill: none;
       stroke: currentColor;
-      stroke-width: 1pt;
+      stroke-width: 1px;
       stroke-linecap: square;
       stroke-linejoin: miter;
+      shape-rendering: crispEdges;
       vector-effect: non-scaling-stroke;
     }
 
     .ray {
-      opacity: 0.26;
+      opacity: 1;
     }
 
     .horizon {
-      opacity: 0.16;
+      opacity: 1;
     }
 
     .travel-band {
-      opacity: 0.32;
+      opacity: 1;
     }
 
     .magnifier {
