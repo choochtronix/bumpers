@@ -686,7 +686,14 @@ stand
           </div>
 
           <div class="settings-tabs" role="tablist" aria-label="Settings sections">
-            <button class="settings-tab is-active" id="settingsTabGeneral" type="button" role="tab" aria-selected="true" aria-controls="settingsPanelGeneral" data-settings-tab="general">
+            <button class="settings-tab is-active" id="settingsTabAccount" type="button" role="tab" aria-selected="true" aria-controls="settingsPanelAccount" data-settings-tab="account">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+                <circle cx="12" cy="7.7" r="3" />
+                <path d="M5.2 20c.72-3.7 3.15-5.8 6.8-5.8s6.08 2.1 6.8 5.8" />
+              </svg>
+              <span>Account</span>
+            </button>
+            <button class="settings-tab" id="settingsTabGeneral" type="button" role="tab" aria-selected="false" aria-controls="settingsPanelGeneral" data-settings-tab="general">
               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
                 <path d="M6 4v16" />
                 <path d="M12 4v16" />
@@ -700,13 +707,6 @@ stand
               </svg>
               <span>Search</span>
             </button>
-            <button class="settings-tab" id="settingsTabAccount" type="button" role="tab" aria-selected="false" aria-controls="settingsPanelAccount" data-settings-tab="account">
-              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
-                <circle cx="12" cy="7.7" r="3" />
-                <path d="M5.2 20c.72-3.7 3.15-5.8 6.8-5.8s6.08 2.1 6.8 5.8" />
-              </svg>
-              <span>Account</span>
-            </button>
             <button class="settings-tab" id="settingsTabData" type="button" role="tab" aria-selected="false" aria-controls="settingsPanelData" data-settings-tab="data">
               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
                 <path d="M9 3.5h6" />
@@ -718,7 +718,7 @@ stand
           </div>
 
           <div class="settings-scroll">
-            <section class="settings-panel is-active" id="settingsPanelGeneral" role="tabpanel" aria-labelledby="settingsTabGeneral" data-settings-panel="general">
+            <section class="settings-panel" id="settingsPanelGeneral" role="tabpanel" aria-labelledby="settingsTabGeneral" data-settings-panel="general" hidden>
               <div class="settings-section settings-search-card" aria-labelledby="regionSettingsTitle">
                 <div class="settings-section-heading">
                   <span class="settings-section-icon" aria-hidden="true">
@@ -817,7 +817,7 @@ stand
               </div>
             </section>
 
-            <section class="settings-panel" id="settingsPanelAccount" role="tabpanel" aria-labelledby="settingsTabAccount" data-settings-panel="account" hidden>
+            <section class="settings-panel is-active" id="settingsPanelAccount" role="tabpanel" aria-labelledby="settingsTabAccount" data-settings-panel="account">
               <div class="settings-section account-section" aria-labelledby="accountSettingsTitle">
                 <div class="settings-section-heading">
                   <span class="settings-section-icon" aria-hidden="true">

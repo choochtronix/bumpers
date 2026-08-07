@@ -389,7 +389,7 @@ body.saved-results-drawer-open:not(.saved-results-drawer-mobile-open) .app-shell
   gap: var(--space-3);
   padding: var(--space-2) var(--space-3);
   border: 1px solid transparent;
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--ink);
   cursor: pointer;
@@ -788,7 +788,7 @@ a {
   flex: 0 0 auto;
   place-items: center;
   border: 1px solid var(--line);
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-pill);
   background: var(--button-bg);
   color: var(--ink);
   cursor: pointer;
@@ -1025,7 +1025,7 @@ body[data-theme="dark"] .quick-search-input {
   background:
     linear-gradient(var(--color-search-field), var(--color-search-field)) padding-box,
     var(--brand-gradient) border-box;
-  color: var(--color-search-ink);
+  color: var(--ink);
 }
 
 .search-terms-field.is-search-submit-pulse .quick-search-input {
@@ -1076,6 +1076,7 @@ body[data-theme="dark"] .quick-search-input {
   resize: none;
   line-height: 1.15;
   white-space: nowrap;
+  color: var(--ink);
   cursor: text;
   transition: none;
 }
@@ -1353,8 +1354,14 @@ body[data-theme="dark"] .quick-search-refine {
 
 .quick-search-extra {
   right: calc(var(--quick-search-right-padding) + 48px);
+  left: auto;
+  z-index: 3;
+  flex: 0 0 auto;
+  align-self: center;
+  justify-self: end;
   width: auto;
   min-width: 58px;
+  max-width: max-content;
   height: 32px;
   border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--line));
   background: color-mix(in srgb, var(--accent) 10%, var(--field));
@@ -2159,7 +2166,7 @@ body[data-theme="dark"] .refine-term-cloud input::placeholder {
   gap: 7px;
   padding: 7px 9px;
   border: 1px solid var(--line);
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-pill);
   background: var(--button-bg);
   font-size: 13px;
 }
@@ -2184,7 +2191,7 @@ body[data-theme="dark"] .refine-term-cloud input::placeholder {
   justify-content: center;
   gap: 8px;
   border: 0;
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-pill);
   background: var(--primary);
   color: var(--primary-ink);
   cursor: pointer;
@@ -2198,7 +2205,7 @@ body[data-theme="dark"] .refine-term-cloud input::placeholder {
   justify-content: center;
   gap: 8px;
   border: 1px solid var(--line);
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-pill);
   background: var(--button-bg);
   color: var(--ink);
   cursor: pointer;
@@ -2343,7 +2350,7 @@ body[data-theme="dark"] .region-badge[aria-expanded="true"] {
   width: 34px;
   height: 34px;
   border: 1px solid var(--line);
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-pill);
   background: var(--button-bg);
   color: var(--ink);
   cursor: pointer;
@@ -2371,7 +2378,7 @@ body[data-theme="dark"] .region-badge[aria-expanded="true"] {
   align-items: center;
   padding: 8px 10px;
   border: 0;
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--ink);
   text-align: left;
@@ -2390,7 +2397,7 @@ body[data-theme="dark"] .region-badge[aria-expanded="true"] {
   min-height: var(--control-toast-min-height);
   place-items: center;
   border: 0;
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--muted);
   cursor: pointer;
@@ -3606,7 +3613,9 @@ body.settings-page-active .app-header {
 
 .settings-page .settings-header-theme-toggle {
   display: inline-flex;
+  flex-flow: row nowrap;
   align-items: center;
+  justify-content: flex-end;
   gap: var(--space-3);
   margin-left: auto;
   min-height: 44px;
@@ -3614,6 +3623,13 @@ body.settings-page-active .app-header {
   font-size: var(--text-caption);
   font-weight: var(--weight-bold);
   white-space: nowrap;
+}
+
+.settings-page .settings-header-theme-toggle #themeSettingsLabel {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  line-height: 1;
 }
 
 .settings-page .settings-header-theme-toggle input {
@@ -3671,7 +3687,7 @@ body.settings-page-active .app-header {
   justify-content: flex-start;
   padding: 0 var(--space-4);
   border-color: transparent;
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--muted);
   text-align: left;
@@ -4071,7 +4087,7 @@ body[data-theme="dark"] .settings-page .settings-title-lockup {
   gap: var(--space-2);
   padding: 0 var(--space-4);
   border: 1px solid transparent;
-  border-radius: var(--radius-card-list);
+  border-radius: var(--radius-pill);
   color: var(--muted);
   font-size: clamp(18px, 1.55vw, 23px);
   font-weight: var(--weight-medium);
@@ -4105,6 +4121,18 @@ body[data-theme="dark"] .settings-page .settings-title-lockup {
   scroll-margin-top: var(--space-6);
 }
 
+.settings-page #settingsPanelAccount {
+  order: 1;
+}
+
+.settings-page #settingsPanelGeneral {
+  order: 2;
+}
+
+.settings-page #settingsPanelData {
+  order: 3;
+}
+
 .settings-page .settings-panel[hidden] {
   display: none;
 }
@@ -4118,7 +4146,7 @@ body[data-theme="dark"] .settings-page .settings-title-lockup {
 }
 
 .settings-page .settings-search-card {
-  padding-block: clamp(22px, 3vw, 34px);
+  padding-block: var(--space-3);
 }
 
 .settings-page [hidden] {
@@ -4995,7 +5023,7 @@ body[data-theme="dark"] .settings-page #signOutAccount {
   height: 34px;
   place-items: center;
   border: 1px solid var(--line);
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-pill);
   background: var(--button-bg);
   color: var(--ink);
   cursor: pointer;
@@ -5273,7 +5301,7 @@ body[data-theme="dark"] .settings-page #signOutAccount {
   gap: 6px;
   padding: 0 12px;
   border: 1px solid var(--line);
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-pill);
   background: var(--button-bg);
   color: var(--ink);
   cursor: pointer;
@@ -5292,7 +5320,7 @@ body[data-theme="dark"] .settings-page #signOutAccount {
   flex: 0 0 auto;
   overflow: hidden;
   border: 1px solid var(--line);
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-pill);
   background: var(--button-bg);
 }
 
@@ -5891,6 +5919,19 @@ body[data-theme="dark"] [data-tooltip]::after {
   box-shadow: var(--shadow-action-menu);
 }
 
+.app-header .header-actions [data-tooltip]::after {
+  top: calc(100% + var(--space-2));
+  right: 0;
+  bottom: auto;
+  left: auto;
+  transform: translateY(calc(-1 * var(--space-1)));
+}
+
+.app-header .header-actions [data-tooltip]:hover::after,
+.app-header .header-actions [data-tooltip]:focus-visible::after {
+  transform: translateY(0);
+}
+
 .source-filter-all.is-filter-reset {
   border-color: var(--line);
   background: var(--button-bg);
@@ -6206,7 +6247,7 @@ body[data-theme="dark"] [data-tooltip]::after {
   align-items: center;
   justify-content: center;
   padding: 0 12px;
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-pill);
   background: var(--primary);
   color: var(--primary-ink);
   font-size: 12px;
@@ -6486,7 +6527,7 @@ body[data-theme="dark"] .pagination-actions .secondary-action:disabled {
 }
 
 .back-to-top.is-above-pagination {
-  bottom: calc(var(--back-to-top-offset) + 118px);
+  bottom: calc(var(--back-to-top-offset) + 150px);
 }
 
 .back-to-top[hidden] {
@@ -8598,7 +8639,7 @@ body[data-theme="dark"] .listing-card.is-watched-home-card {
   min-height: 36px;
   padding: 0 9px;
   border: 1px solid var(--line);
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-pill);
   background: var(--button-bg);
   color: var(--muted);
   cursor: pointer;
@@ -8702,7 +8743,7 @@ body[data-theme="dark"] .open-link:focus-visible {
   place-items: center;
   padding: 0;
   border: 1px solid color-mix(in srgb, #111418 72%, var(--line));
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-pill);
   background: #111418;
   color: #ffffff;
   cursor: pointer;
@@ -11027,7 +11068,7 @@ body[data-theme="dark"] .browse-expanded-loader-copy {
   }
 
   .back-to-top.is-above-pagination {
-    bottom: calc(var(--back-to-top-offset) + 180px);
+    bottom: calc(var(--back-to-top-offset) + 212px);
   }
 }
 
@@ -11255,13 +11296,15 @@ body[data-theme="dark"] .watching-trigger:focus-visible {
 
 .header-actions .account-trigger:hover,
 .header-actions .account-trigger:focus-visible,
-.header-actions .account-trigger[aria-expanded="true"] {
+.header-actions .account-trigger[aria-expanded="true"],
+body.settings-page-active .header-actions .account-trigger {
   border-color: color-mix(in srgb, var(--color-brand-hot) 58%, var(--line));
 }
 
 .header-actions .account-trigger.is-signed-in:hover,
 .header-actions .account-trigger.is-signed-in:focus-visible,
-.header-actions .account-trigger.is-signed-in[aria-expanded="true"] {
+.header-actions .account-trigger.is-signed-in[aria-expanded="true"],
+body.settings-page-active .header-actions .account-trigger.is-signed-in {
   border-color: var(--color-brand-hot);
 }
 
@@ -11286,7 +11329,8 @@ body[data-theme="dark"] .header-actions .account-trigger:not(.is-signed-in) {
 
 body[data-theme="dark"] .header-actions .account-trigger:not(.is-signed-in):hover,
 body[data-theme="dark"] .header-actions .account-trigger:not(.is-signed-in):focus-visible,
-body[data-theme="dark"] .header-actions .account-trigger:not(.is-signed-in)[aria-expanded="true"] {
+body[data-theme="dark"] .header-actions .account-trigger:not(.is-signed-in)[aria-expanded="true"],
+body.settings-page-active[data-theme="dark"] .header-actions .account-trigger:not(.is-signed-in) {
   border-color: var(--color-brand-hot);
   background: var(--secondary-button-hover-bg);
   color: var(--secondary-button-hover-ink);
@@ -11304,7 +11348,8 @@ body[data-theme="dark"] .header-actions .account-trigger.is-signed-in[aria-expan
 
 body[data-theme="dark"] .header-actions .account-trigger.is-signed-in:hover,
 body[data-theme="dark"] .header-actions .account-trigger.is-signed-in:focus-visible,
-body[data-theme="dark"] .header-actions .account-trigger.is-signed-in[aria-expanded="true"] {
+body[data-theme="dark"] .header-actions .account-trigger.is-signed-in[aria-expanded="true"],
+body.settings-page-active[data-theme="dark"] .header-actions .account-trigger.is-signed-in {
   border-color: var(--color-brand-hot);
 }
 
@@ -11480,6 +11525,27 @@ body[data-theme="dark"] .account-popover-avatar {
   color: var(--color-brand-hot);
 }
 
+.header-actions :is(.saved-trigger, .watching-trigger, .account-trigger):is(:hover, :focus-visible, [aria-expanded="true"], .is-active),
+.header-actions .watching-trigger[aria-pressed="true"],
+.header-actions .account-trigger.is-signed-in:is(:hover, :focus-visible, [aria-expanded="true"]),
+body[data-theme="dark"] .header-actions :is(.saved-trigger, .watching-trigger, .account-trigger):is(:hover, :focus-visible, [aria-expanded="true"], .is-active),
+body[data-theme="dark"] .header-actions .watching-trigger[aria-pressed="true"],
+body[data-theme="dark"] .header-actions .account-trigger.is-signed-in:is(:hover, :focus-visible, [aria-expanded="true"]) {
+  border-color: var(--color-brand-hot);
+  background: var(--color-brand-hot);
+  background-color: var(--color-brand-hot);
+  color: var(--color-control-on-ink);
+}
+
+.header-actions :is(.saved-trigger, .watching-trigger, .account-trigger):is(:hover, :focus-visible, [aria-expanded="true"], .is-active) .header-action-icon,
+.header-actions .watching-trigger[aria-pressed="true"] .header-action-icon,
+.header-actions .account-trigger.is-signed-in:is(:hover, :focus-visible, [aria-expanded="true"]) :is(.account-avatar-initial, .account-person-icon, .header-action-icon),
+body[data-theme="dark"] .header-actions :is(.saved-trigger, .watching-trigger, .account-trigger):is(:hover, :focus-visible, [aria-expanded="true"], .is-active) .header-action-icon,
+body[data-theme="dark"] .header-actions .watching-trigger[aria-pressed="true"] .header-action-icon,
+body[data-theme="dark"] .header-actions .account-trigger.is-signed-in:is(:hover, :focus-visible, [aria-expanded="true"]) :is(.account-avatar-initial, .account-person-icon, .header-action-icon) {
+  color: var(--color-control-on-ink);
+}
+
 .saved-menu {
   position: relative;
 }
@@ -11574,7 +11640,7 @@ body.my-page-active .source-sort-control {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   align-items: start;
-  gap: 10px;
+  gap: var(--space-1);
   min-width: 0;
 }
 
@@ -11651,7 +11717,11 @@ body.my-page-active .source-sort-control {
 }
 
 .quick-search-extra {
+  position: absolute;
+  top: calc(var(--quick-search-height, 48px) / 2);
   right: calc(var(--quick-search-right-padding) + 48px);
+  transform: translateY(-50%);
+  z-index: 3;
 }
 
 .search-terms-field.has-clear-search .quick-search-extra {
@@ -11708,7 +11778,7 @@ body.my-page-active .source-sort-control {
   width: 100%;
   max-width: var(--page-max-width);
   margin-inline: auto;
-  padding: 0 clamp(22px, 3vw, 42px) calc(clamp(28px, 3vw, 42px) + 154px);
+  padding: 0 clamp(22px, 3vw, 42px) calc(clamp(28px, 3vw, 42px) + 224px);
   color: var(--muted);
 }
 
@@ -12326,7 +12396,7 @@ body[data-theme="dark"] .refine-backdrop {
   }
 
   .search-form {
-    gap: 8px;
+    gap: var(--space-1);
   }
 
   .search-terms-field {
@@ -12963,7 +13033,7 @@ body[data-theme="dark"] .refine-backdrop {
   }
 
   .pagination {
-    padding-bottom: 76px;
+    padding-bottom: 108px;
   }
 
   .pagination-actions {
@@ -12986,7 +13056,7 @@ body[data-theme="dark"] .refine-backdrop {
   }
 
   .back-to-top.is-above-pagination {
-    bottom: calc(var(--mobile-back-to-top-offset) + 132px);
+    bottom: calc(var(--mobile-back-to-top-offset) + 164px);
   }
 
   .refine-backdrop {
@@ -13733,7 +13803,7 @@ body[data-theme="dark"] .refine-backdrop {
   justify-content: center;
   gap: var(--space-2);
   border: 0;
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-pill);
   padding: var(--space-3);
   background: transparent;
   color: var(--ink);
@@ -14105,11 +14175,11 @@ body[data-theme="dark"] .refine-backdrop {
   }
 
   .site-footer {
-    padding-bottom: calc(var(--mobile-bottom-nav-space) + 164px);
+    padding-bottom: calc(var(--mobile-bottom-nav-space) + 240px);
   }
 
   .pagination {
-    padding-bottom: calc(var(--mobile-bottom-nav-space) + 104px);
+    padding-bottom: calc(var(--mobile-bottom-nav-space) + 156px);
   }
 
   .back-to-top {
@@ -14277,10 +14347,8 @@ body[data-theme="dark"] .refine-backdrop {
   }
 
   .mobile-bottom-nav-item.is-active {
-    border-color: color-mix(in srgb, var(--brand-gradient-start) 30%, transparent);
-    background:
-      linear-gradient(135deg, color-mix(in srgb, var(--brand-gradient-start) 26%, transparent), color-mix(in srgb, var(--brand-gradient-end) 18%, transparent)),
-      var(--color-mobile-nav-interaction);
+    border-color: var(--color-brand-hot);
+    background: var(--color-brand-hot);
     color: var(--color-control-on-ink);
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.14),
@@ -14288,17 +14356,251 @@ body[data-theme="dark"] .refine-backdrop {
   }
 
   .mobile-bottom-nav-item.is-active::after {
-    content: "";
-    position: absolute;
-    right: 18px;
-    bottom: 5px;
-    left: 18px;
-    height: 3px;
-    border-radius: 999px;
-    background: var(--brand-gradient);
+    content: none;
   }
 
   .mobile-bottom-nav-item:active {
     transform: translateY(1px) scale(0.98);
+  }
+}
+/* Watched listing state: an inset brand-gradient outline across GLG cards. */
+.listing-card:is(
+  .is-watched,
+  .is-watchlisted,
+  .is-watched-listing,
+  [data-watched="true"],
+  [data-watchlisted="true"]
+) {
+  position: relative;
+}
+
+.listing-card:is(
+  .is-watched,
+  .is-watchlisted,
+  .is-watched-listing,
+  [data-watched="true"],
+  [data-watchlisted="true"]
+)::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  pointer-events: none;
+  border-radius: inherit;
+  padding: calc(var(--space-1) + 1px);
+  background: var(--brand-gradient);
+  -webkit-mask:
+    linear-gradient(var(--ink) 0 0) content-box,
+    linear-gradient(var(--ink) 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(var(--ink) 0 0) content-box,
+    linear-gradient(var(--ink) 0 0);
+  mask-composite: exclude;
+}
+
+@supports selector(.listing-card:has(*)) {
+  .listing-card:has(:is(
+    .watch-button,
+    .watchlist-button,
+    .listing-watch-button,
+    .watch-toggle,
+    [data-action="watchlist"],
+    [data-action="toggle-watch"]
+  ):is([aria-pressed="true"], .is-active)),
+  .listing-card:has(:is(
+    [aria-label*="watchlist"],
+    [aria-label*="Watchlist"]
+  ):is([aria-pressed="true"], .is-active)) {
+    position: relative;
+  }
+
+  .listing-card:has(:is(
+    .watch-button,
+    .watchlist-button,
+    .listing-watch-button,
+    .watch-toggle,
+    [data-action="watchlist"],
+    [data-action="toggle-watch"]
+  ):is([aria-pressed="true"], .is-active))::after,
+  .listing-card:has(:is(
+    [aria-label*="watchlist"],
+    [aria-label*="Watchlist"]
+  ):is([aria-pressed="true"], .is-active))::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 30;
+    pointer-events: none;
+    border-radius: inherit;
+    padding: calc(var(--space-1) + 1px);
+    background: var(--brand-gradient);
+    -webkit-mask:
+      linear-gradient(var(--ink) 0 0) content-box,
+      linear-gradient(var(--ink) 0 0);
+    -webkit-mask-composite: xor;
+    mask:
+      linear-gradient(var(--ink) 0 0) content-box,
+      linear-gradient(var(--ink) 0 0);
+    mask-composite: exclude;
+  }
+}
+
+/* Settings page: keep top utility controls visibly active while the page is open. */
+body.settings-page-active .app-header :is(#openSavedSearches, #topWatchingFilter, #openSettings) {
+  border-color: var(--color-brand-hot);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-brand-hot) 72%, transparent);
+}
+
+body.settings-page-active .app-header :is(#openSavedSearches, #topWatchingFilter, #openSettings):is(:hover, :focus-visible) {
+  border-color: var(--color-brand-hot);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-brand-hot) 45%, transparent);
+}
+
+body.settings-page-active :is(
+  #settingsTabGeneral,
+  #settingsTabAccount,
+  #settingsTabData
+):is(.is-active, [aria-selected="true"]) {
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+
+/* Mobile settings viewport guard: prevent iOS page shrink and off-canvas drift. */
+@media (max-width: 768px) {
+  html,
+  body.settings-page-active {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
+  }
+
+  body.settings-page-active,
+  body.settings-page-active *,
+  body.settings-page-active *::before,
+  body.settings-page-active *::after {
+    box-sizing: border-box;
+    min-width: 0;
+  }
+
+  body.settings-page-active .app-shell,
+  body.settings-page-active .app-header,
+  body.settings-page-active .content,
+  body.settings-page-active #settingsModal,
+  body.settings-page-active #settingsForm,
+  body.settings-page-active .settings-page-topbar,
+  body.settings-page-active .settings-page-body,
+  body.settings-page-active .settings-page-layout,
+  body.settings-page-active .settings-layout,
+  body.settings-page-active .settings-page-main,
+  body.settings-page-active .settings-page-content,
+  body.settings-page-active .settings-panel,
+  body.settings-page-active .settings-section,
+  body.settings-page-active .settings-search-card,
+  body.settings-page-active #settingsPanelGeneral,
+  body.settings-page-active #settingsPanelAccount,
+  body.settings-page-active #settingsPanelData,
+  body.settings-page-active #signedInAccountPanel,
+  body.settings-page-active #signedOutAccountPanel {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: hidden;
+  }
+
+  body.settings-page-active #settingsModal {
+    left: auto !important;
+    right: auto !important;
+    transform: none !important;
+    translate: none !important;
+    margin-inline: 0 !important;
+    padding-inline: var(--space-4);
+    padding-bottom: calc(var(--space-7) + var(--space-7) + var(--space-4) + env(safe-area-inset-bottom));
+  }
+
+  body.settings-page-active .settings-page-body,
+  body.settings-page-active .settings-page-layout,
+  body.settings-page-active .settings-layout,
+  body.settings-page-active .settings-page-content {
+    display: block !important;
+  }
+
+  body.settings-page-active .settings-page-main {
+    margin-inline: 0 !important;
+  }
+
+  body.settings-page-active .settings-page-nav,
+  body.settings-page-active .settings-page-tabs,
+  body.settings-page-active .settings-tabs {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: 100%;
+    max-width: 100%;
+    gap: var(--space-2);
+  }
+
+  body.settings-page-active .settings-page-tab,
+  body.settings-page-active .settings-tab {
+    width: 100%;
+    justify-content: center;
+  }
+
+  body.settings-page-active .setting-toggle,
+  body.settings-page-active .currency-setting-row,
+  body.settings-page-active .settings-account-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  body.settings-page-active #regionSelect,
+  body.settings-page-active #currencySelect {
+    width: min(48vw, 220px) !important;
+    max-width: 100%;
+  }
+
+  body.settings-page-active .settings-header-theme-toggle {
+    flex: 0 0 auto;
+  }
+
+  body.settings-page-active:is(
+    .saved-searches-drawer-open,
+    .saved-searches-panel-open,
+    .saved-searches-open,
+    .ssd-open
+  ) :is(.app-shell, #settingsModal) {
+    transform: none !important;
+    translate: none !important;
+    margin-left: 0 !important;
+  }
+
+  #mobileBottomNav {
+    border: 0;
+    outline: 0;
+    border-radius: var(--radius-pill);
+    overflow: hidden;
+  }
+
+  #mobileBottomNav::before,
+  #mobileBottomNav::after {
+    border: 0;
+    outline: 0;
+    box-shadow: none;
+  }
+
+  #mobileBottomNav :is(a, button, .mobile-bottom-nav-item, .mobile-nav-item) {
+    border: 0;
+    outline: 0;
+    border-radius: var(--radius-pill);
+  }
+
+  #mobileBottomNav :is(a, button, .mobile-bottom-nav-item, .mobile-nav-item):is(.is-active, .active, [aria-current="page"], [aria-selected="true"]) {
+    border: 0;
+    outline: 0;
+    border-radius: var(--radius-pill);
+    box-shadow: none;
+  }
+
+  #mobileBottomNav :is(a, button, .mobile-bottom-nav-item, .mobile-nav-item):focus-visible {
+    outline: 0;
+    box-shadow: var(--focus-ring);
   }
 }

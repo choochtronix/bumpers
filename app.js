@@ -2986,6 +2986,10 @@ function syncSearchUrl(profile, options = {}) {
 
 function setAppView(view, options = {}) {
   const url = new URL(window.location.href);
+  if (url.pathname.replace(/\/+$/, "") === "/settings" && view !== APP_VIEW_SETTINGS) {
+    url.pathname = "/";
+    url.hash = "";
+  }
   if (view) {
     url.searchParams.set(APP_VIEW_PARAM, view);
     if (view !== APP_VIEW_SYNTH_BROWSER) url.searchParams.delete(APP_BRAND_PARAM);
@@ -5274,7 +5278,10 @@ function handleMobileBottomNavClick(event) {
 
   if (navTarget === "settings") {
     closeSavedSearchPopover();
-    openSettingsPage({ focusTarget: currencySelect });
+    openSettingsPage({
+      tabName: "account",
+      focusTarget: authState.user?.email ? updateAccountPasswordButton : accountEmailInput,
+    });
   }
 }
 
@@ -5365,8 +5372,8 @@ function normalizeSettingsPageLayout() {
   }
 }
 
-function setActiveSettingsTab(tabName = "general", options = {}) {
-  const nextTabName = settingsTabs.some((tab) => tab.dataset.settingsTab === tabName) ? tabName : "general";
+function setActiveSettingsTab(tabName = "account", options = {}) {
+  const nextTabName = settingsTabs.some((tab) => tab.dataset.settingsTab === tabName) ? tabName : "account";
   settingsTabs.forEach((tab) => {
     const isActive = tab.dataset.settingsTab === nextTabName;
     tab.classList.toggle("is-active", isActive);
@@ -7827,6 +7834,7 @@ function setSearchChromeVisible(visible) {
   if (visible) {
     if (settingsModal) settingsModal.hidden = true;
     document.body.classList.remove("settings-page-active");
+    resultGrid.classList.remove("is-settings-page");
   }
   if (searchMasthead) searchMasthead.hidden = !visible;
   if (topbar) topbar.hidden = !visible;
@@ -7885,7 +7893,7 @@ function renderSettingsPageView() {
     ? "account"
     : window.location.hash === "#beta"
       ? "data"
-      : "general";
+      : "account";
   setActiveSettingsTab(hashTab, { focus: false });
   if (settingsModal) settingsModal.hidden = false;
   renderPagination(0, 1);
@@ -8267,7 +8275,7 @@ function renderHomePreviewSections(watching, renderContext = createListingRender
   resultGrid.classList.toggle("is-browse-expanded", false);
   resultGrid.classList.toggle("is-gear-browser-frame", false);
   resultGrid.classList.toggle("is-my-page", false);
-  renderSourceFilters(homeResults, { renderContext });
+  renderSourceFilters(homeResults, { renderContext, showDefaultSources: true });
 
   if (browseResults.length > 0 || browseCategoryStatus === "loading" || browseCategoryStatus === "error") {
     resultGrid.appendChild(createFeaturedHomeSection(browseResults, { variant: "browse", renderContext }));
@@ -8356,7 +8364,7 @@ function renderBrowseExpandedView(watching, renderContext = createListingRenderC
   resultGrid.classList.toggle("is-browse-expanded", true);
   resultGrid.classList.toggle("is-gear-browser-frame", true);
   resultGrid.classList.toggle("is-my-page", false);
-  renderSourceFilters(browseListings, { renderContext });
+  renderSourceFilters(browseListings, { renderContext, showDefaultSources: searchState.mode === "idle" });
 
   resultGrid.appendChild(createGearBrowserScene());
   resultGrid.appendChild(createBrowseExpandedHeader(visibleResultCount, browseListings.length));
@@ -8821,7 +8829,7 @@ function handleResultGridAction(event) {
   if (button.dataset.resultAction === "delete-saved-search") {
     const profile = getSavedSearchActionProfile(button);
     if (!profile) return;
-    deleteSavedSearch(profile.name);
+    deleteSavedSearch(profile);
   }
 
   if (button.dataset.resultAction === "open-save-search") {
@@ -8943,6 +8951,9 @@ function openWatchlistView(eventOrOptions = {}) {
   const options = eventOrOptions?.currentTarget ? {} : eventOrOptions;
   eventOrOptions?.preventDefault?.();
   eventOrOptions?.stopPropagation?.();
+  if (document.body.classList.contains("settings-page-active")) {
+    closeSettingsModal({ restoreFocus: false });
+  }
   selectInteractionActive = false;
   clearScheduledSearchResultApply();
   deferredResultsRender = false;
@@ -9258,7 +9269,7 @@ function renderSourceFilters(baseResults = currentResults, options = {}) {
   const visibleSources = getVisibleSources();
   const sourceOrder = new Map(visibleSources.map((source, index) => [source.id, index]));
   const availableSources = visibleSources
-    .filter((source) => !isManualSourceStatus(source.id) && shouldShowSourceFilter(source, counts))
+    .filter((source) => !isManualSourceStatus(source.id) && shouldShowSourceFilter(source, counts, options))
     .sort((first, second) => compareSourceFilterDisplayOrder(first, second, counts, sourceOrder));
   sourceFilterList.innerHTML = "";
   sourceFilterList.classList.toggle("is-expanded", isSourceRowExpanded);
@@ -9425,8 +9436,8 @@ function getSourceCountsForCurrentView(baseResults = currentResults, options = {
   return counts;
 }
 
-function shouldShowSourceFilter(source, counts) {
-  return counts.get(source.id) > 0 || sourceSearchStatuses.has(source.id);
+function shouldShowSourceFilter(source, counts, options = {}) {
+  return options.showDefaultSources === true || counts.get(source.id) > 0 || sourceSearchStatuses.has(source.id);
 }
 
 function compareSourceFilterDisplayOrder(first, second, counts, sourceOrder) {
@@ -12307,7 +12318,7 @@ function renderSavedSearches() {
     deleteButton.removeAttribute("title");
     deleteButton.setAttribute("aria-label", `Delete saved search ${hydratedProfile.name}`);
     deleteButton.textContent = "×";
-    deleteButton.addEventListener("click", () => deleteSavedSearch(hydratedProfile.name));
+    deleteButton.addEventListener("click", () => deleteSavedSearch(hydratedProfile));
 
     item.append(button, deleteButton);
     savedSearches.appendChild(item);
@@ -12505,12 +12516,24 @@ function saveProfile(profile) {
   return savedSearchRepository.save(profile);
 }
 
-function deleteSavedSearch(profileName) {
-  const confirmed = window.confirm(`Delete saved search "${profileName}"?`);
+function deleteSavedSearch(profileOrName) {
+  const profile = profileOrName && typeof profileOrName === "object" ? profileOrName : null;
+  const profileName = String(profile?.name || profileOrName || "").trim();
+  const profileId = profile?.id ? String(profile.id) : "";
+  if (!profileName && !profileId) return;
+
+  const confirmed = window.confirm(`Delete saved search "${profileName || "this saved search"}"?`);
   if (!confirmed) return;
 
-  savedSearchRepository.deleteByName(profileName);
-  deleteSavedSearchArtifacts(profileName);
+  if (profileId && typeof savedSearchRepository.deleteById === "function") {
+    savedSearchRepository.deleteById(profileId);
+  } else {
+    savedSearchRepository.deleteByName(profileName);
+  }
+
+  if (profileName) {
+    deleteSavedSearchArtifacts(profileName);
+  }
   renderSavedSearches();
   updateQuickSaveSearchButton();
   queueSavedSearchAutoSync("delete-search", { allowEmpty: true });
@@ -12599,6 +12622,12 @@ function createSavedSearchRepository({ storageKey }) {
     return hydratedProfile;
   }
 
+  function deleteById(profileId) {
+    const nextProfiles = list().filter((item) => item.id !== profileId);
+    write(nextProfiles);
+    return nextProfiles;
+  }
+
   function deleteByName(profileName) {
     const nextProfiles = list().filter((item) => item.name !== profileName);
     write(nextProfiles);
@@ -12677,6 +12706,7 @@ function createSavedSearchRepository({ storageKey }) {
     provider: "local",
     list,
     save,
+    deleteById,
     deleteByName,
     updateScan,
     replaceAll: write,
