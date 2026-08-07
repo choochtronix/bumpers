@@ -1,46 +1,45 @@
 # Brrtz
 
-Local-first search cockpit for finding synthesizers, electronic instruments, and pro audio gear across Japanese auction, flea market, and shop sources.
+Free beta gear radar for finding used synthesizers, drum machines, samplers, modular gear, effects, and pro audio across regional marketplaces — with links back to the original listing. Live at <https://brrtz.com>.
 
-## Current Version
+> Naming note: the repo, some storage keys (`bumpers.*`), and `BUMPERS_*` environment
+> variables retain the former project name **Bumpers**. Use **Brrtz** for new product
+> copy; do not rename stable storage keys or env vars. See `docs/BRRTZ-HANDOFF.md`.
 
-This first build is a static desktop web app prototype. It includes:
+## What It Does
 
-- Saved search profiles stored in local browser storage
-- Source selection for the first target marketplaces
-- Large thumbnail result cards
-- Price filtering
-- Exclusion keyword filtering
-- New-listing state
-- Watchlist state
-- Email digest text generation
-- A mock connector dataset shaped like future live connector output
-- Live Yahoo Auctions, Digimart, and OFFMALL connector support when run through the local server
-- Local listing discovery tracking for future alert workflows
-- Gear confidence scoring to keep Yahoo records, books, clothing, and other marketplace noise out of Clean Gear results
-- Local feedback buttons for teaching Brrtz which listings are gear, noise, or similar noise to hide
-- Marketplace source badges on listing thumbnails for faster visual scanning
-- View-only source filter chips for quickly narrowing visible results by marketplace
+- Multi-source search across regional marketplaces from one interface
+- Live regions: Japan (JPY), US Bay Area / Los Angeles / East Coast (USD), UK (GBP) — see `regions.js`
+- Clean Gear filtering to keep records, books, clothing, and other marketplace noise out of results
+- Saved searches with per-search email alert mode (local-first, cloud-synced when signed in)
+- Fresh Finds new-listing detection and Watched gear
+- Gear Scanner browse feed and curated Brand Browser recipes
+- Marketplace source badges and Grid / List / Gallery (GLG) result cards
+- Feedback controls for teaching Brrtz which listings are gear vs. noise
 
-## Open The App
+## Running Locally
 
-Open `index.html` in a browser.
-
-For live connector data, run the local server:
+Brrtz is a Node server app (live connector data requires the server — opening
+`index.html` directly will not fetch listings).
 
 ```sh
+cd /home/hanzj/code/brrtz
 npm start
 ```
 
 Then open:
 
 ```text
-http://localhost:5173
+http://127.0.0.1:5173
 ```
 
-Live runs store discovered listing IDs in local browser storage. This lets Brrtz tell the difference between listings it has already found before and listings discovered on the current scan, which is the base layer for saved-search alerts.
+For iPhone/mobile preview on the same Wi-Fi, use the LAN URL printed by the server.
 
-The Daily Radar panel shows fresh discoveries from the current scan. Saved searches also keep their latest scan time, match count, and new-find count so the sidebar can act as a quick daily checklist.
+## Architecture & Handoff
+
+The durable entry point for resuming work is `docs/BRRTZ-HANDOFF.md`, with
+onboarding in `docs/AI-START-HERE.md`. Product sequencing lives in `ROADMAP.md`,
+and the visual contract in `DESIGN-SYSTEM.md` / `AGENTS.md`.
 
 ## Feature Docs
 
@@ -51,30 +50,24 @@ The Daily Radar panel shows fresh discoveries from the current scan. Saved searc
 
 ## Connector Model
 
-Every live source should return normalized listing objects:
+Every live source returns normalized listing objects. `region` and `currency`
+are required on every listing:
 
 ```js
 {
   id: "source-stable-listing-id",
   source: "mercari",
+  region: "japan",
+  currency: "JPY",
   title: "Listing title",
   price: 120000,
-  condition: "動作品",
-  listedAt: "2026-05-03T09:30:00+09:00",
+  condition: "Used",
+  listedAt: "2026-07-23T09:30:00+09:00",
   url: "https://source.example/listing",
   image: "https://source.example/thumb.jpg"
 }
 ```
 
-## Next Live Connector Order
-
-1. Digimart
-2. OFFMALL / Hard Off Net Mall
-3. Yahoo Auctions
-4. Five G
-5. implant4
-6. Mercari
-7. Yahoo Fleamarket
-8. Rakuma
-
-Start with gear-specific shops before the larger marketplaces because they are more relevant and usually easier to validate.
+See `docs/BRRTZ-HANDOFF.md` (Regions And Sources) for the current source roster
+and access posture per region, and `src/sources/sourceRegistry.js` for
+operational status.

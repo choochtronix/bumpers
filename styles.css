@@ -1170,6 +1170,9 @@ body[data-theme="dark"] .quick-search-input {
   font-size: var(--text-caption);
   letter-spacing: 0;
   line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .quick-search-save-link {

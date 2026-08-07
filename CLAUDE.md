@@ -1,10 +1,12 @@
-# Bumpers
+# Brrtz
 
-Local-first synth and pro-audio gear search aggregator. Searches multiple Japanese marketplaces simultaneously from one interface. Expanding to Bay Area / US next.
+Synth and pro-audio gear search aggregator. Searches multiple regional marketplaces simultaneously from one interface. Live regions: Japan, US (Bay Area, Los Angeles, East Coast), and UK — see `regions.js` for the authoritative membership.
 
-## What Bumpers Is
+> Naming note: the repo, some storage keys (`bumpers.*`), and `BUMPERS_*` environment variables retain the former project name **Bumpers**. Use **Brrtz** for all new product copy, but do not rename stable storage keys or env vars. See `docs/BRRTZ-HANDOFF.md`.
 
-A free public search tool for finding used synthesizers, electronic music instruments, and pro audio gear across Japanese auction, flea market, and shop sources. Core differentiators: multi-source search, Clean Gear filtering, saved searches with alert mode, Fresh Finds new-listing detection, and Watched gear. No paid tier — free with invite-gated beta.
+## What Brrtz Is
+
+A free public search tool for finding used synthesizers, electronic music instruments, and pro audio gear across regional auction, flea market, and shop sources. Core differentiators: multi-source search, Clean Gear filtering, saved searches with alert mode, Fresh Finds new-listing detection, and Watched gear. No paid tier — free with invite-gated beta.
 
 ## Stack
 
@@ -16,7 +18,7 @@ A free public search tool for finding used synthesizers, electronic music instru
 ## Running Locally
 
 ```sh
-cd /Users/craigdrake/Documents/Codex/bumpers
+cd /home/hanzj/code/brrtz
 npm start
 ```
 
@@ -118,7 +120,7 @@ First US sources: eBay (official Finding API — use it, do not scrape), Reverb 
 
 ## Legal Posture
 
-Bumpers is a **free public tool** — no paid tier, no data resale. Listings are fetched live and linked back to source. This is the defensible position; do not add features that store or republish full listing databases. A Privacy Policy and Terms of Service are required before public launch.
+Brrtz is a **free public tool** — no paid tier, no data resale. Listings are fetched live and linked back to source. This is the defensible position; do not add features that store or republish full listing databases. A Privacy Policy and Terms of Service are required before public launch.
 
 ## Invite-Only Beta
 
@@ -128,7 +130,7 @@ Bumpers is a **free public tool** — no paid tier, no data resale. Listings are
 
 ## Assets
 
-- `assets/ICONS-site/bumpers_logo.svg` — main logo
+- `assets/ICONS-site/brrtz_logo.svg` — main logo (legacy duplicate `bumpers_logo.svg` still on disk)
 - `assets/ICONS-site/b-favicon.svg` — favicon
 - `assets/logos/ICONS/*.svg` — source logos
 - `assets/ICONS-site/icon-refine-animated-v02-spin.svg` — refine button
