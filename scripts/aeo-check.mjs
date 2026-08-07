@@ -33,6 +33,7 @@ const requiredSitemapUrls = [
   "https://brrtz.com/regions/bay-area",
   "https://brrtz.com/regions/los-angeles",
   "https://brrtz.com/regions/east-coast",
+  "https://brrtz.com/regions/uk",
   "https://brrtz.com/sources",
   "https://brrtz.com/for-agents",
   "https://brrtz.com/chatgpt",
@@ -50,6 +51,12 @@ const requiredSitemapUrls = [
   "https://brrtz.com/gear/akai-mpc3000",
   "https://brrtz.com/gear/e-mu-sp-1200",
   "https://brrtz.com/gear/roland-sp-404",
+  "https://brrtz.com/gear/roland-tr-909",
+  "https://brrtz.com/gear/roland-juno-60",
+  "https://brrtz.com/gear/korg-minilogue",
+  "https://brrtz.com/gear/moog-voyager",
+  "https://brrtz.com/gear/elektron-digitakt",
+  "https://brrtz.com/gear/akai-mpc2000xl",
   "https://brrtz.com/agent-connector",
 ];
 
@@ -68,6 +75,12 @@ const gearPages = [
   ["/gear/akai-mpc3000", ["Used", "Akai MPC3000", "listings"]],
   ["/gear/e-mu-sp-1200", ["Used", "E-mu SP-1200", "listings"]],
   ["/gear/roland-sp-404", ["Used", "Roland SP-404", "listings"]],
+  ["/gear/roland-tr-909", ["Used", "Roland TR-909", "listings"]],
+  ["/gear/roland-juno-60", ["Used", "Roland Juno-60", "listings"]],
+  ["/gear/korg-minilogue", ["Used", "Korg Minilogue", "listings"]],
+  ["/gear/moog-voyager", ["Used", "Moog Voyager", "listings"]],
+  ["/gear/elektron-digitakt", ["Used", "Elektron Digitakt", "listings"]],
+  ["/gear/akai-mpc2000xl", ["Used", "Akai MPC2000XL", "listings"]],
 ];
 
 const publicAeoPages = [

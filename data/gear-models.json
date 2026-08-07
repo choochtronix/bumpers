@@ -362,5 +362,173 @@
       "regionalNotes": "As a current Roland product the SP-404 line is everywhere in Japan and often the best-value place to buy — Yahoo Auctions, Mercari, and Hard Off list every generation, frequently cheaper than Western retail even accounting for shipping. Domestic units are 100V, though the external adapters are usually easy to substitute. In Japanese listings search ローランド (Roland) and SP-404, SP-404SX, or SP-404MK2, and read condition terms — 動作確認済み (tested working), 整備済み (serviced), 美品 (excellent), against ジャンク (junk) and 未確認 (untested). Because the generations are named inconsistently across listings, Brrtz's cross-market scan helps you pin the exact model and the best price in one pass.",
       "modelTerms": "Common search terms include Roland SP-404, SP-404MKII, SP-404SX, Roland SP sampler, and portable sampler."
     }
+  },
+  {
+    "slug": "roland-tr-909",
+    "name": "Roland TR-909",
+    "categoryParam": "drum-machines",
+    "categoryLabel": "drum machines",
+    "categoryNoun": "drum machine",
+    "searchQuery": "roland%20tr-909",
+    "lastmod": "2026-08-07",
+    "metaDescription": "Search Brrtz for used Roland TR-909 listings across Japan, Bay Area, Los Angeles, and East Coast sources.",
+    "ogDescription": "Find used Roland TR-909 listings through Brrtz regional gear search.",
+    "collectionDescription": "Search Brrtz for used Roland TR-909 drum machine listings across Japan, Bay Area, Los Angeles, and East Coast sources.",
+    "lede": "Use Brrtz to scan regional used gear sources for Roland TR-909 listings and related 909 searches.",
+    "boundaryName": "TR-909s",
+    "indexCardDescription": "A model page for Roland TR-909 drum machine searches across Brrtz regions.",
+    "schema": {
+      "alternateName": ["TR-909", "Roland TR-909", "909"],
+      "category": "Drum Machine",
+      "manufacturer": "Roland",
+      "description": "The Roland TR-909 Rhythm Composer is a drum machine released in 1983 combining analog voices with sampled sounds, foundational to techno and house.",
+      "sameAs": ["https://en.wikipedia.org/wiki/Roland_TR-909"]
+    },
+    "sections": {
+      "whatItIs": "The Roland TR-909 Rhythm Composer, released in 1983 as the successor to the 808, married analog-synthesized drums (its punchy kick, snappy snare, and toms) with short samples for the hi-hats and cymbals. Commercially it fared little better than the 808 at launch — and then became the rhythmic engine of techno and house, its kick and hats defining whole genres. It also added MIDI and DIN sync, making it far easier to integrate than its predecessor.",
+      "buyingUsed": "As with the 808, the first job is separating an original from its many descendants: Roland's TR-09 (Boutique) and TR-8S emulate the 909 digitally, and Behringer's RD-9 is an analog clone — none are a vintage 909, and titles blur the line. On a genuine unit, expect the usual age issues — aging capacitors, scratchy pots and faders, worn switches, and tired trigger contacts — plus the sample-based voices' aging voice ROMs, which are generally reliable but worth confirming. A recent service or recap is a real plus; ask whether all voices trigger cleanly and the sequencer holds patterns.",
+      "regionalNotes": "The 909 was built in Japan and the domestic market runs deep — Yahoo Auctions and Mercari surface units regularly, often cleaner and below Western dealer prices, though this is a sought-after box so bargains are relative. Domestic units are 100V and need a step-up transformer abroad. In Japanese listings look for ローランド (Roland), リズムコンポーザー (Rhythm Composer), and 909, and weigh condition terms — 動作確認済み (tested working) and 整備済み (serviced) matter on a machine this age, while ジャンク (junk) and 未確認 (untested) mean as-is. Brrtz scans Japanese and Western sources together so a serviced domestic 909 shows up alongside your local options.",
+      "modelTerms": "Common search terms include Roland TR-909, TR-909, 909 drum machine, Roland Rhythm Composer, and vintage 909."
+    }
+  },
+  {
+    "slug": "roland-juno-60",
+    "name": "Roland Juno-60",
+    "categoryParam": "synthesizers",
+    "categoryLabel": "synthesizers",
+    "categoryNoun": "synthesizer",
+    "searchQuery": "roland%20juno-60",
+    "lastmod": "2026-08-07",
+    "metaDescription": "Search Brrtz for used Roland Juno-60 listings across Japan, Bay Area, Los Angeles, and East Coast sources.",
+    "ogDescription": "Find used Roland Juno-60 listings through Brrtz regional gear search.",
+    "collectionDescription": "Search Brrtz for used Roland Juno-60 synthesizer listings across Japan, Bay Area, Los Angeles, and East Coast sources.",
+    "lede": "Use Brrtz to scan regional used gear sources for Roland Juno-60 listings and related Juno searches.",
+    "boundaryName": "Juno-60s",
+    "indexCardDescription": "A model page for Roland Juno-60 used synth searches across Brrtz regions.",
+    "schema": {
+      "alternateName": ["Juno-60", "Roland Juno-60"],
+      "category": "Synthesizer",
+      "manufacturer": "Roland",
+      "description": "The Roland Juno-60 is a 6-voice polyphonic analog synthesizer released in 1982, prized for its warm sound and lush chorus.",
+      "sameAs": ["https://en.wikipedia.org/wiki/Roland_Juno-60"]
+    },
+    "sections": {
+      "whatItIs": "The Roland Juno-60, released in 1982, is the predecessor to the Juno-106 and, to many ears, the warmest of the line. Six voices, a single DCO each, a punchy analog filter, and Roland's famous chorus give it a rich, immediate sound that's a staple of pop, house, and synthwave. It predates MIDI — it uses Roland's DCB interface instead — which is the main practical difference from the 106, though its build and raw tone are widely adored.",
+      "buyingUsed": "The Juno-60 is generally robust and, unlike the 106, doesn't suffer the notorious 80017A voice-chip failures, which is part of why clean units command a premium. Age still shows in scratchy sliders and pots, worn switches, and keyboard contacts, and the chorus can get noisy — test it. The big practical question is connectivity: with only DCB and no MIDI, factor in a DCB-to-MIDI interface (like the Kenton unit) if you need to sequence it. Confirm all six voices sound even and the filter tracks smoothly.",
+      "regionalNotes": "As a Roland classic the Juno-60 is well-represented in Japan and often a good-value route to one, on Yahoo Auctions and Mercari. Domestic units are 100V and want a transformer abroad. In Japanese listings look for ローランド (Roland) and ジュノ or ジュノー (Juno), and read condition terms — 動作確認済み (tested working), 整備済み (serviced), 美品 (excellent), against ジャンク (junk) and 未確認 (untested). Because the 60 and 106 are often cross-listed and confused, a careful cross-market look pays off — Brrtz scans Japanese and Western sources together so you can compare the exact model and price in one pass.",
+      "modelTerms": "Common search terms include Roland Juno-60, Juno-60, Juno 60, Roland Juno, and vintage Juno-60."
+    }
+  },
+  {
+    "slug": "korg-minilogue",
+    "name": "Korg Minilogue",
+    "categoryParam": "synthesizers",
+    "categoryLabel": "synthesizers",
+    "categoryNoun": "synthesizer",
+    "searchQuery": "korg%20minilogue",
+    "lastmod": "2026-08-07",
+    "metaDescription": "Search Brrtz for used Korg Minilogue listings across Japan, Bay Area, Los Angeles, and East Coast sources.",
+    "ogDescription": "Find used Korg Minilogue listings through Brrtz regional gear search.",
+    "collectionDescription": "Search Brrtz for used Korg Minilogue synthesizer listings across Japan, Bay Area, Los Angeles, and East Coast sources.",
+    "lede": "Use Brrtz to scan regional used gear sources for Korg Minilogue listings and related Minilogue searches.",
+    "boundaryName": "Minilogues",
+    "indexCardDescription": "A model page for Korg Minilogue used synth searches across Brrtz regions.",
+    "schema": {
+      "alternateName": ["Minilogue", "Korg Minilogue", "Minilogue XD"],
+      "category": "Synthesizer",
+      "manufacturer": "Korg",
+      "description": "The Korg Minilogue is a 4-voice polyphonic analog synthesizer released in 2016, popular as an affordable modern analog polysynth.",
+      "sameAs": ["https://en.wikipedia.org/wiki/Korg_Minilogue"]
+    },
+    "sections": {
+      "whatItIs": "The Korg Minilogue, released in 2016, brought genuine polyphonic analog synthesis to an accessible price and became one of the best-selling modern synths. Four voices, two oscillators each, a resonant analog filter, an onboard sequencer, and a little oscilloscope display make it a capable, hands-on instrument for pads, leads, and basses. The line expanded with the Minilogue XD (adding a digital multi-engine and effects), so the name now covers two related but different instruments.",
+      "buyingUsed": "This is a current, solidly built synth, so used buying is low-risk — the main thing is knowing which one you're getting: the original Minilogue and the Minilogue XD differ meaningfully in features and price, and titles sometimes just say Minilogue. On any unit, check the keys and the encoders (heavily used ones can wear), confirm the sequencer and all four voices work, and make sure it includes the correct power supply. Because these are recent, firmware is usually not an issue, but it's worth confirming the unit powers up cleanly and holds its patches.",
+      "regionalNotes": "Korg is Japanese, so the Minilogue is everywhere in Japan's used market and often the best-value place to buy — Yahoo Auctions, Mercari, and Hard Off list both the original and XD regularly, frequently below Western retail. Domestic units are 100V, though the external adapter is easy to substitute. In Japanese listings search コルグ (Korg) and ミニローグ (Minilogue) or Minilogue, and read condition terms — 動作確認済み (tested working), 整備済み (serviced), 美品 (excellent), against ジャンク (junk) and 未確認 (untested). Brrtz scans Japanese and Western sources together so you can pin the exact model and the best price in one pass.",
+      "modelTerms": "Common search terms include Korg Minilogue, Minilogue, Minilogue XD, Korg analog synth, and Minilogue polyphonic."
+    }
+  },
+  {
+    "slug": "moog-voyager",
+    "name": "Moog Voyager",
+    "categoryParam": "synthesizers",
+    "categoryLabel": "synthesizers",
+    "categoryNoun": "synthesizer",
+    "searchQuery": "moog%20voyager",
+    "lastmod": "2026-08-07",
+    "metaDescription": "Search Brrtz for used Moog Voyager listings across Japan, Bay Area, Los Angeles, and East Coast sources.",
+    "ogDescription": "Find used Moog Voyager listings through Brrtz regional gear search.",
+    "collectionDescription": "Search Brrtz for used Moog Voyager synthesizer listings across Japan, Bay Area, Los Angeles, and East Coast sources.",
+    "lede": "Use Brrtz to scan regional used gear sources for Moog Voyager listings and related Minimoog Voyager searches.",
+    "boundaryName": "Voyagers",
+    "indexCardDescription": "A model page for Moog Voyager used synth searches across Brrtz regions.",
+    "schema": {
+      "alternateName": ["Minimoog Voyager", "Moog Voyager", "Voyager"],
+      "category": "Synthesizer",
+      "manufacturer": "Moog",
+      "description": "The Moog Minimoog Voyager is a monophonic analog synthesizer released in 2002, Bob Moog's modern successor to the Minimoog Model D.",
+      "sameAs": ["https://en.wikipedia.org/wiki/Minimoog_Voyager"]
+    },
+    "sections": {
+      "whatItIs": "The Minimoog Voyager, released in 2002, was Bob Moog's modern reimagining of the Model D — the instrument that reintroduced Moog as a going concern. It keeps the three-oscillator, fat-filtered Minimoog spirit but adds programmability, MIDI, an expressive touch pad, and patchable expansion, wrapped in a signature backlit panel. Produced in several editions (the standard, the Select Series, the Old School, and the smaller Voyager RME) until it was discontinued, it's a modern classic in its own right.",
+      "buyingUsed": "The Voyager is a robust modern instrument, so it's lower-risk than a vintage Minimoog, but there are specifics to check. The backlit panel and the touch surface are its signature features — confirm both work — and test the wheels, the pots, and that all three oscillators tune and track cleanly. Know the editions: the standard, the various Select Series and anniversary finishes, the Old School (no patch memory or MIDI, deliberately), and the compact Voyager RME differ in features and value, so read the title carefully. Ask about firmware and any servicing.",
+      "regionalNotes": "The Voyager is American-built, so it appears in Japan less often than home-grown gear, but it does surface on Yahoo Auctions and through Japanese dealers. Voltage runs both ways — a US unit is 117V and a Japanese-market unit is 100V — so confirm which you're buying. In Japanese listings look for モーグ or ムーグ (Moog) and ボイジャー (Voyager); the condition vocabulary is the same — 動作確認済み (tested working), 整備済み (serviced), 美品 (excellent), against ジャンク (junk) and 未確認 (untested). Brrtz scans Japanese and Western sources together, which helps when the best-value Voyager might be sitting in another market.",
+      "modelTerms": "Common search terms include Moog Voyager, Minimoog Voyager, Voyager RME, Moog synthesizer, and Voyager Select Series."
+    }
+  },
+  {
+    "slug": "elektron-digitakt",
+    "name": "Elektron Digitakt",
+    "categoryParam": "samplers",
+    "categoryLabel": "samplers",
+    "categoryNoun": "sampler",
+    "searchQuery": "elektron%20digitakt",
+    "lastmod": "2026-08-07",
+    "metaDescription": "Search Brrtz for used Elektron Digitakt listings across Japan, Bay Area, Los Angeles, and East Coast sources.",
+    "ogDescription": "Find used Elektron Digitakt listings through Brrtz regional gear search.",
+    "collectionDescription": "Search Brrtz for used Elektron Digitakt sampler listings across Japan, Bay Area, Los Angeles, and East Coast sources.",
+    "lede": "Use Brrtz to scan regional used gear sources for Elektron Digitakt listings and related Digitakt searches.",
+    "boundaryName": "Digitakts",
+    "indexCardDescription": "A model page for Elektron Digitakt used sampler searches across Brrtz regions.",
+    "schema": {
+      "alternateName": ["Digitakt", "Elektron Digitakt", "Digitakt II"],
+      "category": "Sampler",
+      "manufacturer": "Elektron",
+      "description": "The Elektron Digitakt is a compact digital drum machine and sampler released in 2017, known for its powerful sequencer and workflow.",
+      "sameAs": ["https://en.wikipedia.org/wiki/Elektron_(company)"]
+    },
+    "sections": {
+      "whatItIs": "The Elektron Digitakt, released in 2017, is a compact eight-track digital sampler and drum machine built around Elektron's celebrated step sequencer with parameter locks, conditional trigs, and per-step modulation. It's less about vast sampling and more about deep, performable sequencing — which is why it became a modern staple for beat-making and live sets. Elektron released the expanded Digitakt II in 2024 (more tracks, stereo sampling, more voices), so the name now covers two generations.",
+      "buyingUsed": "This is a current, road-tested instrument, so used buying is low-risk — the key is which generation you're getting: the original Digitakt and the Digitakt II differ meaningfully in tracks, sampling, and price, and titles sometimes just say Digitakt. On any unit, check the encoders and buttons for wear (they see heavy sequencing use), confirm the screen is clean and bright, and make sure it powers up and holds projects. Elektron keeps firmware current, so it's worth confirming the unit updates normally and includes its USB and power cabling.",
+      "regionalNotes": "Elektron is Swedish, not Japanese, so the domestic-Japan pricing advantage is smaller here than for Roland or Korg gear — but Digitakts still circulate widely on Yahoo Auctions, Mercari, and through Japanese shops, and the global used market for them is active. Voltage is rarely an issue since the power supply is a standard external adapter. In Japanese listings search Elektron and Digitakt, and read condition terms — 動作確認済み (tested working), 整備済み (serviced), 美品 (excellent), against ジャンク (junk) and 未確認 (untested). Brrtz scans Japanese and Western sources together so you can compare the exact model and price across markets in one pass.",
+      "modelTerms": "Common search terms include Elektron Digitakt, Digitakt, Digitakt II, Elektron sampler, and Digitakt drum machine."
+    }
+  },
+  {
+    "slug": "akai-mpc2000xl",
+    "name": "Akai MPC2000XL",
+    "categoryParam": "samplers",
+    "categoryLabel": "samplers",
+    "categoryNoun": "sampler",
+    "searchQuery": "akai%20mpc2000xl",
+    "lastmod": "2026-08-07",
+    "metaDescription": "Search Brrtz for used Akai MPC2000XL listings across Japan, Bay Area, Los Angeles, and East Coast sources.",
+    "ogDescription": "Find used Akai MPC2000XL listings through Brrtz regional gear search.",
+    "collectionDescription": "Search Brrtz for used Akai MPC2000XL sampler listings across Japan, Bay Area, Los Angeles, and East Coast sources.",
+    "lede": "Use Brrtz to scan regional used gear sources for Akai MPC2000XL listings and related MPC searches.",
+    "boundaryName": "MPC2000XLs",
+    "indexCardDescription": "A model page for Akai MPC2000XL used sampler searches across Brrtz regions.",
+    "schema": {
+      "alternateName": ["MPC2000XL", "Akai MPC2000XL", "MPC 2000XL"],
+      "category": "Sampler",
+      "manufacturer": "Akai",
+      "description": "The Akai MPC2000XL is a MIDI sampler and sequencer released in 2000, a workhorse of hip-hop and electronic production.",
+      "sameAs": ["https://en.wikipedia.org/wiki/Akai_MPC"]
+    },
+    "sections": {
+      "whatItIs": "The Akai MPC2000XL, released in 2000, is one of the most beloved MPCs — a 16-bit sampler and sequencer that hit a sweet spot of price, sound, and workflow, and stayed a production workhorse long after its release. The velocity-sensitive pads, the swing-savvy sequencer, and its gritty sampling character made it a favorite for beat-making, and a deep world of OS upgrades, memory and output expansions, and modifications grew around it.",
+      "buyingUsed": "Like any turn-of-the-millennium sampler, the MPC2000XL shows its age in specific places. The backlit LCD dims or fails and is a common replacement; the floppy drive is a frequent weak point (SCSI and modern flash or emulator storage are popular upgrades); the pad sensors get uneven with heavy use and can need re-sensing; and the memory-backup battery dies. Test every pad for even response, the screen, and storage. Ask what's installed — expanded RAM, extra outputs (the 8-output board), OS version, and any storage mods all affect both value and usability.",
+      "regionalNotes": "Akai is Japanese, and the MPC2000XL is plentiful in Japan's used market — Yahoo Auctions, Mercari, and Hard Off list them regularly, sometimes clean and below Western prices. Domestic units are 100V and need a transformer abroad. In Japanese listings search アカイ (Akai) and MPC2000XL or MPC-2000XL, and read condition terms — 動作確認済み (tested working), 整備済み (serviced), 美品 (excellent), against ジャンク (junk) and 未確認 (untested); on an MPC junk often means a dead screen or floppy drive, both fixable. Brrtz scans Japanese and Western sources together so a serviced domestic unit shows up next to your local options.",
+      "modelTerms": "Common search terms include Akai MPC2000XL, MPC2000XL, MPC 2000XL, Akai MPC sampler, and vintage MPC2000XL."
+    }
   }
 ]

@@ -30,6 +30,7 @@ const STATIC_SITEMAP = [
   ["https://brrtz.com/regions/bay-area", "2026-06-26"],
   ["https://brrtz.com/regions/los-angeles", "2026-06-26"],
   ["https://brrtz.com/regions/east-coast", "2026-06-26"],
+  ["https://brrtz.com/regions/uk", "2026-08-07"],
   ["https://brrtz.com/sources", "2026-06-26"],
   ["https://brrtz.com/gear", "2026-06-26"],
 ];
