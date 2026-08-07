@@ -215,7 +215,7 @@ Current design direction:
 
 Important assets:
 
-- `assets/ICONS-site/bumpers_logo.svg`
+- `assets/ICONS-site/brrtz_logo.svg`
 - `assets/ICONS-site/b-favicon.svg`
 - `assets/ICONS-site/icon-search.svg`
 - `assets/ICONS-site/icon-refine-animated-v02-spin.svg`

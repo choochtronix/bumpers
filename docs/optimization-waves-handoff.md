@@ -128,9 +128,9 @@ From WSL, the normal `npm run ...` and `git push` work as documented.
 
 ## Follow-ups / known debt
 
-- `app.js` and `styles.css` still reference the legacy `bumpers_logo.svg`; the
-  live site uses `brrtz_logo.svg`. Safe to reconcile only if the two SVGs are
-  identical.
+- (Resolved) The legacy `bumpers_logo.svg` was retired: the CSS mask references
+  in `styles.css` and `aeo.css` now point to the byte-identical `brrtz_logo.svg`,
+  and the duplicate file was deleted.
 - `llms.txt` (in `server.js`) and the `aeo-check.mjs` arrays are hand-synced
   when gear models change — the generator prints exactly what to paste.
 - The untracked junk files in the working tree (garbled names like

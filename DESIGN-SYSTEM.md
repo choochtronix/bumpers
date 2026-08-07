@@ -98,7 +98,7 @@ Three layers inside the token file:
 - literal `160ms ease` transitions → `var(--motion-standard)`
 - `.open-link` and `.watch-button` hardcode white backgrounds even in dark theme → tokens
 - `aeo.css` duplicates the gradient and greys → tokens
-- Naming: repo mixes `bumpers` and `brrtz` (`bumpers_logo.svg` = `brrtz_logo.svg`). Pick `brrtz` for all new work.
+- Naming: the repo still mixes `bumpers` and `brrtz` in stable storage keys and `BUMPERS_*` env vars (intentionally kept). Pick `brrtz` for all new work. (The duplicate `bumpers_logo.svg` was retired in favor of `brrtz_logo.svg`.)
 
 ## 6. Component + pattern specs
 

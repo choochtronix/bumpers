@@ -117,7 +117,7 @@ Bumpers is a **free public tool** — no paid tier, no data resale. Listings are
 
 ## Assets
 
-- `assets/ICONS-site/bumpers_logo.svg` — main logo
+- `assets/ICONS-site/brrtz_logo.svg` — main logo
 - `assets/ICONS-site/b-favicon.svg` — favicon
 - `assets/logos/ICONS/*.svg` — source logos
 - `assets/ICONS-site/icon-refine-animated-v02-spin.svg` — refine button
