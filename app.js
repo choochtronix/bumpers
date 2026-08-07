@@ -12926,9 +12926,47 @@ function hydrateRegionSources(sourceIds = []) {
 
 function loadSettings() {
   try {
-    return hydrateSettings(JSON.parse(localStorage.getItem(STORAGE_KEYS.settings) || "{}"));
+    const stored = localStorage.getItem(STORAGE_KEYS.settings);
+    if (stored) {
+      return hydrateSettings(JSON.parse(stored));
+    }
+    // First visit only (nothing stored): pick a starting region from the
+    // browser locale/timezone so US and UK visitors don't land on Japan/JPY by
+    // default. Returning users' stored choice and explicit URL region params
+    // always take precedence over this.
+    return hydrateSettings({ regionId: detectDefaultRegionId() });
   } catch {
     return { ...defaultSettings };
+  }
+}
+
+// Best-effort first-visit region guess from the browser locale and time zone.
+// Pure client-side (no geo-IP, no permission prompt); always resolves to a
+// selectable region or the configured default.
+function detectDefaultRegionId() {
+  const fallback = defaultSettings.regionId || "japan";
+  try {
+    const regions = getSelectableRegions();
+    const has = (id) => regions.some((region) => region.id === id);
+    const locale = String(navigator.languages?.[0] || navigator.language || "").toLowerCase();
+    const timeZone = String(Intl.DateTimeFormat().resolvedOptions().timeZone || "").toLowerCase();
+
+    if ((locale.startsWith("ja") || timeZone === "asia/tokyo") && has("japan")) {
+      return "japan";
+    }
+    if ((locale.startsWith("en-gb") || timeZone === "europe/london") && has("uk")) {
+      return "uk";
+    }
+    const isNorthAmerica = locale.startsWith("en-us") || locale.startsWith("en-ca") || timeZone.startsWith("america/");
+    if (isNorthAmerica) {
+      const pacific = ["america/los_angeles", "america/vancouver", "america/tijuana"];
+      if (pacific.includes(timeZone) && has("bay-area")) return "bay-area";
+      if (has("east-coast")) return "east-coast";
+      if (has("bay-area")) return "bay-area";
+    }
+    return fallback;
+  } catch {
+    return fallback;
   }
 }
 
