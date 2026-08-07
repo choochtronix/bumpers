@@ -5832,7 +5832,7 @@ body[data-theme="dark"] .source-filter-button.is-active {
 }
 
 .source-filter-button.is-error {
-  border-color: rgba(177, 59, 87, 0.46);
+  border-color: color-mix(in srgb, var(--rose) 46%, transparent);
   color: var(--rose);
 }
 

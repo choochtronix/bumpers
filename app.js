@@ -12254,9 +12254,13 @@ function createSourceBreakdown(sourceStats) {
   if (sourceStats.length === 0) return "";
 
   const parts = sourceStats.map((item) => {
-    if (item.status === "manual") return `${labelForSource(item.source)} Assist`;
-    if (item.status === "pending") return `${labelForSource(item.source)} pending setup`;
-    return `${labelForSource(item.source)} ${item.rawCount}`;
+    const label = labelForSource(item.source);
+    if (item.status === "manual") return `${label} Assist`;
+    if (item.status === "pending") return `${label} pending setup`;
+    if (item.status === "parked") return `${label} parked`;
+    if (item.status === "error") return `${label} unavailable`;
+    if (item.status === "partial") return `${label} ${item.rawCount} (partial)`;
+    return `${label} ${item.rawCount}`;
   });
   return ` from ${parts.join(", ")}`;
 }
