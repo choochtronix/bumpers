@@ -40,6 +40,16 @@ const requiredSitemapUrls = [
   "https://brrtz.com/gear/moog-minimoog",
   "https://brrtz.com/gear/arp-2600",
   "https://brrtz.com/gear/roland-tr-808",
+  "https://brrtz.com/gear/roland-juno-106",
+  "https://brrtz.com/gear/roland-tb-303",
+  "https://brrtz.com/gear/roland-sh-101",
+  "https://brrtz.com/gear/roland-jupiter-8",
+  "https://brrtz.com/gear/sequential-prophet-5",
+  "https://brrtz.com/gear/yamaha-dx7",
+  "https://brrtz.com/gear/korg-ms-20",
+  "https://brrtz.com/gear/akai-mpc3000",
+  "https://brrtz.com/gear/e-mu-sp-1200",
+  "https://brrtz.com/gear/roland-sp-404",
   "https://brrtz.com/agent-connector",
 ];
 
@@ -48,6 +58,16 @@ const gearPages = [
   ["/gear/moog-minimoog", ["Used", "Moog Minimoog", "listings"]],
   ["/gear/arp-2600", ["Used", "ARP 2600", "listings"]],
   ["/gear/roland-tr-808", ["Used", "Roland TR-808", "listings"]],
+  ["/gear/roland-juno-106", ["Used", "Roland Juno-106", "listings"]],
+  ["/gear/roland-tb-303", ["Used", "Roland TB-303", "listings"]],
+  ["/gear/roland-sh-101", ["Used", "Roland SH-101", "listings"]],
+  ["/gear/roland-jupiter-8", ["Used", "Roland Jupiter-8", "listings"]],
+  ["/gear/sequential-prophet-5", ["Used", "Sequential Prophet-5", "listings"]],
+  ["/gear/yamaha-dx7", ["Used", "Yamaha DX7", "listings"]],
+  ["/gear/korg-ms-20", ["Used", "Korg MS-20", "listings"]],
+  ["/gear/akai-mpc3000", ["Used", "Akai MPC3000", "listings"]],
+  ["/gear/e-mu-sp-1200", ["Used", "E-mu SP-1200", "listings"]],
+  ["/gear/roland-sp-404", ["Used", "Roland SP-404", "listings"]],
 ];
 
 const publicAeoPages = [
@@ -152,7 +172,7 @@ function assertHomepageIdentity(body) {
   assert(/<span class="brand-descriptor">\s*Brrtz Gear Radar\s*<\/span>/.test(h1), "/ H1 should visibly identify Brrtz Gear Radar");
   assert(!/class="[^"]*sr-only[^"]*"[^>]*>\s*Brrtz Gear Radar/.test(h1), "/ H1 identity should not be screen-reader-only");
   assert(body.includes('<h2 id="activeTitle">Search used gear</h2>'), "/ should retain the Search used gear operational heading");
-  assert(body.includes("Free used-gear search across regional marketplaces, with original-listing links."), "/ should include the compact product description");
+  assert(body.includes("Every used-gear source in one search — Clean Gear, Fresh Finds, original links."), "/ should include the compact product description");
 
   const nodes = extractJsonLdNodes(body);
   const websites = nodes.filter((node) => node?.["@type"] === "WebSite");
