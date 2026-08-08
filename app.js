@@ -2542,6 +2542,8 @@ function bindEvents() {
   });
   refineSearchModal.addEventListener("input", handleRefineSearchModalEdit);
   refineSearchModal.addEventListener("change", handleRefineSearchModalEdit);
+  refineSourceOptions?.addEventListener("toggle", handleRefineAdvancedOptionsToggle);
+  refineNoiseOptions?.addEventListener("toggle", handleRefineAdvancedOptionsToggle);
 
   openSavedResultsDrawerButton?.addEventListener("click", toggleSavedResultsDrawer);
   closeSavedResultsDrawerButton?.addEventListener("click", closeSavedResultsDrawer);
@@ -4486,6 +4488,46 @@ function closeRefineSearchModal(options = {}) {
   document.body.classList.remove("modal-open");
   updateMobileSearchOverlayVisibility();
   if (restoreFocus) refineSearchReturnFocus?.focus();
+}
+
+function handleRefineAdvancedOptionsToggle(event) {
+  const details = event.currentTarget;
+  if (!details?.open || refineSearchModal.hidden) return;
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => scrollRefineAdvancedOptionsIntoView(details));
+  });
+}
+
+function scrollRefineAdvancedOptionsIntoView(details) {
+  const panel = details?.closest(".refine-panel");
+  if (!panel) return;
+
+  const panelRect = panel.getBoundingClientRect();
+  const detailsRect = details.getBoundingClientRect();
+  const actions = panel.querySelector(".modal-actions");
+  const actionsRect = actions?.getBoundingClientRect();
+  const footerOverlap = actionsRect
+    ? Math.max(0, Math.min(panelRect.bottom, actionsRect.bottom) - Math.max(panelRect.top, actionsRect.top))
+    : 0;
+  const comfortableBottom = panelRect.bottom - footerOverlap - 16;
+  const targetBottom = Math.min(detailsRect.bottom, detailsRect.top + Math.min(details.scrollHeight, panel.clientHeight * 0.74));
+  const scrollDelta = targetBottom - comfortableBottom;
+
+  if (scrollDelta > 0) {
+    panel.scrollTo({
+      top: panel.scrollTop + scrollDelta,
+      behavior: shouldReduceMotion() ? "auto" : "smooth",
+    });
+    return;
+  }
+
+  if (detailsRect.top < panelRect.top + 12) {
+    panel.scrollTo({
+      top: Math.max(0, panel.scrollTop + detailsRect.top - panelRect.top - 12),
+      behavior: shouldReduceMotion() ? "auto" : "smooth",
+    });
+  }
 }
 
 function handleRefineSearchModalEdit() {

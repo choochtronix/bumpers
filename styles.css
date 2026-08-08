@@ -888,7 +888,7 @@ a {
 
 .brand-wave-wrap {
   position: absolute;
-  z-index: 0;
+  z-index: 1;
   top: 50%;
   left: 50%;
   width: 100vw;
@@ -910,8 +910,10 @@ a {
 }
 
 .brand-wave-path {
+  --experimental-brand-wave-color: #e8bde8;
+
   fill: none;
-  stroke: url("#brandWaveGradient");
+  stroke: var(--experimental-brand-wave-color);
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 1.75;
@@ -963,6 +965,7 @@ legend,
   --quick-search-refine-gap: 10px;
   --quick-search-refine-width: 108px;
   --quick-search-right-padding: calc(var(--quick-search-submit-inset) + var(--quick-search-submit-size) + var(--quick-search-refine-gap) + var(--quick-search-refine-width) + 14px);
+  --quick-search-suggestions-left: calc(var(--quick-search-left-padding) + var(--space-7) + var(--space-6));
   --quick-search-clear-space: 0px;
   --quick-search-extra-space: 0px;
   --quick-search-placeholder-size: 18px;
@@ -970,6 +973,8 @@ legend,
 
   display: flex;
   position: relative;
+  width: 100%;
+  max-width: 100%;
   min-width: 0;
   flex-direction: column;
   gap: 7px;
@@ -1069,6 +1074,8 @@ body[data-theme="dark"] .quick-search-input {
   appearance: none;
   -webkit-appearance: none;
   display: block;
+  max-width: 100%;
+  min-width: 0;
   min-height: 48px;
   padding-right: calc(var(--quick-search-right-padding) + var(--quick-search-clear-space) + var(--quick-search-extra-space));
   overflow: hidden;
@@ -1128,13 +1135,15 @@ body[data-theme="dark"] .quick-search-input {
 
 .quick-search-suggestions {
   display: flex;
-  width: calc(100% - var(--quick-search-left-padding));
-  max-width: calc(100% - var(--quick-search-left-padding));
+  position: absolute;
+  z-index: 4;
+  top: calc(var(--quick-search-height, 48px) / 2);
+  left: var(--quick-search-suggestions-left);
+  width: calc(100% - var(--quick-search-suggestions-left) - var(--quick-search-right-padding) - var(--quick-search-clear-space));
+  max-width: calc(100% - var(--quick-search-suggestions-left) - var(--quick-search-right-padding) - var(--quick-search-clear-space));
   min-width: 0;
   align-items: center;
   gap: 8px;
-  margin-top: 8px;
-  margin-left: var(--quick-search-left-padding);
   overflow-x: auto;
   overflow-y: hidden;
   overscroll-behavior-x: contain;
@@ -1142,6 +1151,7 @@ body[data-theme="dark"] .quick-search-input {
   -webkit-mask-image: linear-gradient(90deg, #000 0, #000 calc(100% - 22px), transparent);
   mask-image: linear-gradient(90deg, #000 0, #000 calc(100% - 22px), transparent);
   scrollbar-width: none;
+  transform: translateY(-50%);
 }
 
 .quick-search-suggestions::-webkit-scrollbar {
@@ -1154,6 +1164,9 @@ body[data-theme="dark"] .quick-search-input {
 
 .quick-search-link-row {
   display: flex;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
@@ -1222,6 +1235,10 @@ body[data-theme="dark"] .quick-search-input {
 }
 
 @media (max-width: 640px) {
+  .quick-search-suggestions {
+    --quick-search-suggestions-left: calc(var(--quick-search-left-padding) + var(--space-7) + var(--space-5));
+  }
+
   .quick-search-link-row {
     flex-wrap: wrap;
     gap: var(--space-1);
@@ -1335,7 +1352,9 @@ body[data-theme="dark"] .quick-search-refine {
 }
 
 .search-terms-field > .quick-search-refine,
-.search-terms-field > .quick-search-submit {
+.search-terms-field > .quick-search-submit,
+.search-terms-field > .quick-search-extra,
+.search-terms-field > .quick-search-clear {
   position: absolute;
   top: calc(var(--quick-search-height, 48px) / 2);
   transform: translateY(-50%);
@@ -4066,7 +4085,7 @@ body.settings-page-active[data-theme="dark"] {
   color: transparent;
   font-size: var(--text-display);
   font-weight: var(--weight-home-section-title);
-  line-height: 0.98;
+  line-height: 1.04;
   -webkit-text-fill-color: transparent;
 }
 
@@ -4078,7 +4097,7 @@ body[data-theme="dark"] .settings-page .settings-title-lockup {
   grid-column: 1;
   grid-row: 1;
   gap: var(--space-3);
-  margin-top: clamp(64px, 7vw, 88px);
+  margin-top: calc(clamp(64px, 7vw, 88px) + var(--space-4));
   top: clamp(18px, 3vw, 42px);
 }
 
@@ -4818,7 +4837,7 @@ body[data-theme="dark"] .settings-page #signOutAccount {
   }
 
   body.settings-page-active .back-to-top {
-    --mobile-back-to-top-offset: calc(var(--mobile-bottom-nav-space, 88px) + var(--space-5));
+    --mobile-back-to-top-offset: calc(var(--mobile-bottom-nav-space, 88px) + var(--space-1));
   }
 }
 
@@ -5138,11 +5157,11 @@ body[data-theme="dark"] .settings-page #signOutAccount {
 .refine-panel .exclude-tags-copy > span,
 .refine-panel label > span,
 .refine-panel legend {
-  color: var(--color-toast-ink);
+  color: var(--ink);
 }
 
 .refine-panel .exclude-tags-copy p {
-  color: var(--color-toast-ink);
+  color: var(--muted);
 }
 
 .save-refine-search-action {
@@ -10581,6 +10600,12 @@ body[data-theme="dark"] .browse-expanded-loader-copy {
     text-align: left;
   }
 
+  .browse-expanded-header.featured-home-header.is-browse-header > div:first-child > span {
+    width: 100%;
+    max-width: 100%;
+    white-space: normal;
+  }
+
   .featured-home-section.is-gear-browser-frame .browse-title-mobile-break,
   .browse-expanded-header.featured-home-header.is-browse-header .browse-title-mobile-break {
     display: block;
@@ -11086,17 +11111,33 @@ body[data-theme="dark"] .browse-expanded-loader-copy {
 }
 
 .app-header {
+  /* Experiment: set this to 0 to quickly remove the top-nav gradient band. */
+  --experimental-header-gradient-band-opacity: 1;
+
   position: relative;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 24px;
   margin-bottom: 26px;
+  padding: var(--space-3) var(--space-4);
+  isolation: isolate;
+}
+
+.app-header::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: var(--radius-card-large);
+  background: var(--brand-gradient);
+  opacity: var(--experimental-header-gradient-band-opacity);
+  pointer-events: none;
 }
 
 .app-header > :not(.brand-wave-wrap) {
   position: relative;
-  z-index: 1;
+  z-index: 2;
 }
 
 .app-header > .header-actions {
@@ -11110,7 +11151,12 @@ body[data-theme="dark"] .browse-expanded-loader-copy {
 
 .brand-home-link {
   z-index: 6;
+  color: var(--color-control-on-ink);
   pointer-events: auto;
+}
+
+.app-header .brand-descriptor {
+  color: var(--color-control-on-ink);
 }
 
 .brand-mark {
@@ -11356,6 +11402,20 @@ body.settings-page-active[data-theme="dark"] .header-actions .account-trigger.is
   border-color: var(--color-brand-hot);
 }
 
+.header-actions .account-trigger,
+.header-actions .account-trigger:is(:hover, :focus-visible, [aria-expanded="true"], .is-signed-in),
+body.settings-page-active .header-actions .account-trigger,
+body.settings-page-active .header-actions .account-trigger.is-signed-in,
+body[data-theme="dark"] .header-actions .account-trigger,
+body[data-theme="dark"] .header-actions .account-trigger:not(.is-signed-in),
+body[data-theme="dark"] .header-actions .account-trigger:is(:hover, :focus-visible, [aria-expanded="true"], .is-signed-in),
+body[data-theme="dark"] .header-actions .account-trigger:not(.is-signed-in):is(:hover, :focus-visible, [aria-expanded="true"]),
+body.settings-page-active[data-theme="dark"] .header-actions .account-trigger,
+body.settings-page-active[data-theme="dark"] .header-actions .account-trigger:not(.is-signed-in),
+body.settings-page-active[data-theme="dark"] .header-actions .account-trigger.is-signed-in {
+  border-color: transparent;
+}
+
 .account-avatar-check {
   position: absolute;
   right: calc(var(--space-1) * -1);
@@ -11538,6 +11598,15 @@ body[data-theme="dark"] .header-actions .account-trigger.is-signed-in:is(:hover,
   background: var(--color-brand-hot);
   background-color: var(--color-brand-hot);
   color: var(--color-control-on-ink);
+}
+
+.header-actions :is(.theme-toggle, .saved-trigger, .watching-trigger, .account-trigger),
+.header-actions :is(.theme-toggle, .saved-trigger, .watching-trigger, .account-trigger):is(:hover, :focus-visible, [aria-expanded="true"], .is-active),
+.header-actions .watching-trigger[aria-pressed="true"],
+body[data-theme="dark"] .header-actions :is(.theme-toggle, .saved-trigger, .watching-trigger, .account-trigger),
+body[data-theme="dark"] .header-actions :is(.theme-toggle, .saved-trigger, .watching-trigger, .account-trigger):is(:hover, :focus-visible, [aria-expanded="true"], .is-active),
+body[data-theme="dark"] .header-actions .watching-trigger[aria-pressed="true"] {
+  border-color: transparent;
 }
 
 .header-actions :is(.saved-trigger, .watching-trigger, .account-trigger):is(:hover, :focus-visible, [aria-expanded="true"], .is-active) .header-action-icon,
@@ -12864,6 +12933,10 @@ body[data-theme="dark"] .refine-backdrop {
     margin-bottom: 0;
   }
 
+  .result-grid.is-browse-expanded.is-gear-browser-frame:not(.is-list-view):not(.is-gallery-view) .listing-card .listing-body {
+    padding-inline: var(--space-2);
+  }
+
   .result-grid.is-browse-expanded.is-gear-browser-frame.is-gallery-view .listing-card.featured-scanner-pick {
     --featured-blip-inset: var(--space-3);
     --featured-blip-border: 10px;
@@ -12887,7 +12960,7 @@ body[data-theme="dark"] .refine-backdrop {
     height: auto;
     min-height: 0;
     bottom: calc(var(--featured-blip-border) + var(--featured-blip-inset) + 44px);
-    padding: var(--space-2) var(--space-3);
+    padding: var(--space-1) 0 0;
   }
 
   .result-grid.is-browse-expanded.is-gear-browser-frame.is-gallery-view .listing-card.featured-scanner-pick h3::before {
@@ -14186,7 +14259,7 @@ body[data-theme="dark"] .refine-backdrop {
   }
 
   .back-to-top {
-    --mobile-back-to-top-offset: calc(var(--mobile-bottom-nav-space) + 16px);
+    --mobile-back-to-top-offset: calc(var(--mobile-bottom-nav-space) + var(--space-1));
   }
 
   .save-confirmation-toast {
