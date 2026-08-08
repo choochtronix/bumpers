@@ -14,6 +14,13 @@ import { appendSourceHealthLogs, readSourceHealthState } from "./src/lib/sourceH
 import { createBrrtzMcpHandler } from "./src/mcp/brrtzMcpServer.js";
 import { getCheckableSources, SOURCE_REGISTRY } from "./src/sources/sourceRegistry.js";
 import {
+  buildGearIndexPlan,
+  buildGearIndexRow,
+  getGearIndexRegion,
+  GEAR_INDEX_REGIONS,
+  validateGearIndexCatalog,
+} from "./src/gear-index/gearIndexCore.js";
+import {
   createBrowseCursor,
   getBrowsePageStart,
   getNextBrowsePageState,
@@ -48,6 +55,10 @@ const ALERT_EMAIL_FROM = process.env.BRRTZ_ALERT_EMAIL_FROM || "Brrtz <alerts@br
 const ALERT_DIGEST_BASE_URL = process.env.BRRTZ_ALERT_DIGEST_BASE_URL || "https://brrtz.com";
 const ALERT_SEARCH_LIMIT = Number(process.env.BRRTZ_ALERT_SEARCH_LIMIT || 25);
 const ALERT_LISTING_LIMIT = Number(process.env.BRRTZ_ALERT_LISTING_LIMIT || 8);
+const GEAR_INDEX_CATALOG_FILE = join(ROOT, "data", "gear-index.json");
+const GEAR_INDEX_DATA_FILE = join(ROOT, "data", "gear-index-daily.json");
+const GEAR_INDEX_SCHEDULER_ENABLED = process.env.BRRTZ_INDEX_SCHEDULER === "true";
+const GEAR_INDEX_INTERVAL_MINUTES = Math.max(5, Number(process.env.BRRTZ_INDEX_INTERVAL_MINUTES) || 45);
 const SOURCE_HEALTH_FILE = join(ROOT, "data", "agent-source-health.json");
 const ALERT_EVENTS_FILE = join(ROOT, "data", "saved-search-alert-events.json");
 const CURATION_NOISE_INBOX_FILE = join(ROOT, "ops", "curation", "noise-inbox.jsonl");
@@ -454,6 +465,16 @@ createServer(async (request, response) => {
       return;
     }
 
+    if (url.pathname === "/api/jobs/gear-index") {
+      await handleGearIndexJob(request, url, response);
+      return;
+    }
+
+    if (url.pathname === "/api/gear-index") {
+      await handleGearIndexRead(url, response);
+      return;
+    }
+
     if (url.pathname === "/api/rakuma-image") {
       await handleRakumaImageProxy(url, response);
       return;
@@ -481,6 +502,7 @@ createServer(async (request, response) => {
   for (const url of getLanUrls(PORT)) {
     console.log(`Brrtz available on your Wi-Fi at ${url}`);
   }
+  startGearIndexScheduler();
 });
 
 function getLanUrls(port) {
@@ -1166,6 +1188,318 @@ function getSourceHealthSearchFn(sourceId) {
 
 function hasEbayCredentials() {
   return Boolean(EBAY_CLIENT_ID && EBAY_CLIENT_SECRET);
+}
+
+// ---------------------------------------------------------------------------
+// Gear Index — daily going-rate snapshots per model x region.
+// Aggregate stats only are stored (median/quartiles/counts), never listing
+// snapshots, so the index stays inside the live-search legal posture.
+// Methodology and ops: docs/gear-index.md
+
+let gearIndexCatalogCache = null;
+let gearIndexRotation = null;
+let gearIndexFxCache = { rates: null, fetchedAt: 0 };
+let gearIndexLastRun = null;
+const GEAR_INDEX_FX_TTL_MS = 12 * 60 * 60 * 1000;
+
+function loadGearIndexCatalog() {
+  if (!gearIndexCatalogCache) {
+    const catalog = JSON.parse(readFileSync(GEAR_INDEX_CATALOG_FILE, "utf8"));
+    const errors = validateGearIndexCatalog(catalog);
+    if (errors.length > 0) {
+      throw new Error(`data/gear-index.json is invalid: ${errors.join("; ")}`);
+    }
+    gearIndexCatalogCache = catalog;
+  }
+  return gearIndexCatalogCache;
+}
+
+async function getGearIndexFxRates() {
+  const now = Date.now();
+  if (gearIndexFxCache.rates && now - gearIndexFxCache.fetchedAt < GEAR_INDEX_FX_TTL_MS) {
+    return gearIndexFxCache.rates;
+  }
+
+  const providers = [
+    async () => {
+      const response = await fetch("https://api.frankfurter.dev/v1/latest?base=USD&symbols=JPY,GBP");
+      if (!response.ok) throw new Error(`frankfurter responded ${response.status}`);
+      const payload = await response.json();
+      return { JPY: Number(payload?.rates?.JPY), GBP: Number(payload?.rates?.GBP) };
+    },
+    async () => {
+      const response = await fetch("https://open.er-api.com/v6/latest/USD");
+      if (!response.ok) throw new Error(`er-api responded ${response.status}`);
+      const payload = await response.json();
+      return { JPY: Number(payload?.rates?.JPY), GBP: Number(payload?.rates?.GBP) };
+    },
+  ];
+
+  for (const provider of providers) {
+    try {
+      const rates = await provider();
+      if (Number.isFinite(rates.JPY) && Number.isFinite(rates.GBP)) {
+        gearIndexFxCache = { rates, fetchedAt: now };
+        return rates;
+      }
+    } catch {
+      // Fall through to the next provider; stale or empty rates are handled below.
+    }
+  }
+
+  return gearIndexFxCache.rates || {};
+}
+
+async function runGearIndexPair({ modelSlug, regionId }, options = {}) {
+  const catalog = loadGearIndexCatalog();
+  const model = catalog.find((entry) => entry.slug === modelSlug);
+  const region = getGearIndexRegion(regionId);
+  if (!model) throw new Error(`Unknown gear index model: ${modelSlug}`);
+  if (!region) throw new Error(`Unknown gear index region: ${regionId}`);
+
+  const fxRates = await getGearIndexFxRates();
+  const params = new URLSearchParams({
+    terms: model.terms.join("|"),
+    sources: region.sources.join("|"),
+    region: region.searchRegion,
+    categoryIntent: model.categoryIntent || "synthesizers",
+    maxPrice: "0",
+  });
+  const response = await fetch(`http://127.0.0.1:${PORT}/api/search?${params.toString()}`, {
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    throw new Error(`Gear index search for ${modelSlug}/${regionId} failed with ${response.status}.`);
+  }
+
+  const payload = await response.json();
+  const row = buildGearIndexRow({
+    model,
+    region,
+    listings: Array.isArray(payload.listings) ? payload.listings : [],
+    fxRates,
+  });
+
+  if (!options.dryRun) {
+    await storeGearIndexRow(row);
+  }
+
+  gearIndexLastRun = {
+    modelSlug,
+    regionId,
+    day: row.day,
+    sampleCount: row.sampleCount,
+    ranAt: new Date().toISOString(),
+    dryRun: Boolean(options.dryRun),
+  };
+  return row;
+}
+
+function gearIndexRowToSupabase(row) {
+  return {
+    model_slug: row.modelSlug,
+    region: row.region,
+    day: row.day,
+    currency: row.currency,
+    sample_count: row.sampleCount,
+    trimmed_count: row.trimmedCount,
+    median_price: row.medianPrice,
+    p25_price: row.p25Price,
+    p75_price: row.p75Price,
+    min_price: row.minPrice,
+    max_price: row.maxPrice,
+    usd_median: row.usdMedian,
+    fx_rate_usd: row.fxRateUsd,
+    source_count: row.sourceCount,
+    source_breakdown: row.sourceBreakdown,
+    updated_at: new Date().toISOString(),
+  };
+}
+
+function supabaseRowToGearIndex(row) {
+  return {
+    modelSlug: row.model_slug,
+    region: row.region,
+    day: row.day,
+    currency: row.currency,
+    sampleCount: row.sample_count,
+    trimmedCount: row.trimmed_count,
+    medianPrice: row.median_price === null ? null : Number(row.median_price),
+    p25Price: row.p25_price === null ? null : Number(row.p25_price),
+    p75Price: row.p75_price === null ? null : Number(row.p75_price),
+    minPrice: row.min_price === null ? null : Number(row.min_price),
+    maxPrice: row.max_price === null ? null : Number(row.max_price),
+    usdMedian: row.usd_median === null ? null : Number(row.usd_median),
+    fxRateUsd: row.fx_rate_usd === null ? null : Number(row.fx_rate_usd),
+    sourceCount: row.source_count,
+    sourceBreakdown: row.source_breakdown || {},
+    updatedAt: row.updated_at,
+  };
+}
+
+async function readGearIndexFileState() {
+  try {
+    const payload = JSON.parse(await readFile(GEAR_INDEX_DATA_FILE, "utf8"));
+    return { rows: payload.rows && typeof payload.rows === "object" ? payload.rows : {} };
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+    return { rows: {} };
+  }
+}
+
+async function storeGearIndexRow(row) {
+  if (isSupabaseCloudEnabled()) {
+    await supabaseRequest("/rest/v1/gear_index_daily", {
+      method: "POST",
+      headers: { prefer: "resolution=merge-duplicates,return=minimal" },
+      body: JSON.stringify([gearIndexRowToSupabase(row)]),
+    });
+    return;
+  }
+
+  const state = await readGearIndexFileState();
+  const { dropped, ...storedRow } = row;
+  state.rows[`${row.modelSlug}|${row.region}|${row.day}`] = {
+    ...storedRow,
+    updatedAt: new Date().toISOString(),
+  };
+  await writeFile(GEAR_INDEX_DATA_FILE, `${JSON.stringify({ app: "Brrtz", type: "gear-index-daily", rows: state.rows }, null, 2)}\n`);
+}
+
+async function readGearIndexRows(sinceDay) {
+  if (isSupabaseCloudEnabled()) {
+    const rows = await supabaseRequest(
+      `/rest/v1/gear_index_daily?day=gte.${encodeURIComponent(sinceDay)}&order=day.desc&limit=5000`
+    );
+    return Array.isArray(rows) ? rows.map(supabaseRowToGearIndex) : [];
+  }
+
+  const state = await readGearIndexFileState();
+  return Object.values(state.rows).filter((row) => row.day >= sinceDay);
+}
+
+function nextGearIndexPair() {
+  if (!gearIndexRotation) {
+    gearIndexRotation = { plan: buildGearIndexPlan(loadGearIndexCatalog()), cursor: 0 };
+  }
+  const pair = gearIndexRotation.plan[gearIndexRotation.cursor % gearIndexRotation.plan.length];
+  gearIndexRotation.cursor += 1;
+  return pair;
+}
+
+async function handleGearIndexJob(request, url, response) {
+  if (!isAuthorizedOpsRequest(request)) {
+    sendJson(response, 403, { error: "forbidden" });
+    return;
+  }
+
+  if (!["GET", "POST"].includes(request.method)) {
+    response.writeHead(405, {
+      "allow": "GET, POST",
+      "content-type": "application/json; charset=utf-8",
+    });
+    response.end(JSON.stringify({ error: "method_not_allowed" }));
+    return;
+  }
+
+  const dryRun = url.searchParams.get("dryRun") === "true";
+  const modelSlug = url.searchParams.get("model") || "";
+  const regionId = url.searchParams.get("region") || "";
+  const runAll = url.searchParams.get("all") === "true";
+  const startedAt = Date.now();
+  const rows = [];
+  const errors = [];
+
+  let pairs;
+  if (runAll) {
+    pairs = buildGearIndexPlan(loadGearIndexCatalog());
+  } else if (modelSlug || regionId) {
+    if (!modelSlug || !regionId) {
+      sendJson(response, 400, { error: "invalid_pair", message: "Pass both model and region, or neither." });
+      return;
+    }
+    pairs = [{ modelSlug, regionId }];
+  } else {
+    pairs = [nextGearIndexPair()];
+  }
+
+  for (const pair of pairs) {
+    try {
+      rows.push(await runGearIndexPair(pair, { dryRun }));
+    } catch (error) {
+      errors.push({ ...pair, message: error instanceof Error ? error.message : String(error) });
+    }
+  }
+
+  sendJson(response, 200, {
+    ok: errors.length === 0,
+    dryRun,
+    storage: isSupabaseCloudEnabled() ? "supabase" : "file",
+    durationMs: Date.now() - startedAt,
+    rows,
+    errors,
+  });
+}
+
+async function handleGearIndexRead(url, response) {
+  const requestedDays = Number(url.searchParams.get("days"));
+  const days = Number.isFinite(requestedDays) && requestedDays > 0 ? Math.min(Math.floor(requestedDays), 400) : 7;
+  const sinceDay = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const catalog = loadGearIndexCatalog();
+  const rows = await readGearIndexRows(sinceDay);
+
+  sendJson(response, 200, {
+    catalog: catalog.map((model) => ({
+      slug: model.slug,
+      name: model.name,
+      categoryIntent: model.categoryIntent || "synthesizers",
+      valueAnchors: model.valueAnchors || [],
+    })),
+    regions: GEAR_INDEX_REGIONS.map((region) => ({
+      id: region.id,
+      label: region.label,
+      currency: region.currency,
+    })),
+    rows,
+    sinceDay,
+    storage: isSupabaseCloudEnabled() ? "supabase" : "file",
+    scheduler: {
+      enabled: GEAR_INDEX_SCHEDULER_ENABLED,
+      intervalMinutes: GEAR_INDEX_INTERVAL_MINUTES,
+      lastRun: gearIndexLastRun,
+    },
+  });
+}
+
+function startGearIndexScheduler() {
+  if (!GEAR_INDEX_SCHEDULER_ENABLED) return;
+
+  let plan;
+  try {
+    plan = buildGearIndexPlan(loadGearIndexCatalog());
+  } catch (error) {
+    console.warn(`Gear index scheduler disabled: ${error instanceof Error ? error.message : error}`);
+    return;
+  }
+
+  const intervalMs = GEAR_INDEX_INTERVAL_MINUTES * 60 * 1000;
+  const tick = async () => {
+    const pair = nextGearIndexPair();
+    try {
+      const row = await runGearIndexPair(pair);
+      const priceNote = row.medianPrice === null
+        ? "below sample floor"
+        : `median ${row.medianPrice} ${row.currency}`;
+      console.log(`Gear index: ${pair.modelSlug}/${pair.regionId} n=${row.sampleCount}, ${priceNote}`);
+    } catch (error) {
+      console.warn(`Gear index snapshot failed for ${pair.modelSlug}/${pair.regionId}: ${error instanceof Error ? error.message : error}`);
+    } finally {
+      setTimeout(tick, intervalMs).unref();
+    }
+  };
+
+  setTimeout(tick, 2 * 60 * 1000).unref();
+  console.log(`Gear index scheduler on: one snapshot every ${GEAR_INDEX_INTERVAL_MINUTES} min across ${plan.length} model x region pairs.`);
 }
 
 function isAuthorizedOpsRequest(request) {

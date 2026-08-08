@@ -1,0 +1,309 @@
+[
+  {
+    "slug": "roland-jupiter-8",
+    "name": "Roland Jupiter-8",
+    "terms": [
+      "roland jupiter-8"
+    ],
+    "categoryIntent": "synthesizers",
+    "includeTerms": [
+      "jupiter-8",
+      "ジュピター8"
+    ],
+    "excludeTerms": [
+      "jupiter-80",
+      "jupiter-x",
+      "jupiter-4",
+      "jupiter-6",
+      "ジュピター80",
+      "jp-08",
+      "jp-8080",
+      "boutique",
+      "behringer",
+      "arturia",
+      "plugin",
+      "vst",
+      "preset",
+      "取扱説明書",
+      "説明書",
+      "sonnar",
+      "kiev",
+      "キエフ",
+      "leica",
+      "contax",
+      "m39",
+      "50mm",
+      "レンズ"
+    ],
+    "priceFloorUsd": 4000,
+    "priceCeilingUsd": 150000,
+    "valueAnchors": [
+      {
+        "year": 1981,
+        "priceUsd": 5295,
+        "label": "Launch list price (approx)"
+      }
+    ]
+  },
+  {
+    "slug": "yamaha-cs-80",
+    "name": "Yamaha CS-80",
+    "terms": [
+      "yamaha cs-80"
+    ],
+    "categoryIntent": "synthesizers",
+    "includeTerms": [
+      "cs-80"
+    ],
+    "excludeTerms": [
+      "cs-800",
+      "arturia",
+      "deckard",
+      "black corporation",
+      "behringer",
+      "plugin",
+      "vst",
+      "preset",
+      "取扱説明書",
+      "説明書"
+    ],
+    "priceFloorUsd": 8000,
+    "priceCeilingUsd": 250000,
+    "valueAnchors": [
+      {
+        "year": 1977,
+        "priceUsd": 6900,
+        "label": "Launch list price (approx)"
+      }
+    ]
+  },
+  {
+    "slug": "roland-tr-808",
+    "name": "Roland TR-808",
+    "terms": [
+      "tr-808"
+    ],
+    "categoryIntent": "drum-machines",
+    "includeTerms": [
+      "tr-808"
+    ],
+    "excludeTerms": [
+      "tr-08",
+      "tr-8s",
+      "rd-8",
+      "behringer",
+      "sample pack",
+      "sample cd",
+      "plugin",
+      "vst",
+      "preset",
+      "取扱説明書",
+      "説明書"
+    ],
+    "priceFloorUsd": 800,
+    "priceCeilingUsd": 30000,
+    "valueAnchors": [
+      {
+        "year": 1980,
+        "priceUsd": 1195,
+        "label": "Launch list price (approx)"
+      }
+    ]
+  },
+  {
+    "slug": "roland-tr-909",
+    "name": "Roland TR-909",
+    "terms": [
+      "tr-909"
+    ],
+    "categoryIntent": "drum-machines",
+    "includeTerms": [
+      "tr-909"
+    ],
+    "excludeTerms": [
+      "tr-09",
+      "tr-8s",
+      "rd-9",
+      "behringer",
+      "sample pack",
+      "sample cd",
+      "plugin",
+      "vst",
+      "preset",
+      "取扱説明書",
+      "説明書"
+    ],
+    "priceFloorUsd": 1000,
+    "priceCeilingUsd": 30000,
+    "valueAnchors": [
+      {
+        "year": 1983,
+        "priceUsd": 1195,
+        "label": "Launch list price (approx)"
+      }
+    ]
+  },
+  {
+    "slug": "roland-tr-606",
+    "name": "Roland TR-606",
+    "terms": [
+      "tr-606"
+    ],
+    "categoryIntent": "drum-machines",
+    "includeTerms": [
+      "tr-606"
+    ],
+    "excludeTerms": [
+      "rd-6",
+      "td-3",
+      "behringer",
+      "sample pack",
+      "plugin",
+      "vst",
+      "preset",
+      "取扱説明書",
+      "説明書"
+    ],
+    "priceFloorUsd": 150,
+    "priceCeilingUsd": 6000,
+    "valueAnchors": [
+      {
+        "year": 1981,
+        "priceUsd": 395,
+        "label": "Launch list price (approx)"
+      }
+    ]
+  },
+  {
+    "slug": "moog-minimoog",
+    "name": "Moog Minimoog Model D",
+    "terms": [
+      "minimoog"
+    ],
+    "categoryIntent": "synthesizers",
+    "includeTerms": [
+      "minimoog",
+      "ミニモーグ"
+    ],
+    "excludeTerms": [
+      "behringer",
+      "poly d",
+      "clone",
+      "voyager",
+      "plugin",
+      "vst",
+      "preset",
+      "取扱説明書",
+      "説明書"
+    ],
+    "priceFloorUsd": 1500,
+    "priceCeilingUsd": 50000,
+    "valueAnchors": [
+      {
+        "year": 1970,
+        "priceUsd": 1495,
+        "label": "Launch list price (approx)"
+      }
+    ]
+  },
+  {
+    "slug": "arp-2600",
+    "name": "ARP 2600",
+    "terms": [
+      "arp 2600"
+    ],
+    "categoryIntent": "synthesizers",
+    "includeTerms": [
+      "arp 2600",
+      "アープ2600"
+    ],
+    "excludeTerms": [
+      "korg",
+      "behringer",
+      "b-2600",
+      "ttsh",
+      "2600 fs",
+      "clone",
+      "plugin",
+      "vst",
+      "preset",
+      "取扱説明書",
+      "説明書"
+    ],
+    "priceFloorUsd": 1500,
+    "priceCeilingUsd": 80000,
+    "valueAnchors": [
+      {
+        "year": 1971,
+        "priceUsd": 2600,
+        "label": "Launch list price (approx)"
+      }
+    ]
+  },
+  {
+    "slug": "oberheim-ob-xa",
+    "name": "Oberheim OB-Xa",
+    "terms": [
+      "ob-xa"
+    ],
+    "categoryIntent": "synthesizers",
+    "includeTerms": [
+      "ob-xa"
+    ],
+    "excludeTerms": [
+      "ob-x8",
+      "ub-xa",
+      "behringer",
+      "plugin",
+      "vst",
+      "preset",
+      "取扱説明書",
+      "説明書"
+    ],
+    "priceFloorUsd": 2500,
+    "priceCeilingUsd": 50000,
+    "valueAnchors": [
+      {
+        "year": 1980,
+        "priceUsd": 5595,
+        "label": "Launch list price (approx)"
+      }
+    ]
+  },
+  {
+    "slug": "sequential-prophet-5",
+    "name": "Sequential Prophet-5 (vintage)",
+    "terms": [
+      "prophet-5"
+    ],
+    "categoryIntent": "synthesizers",
+    "includeTerms": [
+      "prophet-5",
+      "プロフェット5"
+    ],
+    "excludeTerms": [
+      "prophet-6",
+      "prophet-600",
+      "prophet-10",
+      "prophet-08",
+      "pro-800",
+      "rev4",
+      "rev 4",
+      "behringer",
+      "plugin",
+      "vst",
+      "preset",
+      "取扱説明書",
+      "説明書"
+    ],
+    "priceFloorUsd": 1500,
+    "priceCeilingUsd": 40000,
+    "valueAnchors": [
+      {
+        "year": 1978,
+        "priceUsd": 4495,
+        "label": "Launch list price (approx)"
+      }
+    ]
+  }
+]
