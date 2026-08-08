@@ -27,8 +27,14 @@ create index if not exists gear_index_daily_day_idx on public.gear_index_daily (
 
 alter table public.gear_index_daily enable row level security;
 
+-- Table privileges are separate from RLS: a policy alone is not enough, the
+-- role also needs a GRANT. Without this the server's service-role writes fail
+-- with 42501 "permission denied for table gear_index_daily".
+grant select, insert, update on public.gear_index_daily to service_role;
+grant select on public.gear_index_daily to anon, authenticated;
+
 -- Index values are public product data: anyone may read, only the server
--- (service role, which bypasses RLS) may write.
+-- (service role) may write.
 drop policy if exists "gear_index_daily_public_read" on public.gear_index_daily;
 create policy "gear_index_daily_public_read"
   on public.gear_index_daily for select

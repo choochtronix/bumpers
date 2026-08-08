@@ -60,7 +60,10 @@ prices are unaffected.
 
 - **Supabase** (production): `public.gear_index_daily` — run
   `docs/sql/gear-index-schema.sql` once. Aggregate stats only; the table
-  never stores listings.
+  never stores listings. The script's `grant` statements are required, not
+  optional: RLS policies control row access, but the role still needs table
+  privileges, and without them snapshot writes fail with
+  `42501 permission denied for table gear_index_daily`.
 - **File fallback** (local dev without Supabase): `data/gear-index-daily.json`
   (gitignored).
 
