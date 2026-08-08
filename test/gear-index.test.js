@@ -17,7 +17,7 @@ import {
 } from "../src/gear-index/gearIndexCore.js";
 
 const catalog = JSON.parse(
-  fs.readFileSync(new URL("../data/gear-index.json", import.meta.url), "utf8")
+  fs.readFileSync(new URL("../src/gear-index/catalog.json", import.meta.url), "utf8")
 );
 const modelBySlug = new Map(catalog.map((model) => [model.slug, model]));
 

@@ -18,7 +18,7 @@ Filtering, in order:
 
 1. Listings with no usable price or currency are dropped.
 2. The title must match the model's `includeTerms` and none of its
-   `excludeTerms` (`data/gear-index.json`). Matching folds case, character
+   `excludeTerms` (`src/gear-index/catalog.json`). Matching folds case, character
    width, and separators, so `TR-808` / `TR808` / `ＴＲ－８０８` are equal.
    Exclude terms are how clones, reissues, and near-miss models (Behringer
    RD-8, Boutique JP-08, Jupiter-80, Peavey CS-800…) stay out of the index.
@@ -109,7 +109,7 @@ chart), the index regions, and the stored rows since the cutoff.
 
 ## Adding a model
 
-Add an entry to `data/gear-index.json` — slug (match `data/gear-models.json`
+Add an entry to `src/gear-index/catalog.json` — slug (match `data/gear-models.json`
 when a gear page exists), `terms` (connector search queries), `categoryIntent`,
 `includeTerms`/`excludeTerms`, price band, and a launch-price anchor. Then run
 `npm test`: `test/gear-index.test.js` validates the catalog and the matching

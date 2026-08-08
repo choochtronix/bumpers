@@ -55,7 +55,9 @@ const ALERT_EMAIL_FROM = process.env.BRRTZ_ALERT_EMAIL_FROM || "Brrtz <alerts@br
 const ALERT_DIGEST_BASE_URL = process.env.BRRTZ_ALERT_DIGEST_BASE_URL || "https://brrtz.com";
 const ALERT_SEARCH_LIMIT = Number(process.env.BRRTZ_ALERT_SEARCH_LIMIT || 25);
 const ALERT_LISTING_LIMIT = Number(process.env.BRRTZ_ALERT_LISTING_LIMIT || 8);
-const GEAR_INDEX_CATALOG_FILE = join(ROOT, "data", "gear-index.json");
+// The catalog lives under src/, not data/: data/ is excluded by .dockerignore
+// because it holds generated runtime state, and this file must ship in the image.
+const GEAR_INDEX_CATALOG_FILE = join(ROOT, "src", "gear-index", "catalog.json");
 const GEAR_INDEX_DATA_FILE = join(ROOT, "data", "gear-index-daily.json");
 const GEAR_INDEX_SCHEDULER_ENABLED = process.env.BRRTZ_INDEX_SCHEDULER === "true";
 const GEAR_INDEX_INTERVAL_MINUTES = Math.max(5, Number(process.env.BRRTZ_INDEX_INTERVAL_MINUTES) || 45);
@@ -1207,7 +1209,7 @@ function loadGearIndexCatalog() {
     const catalog = JSON.parse(readFileSync(GEAR_INDEX_CATALOG_FILE, "utf8"));
     const errors = validateGearIndexCatalog(catalog);
     if (errors.length > 0) {
-      throw new Error(`data/gear-index.json is invalid: ${errors.join("; ")}`);
+      throw new Error(`src/gear-index/catalog.json is invalid: ${errors.join("; ")}`);
     }
     gearIndexCatalogCache = catalog;
   }
@@ -1358,6 +1360,7 @@ async function storeGearIndexRow(row) {
   }
 
   const state = await readGearIndexFileState();
+  await mkdir(join(ROOT, "data"), { recursive: true });
   const { dropped, ...storedRow } = row;
   state.rows[`${row.modelSlug}|${row.region}|${row.day}`] = {
     ...storedRow,
