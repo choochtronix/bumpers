@@ -3220,6 +3220,9 @@ function normalizeBrandGradient(gradient) {
 }
 
 function readDefaultBrandGradientTokens() {
+  const capturedDefaults = normalizeBrandGradient(globalThis.__brrtzDefaultBrandGradient);
+  if (capturedDefaults) return capturedDefaults;
+
   return {
     start: readCssColorTokenHex("--brand-gradient-start"),
     end: readCssColorTokenHex("--brand-gradient-end"),
@@ -8240,6 +8243,10 @@ function getListingCacheKey(listing) {
   return listing?.id || listing?.url || `${listing?.source || "source"}:${listing?.title || ""}:${listing?.price || ""}`;
 }
 
+function getListingFeedbackKey(listing) {
+  return getListingCacheKey(listing);
+}
+
 function collectionHas(collection, value) {
   if (!collection) return false;
   if (collection instanceof Set) return collection.has(value);
@@ -9799,6 +9806,7 @@ function dismissListingAsNoise(card, listing) {
   if (card?.classList.contains("is-dismissing-noise")) return;
   saveListingFeedback(listing, "noise");
   acknowledgeListings([listing], { dismissed: true });
+  window.setTimeout(() => renderResults({ force: true }), 0);
   animateListingDismiss(card, () => {
     card?.remove();
     renderResults({ force: true });
@@ -12024,7 +12032,7 @@ function isCleanGearListing(listing, context = null) {
 
 function isListingHiddenByFeedback(listing, context = null) {
   const feedback = context?.feedback || getProfileFeedback();
-  return collectionHas(feedback?.noiseListingIds, listing?.id);
+  return collectionHas(feedback?.noiseListingIds, getListingFeedbackKey(listing));
 }
 
 function isUnavailableListing(listing) {
@@ -12082,22 +12090,23 @@ function saveListingFeedback(listing, action) {
   const allFeedback = loadFeedbackRules();
   const key = getProfileKey(currentProfile);
   const feedback = hydrateFeedback(allFeedback[key]);
+  const listingKey = getListingFeedbackKey(listing);
 
   if (action === "gear") {
-    addUnique(feedback.gearListingIds, listing.id);
-    removeValue(feedback.noiseListingIds, listing.id);
+    addUnique(feedback.gearListingIds, listingKey);
+    removeValue(feedback.noiseListingIds, listingKey);
   }
 
   if (action === "noise") {
-    addUnique(feedback.noiseListingIds, listing.id);
-    removeValue(feedback.gearListingIds, listing.id);
+    addUnique(feedback.noiseListingIds, listingKey);
+    removeValue(feedback.gearListingIds, listingKey);
     captureNoiseExample(listing);
   }
 
   if (action === "hide-similar") {
     addHideSimilarSignals(feedback, listing);
-    addUnique(feedback.noiseListingIds, listing.id);
-    removeValue(feedback.gearListingIds, listing.id);
+    addUnique(feedback.noiseListingIds, listingKey);
+    removeValue(feedback.gearListingIds, listingKey);
   }
 
   allFeedback[key] = feedback;

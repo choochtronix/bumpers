@@ -93,6 +93,15 @@
             if (/^#[0-9a-f]{3}$/.test(text)) return `#${text.slice(1).split("").map((char) => char + char).join("")}`;
             return "";
           };
+          const rootStyles = getComputedStyle(document.documentElement);
+          const defaultStart = normalizeHex(rootStyles.getPropertyValue("--brand-gradient-start"));
+          const defaultEnd = normalizeHex(rootStyles.getPropertyValue("--brand-gradient-end"));
+          if (defaultStart && defaultEnd) {
+            window.__brrtzDefaultBrandGradient = {
+              start: defaultStart,
+              end: defaultEnd,
+            };
+          }
           const settings = JSON.parse(localStorage.getItem("bumpers.settings") || "{}");
           const gradient = settings.brandGradient || {};
           const start = normalizeHex(gradient.start);

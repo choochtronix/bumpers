@@ -9,6 +9,8 @@ import "../gear-scanner-curation.js";
 
 const {
   classifyGearScannerListing,
+  getListingFeedbackKey,
+  getListingFeedbackStatus,
   scoreFreshFindListing,
 } = globalThis.BrrtzGearScannerCuration;
 const fixtures = JSON.parse(
@@ -59,4 +61,20 @@ test("repeated unchanged listings lose freshness rank without becoming noise", (
 
   assert.ok(Math.abs((freshScore - repeatedScore) - 12) < 0.001);
   assert.equal(classifyGearScannerListing(listing).include, true);
+});
+
+test("feedback status uses a stable fallback key when listing id is absent", () => {
+  const listing = {
+    source: "reverb",
+    title: "Mu-Tron Phasor III",
+    price: 304,
+    url: "https://example.com/mu-tron-phasor",
+  };
+  const key = getListingFeedbackKey(listing);
+
+  assert.equal(key, listing.url);
+  assert.equal(getListingFeedbackStatus(listing, {
+    gearListingIds: [],
+    noiseListingIds: [key],
+  }), "noise");
 });

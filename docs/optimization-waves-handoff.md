@@ -9,13 +9,16 @@ touching gear pages, the sitemap, `llms.txt`, or the region-default logic.
 ## Status
 
 **Merged to `main` and deployed** to Railway → brrtz.com on 2026-08-08. The work
-below (Codex commit `1ab1017` + Claude's 9 commits) is now live. `wave1-quickwins`
-and `main` are at the same commit; branch future work from `main`.
+below (Codex commit `1ab1017` + Claude's 9 commits) is now live. This file is
+historical context for the optimization waves; `main` has since advanced beyond
+`wave1-quickwins` with Gear Index work. As of the latest local refresh, `main`
+and `origin/main` are at `e278539`; `wave1-quickwins` remains at `8a5845c`.
+Branch future work from `main`.
 
 ## TL;DR
 
-- Three waves of optimization by Claude, based on Codex commit `1ab1017`, now
-  merged to `main` and live. `main` auto-deploys to Railway → brrtz.com.
+- Three waves of optimization by Claude, based on Codex commit `1ab1017`, were
+  merged to `main` and are live. `main` auto-deploys to Railway → brrtz.com.
 - Gear model pages are now **generated from data**, not hand-authored. Do not
   hand-edit `gear/*.html`, `gear/index.html`, or `sitemap.xml` — edit
   `data/gear-models.json` and run the generator.
@@ -122,7 +125,7 @@ Do NOT hand-edit the generated files; the generator will overwrite them.
 `npm` chokes on the UNC working directory, so run scripts via `node` directly:
 
 ```sh
-node --test test/*.test.js          # 32 tests
+node --test test/*.test.js          # 49 tests as of the noise feedback regression
 node scripts/design-system-check.mjs
 node scripts/build-gear-pages.mjs --check
 # aeo:check needs a running server; 5173 is EACCES from Windows node (WSL proxy
@@ -140,5 +143,5 @@ From WSL, the normal `npm run ...` and `git push` work as documented.
   and the duplicate file was deleted.
 - `llms.txt` (in `server.js`) and the `aeo-check.mjs` arrays are hand-synced
   when gear models change — the generator prints exactly what to paste.
-- The untracked junk files in the working tree (garbled names like
-  `div:first-child`) are NOT part of this work — never `git add -A`.
+- The previous garbled untracked shell-output files were cleaned up. Local-only
+  QA output such as `card-snapshots/` is ignored; still avoid `git add -A`.

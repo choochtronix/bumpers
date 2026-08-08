@@ -14,8 +14,10 @@ no UI yet.** That is deliberate (see "Why no UI yet").
 ## Status
 
 **Merged to `main` and deployed** to Railway → brrtz.com on 2026-08-08.
-`main` is at `e40c0ed`. The Supabase table exists and the full loop is verified
-in production.
+`main` is at `e278539`. The Supabase table exists and the full loop is verified
+in production. Current local work may be on `gear-index-phase1`; that branch,
+local `main`, and `origin/main` were aligned at `e278539` when this handoff was
+last refreshed.
 
 **One step is still outstanding and blocks all data collection:**
 `BRRTZ_INDEX_SCHEDULER=true` must be set in Railway's service variables. Until
@@ -43,6 +45,8 @@ array most likely means the variable was never set.
 
 | Commit | Summary |
 | --- | --- |
+| `e278539` | fix: make gear index rotation restart-proof |
+| `6107dc1` | docs: add Gear Index handoff brief for Codex |
 | `e40c0ed` | fix: ship gear index catalog in the production image (`data/` → `src/`) |
 | `777100a` | fix: grant `service_role` table privileges for `gear_index_daily` |
 | `f32957c` | feat: Gear Index phase 1 — daily going-rate collection |
@@ -162,7 +166,7 @@ generated at build time and the committed HTML is what ships.
 ## Validation
 
 ```sh
-npm test                    # 43 tests total, 11 of them gear-index
+npm test                    # 49 tests total, 16 of them gear-index
 npm run design:check
 ```
 

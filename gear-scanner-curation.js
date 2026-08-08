@@ -787,9 +787,15 @@ function resolveQualityContext() {
   return typeof createGearQualityContext === "function" ? createGearQualityContext() : null;
 }
 
+function getListingFeedbackKey(listing) {
+  if (typeof getListingCacheKey === "function") return getListingCacheKey(listing);
+  return listing?.id || listing?.url || `${listing?.source || "source"}:${listing?.title || ""}:${listing?.price || ""}`;
+}
+
 function getListingFeedbackStatus(listing, feedback = resolveProfileFeedback()) {
-  if ((feedback.gearListingIds || []).includes(listing.id)) return "gear";
-  if ((feedback.noiseListingIds || []).includes(listing.id)) return "noise";
+  const key = getListingFeedbackKey(listing);
+  if ((feedback.gearListingIds || []).includes(key)) return "gear";
+  if ((feedback.noiseListingIds || []).includes(key)) return "noise";
   return "";
 }
 
@@ -1018,6 +1024,8 @@ globalThis.BrrtzGearScannerCuration = {
   scoreGearScannerListing,
   scoreFreshFindListing,
   scoreGearConfidence,
+  getListingFeedbackKey,
+  getListingFeedbackStatus,
   isHardExcludedGearScannerListing,
   normalizeListingText,
   termMatches,

@@ -1,6 +1,6 @@
 # Brrtz PC Codex Handoff
 
-Last updated: 2026-06-16
+Last updated: 2026-08-08
 
 Use this file when continuing Brrtz from a new Codex session on the Windows PC.
 
@@ -10,8 +10,11 @@ Use this file when continuing Brrtz from a new Codex session on the Windows PC.
 We are continuing Brrtz, a live beta web app for searching used synthesizers and pro-audio gear across Japan and US sources. The repo is https://github.com/choochtronix/bumpers, but the product is now called Brrtz and is live at https://brrtz.com.
 
 Before coding, read:
+- docs/AI-START-HERE.md
 - docs/windows-migration.md
 - docs/pc-codex-handoff.md
+- docs/optimization-waves-handoff.md
+- docs/gear-index-handoff.md
 - docs/beta-friends-launch-todo.md
 - docs/synth-browser.md
 - ops/data/source-registry.md
@@ -41,6 +44,8 @@ Active regions:
 - Japan
 - Bay Area
 - Los Angeles
+- East Coast
+- UK
 
 Active/working source model:
 
@@ -48,6 +53,9 @@ Active/working source model:
 - US beta sources include Reverb US and eBay US.
 - Craigslist is parked as a manual deep-link assist because live scraping caused blocking risk.
 - Sweetwater and Guitar Center are treated as Search Assist sources, not live listing sources.
+- First-time visitors get a region-appropriate default (Japan/UK/US-ish) based on locale/time zone; returning users and explicit `region` URL params still win.
+- Gear pages are generated from `data/gear-models.json`; do not hand-edit `gear/*.html`, `gear/index.html`, or `sitemap.xml`.
+- Gear Index Phase 1 is deployed as a collection-only "Going Rate" data layer under `src/gear-index/`; there is no UI yet.
 
 ## Current Technical Shape
 
@@ -60,10 +68,17 @@ Core files:
 - `regions.js`: region config.
 - `index.html`: app shell.
 - `.env.example`: local env template.
+- `src/gear-index/`: Gear Index catalog and pure aggregation logic.
+- `data/gear-models.json`: generated gear-page source data.
+- `scripts/build-gear-pages.mjs`: owns generated gear pages and sitemap.
 
 Important docs:
 
+- `docs/AI-START-HERE.md`: current AI session entrypoint.
 - `docs/windows-migration.md`: exact Windows setup.
+- `docs/optimization-waves-handoff.md`: SEO/search optimization handoff; generated gear page rules.
+- `docs/gear-index-handoff.md`: Gear Index architecture, routes, scheduler, and known traps.
+- `docs/gear-index.md`: public-facing Gear Index methodology and ops runbook.
 - `docs/production-env-checklist.md`: required hosted env vars.
 - `docs/beta-friends-launch-todo.md`: launch checklist.
 - `docs/beta-launch-milestone-2026-06-09.md`: DNS/Railway/Supabase launch record.
@@ -101,6 +116,8 @@ Mobile Wi-Fi preview:
 BUMPERS_CLOUD_PROVIDER=supabase
 BUMPERS_REQUIRE_INVITE=true
 BUMPERS_JOB_TOKEN=your-long-random-job-token
+BRRTZ_INDEX_SCHEDULER=true
+BRRTZ_INDEX_INTERVAL_MINUTES=45
 
 SUPABASE_URL=https://your-project-ref.supabase.co
 SUPABASE_ANON_KEY=your-supabase-anon-key
@@ -121,6 +138,8 @@ Most recent source/UI direction:
 - Guitar Center was investigated but parked because it behaves more like Craigslist and does not currently meet Brrtz quality standards.
 - Sweetwater was added as a Search Assist style source instead of live listings.
 - Manual/assist sources should appear separately from live listing source counts, with a prepared search URL and clear `↗` behavior.
+- Gear Index collection stores aggregate stats only, never listing snapshots. Scheduler rotation is restart-proof and staggered; do not schedule `all=true`.
+- For new Gear Index runtime data, keep files outside `data/` because `.dockerignore` excludes `data/` from the production image.
 
 Most recent migration direction:
 
@@ -128,14 +147,31 @@ Most recent migration direction:
 - Use GitHub as the project transfer.
 - Use this handoff doc as the chat/context transfer.
 - Use Supabase sync for saved searches/watched gear/profile data.
+- Run git, npm, and node commands from inside WSL on the PC. Windows-side git may not have SSH auth, and npm can choke on UNC paths.
 
 ## Suggested Next Tasks
 
-1. Finish and QA Search Assist UX for Sweetwater / Guitar Center / Craigslist manual deep links.
-2. Keep eBay connector healthy and document rate/error behavior.
-3. Continue Beta launch polish from `docs/beta-friends-launch-todo.md`.
-4. Add next high-signal US source only if it can meet Brrtz quality standards.
-5. Keep source changes flowing through the ops loop docs before implementation.
+1. Confirm Railway has `BRRTZ_INDEX_SCHEDULER=true`; without it Gear Index rows will not accumulate.
+2. Let Gear Index collection accrue history before starting Phase 2 UI.
+3. Finish and QA Search Assist UX for Sweetwater / Guitar Center / Craigslist manual deep links.
+4. Keep eBay connector healthy and document rate/error behavior.
+5. Continue Beta launch polish from `docs/beta-friends-launch-todo.md`.
+6. Add next high-signal source only if it can meet Brrtz quality standards.
+7. Keep source changes flowing through the ops loop docs before implementation.
+
+## Current Validation Commands
+
+Run from WSL in the repo:
+
+```sh
+node --test test/*.test.js
+node scripts/design-system-check.mjs
+node scripts/build-gear-pages.mjs --check
+HOST=127.0.0.1 PORT=5199 node server.js &
+node scripts/aeo-check.mjs http://127.0.0.1:5199
+```
+
+`node --test test/*.test.js` is currently 49 tests, including 16 Gear Index tests.
 
 ## Human Notes For Craig
 
@@ -144,4 +180,3 @@ Most recent migration direction:
 - Push current Mac changes before switching machines.
 - Copy secrets manually into Windows `.env.local`; never put them in GitHub.
 - After sign-in on Windows Brrtz, use Settings -> Account -> Pull from cloud.
-
