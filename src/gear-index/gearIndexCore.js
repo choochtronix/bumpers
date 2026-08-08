@@ -209,6 +209,37 @@ export function buildGearIndexPlan(catalog) {
   return plan;
 }
 
+// Pick the next pair to snapshot from stored history rather than an in-memory
+// cursor: the scheduler lives in-process, so a redeploy would otherwise restart
+// the rotation at pair 0 and the tail of the plan would never be sampled.
+// Never-sampled pairs win first (in plan order), then the least recently
+// updated. Deterministic for a given (plan, rows).
+export function selectStalestGearIndexPair(plan, rows = []) {
+  if (!Array.isArray(plan) || plan.length === 0) return null;
+
+  const lastUpdatedByPair = new Map();
+  for (const row of Array.isArray(rows) ? rows : []) {
+    const key = `${row?.modelSlug}|${row?.region}`;
+    const stamp = Date.parse(row?.updatedAt || row?.day || "");
+    if (!Number.isFinite(stamp)) continue;
+    const existing = lastUpdatedByPair.get(key);
+    if (existing === undefined || stamp > existing) lastUpdatedByPair.set(key, stamp);
+  }
+
+  let stalest = null;
+  let stalestStamp = Infinity;
+  for (const pair of plan) {
+    const stamp = lastUpdatedByPair.get(`${pair.modelSlug}|${pair.regionId}`);
+    if (stamp === undefined) return pair;
+    if (stamp < stalestStamp) {
+      stalest = pair;
+      stalestStamp = stamp;
+    }
+  }
+
+  return stalest || plan[0];
+}
+
 export function buildGearIndexRow({ model, region, listings, fxRates = {}, day }) {
   const { kept, dropped } = filterGearIndexListings(model, listings, {
     fxRates,

@@ -18,6 +18,7 @@ import {
   buildGearIndexRow,
   getGearIndexRegion,
   GEAR_INDEX_REGIONS,
+  selectStalestGearIndexPair,
   validateGearIndexCatalog,
 } from "./src/gear-index/gearIndexCore.js";
 import {
@@ -61,6 +62,10 @@ const GEAR_INDEX_CATALOG_FILE = join(ROOT, "src", "gear-index", "catalog.json");
 const GEAR_INDEX_DATA_FILE = join(ROOT, "data", "gear-index-daily.json");
 const GEAR_INDEX_SCHEDULER_ENABLED = process.env.BRRTZ_INDEX_SCHEDULER === "true";
 const GEAR_INDEX_INTERVAL_MINUTES = Math.max(5, Number(process.env.BRRTZ_INDEX_INTERVAL_MINUTES) || 45);
+// How far back the rotation looks when deciding which pair is stalest. Longer
+// than a full cycle (27 pairs x 45 min ~ 20 h) so a pair is never treated as
+// unsampled just because the window is too tight.
+const GEAR_INDEX_ROTATION_WINDOW_DAYS = 14;
 const SOURCE_HEALTH_FILE = join(ROOT, "data", "agent-source-health.json");
 const ALERT_EVENTS_FILE = join(ROOT, "data", "saved-search-alert-events.json");
 const CURATION_NOISE_INBOX_FILE = join(ROOT, "ops", "curation", "noise-inbox.jsonl");
@@ -1381,13 +1386,31 @@ async function readGearIndexRows(sinceDay) {
   return Object.values(state.rows).filter((row) => row.day >= sinceDay);
 }
 
-function nextGearIndexPair() {
-  if (!gearIndexRotation) {
-    gearIndexRotation = { plan: buildGearIndexPlan(loadGearIndexCatalog()), cursor: 0 };
+// Chooses the pair whose stored snapshot is oldest (or missing) instead of
+// walking an in-memory cursor. The scheduler runs in-process, so a Railway
+// redeploy restarts it — a cursor would resume at pair 0 every time and the
+// tail of the rotation would never be sampled. Reading history makes the
+// rotation restart-proof and self-healing after any gap.
+async function nextGearIndexPair() {
+  const plan = buildGearIndexPlan(loadGearIndexCatalog());
+
+  try {
+    const sinceDay = new Date(Date.now() - GEAR_INDEX_ROTATION_WINDOW_DAYS * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10);
+    const rows = await readGearIndexRows(sinceDay);
+    const pair = selectStalestGearIndexPair(plan, rows);
+    if (pair) return pair;
+  } catch (error) {
+    console.warn(`Gear index rotation could not read history, falling back to cursor: ${error instanceof Error ? error.message : error}`);
   }
-  const pair = gearIndexRotation.plan[gearIndexRotation.cursor % gearIndexRotation.plan.length];
+
+  if (!gearIndexRotation) {
+    gearIndexRotation = { plan, cursor: 0 };
+  }
+  const fallbackPair = gearIndexRotation.plan[gearIndexRotation.cursor % gearIndexRotation.plan.length];
   gearIndexRotation.cursor += 1;
-  return pair;
+  return fallbackPair;
 }
 
 async function handleGearIndexJob(request, url, response) {
@@ -1423,7 +1446,7 @@ async function handleGearIndexJob(request, url, response) {
     }
     pairs = [{ modelSlug, regionId }];
   } else {
-    pairs = [nextGearIndexPair()];
+    pairs = [await nextGearIndexPair()];
   }
 
   for (const pair of pairs) {
@@ -1487,7 +1510,15 @@ function startGearIndexScheduler() {
 
   const intervalMs = GEAR_INDEX_INTERVAL_MINUTES * 60 * 1000;
   const tick = async () => {
-    const pair = nextGearIndexPair();
+    let pair;
+    try {
+      pair = await nextGearIndexPair();
+    } catch (error) {
+      console.warn(`Gear index rotation failed to pick a pair: ${error instanceof Error ? error.message : error}`);
+      setTimeout(tick, intervalMs).unref();
+      return;
+    }
+
     try {
       const row = await runGearIndexPair(pair);
       const priceNote = row.medianPrice === null

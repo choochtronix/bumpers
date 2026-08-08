@@ -74,6 +74,13 @@ runs every `BRRTZ_INDEX_INTERVAL_MINUTES` (default 45). With 9 models x 3
 regions = 27 pairs, a full cycle takes ~20 h — every pair lands roughly once
 a day, and the load on any single source is one extra search per interval.
 
+Which pair runs next is derived from **stored history**, not an in-memory
+cursor: the rotation picks the pair whose latest snapshot is oldest, and any
+never-sampled pair wins outright. That makes it restart-proof — a Railway
+redeploy resets the process but not the rotation — and self-healing after an
+outage, since the longest-neglected pairs get served first. Deploy as often as
+you like without skewing coverage.
+
 Environment:
 
 ```

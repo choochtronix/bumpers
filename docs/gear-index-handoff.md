@@ -31,6 +31,9 @@ array most likely means the variable was never set.
   listing snapshots. This is a legal-posture requirement, not a preference.
 - One snapshot per `model × region` pair every 45 minutes (staggered, not a
   burst sweep). 9 models × 3 regions = 27 pairs ≈ a 20-hour full cycle.
+- **Deploying does not disrupt collection.** The rotation picks the stalest
+  pair from stored history rather than an in-memory cursor, so redeploys are
+  safe — ship UI work as often as you like.
 - Reuses the existing search stack: it calls `/api/search` on localhost with
   the model's terms and the region's source list, then filters and aggregates.
 - Two hard-won deploy/infra gotchas are documented below — read them before
@@ -219,9 +222,10 @@ feature.
 - A sold-price source (eBay marketplace insights, Yahoo closed auctions) would
   upgrade this from asking-price to true market value. Explicitly deferred, not
   rejected.
-- The scheduler is in-process (`setTimeout`, unref'd). Fine for one Railway
-  instance. If the service ever scales to multiple instances, every instance
-  would run its own rotation and multiply source load — move to an external
-  cron hitting `/api/jobs/gear-index` at that point.
+- The scheduler is in-process (`setTimeout`, unref'd). Restart safety is
+  handled (rotation reads stored history, so redeploys don't reset coverage),
+  but if the service ever scales to **multiple instances**, each one would run
+  its own rotation and multiply source load. Move to an external cron hitting
+  `/api/jobs/gear-index` at that point.
 - Untracked junk files in the working tree (garbled names like `div:first-child`)
   are not part of this work — never `git add -A`.

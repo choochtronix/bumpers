@@ -13,6 +13,7 @@ import {
   filterGearIndexListings,
   matchesGearIndexModel,
   normalizeGearIndexText,
+  selectStalestGearIndexPair,
   validateGearIndexCatalog,
 } from "../src/gear-index/gearIndexCore.js";
 
@@ -162,6 +163,67 @@ test("rows below the sample floor publish counts but no prices", () => {
   assert.equal(row.sampleCount, 1);
   assert.equal(row.medianPrice, null);
   assert.equal(row.usdMedian, null);
+});
+
+test("rotation picks never-sampled pairs first, in plan order", () => {
+  const plan = [
+    { modelSlug: "a", regionId: "japan" },
+    { modelSlug: "b", regionId: "japan" },
+    { modelSlug: "c", regionId: "japan" },
+  ];
+  const rows = [{ modelSlug: "a", region: "japan", updatedAt: "2026-08-08T02:00:00.000Z" }];
+  assert.deepEqual(selectStalestGearIndexPair(plan, rows), { modelSlug: "b", regionId: "japan" });
+});
+
+test("rotation falls back to the least recently updated pair once all are sampled", () => {
+  const plan = [
+    { modelSlug: "a", regionId: "japan" },
+    { modelSlug: "b", regionId: "japan" },
+    { modelSlug: "c", regionId: "japan" },
+  ];
+  const rows = [
+    { modelSlug: "a", region: "japan", updatedAt: "2026-08-08T05:00:00.000Z" },
+    { modelSlug: "b", region: "japan", updatedAt: "2026-08-08T01:00:00.000Z" },
+    { modelSlug: "c", region: "japan", updatedAt: "2026-08-08T03:00:00.000Z" },
+  ];
+  assert.deepEqual(selectStalestGearIndexPair(plan, rows), { modelSlug: "b", regionId: "japan" });
+});
+
+test("rotation uses the most recent snapshot per pair across multiple days", () => {
+  const plan = [
+    { modelSlug: "a", regionId: "japan" },
+    { modelSlug: "b", regionId: "japan" },
+  ];
+  const rows = [
+    { modelSlug: "a", region: "japan", updatedAt: "2026-08-01T00:00:00.000Z" },
+    { modelSlug: "a", region: "japan", updatedAt: "2026-08-08T09:00:00.000Z" },
+    { modelSlug: "b", region: "japan", updatedAt: "2026-08-08T04:00:00.000Z" },
+  ];
+  assert.deepEqual(selectStalestGearIndexPair(plan, rows), { modelSlug: "b", regionId: "japan" });
+});
+
+test("rotation is restart-proof: a redeploy does not resample the same pair", () => {
+  const plan = buildGearIndexPlan(catalog);
+  const rows = [];
+  const sampled = [];
+  // Simulate 6 snapshots, each one "after a redeploy" (no in-memory state at all).
+  for (let tick = 0; tick < 6; tick += 1) {
+    const pair = selectStalestGearIndexPair(plan, rows);
+    sampled.push(`${pair.modelSlug}|${pair.regionId}`);
+    rows.push({
+      modelSlug: pair.modelSlug,
+      region: pair.regionId,
+      updatedAt: new Date(Date.UTC(2026, 7, 8, tick)).toISOString(),
+    });
+  }
+  assert.equal(new Set(sampled).size, 6, `expected 6 distinct pairs, got ${sampled.join(", ")}`);
+});
+
+test("rotation tolerates empty and malformed history", () => {
+  const plan = [{ modelSlug: "a", regionId: "japan" }, { modelSlug: "b", regionId: "japan" }];
+  assert.deepEqual(selectStalestGearIndexPair(plan, []), { modelSlug: "a", regionId: "japan" });
+  assert.deepEqual(selectStalestGearIndexPair(plan, [{ modelSlug: "a", region: "japan", updatedAt: "not-a-date" }]), { modelSlug: "a", regionId: "japan" });
+  assert.equal(selectStalestGearIndexPair([], []), null);
 });
 
 test("snapshot plan covers every model in every index region", () => {
