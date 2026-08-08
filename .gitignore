@@ -20,6 +20,7 @@ out/
 Supabase/
 
 # Local app data
+.claude/
 *.sqlite
 *.sqlite3
 *.db
@@ -29,6 +30,7 @@ ops/curation/*.jsonl
 bumpers-saved-searches-*.json
 cache/
 screenshots/
+card-snapshots/
 
 # Temporary files
 .tmp/
