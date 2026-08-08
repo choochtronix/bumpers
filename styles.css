@@ -12906,8 +12906,16 @@ body[data-theme="dark"] .refine-backdrop {
   }
 
   .result-grid.is-gallery-view {
-    column-width: 128px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-width: auto;
     column-gap: 10px;
+    row-gap: 10px;
+  }
+
+  .result-grid.is-gallery-view > :not(.listing-card) {
+    grid-column: 1 / -1;
+    margin-bottom: 0;
   }
 
   .result-grid.is-browse-expanded.is-gallery-view {
@@ -12924,6 +12932,7 @@ body[data-theme="dark"] .refine-backdrop {
   }
 
   .result-grid.is-gallery-view .listing-card {
+    display: block;
     margin-bottom: 10px;
     border-radius: 12px;
   }

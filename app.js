@@ -7034,18 +7034,21 @@ function mergeSavedSearchAutoSyncRequest(currentRequest, nextRequest) {
       ...nextRequest.options,
       allowEmpty: Boolean(currentRequest.options?.allowEmpty || nextRequest.options?.allowEmpty),
       announce: Boolean(currentRequest.options?.announce || nextRequest.options?.announce),
+      skipPull: Boolean(currentRequest.options?.skipPull || nextRequest.options?.skipPull),
       profileName: nextRequest.options?.profileName || currentRequest.options?.profileName,
     },
   };
 }
 
 async function reconcileCloudSavedSearches(options = {}) {
-  await pullCloudSavedSearches({
-    preferNewest: true,
-    rethrow: true,
-    silent: true,
-    skipConfirm: true,
-  });
+  if (!options.skipPull) {
+    await pullCloudSavedSearches({
+      preferNewest: true,
+      rethrow: true,
+      silent: true,
+      skipConfirm: true,
+    });
+  }
   return pushCloudSavedSearches({
     auto: true,
     allowEmpty: Boolean(options.allowEmpty),
@@ -12591,7 +12594,7 @@ function deleteSavedSearch(profileOrName) {
   }
   renderSavedSearches();
   updateQuickSaveSearchButton();
-  queueSavedSearchAutoSync("delete-search", { allowEmpty: true });
+  queueSavedSearchAutoSync("delete-search", { allowEmpty: true, skipPull: true });
 }
 
 function deleteSavedSearchArtifacts(profileName) {
