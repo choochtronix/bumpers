@@ -1,16 +1,21 @@
 # Optimization Waves — Handoff for Codex
 
-Last updated: 2026-08-07
+Last updated: 2026-08-08
 
 This briefs the next agent (Codex or otherwise) on a three-wave SEO/search
 optimization pass done by Claude on branch `wave1-quickwins`. Read this before
 touching gear pages, the sitemap, `llms.txt`, or the region-default logic.
 
+## Status
+
+**Merged to `main` and deployed** to Railway → brrtz.com on 2026-08-08. The work
+below (Codex commit `1ab1017` + Claude's 9 commits) is now live. `wave1-quickwins`
+and `main` are at the same commit; branch future work from `main`.
+
 ## TL;DR
 
-- Branch `wave1-quickwins`, based on Codex commit `1ab1017`, pushed to
-  `origin/wave1-quickwins`. **Not merged to `main`.** `main` auto-deploys to
-  Railway → brrtz.com, so nothing here is live until the branch is merged.
+- Three waves of optimization by Claude, based on Codex commit `1ab1017`, now
+  merged to `main` and live. `main` auto-deploys to Railway → brrtz.com.
 - Gear model pages are now **generated from data**, not hand-authored. Do not
   hand-edit `gear/*.html`, `gear/index.html`, or `sitemap.xml` — edit
   `data/gear-models.json` and run the generator.
@@ -21,6 +26,8 @@ touching gear pages, the sitemap, `llms.txt`, or the region-default logic.
 
 | Commit | Summary |
 | --- | --- |
+| `f917ca8` | Retire legacy `bumpers_logo.svg` → `brrtz_logo.svg` (identical file) |
+| `14e3910` | docs: add this optimization-waves handoff |
 | `947f4b6` | Wave 3 (A4): FAQ schema on About + refresh gear links |
 | `d38db4f` | Wave 3 (A5): first-visit region auto-detection |
 | `95c21bb` | Wave 3: UK region page + second gear batch (13 → 19 models) |
