@@ -1669,6 +1669,7 @@ let sourceSearchStatuses = new Map();
 let sourceSearchMeta = new Map();
 let searchRunId = 0;
 let loadingCardId = 0;
+let gallerySearchRenderState = createEmptyGallerySearchRenderState();
 let backToTopFrame = 0;
 let mobileSearchOverlayFrame = 0;
 let selectInteractionActive = false;
@@ -7395,6 +7396,7 @@ async function runSearch() {
 
   activeViewSources.clear();
   resetPagination();
+  resetGallerySearchRenderState();
   clearScheduledSearchResultApply();
   deferredResultsRender = false;
   isSearching = true;
@@ -7726,6 +7728,19 @@ function cloneProfile(profile) {
   };
 }
 
+function createEmptyGallerySearchRenderState() {
+  return {
+    runId: 0,
+    active: false,
+    listingOrder: new Map(),
+    nextOrder: 0,
+  };
+}
+
+function resetGallerySearchRenderState() {
+  gallerySearchRenderState = createEmptyGallerySearchRenderState();
+}
+
 function scrollResultsTop() {
   window.requestAnimationFrame(() => {
     window.requestAnimationFrame(() => {
@@ -7837,44 +7852,152 @@ function renderResults(options = {}) {
   const isShowingFeaturedHome = featuredHomeResults.length > 0;
   const resultSource = isShowingFeaturedHome ? featuredHomeResults : currentResults;
   const visibleResults = getVisibleResults(watching, resultSource, { renderContext });
-  const totalPages = getTotalPages(visibleResults.length);
+  const galleryStreamActive = shouldUseGallerySearchStream(options, isShowingFeaturedHome);
+  const displayResults = galleryStreamActive
+    ? stabilizeGallerySearchResults(visibleResults)
+    : visibleResults;
+  const totalPages = getTotalPages(displayResults.length);
   currentPage = Math.min(currentPage, totalPages);
-  const pageResults = paginateResults(visibleResults);
+  const pageResults = paginateResults(displayResults);
 
-  resultGrid.innerHTML = "";
+  if (!galleryStreamActive) resultGrid.innerHTML = "";
   resultGrid.classList.toggle("is-featured-home", isShowingFeaturedHome);
   resultGrid.classList.toggle("is-list-view", !isShowingFeaturedHome && appSettings.resultView === "list");
   resultGrid.classList.toggle("is-gallery-view", !isShowingFeaturedHome && appSettings.resultView === "gallery");
+  resultGrid.classList.toggle("is-gallery-search-stream", galleryStreamActive);
   resultGrid.classList.toggle("is-browse-expanded", false);
   resultGrid.classList.toggle("is-gear-browser-frame", false);
   resultGrid.classList.toggle("is-my-page", false);
   renderSourceFilters(resultSource, { renderContext });
 
-  if (visibleResults.length > 0) {
+  if (displayResults.length > 0) {
     if (isShowingFeaturedHome) {
-      const featuredSection = createFeaturedHomeSection(visibleResults);
+      const featuredSection = createFeaturedHomeSection(displayResults);
       resultGrid.appendChild(featuredSection);
+    } else if (galleryStreamActive) {
+      renderGallerySearchStream(pageResults, { renderContext });
     } else {
       pageResults.forEach((listing) => resultGrid.appendChild(renderListing(listing, { renderContext })));
       renderPendingSourceCards();
     }
   } else if (isSearching) {
-    renderPendingSourceCards();
-    if (resultGrid.childElementCount === 0) {
+    if (galleryStreamActive) {
+      renderGallerySearchStream([], { renderContext });
+    } else {
+      renderPendingSourceCards();
+    }
+    if (!galleryStreamActive && resultGrid.childElementCount === 0) {
       resultGrid.innerHTML = `<div class="empty-state">Searching live sources...</div>`;
     }
-  } else if (searchState.mode === "error" && visibleResults.length === 0) {
+  } else if (searchState.mode === "error" && displayResults.length === 0) {
     resultGrid.innerHTML = `<div class="empty-state"><strong>Live search failed.</strong><span>${searchState.detail}</span></div>`;
   } else if (searchState.mode === "idle") {
     resultGrid.innerHTML = `<div class="empty-state"><strong>Start a fresh search.</strong><span>${searchState.detail}</span></div>`;
-  } else if (visibleResults.length === 0) {
+  } else if (displayResults.length === 0) {
     resultGrid.innerHTML = createNoResultsMessage(resultSource);
   }
 
-  renderPagination(visibleResults.length, totalPages);
+  renderPagination(displayResults.length, totalPages);
   renderQualityModeControls();
   renderResultViewControls(isShowingFeaturedHome);
   renderTopWatchingControl();
+}
+
+function shouldUseGallerySearchStream(options = {}, isShowingFeaturedHome = false) {
+  if (options.force || isShowingFeaturedHome) {
+    resetGallerySearchRenderState();
+    return false;
+  }
+  if (appSettings.resultView !== "gallery" || currentPage !== 1) {
+    resetGallerySearchRenderState();
+    return false;
+  }
+  if (searchState.mode === "idle" || filterMode === "watching") {
+    resetGallerySearchRenderState();
+    return false;
+  }
+  if (!isSearching && !gallerySearchRenderState.active) return false;
+
+  if (gallerySearchRenderState.runId !== searchRunId) {
+    gallerySearchRenderState = {
+      ...createEmptyGallerySearchRenderState(),
+      runId: searchRunId,
+      active: true,
+    };
+  } else {
+    gallerySearchRenderState.active = true;
+  }
+  return true;
+}
+
+function stabilizeGallerySearchResults(results) {
+  results.forEach((listing) => {
+    const key = getListingRenderKey(listing);
+    if (!gallerySearchRenderState.listingOrder.has(key)) {
+      gallerySearchRenderState.listingOrder.set(key, gallerySearchRenderState.nextOrder);
+      gallerySearchRenderState.nextOrder += 1;
+    }
+  });
+
+  return results.slice().sort((first, second) => {
+    const firstOrder = gallerySearchRenderState.listingOrder.get(getListingRenderKey(first)) ?? Number.MAX_SAFE_INTEGER;
+    const secondOrder = gallerySearchRenderState.listingOrder.get(getListingRenderKey(second)) ?? Number.MAX_SAFE_INTEGER;
+    return firstOrder - secondOrder;
+  });
+}
+
+function renderGallerySearchStream(pageResults, options = {}) {
+  const renderContext = options.renderContext || createListingRenderContext();
+  const desiredKeys = new Set(pageResults.map(getListingRenderKey));
+  const existingCards = [...resultGrid.querySelectorAll(".listing-card:not(.source-loading-card)")];
+  existingCards.forEach((card) => {
+    if (!desiredKeys.has(card.dataset.listingKey || "")) card.remove();
+  });
+
+  resultGrid.querySelectorAll(".source-loading-card").forEach((card) => card.remove());
+  let loadingState = resultGrid.querySelector(".gallery-search-loading-state");
+
+  pageResults.forEach((listing) => {
+    const key = getListingRenderKey(listing);
+    if (resultGrid.querySelector(`.listing-card[data-listing-key="${CSS.escape(key)}"]`)) return;
+    resultGrid.insertBefore(renderListing(listing, { renderContext }), loadingState);
+  });
+
+  if (isSearching && getPendingSourceIdsForDisplay().length > 0) {
+    if (!loadingState) {
+      loadingState = createGallerySearchLoadingState();
+      resultGrid.appendChild(loadingState);
+    }
+    updateGallerySearchLoadingState(loadingState);
+  } else {
+    loadingState?.remove();
+  }
+}
+
+function createGallerySearchLoadingState() {
+  const loadingState = document.createElement("div");
+  loadingState.className = "gallery-search-loading-state";
+  loadingState.setAttribute("role", "status");
+  loadingState.setAttribute("aria-live", "polite");
+  loadingState.innerHTML = `
+    <span class="gallery-search-loading-spinner" aria-hidden="true"></span>
+    <span class="gallery-search-loading-copy"></span>
+  `;
+  return loadingState;
+}
+
+function updateGallerySearchLoadingState(loadingState) {
+  const pendingLabels = getPendingSourceIdsForDisplay().map(labelForSource);
+  const copy = loadingState.querySelector(".gallery-search-loading-copy");
+  const label = pendingLabels.length > 0
+    ? `Loading more results from ${pendingLabels.join(", ")}`
+    : "Loading more results";
+  if (copy) copy.textContent = label;
+  loadingState.setAttribute("aria-label", label);
+}
+
+function getListingRenderKey(listing) {
+  return String(listing?.id || listing?.url || `${listing?.source || "listing"}:${listing?.title || ""}`);
 }
 
 function setSearchChromeVisible(visible) {
@@ -8235,12 +8358,12 @@ function renderWatchlistResultsView(watching, renderContext = createListingRende
       </div>
     `);
   } else {
-    resultGrid.innerHTML = `
+    resultGrid.insertAdjacentHTML("beforeend", `
       <div class="empty-state">
         <strong>No watched gear yet.</strong>
         <span>Tap a heart on any listing to save it here.</span>
       </div>
-    `;
+    `);
   }
 
   renderPagination(visibleListings.length, totalPages);
@@ -9189,6 +9312,7 @@ function resetPagination() {
   browseInfiniteVisibleCount = BROWSE_INFINITE_INITIAL_LIMIT;
   disconnectBrowseInfiniteObserver();
   browseInfiniteRenderState = null;
+  resetGallerySearchRenderState();
 }
 
 function renderPendingSourceCards() {
@@ -9705,6 +9829,7 @@ function renderListing(listing, options = {}) {
   const listSourceAvatar = document.createElement("span");
   listSourceAvatar.className = "source-avatar list-source-avatar";
   card.appendChild(listSourceAvatar);
+  card.dataset.listingKey = getListingRenderKey(listing);
   if (options.browseListingKey) {
     card.dataset.browseListingKey = options.browseListingKey;
   }
@@ -12355,12 +12480,12 @@ function renderSavedSearches() {
     const button = document.createElement("button");
     button.className = "saved-search";
     button.type = "button";
-  const newCount = hydratedProfile.lastNewCount || 0;
+    const newCount = hydratedProfile.lastNewCount || 0;
     button.innerHTML = `
       <strong class="saved-search-title"></strong>
       <span class="saved-search-region${isCurrentRegion ? "" : " is-away"}"></span>
       <span class="saved-search-matches">${hydratedProfile.lastMatchCount || 0} matches</span>
-      <span class="saved-search-new${newCount === 0 ? " is-empty" : ""}">${formatNewListingLabel(newCount).toLowerCase()}</span>
+      <span class="saved-search-new${newCount === 0 ? " is-empty" : ""}">${formatNewListingCount(newCount).toLowerCase()}</span>
     `;
     button.querySelector(".saved-search-title").textContent = hydratedProfile.name;
     button.querySelector(".saved-search-region").textContent = getSavedSearchRegionLabel(hydratedProfile, isCurrentRegion);
@@ -12585,7 +12710,8 @@ function deleteSavedSearch(profileOrName) {
 
   if (profileId && typeof savedSearchRepository.deleteById === "function") {
     savedSearchRepository.deleteById(profileId);
-  } else {
+  }
+  if (profileName) {
     savedSearchRepository.deleteByName(profileName);
   }
 
