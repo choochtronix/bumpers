@@ -7392,6 +7392,7 @@ async function runSearch() {
     return;
   }
 
+  leaveBrowseModeForGeneralSearch();
   const searchGroups = createLiveSearchGroups(profileSnapshot);
 
   activeViewSources.clear();
@@ -7441,6 +7442,11 @@ async function runSearch() {
     if (group.id !== "mock") updateSourceSearchStatus(group, liveResult);
   });
   scheduleSearchResultApply(profileSnapshot, liveResult, true);
+}
+
+function leaveBrowseModeForGeneralSearch() {
+  isBrowseExpanded = false;
+  activeBrowseBrandSlug = "";
 }
 
 function scheduleSearchResultApply(profile, liveResult, isFinal) {
@@ -7856,9 +7862,10 @@ function renderResults(options = {}) {
   const displayResults = galleryStreamActive
     ? stabilizeGallerySearchResults(visibleResults)
     : visibleResults;
-  const totalPages = getTotalPages(displayResults.length);
-  currentPage = Math.min(currentPage, totalPages);
-  const pageResults = paginateResults(displayResults);
+  const shouldPaginateSearchResults = isShowingFeaturedHome;
+  const totalPages = shouldPaginateSearchResults ? getTotalPages(displayResults.length) : 1;
+  currentPage = shouldPaginateSearchResults ? Math.min(currentPage, totalPages) : 1;
+  const pageResults = shouldPaginateSearchResults ? paginateResults(displayResults) : displayResults;
 
   if (!galleryStreamActive) resultGrid.innerHTML = "";
   resultGrid.classList.toggle("is-featured-home", isShowingFeaturedHome);
@@ -7897,7 +7904,7 @@ function renderResults(options = {}) {
     resultGrid.innerHTML = createNoResultsMessage(resultSource);
   }
 
-  renderPagination(displayResults.length, totalPages);
+  renderPagination(shouldPaginateSearchResults ? displayResults.length : 0, totalPages);
   renderQualityModeControls();
   renderResultViewControls(isShowingFeaturedHome);
   renderTopWatchingControl();
@@ -7949,6 +7956,10 @@ function stabilizeGallerySearchResults(results) {
 function renderGallerySearchStream(pageResults, options = {}) {
   const renderContext = options.renderContext || createListingRenderContext();
   const desiredKeys = new Set(pageResults.map(getListingRenderKey));
+  [...resultGrid.children].forEach((child) => {
+    if (child.matches(".listing-card, .gallery-search-loading-state")) return;
+    child.remove();
+  });
   const existingCards = [...resultGrid.querySelectorAll(".listing-card:not(.source-loading-card)")];
   existingCards.forEach((card) => {
     if (!desiredKeys.has(card.dataset.listingKey || "")) card.remove();
