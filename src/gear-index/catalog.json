@@ -190,13 +190,21 @@
       "poly d",
       "clone",
       "voyager",
+      "reissue",
+      "geddy lee",
+      "tribute edition",
+      "midimini",
+      "macbeth",
+      "studio electronics",
+      "drum controller",
+      "sample and hold",
       "plugin",
       "vst",
       "preset",
       "取扱説明書",
       "説明書"
     ],
-    "priceFloorUsd": 1500,
+    "priceFloorUsd": 5000,
     "priceCeilingUsd": 50000,
     "valueAnchors": [
       {
@@ -223,6 +231,7 @@
       "b-2600",
       "ttsh",
       "2600 fs",
+      "2600m",
       "clone",
       "plugin",
       "vst",
@@ -230,7 +239,7 @@
       "取扱説明書",
       "説明書"
     ],
-    "priceFloorUsd": 1500,
+    "priceFloorUsd": 5000,
     "priceCeilingUsd": 80000,
     "valueAnchors": [
       {
@@ -290,18 +299,122 @@
       "rev4",
       "rev 4",
       "behringer",
+      "reissue",
+      "desktop",
+      "module",
+      "symetrix",
       "plugin",
       "vst",
       "preset",
       "取扱説明書",
       "説明書"
     ],
-    "priceFloorUsd": 1500,
+    "priceFloorUsd": 5000,
     "priceCeilingUsd": 40000,
     "valueAnchors": [
       {
         "year": 1978,
         "priceUsd": 4495,
+        "label": "Launch list price (approx)"
+      }
+    ]
+  },
+  {
+    "slug": "moog-voyager",
+    "name": "Moog Minimoog Voyager",
+    "terms": [
+      "moog voyager"
+    ],
+    "categoryIntent": "synthesizers",
+    "includeTerms": [
+      "moog voyager",
+      "minimoog voyager",
+      "ボイジャー"
+    ],
+    "excludeTerms": [
+      "little phatty",
+      "sub phatty",
+      "slim phatty",
+      "behringer",
+      "plugin",
+      "vst",
+      "preset",
+      "取扱説明書",
+      "説明書"
+    ],
+    "priceFloorUsd": 1200,
+    "priceCeilingUsd": 15000,
+    "valueAnchors": [
+      {
+        "year": 2002,
+        "priceUsd": 2795,
+        "label": "Launch list price (approx)"
+      }
+    ]
+  },
+  {
+    "slug": "oberheim-sem",
+    "name": "Oberheim SEM (vintage)",
+    "terms": [
+      "oberheim sem"
+    ],
+    "categoryIntent": "synthesizers",
+    "includeTerms": [
+      "oberheim sem",
+      "synthesizer expander module"
+    ],
+    "excludeTerms": [
+      "sem pro",
+      "patch panel",
+      "reissue",
+      "midi to cv",
+      "360 system",
+      "spectre",
+      "behringer",
+      "plugin",
+      "vst",
+      "preset",
+      "取扱説明書",
+      "説明書"
+    ],
+    "priceFloorUsd": 1800,
+    "priceCeilingUsd": 12000,
+    "valueAnchors": [
+      {
+        "year": 1974,
+        "priceUsd": 695,
+        "label": "Launch list price (approx)"
+      }
+    ]
+  },
+  {
+    "slug": "oberheim-tvs",
+    "name": "Oberheim Two Voice (vintage)",
+    "terms": [
+      "oberheim two voice",
+      "oberheim tvs"
+    ],
+    "categoryIntent": "synthesizers",
+    "includeTerms": [
+      "oberheim tvs",
+      "oberheim two voice"
+    ],
+    "excludeTerms": [
+      "tvs pro",
+      "reissue",
+      "behringer",
+      "plugin",
+      "vst",
+      "preset",
+      "取扱説明書",
+      "説明書"
+    ],
+    "priceFloorUsd": 4000,
+    "priceCeilingUsd": 40000,
+    "valueAnchors": [
+      {
+        "year": 1975,
+        "priceUsd": 1895,
         "label": "Launch list price (approx)"
       }
     ]

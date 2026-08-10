@@ -32,12 +32,27 @@ p25, and p75 are computed on the trimmed set. Below `minSample` matched
 listings (default 3), the row records the count but publishes **no prices** —
 thin days show as gaps, not noise.
 
-Known caveats (accepted for v1, revisit with real data):
+## Vintage-only policy
 
-- Minimoog mixes vintage and Moog reissue units (Behringer clones are
-  excluded). ARP 2600 excludes Korg/Behringer reissues by brand name, but a
-  bare "ARP 2600M" title without "Korg" would slip in.
-- Prophet-5 excludes Rev4 listings to keep the vintage series clean.
+**The index tracks vintage instruments only.** Reissues are deliberately
+excluded, even where they are desirable in their own right (Korg's ARP 2600 M,
+the 2020 Sequential Prophet-5, Moog's Model D reissues and Geddy Lee edition,
+Tom Oberheim's SEM and TVS Pro). A reissue is a different instrument with a
+different market, and mixing the two produces a median that describes neither.
+
+Reissues are a planned **separate stream**, not a permanent exclusion — some
+(Oberheim SEM and TVS especially) are becoming as sought-after as the
+originals. When that stream is built, add them as their own catalog entries
+rather than relaxing the vintage rules.
+
+Enforcement is two-layered, because titles alone are unreliable: exclude terms
+catch what is labelled (`reissue`, `geddy lee`, `2600m`, `desktop`, `module`),
+and a per-model price floor catches what isn't. The floors work because
+reissues consistently price below vintage — Prophet-5 reissues top out near
+$4,000 against a vintage floor of ~$5,400; Minimoog reissues near $7,000
+against vintage from ~$8,000.
+
+Known caveats (accepted for v1, revisit with real data):
 - Region "us" searches through the bay-area region config plus east-coast
   shop connectors; reverb-us and ebay-us are national feeds, which is why the
   index does not pretend to per-city US medians.
@@ -70,9 +85,11 @@ prices are unaffected.
 ## Running it
 
 The scheduler is **off by default**. One snapshot (one model x region pair)
-runs every `BRRTZ_INDEX_INTERVAL_MINUTES` (default 45). With 9 models x 3
-regions = 27 pairs, a full cycle takes ~20 h — every pair lands roughly once
-a day, and the load on any single source is one extra search per interval.
+runs every `BRRTZ_INDEX_INTERVAL_MINUTES` (default 45). With 12 models x 3
+regions = 36 pairs, a full cycle takes ~27 h, and the load on any single
+source is one extra search per interval. If the catalog grows much past this,
+shorten the interval to keep a cycle under 24 h (36 pairs needs ~35 min) —
+but weigh that against source load, which is why the stagger exists.
 
 Which pair runs next is derived from **stored history**, not an in-memory
 cursor: the rotation picks the pair whose latest snapshot is oldest, and any

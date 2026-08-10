@@ -58,6 +58,17 @@ test("real listings match their model", () => {
     ["sequential-prophet-5", "Sequential Circuits Prophet-5 Rev 3.3"],
     ["oberheim-ob-xa", "Oberheim OB-Xa 8 voice"],
     ["arp-2600", "ARP 2600 with 3620 keyboard"],
+    // Genuine vintage units that must survive the vintage-only exclude rules.
+    ["moog-minimoog", "1974 Moog Minimoog Model D 44-Key Monophonic Synthesizer (Serviced)"],
+    ["moog-minimoog", "Mid 70s Vintage Moog Minimoog Model D Original Walnut Stock Unit"],
+    ["sequential-prophet-5", "1983 Sequential Circuits Prophet-5 | Rev 3.2 | Model 1000"],
+    ["sequential-prophet-5", "Sequential Circuits Prophet-5 Rev3.3 w/Midi - ORIGINAL - Pro Serviced"],
+    ["arp-2600", "ARP 2600P V3 (1972-1974) with 3604P Keyboard"],
+    ["moog-voyager", "Moog Minimoog Voyager Old School 44-Key Monophonic Synthesizer"],
+    ["moog-voyager", "Moog Minimoog Voyager XL 61-Key Monophonic Synthesizer 2010"],
+    ["moog-voyager", "Moog/Minimoog Voyagerアナログシンセサイザー"],
+    ["oberheim-sem", "Oberheim SEM Module Vintage READ!!!"],
+    ["oberheim-tvs", "Oberheim Two Voice TVS-1 1975 analog synthesizer"],
   ];
   for (const [slug, title] of cases) {
     const result = matchesGearIndexModel(modelBySlug.get(slug), title);
@@ -85,6 +96,28 @@ test("clones, reissues, and near-miss models are excluded", () => {
     ["sequential-prophet-5", "Sequential Prophet-600 vintage"],
     ["roland-jupiter-8", "Kiev 4 キエフ フィルムカメラ Jupiter-8M 50mm F2 レンズ付"],
     ["roland-jupiter-8", "ほぼ新品の ジュピター8 Jupiter 50mm Leica L/M39 SONNAR #2503B"],
+    // Vintage-only policy: real titles that leaked into the live index (2026-08-10).
+    ["arp-2600", "ARP ARP2600-M セミモジュラーシンセサイザー"],
+    ["arp-2600", "ARP 2600M SEMI-MODULAR SYNTHESIZER (ARP2600-M)"],
+    ["moog-minimoog", "Moog Minimoog Model D Reissue 44-Key Monophonic Synthesizer (2022)"],
+    ["moog-minimoog", "Moog Geddy Lee Minimoog Model D 44-Key Monophonic Synthesizer 2025"],
+    ["moog-minimoog", "Moog Minimoog Model D Bob Moog Tribute Edition 2026 Reissue"],
+    ["moog-minimoog", "Vintage Studio Electronics MIDIMINI - MiniMoog model D original vintage"],
+    ["moog-minimoog", "Moog Model 1130 Drum Controller pad minimoog accessory VINTAGE SYNTH"],
+    ["moog-minimoog", "MOOG SAMPLE AND HOLD MODEL 1125 minimoog synthesizer modular"],
+    ["moog-minimoog", "Macbeth Studio Systems M3x Synthesizer midi rack minimoog"],
+    ["sequential-prophet-5", "Sequential Prophet 5 Desktop Module (Original Owner & Mint)"],
+    ["sequential-prophet-5", "Sequential Prophet 5 Reissue 61-Key Polyphonic Analog Synthesizer"],
+    ["sequential-prophet-5", "Symetrix Phase Filter - Ultra-Rare - same SSM2040 as the Prophet-5"],
+    ["oberheim-sem", "Tom Oberheim SEM MIDI to CV 2010 - Cream/White"],
+    ["oberheim-sem", "360 System Spectre Oberheim SEM Meticulously Serviced & Modified"],
+    ["oberheim-sem", "Oberheim SEM Pro desktop synthesizer"],
+    ["oberheim-tvs", "Oberheim TVS Pro Two Voice reissue"],
+    ["moog-voyager", "Moog Little Phatty Stage II analog synthesizer"],
+    // The SEM include rule must require the words adjacent, or "semi-modular"
+    // and "system" would sweep in unrelated gear.
+    ["oberheim-sem", "Korg ARP 2600 M semi-modular synthesizer"],
+    ["oberheim-sem", "Roland System-100M modular system"],
   ];
   for (const [slug, title] of cases) {
     const result = matchesGearIndexModel(modelBySlug.get(slug), title);

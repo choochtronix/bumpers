@@ -220,9 +220,13 @@ feature.
 - **CS-80 and OB-Xa will frequently fall below the sample floor** — they are
   genuinely rare. Expect gaps. When Phase 2 arrives, consider a 7-day rolling
   median for low-volume models rather than daily. Decide with real data.
-- **Minimoog mixes vintage and Moog reissue units** (Behringer clones are
-  excluded). ARP 2600 excludes Korg/Behringer reissues by brand name, but a
-  bare "ARP 2600M" title without "Korg" would slip through.
+- **Vintage-only is the policy** (product decision, 2026-08-10). Reissues are
+  excluded by term *and* by price floor — see "Vintage-only policy" in
+  `docs/gear-index.md`. Do not relax these rules to raise sample counts; if
+  reissues are wanted, they get their own catalog entries as a separate stream.
+- **SEM and TVS will usually show thin data.** Verified against live listings:
+  one genuine SEM in the US, one TVS in Japan, zero elsewhere. That is real
+  scarcity, not a broken rule — leave the gaps honest.
 - A sold-price source (eBay marketplace insights, Yahoo closed auctions) would
   upgrade this from asking-price to true market value. Explicitly deferred, not
   rejected.
