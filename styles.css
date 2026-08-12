@@ -2515,10 +2515,10 @@ body[data-theme="dark"] .region-badge[aria-expanded="true"] {
   width: min(430px, calc(100vw - 36px));
   min-height: 58px;
   padding: 12px 14px 12px 16px;
-  border: 1px solid var(--color-mobile-nav-border);
+  border: 1px solid var(--color-brand-hot);
   border-radius: var(--radius-card-media);
-  background: var(--color-toast-surface);
-  color: var(--color-toast-ink);
+  background: var(--color-brand-hot);
+  color: var(--color-control-on-ink);
   box-shadow: var(--shadow-toast);
   opacity: 0;
   pointer-events: none;
@@ -2548,7 +2548,7 @@ body.modal-open .save-confirmation-toast.is-visible {
 }
 
 .save-toast-icon {
-  color: var(--color-brand-hot);
+  color: var(--color-control-on-ink);
   font-size: 24px;
   line-height: 1;
 }
@@ -2573,14 +2573,14 @@ body.modal-open .save-confirmation-toast.is-visible {
 .save-toast-view {
   min-height: 34px;
   padding: 0 4px;
-  border-bottom: 2px solid var(--brand-gradient-end);
+  border-bottom: 2px solid currentColor;
   font-size: var(--text-caption);
   font-weight: var(--weight-bold);
 }
 
 .save-toast-view:hover,
 .save-toast-view:focus-visible {
-  color: var(--color-toast-link);
+  color: var(--color-control-on-ink);
 }
 
 .save-toast-close {
@@ -11187,6 +11187,7 @@ body[data-theme="dark"] .browse-expanded-loader-copy {
   --experimental-header-gradient-band-opacity: 1;
 
   position: relative;
+  z-index: 200;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -11379,6 +11380,7 @@ body[data-theme="dark"] .watching-trigger:focus-visible {
 
 .account-menu {
   position: relative;
+  z-index: 210;
 }
 
 .account-trigger {
@@ -11518,7 +11520,7 @@ body[data-theme="dark"] .account-avatar-check {
 
 .account-popover {
   position: absolute;
-  z-index: 180;
+  z-index: 220;
   top: calc(100% + var(--space-3));
   right: 0;
   display: grid;
