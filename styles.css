@@ -848,7 +848,7 @@ a {
 
 .brand-logo {
   display: block;
-  width: clamp(207px, 23.4vw, var(--brand-logo-max-width));
+  width: clamp(186px, 21.1vw, calc(var(--brand-logo-max-width) * 0.9));
   height: auto;
   aspect-ratio: 600.6 / 163.8;
   transition: none;
@@ -899,6 +899,31 @@ a {
   opacity: 1;
   pointer-events: none;
   transform: translate(-50%, -50%);
+}
+
+.brand-grid-wrap {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  border-radius: var(--radius-card-large);
+  opacity: 0.74;
+  pointer-events: none;
+}
+
+.brand-grid-groundplane {
+  position: absolute;
+  right: 50%;
+  bottom: -32%;
+  display: block;
+  width: max(100%, 1180px);
+  height: 170%;
+  max-width: none;
+  object-fit: cover;
+  object-position: center bottom;
+  opacity: 0.86;
+  pointer-events: none;
+  transform: translateX(50%);
 }
 
 .brand-wave-svg {
@@ -10187,7 +10212,7 @@ body[data-theme="dark"] .browse-view-all-button:hover {
 .browse-expanded-header.is-watchlist-header .browse-expanded-headline {
   font-family: var(--brrtz-font);
   font-size: var(--text-headline);
-  font-weight: var(--weight-bold);
+  font-weight: var(--weight-heavy);
   line-height: 1;
 }
 
@@ -11182,7 +11207,7 @@ body[data-theme="dark"] .browse-expanded-loader-copy {
   pointer-events: none;
 }
 
-.app-header > :not(.brand-wave-wrap) {
+.app-header > :not(.brand-wave-wrap):not(.brand-grid-wrap) {
   position: relative;
   z-index: 2;
 }
@@ -11607,7 +11632,9 @@ body[data-theme="dark"] .account-popover-avatar {
 .saved-trigger:hover > .header-action-icon,
 .saved-trigger:focus-visible > .header-action-icon,
 .watching-trigger:hover > .header-action-icon,
-.watching-trigger:focus-visible > .header-action-icon {
+.watching-trigger:focus-visible > .header-action-icon,
+.account-trigger:hover > :is(.account-person-icon, .account-avatar-initial),
+.account-trigger:focus-visible > :is(.account-person-icon, .account-avatar-initial) {
   color: var(--color-brand-hot);
   filter: drop-shadow(0 2px 7px rgba(255, 0, 255, 0.22));
   transform: scale(1.08);
@@ -11620,7 +11647,8 @@ body[data-theme="dark"] .account-popover-avatar {
 }
 
 .saved-trigger:active > .header-action-icon,
-.watching-trigger:active > .header-action-icon {
+.watching-trigger:active > .header-action-icon,
+.account-trigger:active > :is(.account-person-icon, .account-avatar-initial) {
   color: var(--color-brand-hot);
   filter: drop-shadow(0 1px 4px rgba(255, 0, 255, 0.2));
   transform: scale(0.92);
@@ -11656,12 +11684,22 @@ body[data-theme="dark"] .header-actions .watching-trigger[aria-pressed="true"] {
   border-color: transparent;
 }
 
+.header-actions .account-trigger:is(:hover, :focus-visible, [aria-expanded="true"]),
+body.settings-page-active .header-actions .account-trigger,
+body[data-theme="dark"] .header-actions .account-trigger:not(.is-signed-in):is(:hover, :focus-visible, [aria-expanded="true"]),
+body.settings-page-active[data-theme="dark"] .header-actions .account-trigger:not(.is-signed-in) {
+  border-color: var(--color-brand-hot);
+  background: var(--color-brand-hot);
+  background-color: var(--color-brand-hot);
+  color: var(--color-control-on-ink);
+}
+
 .header-actions :is(.saved-trigger, .watching-trigger, .account-trigger):is(:hover, :focus-visible, [aria-expanded="true"], .is-active) .header-action-icon,
 .header-actions .watching-trigger[aria-pressed="true"] .header-action-icon,
-.header-actions .account-trigger.is-signed-in:is(:hover, :focus-visible, [aria-expanded="true"]) :is(.account-avatar-initial, .account-person-icon, .header-action-icon),
+.header-actions .account-trigger:is(:hover, :focus-visible, [aria-expanded="true"]) :is(.account-avatar-initial, .account-person-icon, .header-action-icon),
 body[data-theme="dark"] .header-actions :is(.saved-trigger, .watching-trigger, .account-trigger):is(:hover, :focus-visible, [aria-expanded="true"], .is-active) .header-action-icon,
 body[data-theme="dark"] .header-actions .watching-trigger[aria-pressed="true"] .header-action-icon,
-body[data-theme="dark"] .header-actions .account-trigger.is-signed-in:is(:hover, :focus-visible, [aria-expanded="true"]) :is(.account-avatar-initial, .account-person-icon, .header-action-icon) {
+body[data-theme="dark"] .header-actions .account-trigger:is(:hover, :focus-visible, [aria-expanded="true"]) :is(.account-avatar-initial, .account-person-icon, .header-action-icon) {
   color: var(--color-control-on-ink);
 }
 
@@ -12387,6 +12425,12 @@ body[data-theme="dark"] .refine-backdrop {
     transform: translateY(-50%);
   }
 
+  .brand-grid-groundplane {
+    bottom: -21%;
+    width: max(100%, 720px);
+    height: 148%;
+  }
+
   .brand-region-cluster {
     flex-direction: column;
     align-items: flex-start;
@@ -12560,9 +12604,11 @@ body[data-theme="dark"] .refine-backdrop {
   }
 
   .filter-bar {
+    box-sizing: border-box;
     gap: 12px;
     margin-bottom: 16px;
     min-width: 0;
+    padding-inline: clamp(16px, 2.2vw, 28px);
   }
 
   .source-filter-panel {
@@ -12570,7 +12616,7 @@ body[data-theme="dark"] .refine-backdrop {
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
     gap: 8px;
-    width: calc(100vw - 28px);
+    width: 100%;
     max-width: 100%;
     margin: 0;
     overflow: hidden;
@@ -13378,6 +13424,12 @@ body[data-theme="dark"] .refine-backdrop {
     height: 19px;
   }
 
+  .brand-grid-groundplane {
+    bottom: -16%;
+    width: max(100%, 620px);
+    height: 136%;
+  }
+
   .search-terms-field {
     --quick-search-font-size: 18px;
     --quick-search-left-padding: 16px;
@@ -13402,11 +13454,12 @@ body[data-theme="dark"] .refine-backdrop {
   }
 
   .filter-bar {
-    margin-inline: -2px;
+    margin-inline: 0;
+    padding-inline: 16px;
   }
 
   .source-filter-panel {
-    width: calc(100vw - 24px);
+    width: 100%;
   }
 
   .card-actions {

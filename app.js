@@ -5148,7 +5148,7 @@ function createSavedResultsDrawerRow(profile, options = {}) {
   const isStarter = Boolean(options.isStarter);
   const isCurrent = !isStarter && profilesMatchSearch(profile, currentProfile);
   const regionLabel = options.metaLabel || getRegionById(getProfileHomeRegionId(profile)).label;
-  const countLabel = options.countLabel || formatNewListingLabel(newCount);
+  const countLabel = options.countLabel || formatNewListingCount(newCount);
   return `
     <button class="saved-results-drawer-row${hasNew ? " has-new" : " is-quiet"}${isCurrent ? " is-current" : ""}${isStarter ? " is-starter" : ""}" type="button" data-saved-results-id="${escapeHtml(profileId)}"${isCurrent ? ' aria-current="true"' : ""}>
       <span class="saved-results-drawer-marker${hasNew || isStarter ? " is-active" : ""}" aria-hidden="true"><span></span></span>
@@ -8226,7 +8226,7 @@ function createMyPageSavedSearchRow(profile) {
     ? `<span class="my-page-new-radar" aria-hidden="true"></span>`
     : "";
   const newListingsMarkup = newCount > 0
-    ? `<button class="my-page-new-pill" type="button" data-result-action="run-saved-search" data-saved-search-id="${profileId}" aria-label="View new results for ${escapeHtml(profile.name)}">${formatNewListingLabel(newCount)}</button>`
+    ? `<button class="my-page-new-pill" type="button" data-result-action="run-saved-search" data-saved-search-id="${profileId}" aria-label="View new results for ${escapeHtml(profile.name)}">${formatNewListingCount(newCount)}</button>`
     : "";
   return `
     <article class="my-page-saved-row${hasNewListings ? " has-new" : " is-quiet"}" data-saved-search-letter="${escapeHtml(searchLetter)}" data-saved-search-name="${escapeHtml(profile.name)}">
@@ -8632,14 +8632,7 @@ function createGearBrowserScene() {
     isFading ? "is-fading" : "",
   ].filter(Boolean).join(" ");
   scene.setAttribute("aria-hidden", "true");
-  scene.innerHTML = `
-    <img class="gear-browser-scene-static gear-browser-scene-light" src="assets/animations/perspective-line-graph-gear-browser-scene-static-v01.svg" alt="" loading="eager" decoding="async" />
-    <img class="gear-browser-scene-static gear-browser-scene-dark" src="assets/animations/perspective-line-graph-gear-browser-scene-static-dark-v01.svg" alt="" loading="eager" decoding="async" />
-    ${isAnimating || isFading ? `
-      <img class="gear-browser-scene-active gear-browser-scene-light" src="assets/animations/perspective-line-graph-gear-browser-scene-v01.svg" alt="" loading="eager" decoding="async" />
-      <img class="gear-browser-scene-active gear-browser-scene-dark" src="assets/animations/perspective-line-graph-gear-browser-scene-dark-v01.svg" alt="" loading="eager" decoding="async" />
-    ` : ""}
-  `;
+  scene.dataset.sceneSlot = "ready";
   return scene;
 }
 
@@ -12719,10 +12712,11 @@ function deleteSavedSearch(profileOrName) {
   const confirmed = window.confirm(`Delete saved search "${profileName || "this saved search"}"?`);
   if (!confirmed) return;
 
-  if (profileId && typeof savedSearchRepository.deleteById === "function") {
+  if (typeof savedSearchRepository.deleteMatching === "function") {
+    savedSearchRepository.deleteMatching(profile || profileName);
+  } else if (profileId && typeof savedSearchRepository.deleteById === "function") {
     savedSearchRepository.deleteById(profileId);
-  }
-  if (profileName) {
+  } else if (profileName) {
     savedSearchRepository.deleteByName(profileName);
   }
 
@@ -12829,6 +12823,18 @@ function createSavedSearchRepository({ storageKey }) {
     return nextProfiles;
   }
 
+  function deleteMatching(profileOrName) {
+    const profile = profileOrName && typeof profileOrName === "object" ? hydrateProfile(profileOrName) : null;
+    const profileName = String(profile?.name || profileOrName || "").trim();
+    const targetKeys = new Set(profile ? getSavedSearchMergeKeys(profile) : []);
+    if (profileName) targetKeys.add(`name:${normalizeText(profileName)}`);
+    if (!targetKeys.size) return list();
+
+    const nextProfiles = list().filter((item) => !getSavedSearchMergeKeys(item).some((key) => targetKeys.has(key)));
+    write(nextProfiles);
+    return nextProfiles;
+  }
+
   function updateScan(profile, scanSummary) {
     const scannedAt = scanSummary.lastScannedAt || new Date().toISOString();
     const nextProfiles = list().map((item) => {
@@ -12903,6 +12909,7 @@ function createSavedSearchRepository({ storageKey }) {
     save,
     deleteById,
     deleteByName,
+    deleteMatching,
     updateScan,
     replaceAll: write,
     previewMerge,
