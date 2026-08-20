@@ -7915,7 +7915,7 @@ function shouldUseGallerySearchStream(options = {}, isShowingFeaturedHome = fals
     resetGallerySearchRenderState();
     return false;
   }
-  if (appSettings.resultView !== "gallery" || currentPage !== 1) {
+  if (currentPage !== 1) {
     resetGallerySearchRenderState();
     return false;
   }
@@ -7971,7 +7971,9 @@ function renderGallerySearchStream(pageResults, options = {}) {
   pageResults.forEach((listing) => {
     const key = getListingRenderKey(listing);
     if (resultGrid.querySelector(`.listing-card[data-listing-key="${CSS.escape(key)}"]`)) return;
-    resultGrid.insertBefore(renderListing(listing, { renderContext }), loadingState);
+    const fragment = renderListing(listing, { renderContext });
+    prepareListingCascade(fragment);
+    resultGrid.insertBefore(fragment, loadingState);
   });
 
   if (isSearching && getPendingSourceIdsForDisplay().length > 0) {
@@ -7983,6 +7985,18 @@ function renderGallerySearchStream(pageResults, options = {}) {
   } else {
     loadingState?.remove();
   }
+}
+
+function prepareListingCascade(fragment) {
+  const card = fragment?.querySelector?.(".listing-card");
+  if (!card || shouldReduceMotion()) return;
+
+  card.classList.add("is-cascade-entering");
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
+      card.classList.remove("is-cascade-entering");
+    });
+  });
 }
 
 function createGallerySearchLoadingState() {
@@ -8669,10 +8683,12 @@ function appendBrowseListingCardsInChunks(listings, renderId, options = {}) {
     const fragment = document.createDocumentFragment();
     const end = Math.min(index + BROWSE_CARD_RENDER_CHUNK_SIZE, listings.length);
     for (; index < end; index += 1) {
-      fragment.appendChild(renderListing(listings[index], {
+      const listingFragment = renderListing(listings[index], {
         renderContext,
         browseListingKey: getBrowseListingKey(listings[index]),
-      }));
+      });
+      prepareListingCascade(listingFragment);
+      fragment.appendChild(listingFragment);
     }
     if (beforeNode?.isConnected) {
       resultGrid.insertBefore(fragment, beforeNode);
