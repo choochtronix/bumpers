@@ -295,10 +295,27 @@ export function validateGearIndexCatalog(catalog) {
     if (model?.priceCeilingUsd !== undefined && !(Number(model.priceCeilingUsd) > Number(model.priceFloorUsd || 0))) {
       errors.push(`${label}: priceCeilingUsd must exceed priceFloorUsd`);
     }
-    for (const anchor of model?.valueAnchors || []) {
+    // Anchors draw the pre-collection arc on the Phase 2 chart. Exactly one is
+    // the documented launch price; the rest are editorial estimates and the UI
+    // must label them as such, so `kind` is required rather than inferred.
+    const anchors = model?.valueAnchors || [];
+    let previousYear = 0;
+    let launchCount = 0;
+    for (const anchor of anchors) {
       if (!Number.isInteger(anchor?.year) || !(Number(anchor?.priceUsd) > 0)) {
         errors.push(`${label}: valueAnchors entries need integer year and positive priceUsd`);
+        continue;
       }
+      if (!["launch", "estimate"].includes(anchor?.kind)) {
+        errors.push(`${label}: valueAnchors entry ${anchor.year} needs kind "launch" or "estimate"`);
+      }
+      if (!anchor?.label) errors.push(`${label}: valueAnchors entry ${anchor.year} needs a label`);
+      if (anchor.year <= previousYear) errors.push(`${label}: valueAnchors must be in ascending year order`);
+      previousYear = anchor.year;
+      if (anchor.kind === "launch") launchCount += 1;
+    }
+    if (anchors.length > 0 && launchCount !== 1) {
+      errors.push(`${label}: valueAnchors need exactly one "launch" entry, found ${launchCount}`);
     }
   });
 

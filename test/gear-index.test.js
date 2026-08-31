@@ -42,6 +42,27 @@ test("gear index catalog is valid", () => {
   assert.deepEqual(validateGearIndexCatalog(catalog), []);
 });
 
+test("every model carries a launch anchor plus estimates for the historical arc", () => {
+  for (const model of catalog) {
+    const anchors = model.valueAnchors || [];
+    assert.ok(anchors.length >= 5, `${model.slug}: only ${anchors.length} anchors — the chart arc needs more`);
+    assert.equal(anchors.filter((a) => a.kind === "launch").length, 1, `${model.slug}: needs exactly one launch anchor`);
+    assert.ok(anchors.every((a) => a.label), `${model.slug}: every anchor needs a label`);
+    const years = anchors.map((a) => a.year);
+    assert.deepEqual(years, [...years].sort((a, b) => a - b), `${model.slug}: anchors must ascend by year`);
+    assert.equal(anchors[0].kind, "launch", `${model.slug}: the earliest anchor should be the launch price`);
+  }
+});
+
+test("anchor validation rejects malformed history", () => {
+  const base = { slug: "x", name: "X", terms: ["x"], includeTerms: ["x"] };
+  const withAnchors = (valueAnchors) => validateGearIndexCatalog([{ ...base, valueAnchors }]);
+  assert.ok(withAnchors([{ year: 1980, priceUsd: 100, kind: "bogus", label: "n" }]).some((e) => e.includes("kind")));
+  assert.ok(withAnchors([{ year: 1980, priceUsd: 100, kind: "launch", label: "n" }, { year: 1975, priceUsd: 90, kind: "estimate", label: "n" }]).some((e) => e.includes("ascending")));
+  assert.ok(withAnchors([{ year: 1980, priceUsd: 100, kind: "estimate", label: "n" }]).some((e) => e.includes("exactly one")));
+  assert.ok(withAnchors([{ year: 1980, priceUsd: 100, kind: "launch" }]).some((e) => e.includes("label")));
+});
+
 test("normalization folds case, width, and separators", () => {
   assert.equal(normalizeGearIndexText("ＴＲ－８０８"), "tr808");
   assert.equal(normalizeGearIndexText("Jupiter - 8"), "jupiter8");

@@ -41,7 +41,44 @@
       {
         "year": 1981,
         "priceUsd": 5295,
-        "label": "Launch list price (approx)"
+        "kind": "launch",
+        "label": "Launch list price"
+      },
+      {
+        "year": 1990,
+        "priceUsd": 1300,
+        "kind": "estimate",
+        "label": "Analog out of fashion in the digital era"
+      },
+      {
+        "year": 1998,
+        "priceUsd": 2200,
+        "kind": "estimate",
+        "label": "Early collector interest returns"
+      },
+      {
+        "year": 2005,
+        "priceUsd": 4500,
+        "kind": "estimate",
+        "label": "Back to roughly its original price"
+      },
+      {
+        "year": 2012,
+        "priceUsd": 9000,
+        "kind": "estimate",
+        "label": "Analog revival accelerates"
+      },
+      {
+        "year": 2018,
+        "priceUsd": 16000,
+        "kind": "estimate",
+        "label": "Vintage polysynth boom"
+      },
+      {
+        "year": 2023,
+        "priceUsd": 24000,
+        "kind": "estimate",
+        "label": "Post-pandemic plateau"
       }
     ]
   },
@@ -73,7 +110,44 @@
       {
         "year": 1977,
         "priceUsd": 6900,
-        "label": "Launch list price (approx)"
+        "kind": "launch",
+        "label": "Launch list price"
+      },
+      {
+        "year": 1990,
+        "priceUsd": 2200,
+        "kind": "estimate",
+        "label": "Heavy, temperamental and unfashionable"
+      },
+      {
+        "year": 1998,
+        "priceUsd": 6000,
+        "kind": "estimate",
+        "label": "Blade Runner reputation takes hold"
+      },
+      {
+        "year": 2005,
+        "priceUsd": 12000,
+        "kind": "estimate",
+        "label": "Recognised as a landmark instrument"
+      },
+      {
+        "year": 2012,
+        "priceUsd": 22000,
+        "kind": "estimate",
+        "label": "Serviced examples command a premium"
+      },
+      {
+        "year": 2018,
+        "priceUsd": 45000,
+        "kind": "estimate",
+        "label": "Trophy-instrument pricing"
+      },
+      {
+        "year": 2023,
+        "priceUsd": 70000,
+        "kind": "estimate",
+        "label": "Few change hands publicly"
       }
     ]
   },
@@ -106,7 +180,44 @@
       {
         "year": 1980,
         "priceUsd": 1195,
-        "label": "Launch list price (approx)"
+        "kind": "launch",
+        "label": "Launch list price"
+      },
+      {
+        "year": 1990,
+        "priceUsd": 200,
+        "kind": "estimate",
+        "label": "Sold off cheaply as samplers took over"
+      },
+      {
+        "year": 1998,
+        "priceUsd": 800,
+        "kind": "estimate",
+        "label": "Hip-hop and techno drive demand"
+      },
+      {
+        "year": 2005,
+        "priceUsd": 1600,
+        "kind": "estimate",
+        "label": "Cultural status established"
+      },
+      {
+        "year": 2012,
+        "priceUsd": 2800,
+        "kind": "estimate",
+        "label": "Supply tightens"
+      },
+      {
+        "year": 2018,
+        "priceUsd": 4200,
+        "kind": "estimate",
+        "label": "Clean units become scarce"
+      },
+      {
+        "year": 2023,
+        "priceUsd": 5500,
+        "kind": "estimate",
+        "label": "Steady collector demand"
       }
     ]
   },
@@ -139,7 +250,44 @@
       {
         "year": 1983,
         "priceUsd": 1195,
-        "label": "Launch list price (approx)"
+        "kind": "launch",
+        "label": "Launch list price"
+      },
+      {
+        "year": 1990,
+        "priceUsd": 350,
+        "kind": "estimate",
+        "label": "Discontinued and undervalued"
+      },
+      {
+        "year": 1998,
+        "priceUsd": 1300,
+        "kind": "estimate",
+        "label": "House and techno canonise it"
+      },
+      {
+        "year": 2005,
+        "priceUsd": 2000,
+        "kind": "estimate",
+        "label": "Club-culture staple"
+      },
+      {
+        "year": 2012,
+        "priceUsd": 3200,
+        "kind": "estimate",
+        "label": "Analog revival accelerates"
+      },
+      {
+        "year": 2018,
+        "priceUsd": 4800,
+        "kind": "estimate",
+        "label": "Serviced units in demand"
+      },
+      {
+        "year": 2023,
+        "priceUsd": 5800,
+        "kind": "estimate",
+        "label": "Plateau at collector level"
       }
     ]
   },
@@ -170,7 +318,44 @@
       {
         "year": 1981,
         "priceUsd": 395,
-        "label": "Launch list price (approx)"
+        "kind": "launch",
+        "label": "Launch list price"
+      },
+      {
+        "year": 1990,
+        "priceUsd": 80,
+        "kind": "estimate",
+        "label": "Budget box, little collector interest"
+      },
+      {
+        "year": 1998,
+        "priceUsd": 160,
+        "kind": "estimate",
+        "label": "Rediscovered alongside the TB-303"
+      },
+      {
+        "year": 2005,
+        "priceUsd": 260,
+        "kind": "estimate",
+        "label": "Steady hobbyist demand"
+      },
+      {
+        "year": 2012,
+        "priceUsd": 360,
+        "kind": "estimate",
+        "label": "Analog revival lifts the whole TR line"
+      },
+      {
+        "year": 2018,
+        "priceUsd": 460,
+        "kind": "estimate",
+        "label": "The affordable way into vintage Roland"
+      },
+      {
+        "year": 2023,
+        "priceUsd": 540,
+        "kind": "estimate",
+        "label": "Liquid, efficient market"
       }
     ]
   },
@@ -210,7 +395,44 @@
       {
         "year": 1970,
         "priceUsd": 1495,
-        "label": "Launch list price (approx)"
+        "kind": "launch",
+        "label": "Launch list price"
+      },
+      {
+        "year": 1990,
+        "priceUsd": 800,
+        "kind": "estimate",
+        "label": "Plentiful and out of favour"
+      },
+      {
+        "year": 1998,
+        "priceUsd": 1700,
+        "kind": "estimate",
+        "label": "Analog rediscovery begins"
+      },
+      {
+        "year": 2005,
+        "priceUsd": 3200,
+        "kind": "estimate",
+        "label": "Demand outpaces surviving supply"
+      },
+      {
+        "year": 2012,
+        "priceUsd": 5500,
+        "kind": "estimate",
+        "label": "Serviced units command a premium"
+      },
+      {
+        "year": 2018,
+        "priceUsd": 7800,
+        "kind": "estimate",
+        "label": "Blue-chip vintage status"
+      },
+      {
+        "year": 2023,
+        "priceUsd": 9500,
+        "kind": "estimate",
+        "label": "Condition and service history drive spread"
       }
     ]
   },
@@ -245,7 +467,44 @@
       {
         "year": 1971,
         "priceUsd": 2600,
-        "label": "Launch list price (approx)"
+        "kind": "launch",
+        "label": "Launch list price"
+      },
+      {
+        "year": 1990,
+        "priceUsd": 900,
+        "kind": "estimate",
+        "label": "Semi-modulars unfashionable"
+      },
+      {
+        "year": 1998,
+        "priceUsd": 2000,
+        "kind": "estimate",
+        "label": "Patchable synths return to favour"
+      },
+      {
+        "year": 2005,
+        "priceUsd": 3600,
+        "kind": "estimate",
+        "label": "Early 4012-filter units pull ahead"
+      },
+      {
+        "year": 2012,
+        "priceUsd": 5800,
+        "kind": "estimate",
+        "label": "Modular boom lifts demand"
+      },
+      {
+        "year": 2018,
+        "priceUsd": 8500,
+        "kind": "estimate",
+        "label": "Korg reissue raises the profile"
+      },
+      {
+        "year": 2023,
+        "priceUsd": 10000,
+        "kind": "estimate",
+        "label": "Vintage separates clearly from reissue"
       }
     ]
   },
@@ -275,7 +534,44 @@
       {
         "year": 1980,
         "priceUsd": 5595,
-        "label": "Launch list price (approx)"
+        "kind": "launch",
+        "label": "Launch list price"
+      },
+      {
+        "year": 1990,
+        "priceUsd": 900,
+        "kind": "estimate",
+        "label": "Maintenance-heavy and undervalued"
+      },
+      {
+        "year": 1998,
+        "priceUsd": 1600,
+        "kind": "estimate",
+        "label": "Van Halen 'Jump' association endures"
+      },
+      {
+        "year": 2005,
+        "priceUsd": 2400,
+        "kind": "estimate",
+        "label": "Collector interest builds slowly"
+      },
+      {
+        "year": 2012,
+        "priceUsd": 3800,
+        "kind": "estimate",
+        "label": "Working examples become scarce"
+      },
+      {
+        "year": 2018,
+        "priceUsd": 5800,
+        "kind": "estimate",
+        "label": "Vintage polysynth boom"
+      },
+      {
+        "year": 2023,
+        "priceUsd": 7400,
+        "kind": "estimate",
+        "label": "Service history dominates value"
       }
     ]
   },
@@ -315,7 +611,44 @@
       {
         "year": 1978,
         "priceUsd": 4495,
-        "label": "Launch list price (approx)"
+        "kind": "launch",
+        "label": "Launch list price"
+      },
+      {
+        "year": 1990,
+        "priceUsd": 1000,
+        "kind": "estimate",
+        "label": "Superseded by digital polysynths"
+      },
+      {
+        "year": 1998,
+        "priceUsd": 1900,
+        "kind": "estimate",
+        "label": "Analog warmth back in demand"
+      },
+      {
+        "year": 2005,
+        "priceUsd": 2900,
+        "kind": "estimate",
+        "label": "Rev 3 units preferred for reliability"
+      },
+      {
+        "year": 2012,
+        "priceUsd": 4200,
+        "kind": "estimate",
+        "label": "Analog revival accelerates"
+      },
+      {
+        "year": 2018,
+        "priceUsd": 6200,
+        "kind": "estimate",
+        "label": "Vintage polysynth boom"
+      },
+      {
+        "year": 2023,
+        "priceUsd": 7000,
+        "kind": "estimate",
+        "label": "2020 reissue separates the markets"
       }
     ]
   },
@@ -348,7 +681,38 @@
       {
         "year": 2002,
         "priceUsd": 2795,
-        "label": "Launch list price (approx)"
+        "kind": "launch",
+        "label": "Launch list price"
+      },
+      {
+        "year": 2008,
+        "priceUsd": 2300,
+        "kind": "estimate",
+        "label": "Normal depreciation while in production"
+      },
+      {
+        "year": 2015,
+        "priceUsd": 2600,
+        "kind": "estimate",
+        "label": "Discontinued; depreciation stops"
+      },
+      {
+        "year": 2019,
+        "priceUsd": 3200,
+        "kind": "estimate",
+        "label": "Recognised as the last Bob Moog design"
+      },
+      {
+        "year": 2022,
+        "priceUsd": 4400,
+        "kind": "estimate",
+        "label": "Pandemic-era gear demand"
+      },
+      {
+        "year": 2024,
+        "priceUsd": 4900,
+        "kind": "estimate",
+        "label": "Settles into modern-classic pricing"
       }
     ]
   },
@@ -383,7 +747,44 @@
       {
         "year": 1974,
         "priceUsd": 695,
-        "label": "Launch list price (approx)"
+        "kind": "launch",
+        "label": "Launch list price"
+      },
+      {
+        "year": 1990,
+        "priceUsd": 320,
+        "kind": "estimate",
+        "label": "Single-voice module, limited interest"
+      },
+      {
+        "year": 1998,
+        "priceUsd": 750,
+        "kind": "estimate",
+        "label": "Prized as a filter and voice module"
+      },
+      {
+        "year": 2005,
+        "priceUsd": 1300,
+        "kind": "estimate",
+        "label": "Modular systems drive demand"
+      },
+      {
+        "year": 2012,
+        "priceUsd": 2200,
+        "kind": "estimate",
+        "label": "Eurorack boom lifts vintage modules"
+      },
+      {
+        "year": 2018,
+        "priceUsd": 3300,
+        "kind": "estimate",
+        "label": "Original units increasingly scarce"
+      },
+      {
+        "year": 2023,
+        "priceUsd": 4500,
+        "kind": "estimate",
+        "label": "Rarely offered publicly"
       }
     ]
   },
@@ -415,7 +816,44 @@
       {
         "year": 1975,
         "priceUsd": 1895,
-        "label": "Launch list price (approx)"
+        "kind": "launch",
+        "label": "Launch list price"
+      },
+      {
+        "year": 1990,
+        "priceUsd": 1100,
+        "kind": "estimate",
+        "label": "Obscure and hard to service"
+      },
+      {
+        "year": 1998,
+        "priceUsd": 2600,
+        "kind": "estimate",
+        "label": "Rarity begins to register"
+      },
+      {
+        "year": 2005,
+        "priceUsd": 4200,
+        "kind": "estimate",
+        "label": "Few surviving complete systems"
+      },
+      {
+        "year": 2012,
+        "priceUsd": 7500,
+        "kind": "estimate",
+        "label": "Collector-tier instrument"
+      },
+      {
+        "year": 2018,
+        "priceUsd": 11500,
+        "kind": "estimate",
+        "label": "Very seldom traded"
+      },
+      {
+        "year": 2023,
+        "priceUsd": 15000,
+        "kind": "estimate",
+        "label": "Effectively a museum piece"
       }
     ]
   }

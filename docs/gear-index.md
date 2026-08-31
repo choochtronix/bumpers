@@ -32,6 +32,31 @@ p25, and p75 are computed on the trimmed set. Below `minSample` matched
 listings (default 3), the row records the count but publishes **no prices** —
 thin days show as gaps, not noise.
 
+## Value anchors (the pre-collection arc)
+
+Each catalog model carries `valueAnchors` — the historical points the Phase 2
+chart draws before measured collection begins (Aug 2026). Each anchor has
+`year`, `priceUsd`, `label`, and `kind`:
+
+- `kind: "launch"` — the documented list price at release. Exactly one per
+  model, and it must be the earliest anchor.
+- `kind: "estimate"` — an **editorial estimate** of typical used value in that
+  year, in USD, roughly reflecting the US/global market.
+
+**The UI must visually distinguish the two and label estimates as estimates.**
+They are researched judgements, not measured data, and presenting them with
+the same authority as the collected index would misrepresent them. A dotted
+or lighter treatment before the measured segment is the intent.
+
+Two further caveats worth surfacing in the UI or a methodology note: anchor
+prices are **nominal** (not inflation-adjusted — a 1980 TR-808 at $1,195 is
+roughly $4,500 in 2026 dollars), and the anchor series is a **single global
+line** while measured data splits by region. The regional split therefore
+begins where collection begins.
+
+Validation (`validateGearIndexCatalog`) enforces ascending years, a label on
+every anchor, a valid `kind`, and exactly one launch entry.
+
 ## Vintage-only policy
 
 **The index tracks vintage instruments only.** Reissues are deliberately
