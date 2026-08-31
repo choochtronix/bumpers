@@ -1550,6 +1550,7 @@ const STORAGE_KEYS = {
   settings: "bumpers.settings",
   authSession: "bumpers.authSession",
   cloudSyncMeta: "bumpers.cloudSyncMeta",
+  savedSearchDeletionTombstones: "bumpers.savedSearchDeletionTombstones",
   listingLedger: "bumpers.listingLedger",
   freshFindCache: "bumpers.freshFindCache",
   feedbackRules: "bumpers.feedbackRules",
@@ -6996,6 +6997,8 @@ async function runSavedSearchAutoSync(reason = "saved-search-change", options = 
     await reconcileCloudSavedSearches({
       allowEmpty: Boolean(options.allowEmpty),
       silent: true,
+      skipPull: Boolean(options.skipPull),
+      clearDeleteTombstones: Boolean(options.clearDeleteTombstones),
     });
     setSavedSearchTransferStatus("Saved searches are up to date in your account.");
     if (options.announce) {
@@ -7036,6 +7039,7 @@ function mergeSavedSearchAutoSyncRequest(currentRequest, nextRequest) {
       allowEmpty: Boolean(currentRequest.options?.allowEmpty || nextRequest.options?.allowEmpty),
       announce: Boolean(currentRequest.options?.announce || nextRequest.options?.announce),
       skipPull: Boolean(currentRequest.options?.skipPull || nextRequest.options?.skipPull),
+      clearDeleteTombstones: Boolean(currentRequest.options?.clearDeleteTombstones || nextRequest.options?.clearDeleteTombstones),
       profileName: nextRequest.options?.profileName || currentRequest.options?.profileName,
     },
   };
@@ -7054,6 +7058,7 @@ async function reconcileCloudSavedSearches(options = {}) {
     auto: true,
     allowEmpty: Boolean(options.allowEmpty),
     checkConflicts: false,
+    clearDeleteTombstones: Boolean(options.clearDeleteTombstones),
     rethrow: true,
     silent: options.silent !== false,
   });
@@ -7089,8 +7094,10 @@ async function pullCloudSavedSearches(options = {}) {
 
   try {
     const payload = await fetchCloudSavedSearches();
-    const cloudProfiles = parseSavedSearchProfilesFromPayload(payload)
-      .map((profile) => prepareCloudProfileForLocal(profile, payload.updatedAt, payload.storage));
+    const cloudProfiles = filterDeletedSavedSearchProfiles(
+      parseSavedSearchProfilesFromPayload(payload)
+        .map((profile) => prepareCloudProfileForLocal(profile, payload.updatedAt, payload.storage)),
+    );
 
     if (cloudProfiles.length === 0) {
       authState.accountNotice = "";
@@ -7158,8 +7165,10 @@ async function pushCloudSavedSearches(options = {}) {
       user: getCloudSyncUser(),
       profiles,
     });
-    const syncedProfiles = parseSavedSearchProfilesFromPayload(payload)
-      .map((profile) => prepareCloudProfileForLocal(profile, payload.updatedAt, payload.storage));
+    const syncedProfiles = filterDeletedSavedSearchProfiles(
+      parseSavedSearchProfilesFromPayload(payload)
+        .map((profile) => prepareCloudProfileForLocal(profile, payload.updatedAt, payload.storage)),
+    );
 
     authState.accountNotice = "";
     markCloudSynced(payload.updatedAt);
@@ -7176,6 +7185,7 @@ async function pushCloudSavedSearches(options = {}) {
         ? `Auto-synced ${profiles.length} saved ${profiles.length === 1 ? "search" : "searches"}.`
         : `Pushed ${profiles.length} saved ${profiles.length === 1 ? "search" : "searches"} to cloud sync.`);
     }
+    if (options.clearDeleteTombstones) clearSavedSearchDeletionTombstones();
     return { count: profiles.length };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Could not push to cloud sync.";
@@ -7371,8 +7381,57 @@ function findMatchingSavedSearch(profiles, candidate) {
 function getSavedSearchMergeKeys(profile) {
   return [
     isNonEmptyString(profile?.id) ? `id:${profile.id}` : "",
+    isNonEmptyString(profile?.sync?.remoteId) ? `remote:${profile.sync.remoteId}` : "",
     isNonEmptyString(profile?.name) ? `name:${normalizeText(profile.name)}` : "",
   ].filter(Boolean);
+}
+
+function readSavedSearchDeletionTombstones() {
+  try {
+    const tombstones = JSON.parse(localStorage.getItem(STORAGE_KEYS.savedSearchDeletionTombstones) || "[]");
+    return Array.isArray(tombstones)
+      ? tombstones.filter((item) => item && Array.isArray(item.keys) && item.keys.length > 0)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeSavedSearchDeletionTombstones(tombstones) {
+  localStorage.setItem(STORAGE_KEYS.savedSearchDeletionTombstones, JSON.stringify(tombstones));
+}
+
+function recordSavedSearchDeletion(profileOrName) {
+  const profile = profileOrName && typeof profileOrName === "object" ? hydrateProfile(profileOrName) : null;
+  const profileName = String(profile?.name || profileOrName || "").trim();
+  const keys = new Set(profile ? getSavedSearchMergeKeys(profile) : []);
+  if (profileName) keys.add(`name:${normalizeText(profileName)}`);
+  if (!keys.size) return;
+
+  const deletedAt = new Date().toISOString();
+  const nextTombstones = readSavedSearchDeletionTombstones()
+    .filter((tombstone) => !tombstone.keys.some((key) => keys.has(key)));
+  nextTombstones.push({
+    deletedAt,
+    keys: [...keys],
+  });
+  writeSavedSearchDeletionTombstones(nextTombstones.slice(-80));
+}
+
+function filterDeletedSavedSearchProfiles(profiles = []) {
+  const tombstones = readSavedSearchDeletionTombstones();
+  if (tombstones.length === 0) return profiles;
+  return profiles.filter((profile) => !isSavedSearchDeletedLocally(profile, tombstones));
+}
+
+function isSavedSearchDeletedLocally(profile, tombstones = readSavedSearchDeletionTombstones()) {
+  const profileKeys = getSavedSearchMergeKeys(profile);
+  if (profileKeys.length === 0) return false;
+  return tombstones.some((tombstone) => tombstone.keys.some((key) => profileKeys.includes(key)));
+}
+
+function clearSavedSearchDeletionTombstones() {
+  localStorage.removeItem(STORAGE_KEYS.savedSearchDeletionTombstones);
 }
 
 function setSavedSearchTransferStatus(message) {
@@ -12728,6 +12787,7 @@ function deleteSavedSearch(profileOrName) {
   const confirmed = window.confirm(`Delete saved search "${profileName || "this saved search"}"?`);
   if (!confirmed) return;
 
+  recordSavedSearchDeletion(profile || profileName);
   if (typeof savedSearchRepository.deleteMatching === "function") {
     savedSearchRepository.deleteMatching(profile || profileName);
   } else if (profileId && typeof savedSearchRepository.deleteById === "function") {
@@ -12741,7 +12801,7 @@ function deleteSavedSearch(profileOrName) {
   }
   renderSavedSearches();
   updateQuickSaveSearchButton();
-  queueSavedSearchAutoSync("delete-search", { allowEmpty: true, skipPull: true });
+  queueSavedSearchAutoSync("delete-search", { allowEmpty: true, skipPull: true, clearDeleteTombstones: true });
 }
 
 function deleteSavedSearchArtifacts(profileName) {
