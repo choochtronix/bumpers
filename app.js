@@ -11305,6 +11305,7 @@ async function fetchBrowseCategoryListings(categoryIntent, options = {}) {
     .filter((listing) => !isUnavailableListing(listing))
     .filter((listing) => qualityFilter === "all" || isCleanGearListing(listing, qualityContext))
     .filter((listing) => !hasStarterFreshFindNoise(listing))
+    .filter((listing) => !isHardExcludedGearScannerBrowseListing(listing, qualityContext))
     .map((listing) => ({
       ...listing,
       isBrowseCategoryListing: true,
@@ -11603,12 +11604,17 @@ function prepareLatestBrowseListings(listings, options = {}) {
     .filter((listing) => !isUnavailableListing(listing))
     .filter((listing) => !isStaleFreshFind(listing, ledger))
     .filter((listing) => qualityFilter === "all" || isCleanGearListing(listing, qualityContext))
+    .filter((listing) => !isHardExcludedGearScannerBrowseListing(listing, qualityContext))
     .sort((first, second) => (
       compareListingsByNewness(first, second, qualityContext)
       || getLatestBrowseTime(second, ledger) - getLatestBrowseTime(first, ledger)
     ))
     .slice(0, limit)
     .map((listing) => decorateFreshFindListing(listing, ledger, qualityContext));
+}
+
+function isHardExcludedGearScannerBrowseListing(listing, qualityContext = createGearQualityContext()) {
+  return classifyGearScannerListing(listing, { renderContext: qualityContext }).hardExcluded;
 }
 
 function getLatestBrowseTime(listing, ledger = loadLedger()) {
