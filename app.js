@@ -1559,7 +1559,8 @@ const STORAGE_KEYS = {
   welcomeDismissed: "bumpers.welcomeDismissed",
 };
 
-const SAVED_SEARCH_SCHEMA_VERSION = 2;
+const localStorage = BrrtzAccountStorage.createAccountStorage(window.localStorage, STORAGE_KEYS, () => authState.user?.id || "guest");
+const SAVED_SEARCH_SCHEMA_VERSION = 3;
 const LOCAL_PROFILE_USER_ID = "local";
 const CLOUD_EMULATOR_USER = {
   id: LOCAL_PROFILE_USER_ID,
@@ -1584,9 +1585,13 @@ let authState = {
   accountNotice: "",
   lastSyncedAt: "",
 };
+authState.session = readStoredAuthSession();
+authState.user = getCachedAuthUser(authState.session);
 let authRefreshTimer = 0;
 let authRefreshPromise = null;
 let authSessionRevision = 0;
+let renderedStorageOwner = null;
+let pendingProfileAutoSync = false;
 let listingSeenObserver = null;
 const listingSeenTimers = new WeakMap();
 const listingSeenTargets = new WeakMap();
@@ -2784,6 +2789,7 @@ function bindEvents() {
   window.addEventListener("resize", closeListingActionMenus);
   window.addEventListener("focus", handleAuthSessionWake);
   window.addEventListener("online", handleAuthSessionWake);
+  window.addEventListener("storage", handleAccountStorageChange);
   document.addEventListener("visibilitychange", handleAuthVisibilityChange);
   window.addEventListener("popstate", handleAppViewPopState);
 
@@ -5480,6 +5486,33 @@ function handleSettingsTabKeydown(event) {
 }
 
 function renderAccountShell(account = null) {
+  const owner = authState.user?.id || "guest";
+  if (renderedStorageOwner !== owner) {
+    const previousOwner = renderedStorageOwner;
+    renderedStorageOwner = owner;
+    if (previousOwner !== null) {
+      authSessionRevision += 1;
+      searchRunId += 1;
+      clearTimeout(savedSearchAutoSyncTimer);
+      clearTimeout(profileAutoSyncTimer);
+      clearTimeout(pendingSeenFlushTimer);
+      pendingSeenFlushTimer = 0;
+      pendingSeenListings.clear();
+      listingSeenObserver?.disconnect();
+      savedSearchRefreshAttempts.clear();
+      savedSearchRefreshErrors.clear();
+      savedSearchesChecking.clear();
+      pendingSavedSearchAutoSync = null;
+      pendingProfileAutoSync = false;
+      appSettings = loadSettings();
+      resetFreshFindRegionState();
+      resetBrowseCategoryRegionState();
+      currentProfile = createFreshProfile();
+      resetToIdleSearch();
+      renderSavedSearches();
+    }
+    authState.lastSyncedAt = readCloudSyncMeta().lastSyncedAt || "";
+  }
   const isSignedIn = Boolean(account?.email);
   if (isSignedIn) dismissWelcomeModal({ persist: true });
   renderHeaderAccountState(account);
@@ -5870,12 +5903,16 @@ async function fetchAuthConfig() {
 }
 
 async function hydrateAuthUser() {
+  const revision = authSessionRevision;
   const cachedUser = getCachedAuthUser(authState.session);
   try {
-    authState.session = await refreshAuthSessionIfNeeded(authState.session);
-    authState.user = await fetchSupabaseUser(authState.session.access_token);
+    const session = await refreshAuthSessionIfNeeded(authState.session);
+    if (revision !== authSessionRevision) return;
+    const user = await fetchSupabaseUser(session.access_token);
+    if (revision !== authSessionRevision) return;
+    authState.user = user;
     authState.session = {
-      ...authState.session,
+      ...session,
       user: authState.user,
     };
     storeAuthSession(authState.session);
@@ -5883,6 +5920,7 @@ async function hydrateAuthUser() {
     renderAccountShell(authState.user);
   } catch (error) {
     console.warn("Could not restore auth session.", error);
+    if (revision !== authSessionRevision) return;
     if (shouldDiscardAuthSession(error)) {
       clearStoredAuthSession();
       authState.session = null;
@@ -5898,12 +5936,15 @@ async function hydrateAuthUser() {
     return;
   }
 
+  const assertSession = captureCloudSession();
   try {
     await pullCloudProfilePreferences({ silent: true, surfaceErrors: true });
+    assertSession();
     await reconcileCloudSavedSearches({
       allowEmpty: true,
       silent: true,
     });
+    assertSession();
     authState.accountNotice = "";
   } catch (error) {
     console.warn("Could not sync account data yet.", error);
@@ -6354,15 +6395,19 @@ async function updateSupabasePassword(password) {
 
 async function maintainAuthSession(options = {}) {
   if (!authState.config?.enabled || !authState.session) return;
+  const revision = authSessionRevision;
   const cachedUser = authState.user || getCachedAuthUser(authState.session);
 
   try {
     const nextSession = await refreshAuthSessionIfNeeded(authState.session, {
       force: Boolean(options.force),
     });
+    if (revision !== authSessionRevision) return;
     if (!nextSession) return;
     authState.session = nextSession;
-    authState.user = authState.user || await fetchSupabaseUser(nextSession.access_token);
+    const user = authState.user || await fetchSupabaseUser(nextSession.access_token);
+    if (revision !== authSessionRevision) return;
+    authState.user = user;
     authState.session = {
       ...nextSession,
       user: authState.user,
@@ -6374,6 +6419,7 @@ async function maintainAuthSession(options = {}) {
     renderAccountShell(authState.user);
   } catch (error) {
     console.warn(`Could not maintain auth session (${options.reason || "wake"}).`, error);
+    if (revision !== authSessionRevision) return;
     if (shouldDiscardAuthSession(error)) {
       clearInvalidAuthSession("Your saved sign-in expired. Use your password or request a fresh email link.");
       return;
@@ -6384,6 +6430,21 @@ async function maintainAuthSession(options = {}) {
       : "Brrtz could not verify this saved sign-in yet. It will retry automatically.";
     scheduleAuthRefreshRetry();
     renderAccountShell(authState.user);
+  }
+}
+
+function handleAccountStorageChange(event) {
+  if (event.key !== STORAGE_KEYS.authSession) return;
+  const session = readStoredAuthSession();
+  const user = getCachedAuthUser(session);
+  if (user?.id !== authState.user?.id) {
+    authSessionRevision += 1;
+    clearAuthRefreshTimer();
+    authState.session = session;
+    authState.user = user;
+    renderAccountShell(user);
+  } else {
+    authState.session = session;
   }
 }
 
@@ -6747,6 +6808,7 @@ async function saveSettingsFromModal(options = {}) {
 }
 
 async function syncAccountCloudData() {
+  const assertSession = captureCloudSession();
   setAccountStatus("Syncing this browser with Brrtz cloud...");
   setCloudSyncButtonsDisabled(true);
   let syncStep = "starting account sync";
@@ -6755,6 +6817,7 @@ async function syncAccountCloudData() {
     syncStep = "pulling profile preferences";
     await pullCloudProfilePreferences({ silent: true, surfaceErrors: true });
     syncStep = "merging saved searches";
+    assertSession();
     await pullCloudSavedSearches({
       preferNewest: true,
       rethrow: true,
@@ -6762,6 +6825,7 @@ async function syncAccountCloudData() {
       skipConfirm: true,
     });
     syncStep = "saving merged saved searches";
+    assertSession();
     await pushCloudSavedSearches({
       allowEmpty: true,
       checkConflicts: false,
@@ -6769,6 +6833,7 @@ async function syncAccountCloudData() {
       silent: true,
     });
     syncStep = "saving profile preferences";
+    assertSession();
     await pushCloudProfilePreferences({ silent: true, surfaceErrors: true });
     authState.accountNotice = "";
     markCloudSynced();
@@ -6789,9 +6854,11 @@ async function syncAccountCloudData() {
 
 async function pullCloudProfilePreferences(options = {}) {
   if (!authState.user?.id) return null;
+  const assertSession = captureCloudSession();
 
   try {
     const payload = await fetchCloudProfile();
+    assertSession();
     applyCloudPreferences(payload.preferences || {});
     authState.accountNotice = "";
     markCloudSynced(payload.updatedAt);
@@ -6809,6 +6876,7 @@ async function pullCloudProfilePreferences(options = {}) {
 
 async function pushCloudProfilePreferences(options = {}) {
   if (!authState.user?.id) return null;
+  const assertSession = captureCloudSession();
 
   try {
     const payload = await putCloudProfile({
@@ -6818,6 +6886,7 @@ async function pushCloudProfilePreferences(options = {}) {
       user: getCloudSyncUser(),
       preferences: getLocalPreferencePayload(),
     });
+    assertSession();
     authState.accountNotice = "";
     markCloudSynced(payload.updatedAt);
     if (!options.silent) setAccountStatus("Profile preferences pushed to cloud.");
@@ -7067,6 +7136,7 @@ function mergeSavedSearchAutoSyncRequest(currentRequest, nextRequest) {
 }
 
 async function reconcileCloudSavedSearches(options = {}) {
+  const assertSession = captureCloudSession();
   if (!options.skipPull) {
     await pullCloudSavedSearches({
       preferNewest: true,
@@ -7075,14 +7145,19 @@ async function reconcileCloudSavedSearches(options = {}) {
       skipConfirm: true,
     });
   }
-  return pushCloudSavedSearches({
+  assertSession();
+  try { return await pushCloudSavedSearches({
     auto: true,
     allowEmpty: Boolean(options.allowEmpty),
     checkConflicts: false,
     clearDeleteTombstones: Boolean(options.clearDeleteTombstones),
     rethrow: true,
     silent: options.silent !== false,
-  });
+  }); } catch (error) {
+    assertSession();
+    if (error.status === 409 && !options.retried) return reconcileCloudSavedSearches({ ...options, skipPull: false, retried: true });
+    throw error;
+  }
 }
 
 function queueProfileAutoSync(reason = "profile-preference-change", options = {}) {
@@ -7095,7 +7170,8 @@ function queueProfileAutoSync(reason = "profile-preference-change", options = {}
 }
 
 async function runProfileAutoSync(reason = "profile-preference-change") {
-  if (isProfileAutoSyncing || !authState.user?.id) return;
+  if (!authState.user?.id) return;
+  if (isProfileAutoSyncing) { pendingProfileAutoSync = true; return; }
   isProfileAutoSyncing = true;
 
   try {
@@ -7106,15 +7182,22 @@ async function runProfileAutoSync(reason = "profile-preference-change") {
     renderAccountShell(authState.user);
   } finally {
     isProfileAutoSyncing = false;
+    if (pendingProfileAutoSync) {
+      pendingProfileAutoSync = false;
+      queueProfileAutoSync("queued-preference-change", { delay: 0 });
+    }
   }
 }
 
 async function pullCloudSavedSearches(options = {}) {
+  const assertSession = captureCloudSession();
   if (!options.silent) setSavedSearchTransferStatus("Pulling saved searches from cloud sync...");
   setCloudSyncButtonsDisabled(true);
 
   try {
     const payload = await fetchCloudSavedSearches();
+    assertSession();
+    applyCloudSearchTombstones(payload);
     const cloudProfiles = filterDeletedSavedSearchProfiles(
       parseSavedSearchProfilesFromPayload(payload)
         .map((profile) => prepareCloudProfileForLocal(profile, payload.updatedAt, payload.storage)),
@@ -7161,6 +7244,7 @@ async function pullCloudSavedSearches(options = {}) {
 }
 
 async function pushCloudSavedSearches(options = {}) {
+  const assertSession = captureCloudSession();
   const localProfiles = savedSearchRepository.list();
   if (localProfiles.length === 0 && !options.allowEmpty) {
     setSavedSearchTransferStatus("No saved searches to push.");
@@ -7178,6 +7262,7 @@ async function pushCloudSavedSearches(options = {}) {
     }
 
     const syncedAt = new Date().toISOString();
+    assertSession();
     const profiles = localProfiles.map((profile) => prepareLocalProfileForCloud(profile, syncedAt));
     const payload = await putCloudSavedSearches({
       app: "Brrtz",
@@ -7186,7 +7271,12 @@ async function pushCloudSavedSearches(options = {}) {
       storage: "cloud",
       user: getCloudSyncUser(),
       profiles,
+      syncProtocol: 1,
+      revision: readCloudSyncMeta().savedSearchRevision ?? 0,
+      deletedIds: [...new Set(readSavedSearchDeletionTombstones().flatMap((item) => item.ids || [item.id]).filter(Boolean))],
     });
+    assertSession();
+    applyCloudSearchTombstones(payload);
     const syncedProfiles = filterDeletedSavedSearchProfiles(
       parseSavedSearchProfilesFromPayload(payload)
         .map((profile) => prepareCloudProfileForLocal(profile, payload.updatedAt, payload.storage)),
@@ -7237,7 +7327,11 @@ async function putCloudSavedSearches(payload) {
     body: JSON.stringify(payload),
   });
 
-  if (!response.ok) throw new Error(await getCloudResponseError(response, `Cloud emulator responded with ${response.status}.`));
+  if (!response.ok) {
+    const error = new Error(await getCloudResponseError(response, `Cloud emulator responded with ${response.status}.`));
+    error.status = response.status;
+    throw error;
+  }
   return response.json();
 }
 
@@ -7251,10 +7345,14 @@ async function getCloudResponseError(response, fallback) {
 }
 
 async function getCloudSyncHeaders(headers = {}) {
+  const assertSession = captureCloudSession();
   if (authState.session?.access_token && authState.config?.enabled) {
-    authState.session = await refreshAuthSessionIfNeeded(authState.session);
+    const session = await refreshAuthSessionIfNeeded(authState.session);
+    assertSession();
+    authState.session = session;
   }
 
+  assertSession();
   return {
     ...headers,
     ...(authState.session?.access_token ? { authorization: `Bearer ${authState.session.access_token}` } : {}),
@@ -7281,6 +7379,7 @@ function setCloudSyncButtonsDisabled(disabled) {
 
 function prepareLocalProfileForCloud(profile, syncedAt = new Date().toISOString()) {
   const cloudUser = getCloudSyncUser();
+  if (profile.userId && !["local", cloudUser.id].includes(profile.userId)) throw new Error("This saved search belongs to another account. Import an exported copy explicitly to transfer it.");
   return hydrateProfile({
     ...profile,
     userId: cloudUser.id,
@@ -7297,8 +7396,12 @@ function prepareLocalProfileForCloud(profile, syncedAt = new Date().toISOString(
 
 function prepareCloudProfileForLocal(profile, syncedAt = new Date().toISOString(), provider = "cloud") {
   const cloudUser = getCloudSyncUser();
+  const local = (profile.legacyRegionMissing || profile.legacyCategoryMissing)
+    ? findMatchingSavedSearch(savedSearchRepository.list(), profile) : null;
   return hydrateProfile({
     ...profile,
+    ...(profile.legacyRegionMissing && local ? { regionId: local.regionId } : {}),
+    ...(profile.legacyCategoryMissing && local ? { categoryIntent: local.categoryIntent } : {}),
     userId: cloudUser.id,
     sync: {
       ...profile.sync,
@@ -7337,7 +7440,10 @@ async function importSavedSearchesFromFile(event) {
 
   try {
     const text = await file.text();
-    const importedProfiles = parseSavedSearchImport(text);
+    const importedProfiles = parseSavedSearchImport(text).map((profile) => hydrateProfile({
+      ...profile, id: createSavedSearchId(profile), userId: authState.user?.id || LOCAL_PROFILE_USER_ID,
+      deletedAt: null, createdAt: new Date().toISOString(), sync: {},
+    }));
     if (importedProfiles.length === 0) {
       setSavedSearchTransferStatus("That file did not include saved searches.");
       return;
@@ -7389,9 +7495,10 @@ function parseSavedSearchProfilesFromPayload(payload) {
       && profile.name.trim()
       && Array.isArray(profile.terms)
       && profile.terms.some((term) => typeof term === "string" && term.trim()))
-    .map((profile) => hydrateProfile({
-      ...profile,
-      name: profile.name.trim(),
+    .map((profile) => ({
+      ...hydrateProfile({ ...profile, name: profile.name.trim() }),
+      legacyRegionMissing: !profile.regionId,
+      legacyCategoryMissing: !profile.categoryIntent,
     }))
     .filter((profile) => profile.name && profile.terms.length > 0);
 }
@@ -7406,6 +7513,7 @@ function getSavedSearchMergeKeys(profile) {
   const userPrefix = `${profile?.userId}:`;
   return [
     isNonEmptyString(profile?.id) ? `id:${profile.id}` : "",
+    ...(profile?.sync?.aliasIds || []).map((id) => `id:${id}`),
     remoteId ? `remote:${remoteId}` : "",
     remoteId ? `id:${remoteId.startsWith(userPrefix) ? remoteId.slice(userPrefix.length) : remoteId}` : "",
     isNonEmptyString(profile?.name) ? `name:${normalizeText(profile.name)}` : "",
@@ -7433,6 +7541,7 @@ function deduplicateSavedSearches(profiles, options = {}) {
       firstIndex = Math.min(firstIndex, group.firstIndex);
       groups.splice(groups.indexOf(group), 1);
     });
+    winner = { ...winner, sync: { ...winner.sync, aliasIds: [...keys].filter((key) => key.startsWith("id:")).map((key) => key.slice(3)) } };
     groups.push({ keys, profile: winner, firstIndex });
   });
   return groups.sort((first, second) => first.firstIndex - second.firstIndex).map((group) => group.profile);
@@ -7443,6 +7552,8 @@ function readSavedSearchDeletionTombstones() {
     const tombstones = JSON.parse(localStorage.getItem(STORAGE_KEYS.savedSearchDeletionTombstones) || "[]");
     return Array.isArray(tombstones)
       ? tombstones.filter((item) => item && Array.isArray(item.keys) && item.keys.length > 0)
+        .map((item) => ({ ...item, id: item.id || item.keys.find((key) => key.startsWith("id:"))?.slice(3),
+          ids: item.ids || item.keys.filter((key) => key.startsWith("id:")).map((key) => key.slice(3)) }))
       : [];
   } catch {
     return [];
@@ -7460,30 +7571,64 @@ function recordSavedSearchDeletion(profileOrName) {
   if (profileName) keys.add(`name:${normalizeText(profileName)}`);
   if (!keys.size) return;
 
-  const deletedAt = new Date().toISOString();
-  const nextTombstones = readSavedSearchDeletionTombstones()
-    .filter((tombstone) => !tombstone.keys.some((key) => keys.has(key)));
+  const deletedAt = new Date(Math.max(Date.now(), Date.parse(profile?.createdAt) || 0)).toISOString();
+  const tombstones = readSavedSearchDeletionTombstones();
+  const matchingTombstones = tombstones.filter((tombstone) => tombstone.keys.some((key) => keys.has(key)));
+  matchingTombstones.forEach((tombstone) => tombstone.keys.forEach((key) => keys.add(key)));
+  const nextTombstones = tombstones.filter((tombstone) => !matchingTombstones.includes(tombstone));
   nextTombstones.push({
+    id: profile?.id,
+    ids: [...keys].filter((key) => key.startsWith("id:")).map((key) => key.slice(3)),
     deletedAt,
     keys: [...keys],
   });
-  writeSavedSearchDeletionTombstones(nextTombstones.slice(-80));
+  writeSavedSearchDeletionTombstones(nextTombstones);
 }
 
 function filterDeletedSavedSearchProfiles(profiles = []) {
   const tombstones = readSavedSearchDeletionTombstones();
-  if (tombstones.length === 0) return profiles;
   return profiles.filter((profile) => !isSavedSearchDeletedLocally(profile, tombstones));
 }
 
 function isSavedSearchDeletedLocally(profile, tombstones = readSavedSearchDeletionTombstones()) {
+  if (profile.deletedAt) return true;
   const profileKeys = getSavedSearchMergeKeys(profile);
   if (profileKeys.length === 0) return false;
-  return tombstones.some((tombstone) => tombstone.keys.some((key) => profileKeys.includes(key)));
+  return tombstones.some((tombstone) => (tombstone.ids || [tombstone.id]).includes(profile.id)
+    || (tombstone.keys.some((key) => key.startsWith("name:") && profileKeys.includes(key))
+      && Date.parse(profile.createdAt || 0) <= Date.parse(tombstone.deletedAt)));
 }
 
 function clearSavedSearchDeletionTombstones() {
-  localStorage.removeItem(STORAGE_KEYS.savedSearchDeletionTombstones);
+  // Keep durable IDs to reject delayed responses; recreation uses a new ID.
+}
+
+function captureCloudSession() {
+  const owner = authState.user?.id;
+  const revision = authSessionRevision;
+  return () => {
+    if (owner !== authState.user?.id || revision !== authSessionRevision) throw new Error("Account changed during sync. Please sync again.");
+  };
+}
+
+function applyCloudSearchTombstones(payload) {
+  if (!Number.isInteger(payload.revision)) return;
+  writeCloudSyncMeta({ ...readCloudSyncMeta(), savedSearchRevision: payload.revision });
+  const tombstones = readSavedSearchDeletionTombstones();
+  const deleted = (payload.profiles || []).filter((profile) => profile.deletedAt);
+  if (deleted.length || tombstones.length) {
+    deleted.forEach((profile) => {
+      if (!tombstones.some((item) => item.id === profile.id)) tombstones.push({ id: profile.id, ids: [profile.id], deletedAt: profile.deletedAt, keys: getSavedSearchMergeKeys(profile) });
+    });
+    for (const profile of payload.profiles || []) {
+      if (!profile.deletedAt && isSavedSearchDeletedLocally(profile, tombstones) && !tombstones.some((item) => (item.ids || [item.id]).includes(profile.id))) {
+        tombstones.push({ id: profile.id, ids: [profile.id], keys: [`id:${profile.id}`], deletedAt: new Date().toISOString() });
+      }
+    }
+    writeSavedSearchDeletionTombstones(tombstones);
+    savedSearchRepository.replaceAll(filterDeletedSavedSearchProfiles(savedSearchRepository.list()));
+    renderSavedSearches();
+  }
 }
 
 function setSavedSearchTransferStatus(message) {
@@ -7656,26 +7801,29 @@ function getSavedSearchScan(profile, scans = loadSavedSearchScans()) {
     && !isTimestampAfter(profile.lastScannedAt, scan.checkedAt) ? scan : null;
 }
 
-function getSavedSearchCountableListings(profile, listings) {
+function getSavedSearchCountableListings(profile, listings, contexts = null) {
+  const feedback = getProfileFeedback(profile);
+  const contextKey = JSON.stringify([profile.noiseTerms, feedback]);
   const context = {
-    feedback: getProfileFeedback(profile),
+    feedback,
     noiseTerms: uniqueTerms([...ACCESSORY_TERMS, ...(profile.noiseTerms || [])]),
-    gearConfidenceCache: new Map(),
+    gearConfidenceCache: contexts?.get(contextKey) || new Map(),
   };
+  contexts?.set(contextKey, context.gearConfidenceCache);
   return listings
     .filter((listing) => !isUnavailableListing(listing))
     .filter((listing) => !isListingHiddenByFeedback(listing, context))
     .filter((listing) => !appSettings.gearMode || isCleanGearListing(listing, context));
 }
 
-function getSavedSearchNewCount(profile, scan = getSavedSearchScan(profile), ledger = loadLedger()) {
+function getSavedSearchNewCount(profile, scan = getSavedSearchScan(profile), ledger = loadLedger(), contexts = null, seenIds = null) {
   if (!scan) {
     const age = Date.now() - Date.parse(profile.lastScannedAt || "");
     return age >= 0 && age <= FRESH_LISTING_MS ? sanitizeCount(profile.lastNewCount) : 0;
   }
-  const seen = new Set(loadSet(STORAGE_KEYS.seen));
+  const seen = seenIds || new Set(loadSet(STORAGE_KEYS.seen));
   const listings = normalizeStoredList(scan.listingIds).map((id) => ledger[id]).filter(Boolean);
-  return getSavedSearchCountableListings(profile, listings).filter((listing) => (
+  return getSavedSearchCountableListings(profile, listings, contexts).filter((listing) => (
     getListingNewBadgeEligibility(listing, ledger[listing.id], {
       isSeen: seen.has(listing.id) || isListingAcknowledged(ledger[listing.id]),
       sourceWindowMs: FRESH_LISTING_MS,
@@ -10611,9 +10759,12 @@ function handleNewListingVisibility(entries) {
     }
     if (existingTimer) return;
 
+    const owner = authState.user?.id;
+    const revision = authSessionRevision;
     const timer = window.setTimeout(() => {
       listingSeenTimers.delete(entry.target);
       listingSeenObserver?.unobserve(entry.target);
+      if (owner !== authState.user?.id || revision !== authSessionRevision || !entry.target.isConnected) return;
       const listing = listingSeenTargets.get(entry.target);
       if (listing) queueListingSeenAcknowledgement(listing);
     }, LISTING_SEEN_DELAY_MS);
@@ -12339,6 +12490,8 @@ function createListingFromLedgerEntry(entry) {
   return {
     id: entry.id,
     source: entry.source,
+    region: entry.region || inferRegionIdFromSources([entry.source]) || "japan",
+    currency: entry.currency || getRegionPriceCurrency(entry.region || inferRegionIdFromSources([entry.source]) || "japan"),
     title: entry.title,
     price: Number(entry.price || 0),
     url: entry.url,
@@ -13043,9 +13196,23 @@ function loadProfiles() {
 }
 
 function createSavedSearchRepository({ storageKey }) {
+  let cachedInputs = [];
+  let cachedProfiles = [];
+  let cacheExpiresAt = 0;
+  let classificationLedger = "";
+  let classificationContexts = new Map();
   function list() {
     const raw = localStorage.getItem(storageKey);
     if (!raw) return [];
+    const ledgerRaw = localStorage.getItem(STORAGE_KEYS.listingLedger);
+    const inputs = [raw, ledgerRaw, localStorage.getItem(STORAGE_KEYS.savedSearchScans),
+      localStorage.getItem(STORAGE_KEYS.seen), localStorage.getItem(STORAGE_KEYS.feedbackRules),
+      appSettings.gearMode, authState.user?.id];
+    if (Date.now() < cacheExpiresAt && inputs.every((value, index) => value === cachedInputs[index])) return structuredClone(cachedProfiles);
+    if (classificationLedger !== ledgerRaw || classificationContexts.size > 100) {
+      classificationContexts = new Map();
+      classificationLedger = ledgerRaw;
+    }
 
     try {
       const parsedProfiles = JSON.parse(raw);
@@ -13063,10 +13230,14 @@ function createSavedSearchRepository({ storageKey }) {
       }
       const scans = loadSavedSearchScans();
       const ledger = loadLedger();
-      return hydratedProfiles.map((profile) => ({
+      const seen = new Set(loadSet(STORAGE_KEYS.seen));
+      cachedProfiles = hydratedProfiles.map((profile) => ({
         ...profile,
-        lastNewCount: getSavedSearchNewCount(profile, getSavedSearchScan(profile, scans), ledger),
+        lastNewCount: getSavedSearchNewCount(profile, getSavedSearchScan(profile, scans), ledger, classificationContexts, seen),
       }));
+      cachedInputs = inputs;
+      cacheExpiresAt = Date.now() + 1000;
+      return structuredClone(cachedProfiles);
     } catch {
       return [];
     }
@@ -13081,6 +13252,10 @@ function createSavedSearchRepository({ storageKey }) {
   }
 
   function save(profile) {
+    if (isSavedSearchDeletedLocally(profile)) {
+      profile = { ...profile, id: createSavedSearchId(profile), sync: {}, deletedAt: null,
+        createdAt: new Date(Math.max(Date.now(), ...readSavedSearchDeletionTombstones().map((item) => Date.parse(item.deletedAt) + 1))).toISOString() };
+    }
     const savedAt = new Date().toISOString();
     const existingProfiles = list();
     const existingProfile = (profile.id
@@ -13202,7 +13377,7 @@ function createSavedSearchRepository({ storageKey }) {
 function shouldMigrateStoredProfiles(profiles) {
   return profiles.some((profile) => !profile
     || !profile.id
-    || !profile.schemaVersion
+    || profile.schemaVersion !== SAVED_SEARCH_SCHEMA_VERSION
     || !profile.userId
     || !profile.regionId
     || typeof profile.alertsEnabled !== "boolean"
@@ -13278,7 +13453,7 @@ function hydrateProfile(profile = {}) {
 
   return {
     id: isNonEmptyString(profile.id) ? profile.id : createSavedSearchId(profile),
-    schemaVersion: Number(profile.schemaVersion) || SAVED_SEARCH_SCHEMA_VERSION,
+    schemaVersion: SAVED_SEARCH_SCHEMA_VERSION,
     userId: isNonEmptyString(profile.userId) ? profile.userId : LOCAL_PROFILE_USER_ID,
     name: isNonEmptyString(profile.name) ? profile.name.trim() : defaultProfile.name,
     regionId,
@@ -13325,6 +13500,7 @@ function hydrateSavedSearchScanSummary(profile = {}) {
 
 function hydrateSavedSearchSync(sync = {}, updatedAt = new Date().toISOString()) {
   return {
+    aliasIds: cleanStringArray(sync.aliasIds),
     provider: isNonEmptyString(sync.provider) ? sync.provider : "local",
     remoteId: isNonEmptyString(sync.remoteId) ? sync.remoteId : null,
     status: isNonEmptyString(sync.status) ? sync.status : "local",

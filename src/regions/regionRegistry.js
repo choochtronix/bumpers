@@ -1,70 +1,9 @@
-export const REGION_REGISTRY = [
-  {
-    id: "japan",
-    name: "Japan",
-    slug: "japan",
-    country: "JP",
-    currency: "JPY",
-    defaultLocale: "ja-JP",
-    status: "active",
-    priority: 1,
-    notes: "Primary invite-only beta region.",
-    searchDefaults: {
-      cleanGear: true,
-      maxResults: 80,
-      maxPrice: 2000000,
-    },
-  },
-  {
-    id: "bay-area",
-    name: "Bay Area",
-    slug: "bay-area",
-    country: "US",
-    currency: "USD",
-    defaultLocale: "en-US",
-    status: "testing",
-    priority: 2,
-    notes: "Future local US region centered on the San Francisco Bay Area.",
-    searchDefaults: {
-      cleanGear: true,
-      maxDistanceMiles: 75,
-      maxResults: 80,
-    },
-  },
-  {
-    id: "los-angeles",
-    name: "Los Angeles",
-    slug: "los-angeles",
-    country: "US",
-    currency: "USD",
-    defaultLocale: "en-US",
-    status: "testing",
-    priority: 3,
-    notes: "Beta SoCal region centered on Craigslist Los Angeles plus Reverb US.",
-    searchDefaults: {
-      cleanGear: true,
-      maxDistanceMiles: 75,
-      maxResults: 80,
-      maxPrice: 10000,
-    },
-  },
-  {
-    id: "california",
-    name: "California",
-    slug: "california",
-    country: "US",
-    currency: "USD",
-    defaultLocale: "en-US",
-    status: "planned",
-    priority: 4,
-    notes: "Potential parent region for Bay Area, LA, Orange County, and San Diego.",
-    searchDefaults: {
-      cleanGear: true,
-      maxResults: 80,
-    },
-  },
-];
+import { REGIONS } from "./config.js";
 
+export const REGION_REGISTRY = REGIONS.map((region, index) => ({
+  ...region, name: region.label, slug: region.id, priority: index + 1,
+  country: region.id === "japan" ? "JP" : region.id === "uk" ? "GB" : "US",
+}));
 export function findRegion(regionId) {
   return REGION_REGISTRY.find((region) => region.id === regionId) || null;
 }

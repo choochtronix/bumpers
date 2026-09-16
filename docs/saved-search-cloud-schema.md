@@ -1,5 +1,17 @@
 # Saved Search Cloud Schema
 
+## September 2026 Integrity Update
+
+Current schema version: **3**. Canonical criteria include `regionId` and
+`categoryIntent`; Supabase stores `region_id` and `category_intent`. The browser
+scopes `bumpers.profiles` and related state by owner via `account-storage.js`.
+The original unscoped key is a recovery archive, not the active shared store.
+
+Cloud sync protocol 1 uses an account revision and explicit deleted IDs, with
+atomic writes through `brrtz_sync_saved_searches`. Deletions remain as tombstones;
+old snapshots cannot revive the same ID. This supersedes the historical storage
+description below. See `system-repairs-2026-09-16.md` for migration/release order.
+
 Brrtz saved searches now use a cloud-ready record shape while still storing data locally in `localStorage` under `bumpers.profiles`.
 
 ## Current Storage Mode

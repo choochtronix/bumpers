@@ -1,6 +1,10 @@
 # Brrtz Roadmap
 
-Brrtz is a gear-search radar for synthesizers, electronic music instruments, and pro-audio listings. The near-term product is focused on Japan used-gear sources, with cloud sync and invite-only beta access. The long-term product should support multiple regions without forking the codebase.
+Brrtz is a gear-search radar for synthesizers, electronic music instruments, and pro-audio listings. Japan is the default; Bay Area, Los Angeles, East Coast and UK are active beta regions. Railway hosts the service with Supabase cloud sync and invite-only account access.
+
+Current priority (2026-09-16): complete the approved rollout of the integrity
+and operational fixes in `docs/system-repairs-2026-09-16.md`. Older phased plans
+below are historical planning context, not a description of current availability.
 
 ## Product Principles
 

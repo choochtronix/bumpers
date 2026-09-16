@@ -1,0 +1,44 @@
+name: Brrtz validation
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  deterministic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm audit --omit=dev
+      - run: npm run design:check && npm run design:map-check && node scripts/build-gear-pages.mjs --check
+      - run: npx playwright install --with-deps chromium
+      - name: Browser and HTTP smoke tests
+        shell: bash
+        run: |
+          export CHROME_PATH="$(node --input-type=module -e 'import { chromium } from "playwright"; console.log(chromium.executablePath())')"
+          HOST=127.0.0.1 PORT=5173 BUMPERS_CLOUD_PROVIDER=file BRRTZ_INDEX_SCHEDULER=false node server.js > /tmp/brrtz-ci.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid"' EXIT
+          for attempt in {1..30}; do
+            if curl -fsS http://127.0.0.1:5173/api/health >/dev/null; then break; fi
+            sleep 1
+          done
+          npm run aeo:check
+          npm run qa:saved-searches
+          npm run qa:system
+          npm run qa:gear-scanner-curation
+          npm run qa:ui
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-diagnostics
+          path: card-snapshots/

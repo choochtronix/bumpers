@@ -1,10 +1,15 @@
 import { createServer } from "node:http";
-import { get as httpsGet } from "node:https";
+import { randomUUID, createHash } from "node:crypto";
+import { deliverAlertProfile, parseAlertLimit } from "./src/alerts/delivery.js";
 import { existsSync, readFileSync } from "node:fs";
-import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
+import { appendFile, mkdir, readFile, writeFile, stat } from "node:fs/promises";
 import { networkInterfaces } from "node:os";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
+import { servePublicFile, setSecurityHeaders, publicRequestOrigin } from "./src/http/publicFiles.js";
+import { selectRegionSources, groupSourcesByRegion } from "./src/regions/config.js";
+import { updateJsonFile, mergeSavedSearchMutation } from "./src/cloud/fileStore.js";
+import { BoundedCache, Semaphore, createBoundedFetch, createPublicRouteGuard, createCoalescer, requestContext } from "./src/http/resourceLimits.js";
 import "./search-discovery.js";
 import "./listing-freshness.js";
 import { attachNormalizedListings } from "./src/agents/listingNormalizerAgent.js";
@@ -41,7 +46,8 @@ const HOST = process.env.HOST || "0.0.0.0";
 const ROOT = fileURLToPath(new URL(".", import.meta.url));
 const PLAYWRIGHT_SYSTEM_CHROME = "/usr/bin/google-chrome-stable";
 loadLocalEnvFiles([".env.local", ".env"]);
-const CLOUD_DATA_FILE = join(ROOT, "data", "cloud-saved-searches.json");
+const DATA_DIR = process.env.BRRTZ_DATA_DIR || join(ROOT, "data");
+const CLOUD_DATA_FILE = join(DATA_DIR, "cloud-saved-searches.json");
 const SUPABASE_URL = process.env.SUPABASE_URL || "";
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || "";
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
@@ -59,15 +65,15 @@ const ALERT_LISTING_LIMIT = Number(process.env.BRRTZ_ALERT_LISTING_LIMIT || 8);
 // The catalog lives under src/, not data/: data/ is excluded by .dockerignore
 // because it holds generated runtime state, and this file must ship in the image.
 const GEAR_INDEX_CATALOG_FILE = join(ROOT, "src", "gear-index", "catalog.json");
-const GEAR_INDEX_DATA_FILE = join(ROOT, "data", "gear-index-daily.json");
+const GEAR_INDEX_DATA_FILE = join(DATA_DIR, "gear-index-daily.json");
 const GEAR_INDEX_SCHEDULER_ENABLED = process.env.BRRTZ_INDEX_SCHEDULER === "true";
 const GEAR_INDEX_INTERVAL_MINUTES = Math.max(5, Number(process.env.BRRTZ_INDEX_INTERVAL_MINUTES) || 45);
 // How far back the rotation looks when deciding which pair is stalest. Longer
 // than a full cycle (27 pairs x 45 min ~ 20 h) so a pair is never treated as
 // unsampled just because the window is too tight.
 const GEAR_INDEX_ROTATION_WINDOW_DAYS = 14;
-const SOURCE_HEALTH_FILE = join(ROOT, "data", "agent-source-health.json");
-const ALERT_EVENTS_FILE = join(ROOT, "data", "saved-search-alert-events.json");
+const SOURCE_HEALTH_FILE = join(DATA_DIR, "agent-source-health.json");
+const ALERT_EVENTS_FILE = join(DATA_DIR, "saved-search-alert-events.json");
 const CURATION_NOISE_INBOX_FILE = join(ROOT, "ops", "curation", "noise-inbox.jsonl");
 const DIGIMART_BASE_URL = "https://www.digimart.net";
 const FIVE_G_BASE_URL = "https://fiveg.net";
@@ -79,6 +85,8 @@ const QSIC_BASE_URL = "https://www.qsic.jp";
 const RAKUMA_BASE_URL = "https://fril.jp";
 const REVERB_API_BASE_URL = "https://api.reverb.com";
 const REVERB_BASE_URL = "https://reverb.com";
+const REVERB_API_TOKEN = process.env.REVERB_API_TOKEN || "";
+let reverbRetryAt = 0;
 const EBAY_API_BASE_URL = "https://api.ebay.com";
 const EBAY_CLIENT_ID = process.env.EBAY_CLIENT_ID || "";
 const EBAY_CLIENT_SECRET = process.env.EBAY_CLIENT_SECRET || "";
@@ -252,9 +260,15 @@ const YAHOO_AUCTIONS_RHYTHM_TERMS = [
 ];
 const USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 (KHTML, like Gecko) Brrtz/0.1 local personal gear search";
 const CRAIGSLIST_USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15";
-const mercariCache = new Map();
-const rakumaThumbnailCache = new Map();
-const rakumaImageProxyCache = new Map();
+const fetch = createBoundedFetch();
+const publicRouteGuard = createPublicRouteGuard();
+const coalesceConnector = createCoalescer();
+const sourceRuntimeHealth = new Map();
+let lastAlertJob = null;
+const mercariSlots = new Semaphore(2, 16);
+const mercariCache = new BoundedCache({ maxEntries: 100 });
+const rakumaThumbnailCache = new BoundedCache({ maxEntries: 500 });
+const rakumaImageProxyCache = new BoundedCache({ maxEntries: 200, maxBytes: 32 * 1024 * 1024 });
 let ebayTokenCache = null;
 let mercariBrowserPromise;
 
@@ -381,9 +395,11 @@ const handleBrrtzMcpRequest = createBrrtzMcpHandler({
   searchGear: searchMcpGear,
 });
 
-createServer(async (request, response) => {
+createServer({ requestTimeout: 30_000, headersTimeout: 15_000 }, async (request, response) => {
+  setSecurityHeaders(request, response);
   try {
     const url = new URL(request.url || "/", `http://${request.headers.host}`);
+    if (!publicRouteGuard(request, response, url)) return;
 
     if (url.pathname === "/robots.txt") {
       response.writeHead(200, {
@@ -423,12 +439,12 @@ createServer(async (request, response) => {
     }
 
     if (url.pathname === "/api/search") {
-      await handleSearch(url, response);
+      await runPublicSearch(request, response, () => handleSearch(url, response));
       return;
     }
 
     if (url.pathname === "/api/browse") {
-      await handleBrowse(url, response);
+      await runPublicSearch(request, response, () => handleBrowse(url, response));
       return;
     }
 
@@ -499,9 +515,19 @@ createServer(async (request, response) => {
 
     await serveStatic(request, url.pathname, response);
   } catch (error) {
+    if (response.destroyed || response.writableEnded) return;
+    if (error.code === "capacity") {
+      response.setHeader("Retry-After", "5");
+      sendJson(response, 503, { error: "busy", message: "Brrtz is busy. Please try again shortly." });
+      return;
+    }
+    if (error.code === "migration_required") {
+      sendJson(response, 424, { error: error.code, message: "Cloud sync is awaiting the saved-search integrity migration. Your local changes are preserved." });
+      return;
+    }
     sendJson(response, 500, {
       error: "server_error",
-      message: error instanceof Error ? error.message : "Unknown error",
+      message: "The request could not be completed. Please try again.",
     });
   }
 }).listen(PORT, HOST, () => {
@@ -517,6 +543,19 @@ function getLanUrls(port) {
     .flat()
     .filter((details) => details && details.family === "IPv4" && !details.internal)
     .map((details) => `http://${details.address}:${port}`);
+}
+
+const publicSearchSlots = new Semaphore(20, 32);
+async function runPublicSearch(request, response, callback) {
+  const controller = new AbortController();
+  const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(60_000)]);
+  const onClose = () => { if (!response.writableEnded) controller.abort(); };
+  response.on("close", onClose);
+  let release;
+  try {
+    release = await publicSearchSlots.acquire(signal);
+    await requestContext.run({ signal }, callback);
+  } finally { release?.(); response.off("close", onClose); }
 }
 
 for (const signal of ["SIGINT", "SIGTERM"]) {
@@ -585,14 +624,17 @@ function handleHealthCheck(request, response) {
     supabaseConfigured: Boolean(SUPABASE_URL && SUPABASE_ANON_KEY && SUPABASE_SERVICE_ROLE_KEY),
     ebayConfigured: hasEbayCredentials(),
     craigslistMode: CRAIGSLIST_MODE,
+    liveness: "ok",
+    revision: String(process.env.RAILWAY_GIT_COMMIT_SHA || process.env.BRRTZ_REVISION || "local").slice(0, 40),
+    uptimeSeconds: Math.floor(process.uptime()),
+    sources: Object.fromEntries(sourceRuntimeHealth),
+    alerts: lastAlertJob,
     checkedAt: new Date().toISOString(),
   });
 }
 
 function getRequestOrigin(request) {
-  const protocol = request.headers["x-forwarded-proto"] || "http";
-  const host = request.headers["x-forwarded-host"] || request.headers.host || `127.0.0.1:${PORT}`;
-  return `${protocol}://${host}`;
+  return publicRequestOrigin(request);
 }
 
 async function handleCloudSavedSearches(request, response) {
@@ -618,8 +660,21 @@ async function handleCloudSavedSearches(request, response) {
 
   if (request.method === "PUT") {
     const payload = await readJsonBody(request);
+    if (payload.syncProtocol !== 1 || !Number.isInteger(payload.revision) || payload.revision < 0) {
+      sendJson(response, 409, { error: "sync_upgrade_required", message: "Reload Brrtz and sync before saving." });
+      return;
+    }
+    if (!Array.isArray(payload.profiles) || payload.profiles.length > 500 || !Array.isArray(payload.deletedIds)
+      || payload.deletedIds.length > 5000 || payload.profiles.some((p) => !p || typeof p.id !== "string" || !p.id || !Array.isArray(p.terms))) {
+      sendJson(response, 400, { error: "invalid_saved_search_batch" });
+      return;
+    }
     const nextCloudState = createCloudSavedSearchState(payload, cloudUser);
     const savedCloudState = await writeCloudSavedSearches(nextCloudState, cloudUser);
+    if (savedCloudState.conflict) {
+      sendJson(response, 409, { error: "sync_conflict", message: "Your account changed on another device. Sync again to merge the latest changes." });
+      return;
+    }
     sendJson(response, 200, savedCloudState);
     return;
   }
@@ -704,6 +759,9 @@ async function handleCurationNoise(request, response) {
     return;
   }
 
+  if (!/^application\/json(?:;|$)/i.test(request.headers["content-type"] || "")) {
+    sendJson(response, 415, { error: "json_required" }); return;
+  }
   const payload = await readJsonBody(request, {
     maxBytes: 128_000,
     tooLargeMessage: "Curation feedback payload is too large.",
@@ -768,110 +826,69 @@ async function handleSavedSearchAlertsJob(request, url, response) {
   }
 
   const dryRun = url.searchParams.get("dryRun") === "true" || url.searchParams.get("dry_run") === "true";
-  const requestedLimit = Number(url.searchParams.get("limit"));
-  const limit = Number.isFinite(requestedLimit) && requestedLimit >= 0 ? Math.floor(requestedLimit) : undefined;
+  let limit;
+  try { limit = parseAlertLimit(url.searchParams.get("limit"), ALERT_SEARCH_LIMIT); }
+  catch { sendJson(response, 400, { error: "invalid_alert_limit" }); return; }
   const result = await runSavedSearchAlertDigest({ dryRun, limit });
+  lastAlertJob = { checkedAt: result.checkedAt, ok: result.ok, dryRun: result.dryRun, processed: result.processedSearchCount, sent: result.emailedSearchCount };
   sendJson(response, 200, result);
 }
 
 async function runSavedSearchAlertDigest(options = {}) {
-  const startedAt = new Date();
+  const startedAt = Date.now();
   const dryRun = Boolean(options.dryRun);
-  const alertProfiles = await readAlertEnabledSavedSearchProfiles();
-  const profileLimit = Number.isInteger(options.limit) ? options.limit : getPositiveInteger(ALERT_SEARCH_LIMIT, 25);
-  const limitedProfiles = alertProfiles.slice(0, profileLimit);
-  const existingEvents = await readSavedSearchAlertEvents();
-  const existingEventKeys = new Set(existingEvents.map((event) => event.eventKey).filter(Boolean));
-  const nextEvents = [];
+  const limit = parseAlertLimit(options.limit, ALERT_SEARCH_LIMIT);
+  // File mode remains a development dry-run, never an uncoordinated mail sender.
+  const candidates = isSupabaseCloudEnabled()
+    ? await supabaseRequest("/rest/v1/rpc/brrtz_due_alert_searches", { method: "POST", body: JSON.stringify({ p_limit: limit }) })
+    : (await readAlertEnabledSavedSearchProfiles()).slice(0, limit).map((profile) => ({ profile, state: {} }));
   const reports = [];
-
-  for (const profile of limitedProfiles) {
-    const report = await processSavedSearchAlertProfile(profile, {
-      dryRun,
-      existingEventKeys,
-    });
-    reports.push(report);
-    nextEvents.push(...report.newEvents);
-    report.newEvents.forEach((event) => existingEventKeys.add(event.eventKey));
+  for (const candidate of candidates) {
+    const profile = isSupabaseCloudEnabled() ? rowToSavedSearchProfile(candidate.profile) : candidate.profile;
+    const searchId = getSavedSearchAlertSearchId(profile);
+    const token = randomUUID();
+    let state = candidate.state;
+    try {
+      if (!dryRun && !isSupabaseCloudEnabled()) throw new Error("Live alerts require transactional cloud storage.");
+      if (!dryRun) {
+        state = await supabaseRequest("/rest/v1/rpc/brrtz_claim_alert_search", {
+          method: "POST", body: JSON.stringify({ p_id: searchId, p_token: token }),
+        });
+        if (!state) continue;
+      }
+      const report = await deliverAlertProfile(profile, state, {
+        search: fetchSavedSearchAlertResults,
+        events: readSavedSearchAlertEvents,
+        event: (p, listing, notifiedAt) => createSavedSearchAlertEvent({ userId: p.userId, searchId, listing, notifiedAt }),
+        recipient: getAlertRecipientForUser,
+        emailConfigured: isAlertEmailConfigured,
+        appendEvents: appendSavedSearchAlertEvents,
+        send: sendSavedSearchAlertEmail,
+        save: async (nextState, release) => {
+          await supabaseRequest("/rest/v1/rpc/brrtz_save_alert_state", {
+            method: "POST", body: JSON.stringify({ p_id: searchId, p_token: token, p_state: nextState, p_release: release }),
+          });
+          state = nextState;
+        },
+      }, { dryRun, listingLimit: getPositiveInteger(ALERT_LISTING_LIMIT, 8) });
+      reports.push({ searchId, ...report, state: undefined });
+    } catch (error) {
+      reports.push({ searchId, newCount: 0, emailSent: false, error: error.message === "delivery_review_required" ? error.message : "alert_processing_failed" });
+      if (!dryRun && state && isSupabaseCloudEnabled()) {
+        await supabaseRequest("/rest/v1/rpc/brrtz_save_alert_state", {
+          method: "POST", body: JSON.stringify({ p_id: searchId, p_token: token,
+            p_state: { ...state, nextDueAt: new Date(Date.now() + 300_000).toISOString() }, p_release: true }),
+        }).catch(() => {});
+      }
+    }
   }
-
-  if (nextEvents.length > 0 && !dryRun) {
-    await appendSavedSearchAlertEvents(nextEvents);
-  }
-
-  return {
-    ok: true,
-    dryRun,
-    emailConfigured: isAlertEmailConfigured(),
-    storage: isSupabaseCloudEnabled() ? "supabase" : "file",
-    checkedAt: new Date().toISOString(),
-    durationMs: Date.now() - startedAt.getTime(),
-    eligibleSearchCount: alertProfiles.length,
-    processedSearchCount: limitedProfiles.length,
+  return { ok: reports.every((report) => !report.error), dryRun, emailConfigured: isAlertEmailConfigured(),
+    storage: isSupabaseCloudEnabled() ? "supabase" : "file", checkedAt: new Date().toISOString(),
+    durationMs: Date.now() - startedAt, eligibleSearchCount: candidates.length, processedSearchCount: reports.length,
     newListingCount: reports.reduce((sum, report) => sum + report.newCount, 0),
-    emailedSearchCount: reports.filter((report) => report.emailSent).length,
-    reports: reports.map(({ newEvents, ...report }) => report),
-  };
+    emailedSearchCount: reports.filter((report) => report.emailSent).length, reports };
 }
 
-async function processSavedSearchAlertProfile(profile, options = {}) {
-  const searchPayload = await fetchSavedSearchAlertResults(profile);
-  const listings = Array.isArray(searchPayload.listings) ? searchPayload.listings : [];
-  const searchId = getSavedSearchAlertSearchId(profile);
-  const userId = profile.userId || CLOUD_PROFILE_USER_ID;
-  const newListings = listings.filter((listing) => {
-    const eventKey = createSavedSearchAlertEventKey(userId, searchId, listing);
-    return eventKey && !options.existingEventKeys.has(eventKey);
-  });
-  const limitedNewListings = newListings.slice(0, getPositiveInteger(ALERT_LISTING_LIMIT, 8));
-  const recipient = await getAlertRecipientForUser(userId);
-  const canEmail = Boolean(recipient.email) && isAlertEmailConfigured();
-  let emailSent = false;
-  let emailSkippedReason = "";
-
-  if (limitedNewListings.length === 0) {
-    emailSkippedReason = "no_new_listings";
-  } else if (!recipient.email) {
-    emailSkippedReason = "missing_recipient_email";
-  } else if (!isAlertEmailConfigured()) {
-    emailSkippedReason = "email_not_configured";
-  } else if (options.dryRun) {
-    emailSkippedReason = "dry_run";
-  } else {
-    await sendSavedSearchAlertEmail({
-      profile,
-      recipient,
-      listings: limitedNewListings,
-      totalNewCount: newListings.length,
-    });
-    emailSent = true;
-  }
-
-  const notifiedAt = emailSent ? new Date().toISOString() : null;
-  const newEvents = emailSent
-    ? limitedNewListings.map((listing) => createSavedSearchAlertEvent({
-      userId,
-      searchId,
-      listing,
-      notifiedAt,
-    })).filter(Boolean)
-    : [];
-
-  return {
-    searchId,
-    userId,
-    name: profile.name,
-    alertMode: profile.alertMode,
-    matchCount: listings.length,
-    newCount: newListings.length,
-    emailedCount: emailSent ? limitedNewListings.length : 0,
-    emailSent,
-    emailSkippedReason,
-    recipientEmail: recipient.email ? maskEmail(recipient.email) : "",
-    newEvents,
-    canEmail,
-  };
-}
 
 async function fetchSavedSearchAlertResults(profile) {
   const params = new URLSearchParams({
@@ -884,6 +901,7 @@ async function fetchSavedSearchAlertResults(profile) {
   });
   const response = await fetch(`http://127.0.0.1:${PORT}/api/search?${params.toString()}`, {
     cache: "no-store",
+    timeoutMs: 65_000,
   });
 
   if (!response.ok) {
@@ -937,9 +955,15 @@ async function getAlertRecipientForUser(userId) {
   };
 }
 
-async function readSavedSearchAlertEvents() {
+async function readSavedSearchAlertEvents(profile = null) {
   if (isSupabaseCloudEnabled()) {
-    const rows = await supabaseRequest("/rest/v1/saved_search_alert_events?select=id,user_id,saved_search_id,listing_id,notified_at&limit=10000");
+    const scope = profile ? `&user_id=eq.${encodeURIComponent(profile.userId)}&saved_search_id=eq.${encodeURIComponent(getSavedSearchAlertSearchId(profile))}` : "";
+    const rows = [];
+    for (let offset = 0; ; offset += 1000) {
+      const page = await supabaseRequest(`/rest/v1/saved_search_alert_events?select=id,user_id,saved_search_id,listing_id,notified_at&order=id&limit=1000&offset=${offset}${scope}`);
+      rows.push(...page);
+      if (page.length < 1000) break;
+    }
     return Array.isArray(rows) ? rows.map((row) => ({
       eventKey: row.id,
       userId: row.user_id,
@@ -1038,7 +1062,7 @@ function isAlertEmailConfigured() {
   return Boolean(RESEND_API_KEY && ALERT_EMAIL_FROM);
 }
 
-async function sendSavedSearchAlertEmail({ profile, recipient, listings, totalNewCount }) {
+async function sendSavedSearchAlertEmail({ profile, recipient, listings, totalNewCount, idempotencyKey }) {
   const subject = `Brrtz found ${totalNewCount} new ${totalNewCount === 1 ? "listing" : "listings"} for ${profile.name}`;
   const searchUrl = createSavedSearchAlertUrl(profile);
   const text = createSavedSearchAlertEmailText({ profile, listings, totalNewCount, searchUrl });
@@ -1047,6 +1071,7 @@ async function sendSavedSearchAlertEmail({ profile, recipient, listings, totalNe
     method: "POST",
     headers: {
       authorization: `Bearer ${RESEND_API_KEY}`,
+      ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
       "content-type": "application/json",
     },
     body: JSON.stringify({
@@ -1265,21 +1290,16 @@ async function runGearIndexPair({ modelSlug, regionId }, options = {}) {
   if (!region) throw new Error(`Unknown gear index region: ${regionId}`);
 
   const fxRates = await getGearIndexFxRates();
-  const params = new URLSearchParams({
-    terms: model.terms.join("|"),
-    sources: region.sources.join("|"),
-    region: region.searchRegion,
-    categoryIntent: model.categoryIntent || "synthesizers",
-    maxPrice: "0",
-  });
-  const response = await fetch(`http://127.0.0.1:${PORT}/api/search?${params.toString()}`, {
-    cache: "no-store",
-  });
-  if (!response.ok) {
-    throw new Error(`Gear index search for ${modelSlug}/${regionId} failed with ${response.status}.`);
-  }
-
-  const payload = await response.json();
+  // The US index is national. Keep its complete source set without weakening public region validation.
+  const batches = await Promise.all(groupSourcesByRegion(region.sources, region.searchRegion).map(async (group) => {
+    const params = new URLSearchParams({ terms: model.terms.join("|"), sources: group.sources.join("|"),
+      region: group.region, categoryIntent: model.categoryIntent || "synthesizers", maxPrice: "0" });
+    const response = await fetch(`http://127.0.0.1:${PORT}/api/search?${params}`, { cache: "no-store", timeoutMs: 65_000 });
+    if (!response.ok) throw new Error(`Gear index search failed with ${response.status}.`);
+    return response.json();
+  }));
+  const payload = { listings: [...new Map(batches.flatMap((batch) => batch.listings || []).map((listing) => [listing.id, listing])).values()],
+    meta: { errors: batches.flatMap((batch) => batch.meta?.errors || []), sourceStats: batches.flatMap((batch) => batch.meta?.sourceStats || []) } };
   const row = buildGearIndexRow({
     model,
     region,
@@ -1588,12 +1608,11 @@ async function readCloudSavedSearches(cloudUser = getCloudUser()) {
   }
 
   try {
-    const cloudState = JSON.parse(await readFile(CLOUD_DATA_FILE, "utf8"));
+    const cloudState = JSON.parse(await readFile(cloudSavedSearchFile(cloudUser), "utf8"));
     return createCloudSavedSearchState(cloudState, cloudUser);
   } catch (error) {
     if (error?.code !== "ENOENT") throw error;
     const emptyState = createCloudSavedSearchState({}, cloudUser);
-    await writeCloudSavedSearches(emptyState, cloudUser);
     return emptyState;
   }
 }
@@ -1603,23 +1622,30 @@ async function writeCloudSavedSearches(payload, cloudUser = getCloudUser()) {
     return writeSupabaseSavedSearches(payload, cloudUser);
   }
 
-  await mkdir(join(ROOT, "data"), { recursive: true });
-  await writeFile(CLOUD_DATA_FILE, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
-  return payload;
+  return updateJsonFile(cloudSavedSearchFile(cloudUser), (current) => mergeSavedSearchMutation(current, payload));
+}
+
+function cloudSavedSearchFile(user) {
+  return user.id === CLOUD_PROFILE_USER_ID ? CLOUD_DATA_FILE
+    : join(DATA_DIR, `saved-searches-${createHash("sha256").update(user.id).digest("hex")}.json`);
 }
 
 async function readJsonBody(request, options = {}) {
   const maxBytes = Number(options.maxBytes) || 1_000_000;
   const tooLargeMessage = options.tooLargeMessage || "Cloud saved-search payload is too large.";
-  let body = "";
+  const chunks = [];
+  let bytes = 0;
 
   for await (const chunk of request) {
-    body += chunk;
-    if (body.length > maxBytes) {
+    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    bytes += buffer.byteLength;
+    if (bytes > maxBytes) {
       throw new Error(tooLargeMessage);
     }
+    chunks.push(buffer);
   }
 
+  const body = Buffer.concat(chunks).toString("utf8");
   if (!body.trim()) return {};
   return JSON.parse(body);
 }
@@ -1721,12 +1747,16 @@ function createCurationDedupeKey(listing) {
 
 async function appendCurationNoiseRecord(record) {
   await mkdir(join(ROOT, "ops", "curation"), { recursive: true });
+  const size = await stat(CURATION_NOISE_INBOX_FILE).then((value) => value.size).catch((error) => {
+    if (error.code !== "ENOENT") throw error; return 0;
+  });
+  if (size >= 10 * 1024 * 1024) throw new Error("Curation inbox needs archival before accepting more reports.");
   await appendFile(CURATION_NOISE_INBOX_FILE, `${JSON.stringify(record)}\n`, "utf8");
 }
 
 function createCloudSavedSearchState(payload = {}, cloudUser = getCloudUser()) {
   const now = new Date().toISOString();
-  const user = normalizeCloudUser(payload.user || cloudUser);
+  const user = normalizeCloudUser(cloudUser);
   const profiles = Array.isArray(payload.profiles)
     ? payload.profiles
       .filter((profile) => profile && typeof profile === "object")
@@ -1744,6 +1774,9 @@ function createCloudSavedSearchState(payload = {}, cloudUser = getCloudUser()) {
     user,
     updatedAt: now,
     profiles,
+    syncProtocol: 1,
+    revision: Number(payload.revision) || 0,
+    deletedIds: Array.isArray(payload.deletedIds) ? payload.deletedIds.filter((id) => typeof id === "string") : [],
   };
 }
 
@@ -1771,11 +1804,14 @@ function createCloudProfileState(payload = {}) {
 }
 
 async function readSupabaseSavedSearches(cloudUser = getCloudUser()) {
-  const rows = await fetchSupabaseSavedSearchRows(cloudUser.id);
+  const snapshot = await supabaseRequest("/rest/v1/rpc/brrtz_sync_saved_searches", {
+    method: "POST", body: JSON.stringify({ p_user_id: cloudUser.id }),
+  });
   return createCloudSavedSearchState({
     storage: "supabase",
     user: cloudUser,
-    profiles: rows.map(rowToSavedSearchProfile),
+    profiles: snapshot.rows.map(rowToSavedSearchProfile),
+    revision: snapshot.revision,
   }, cloudUser);
 }
 
@@ -1788,29 +1824,18 @@ async function writeSupabaseSavedSearches(payload = {}, cloudUser = getCloudUser
   const userId = state.user.id;
   const rows = state.profiles.map((profile) => savedSearchProfileToRow(profile, userId));
 
-  await supabaseRequest(`/rest/v1/saved_searches?user_id=eq.${encodeURIComponent(userId)}`, {
-    method: "DELETE",
-    headers: {
-      prefer: "return=minimal",
-    },
-  });
-
-  if (rows.length === 0) {
-    return createCloudSavedSearchState({ storage: "supabase", user: state.user, profiles: [] }, state.user);
-  }
-
-  const insertedRows = await supabaseRequest("/rest/v1/saved_searches?on_conflict=id", {
+  const snapshot = await supabaseRequest("/rest/v1/rpc/brrtz_sync_saved_searches", {
     method: "POST",
-    headers: {
-      prefer: "resolution=merge-duplicates,return=representation",
-    },
-    body: JSON.stringify(rows),
+    body: JSON.stringify({ p_user_id: userId, p_revision: state.revision, p_rows: rows,
+      p_deleted_ids: state.deletedIds.map((id) => createSupabaseSavedSearchRowId({ id }, userId)) }),
   });
+  if (snapshot.conflict) return snapshot;
 
   return createCloudSavedSearchState({
     storage: "supabase",
     user: state.user,
-    profiles: Array.isArray(insertedRows) ? insertedRows.map(rowToSavedSearchProfile) : state.profiles,
+    profiles: snapshot.rows.map(rowToSavedSearchProfile),
+    revision: snapshot.revision,
   }, state.user);
 }
 
@@ -1824,7 +1849,7 @@ async function fetchSupabaseSavedSearchRows(userId = CLOUD_PROFILE_USER_ID) {
 async function getRequestCloudUser(request) {
   const token = getBearerToken(request);
   if (!token) {
-    if (REQUIRE_INVITE && isSupabaseCloudEnabled()) {
+    if (isSupabaseCloudEnabled() || (SUPABASE_URL && SUPABASE_ANON_KEY)) {
       throw new AuthVerificationError("Sign in is required to use Brrtz cloud sync.");
     }
     return getCloudUser();
@@ -1960,6 +1985,9 @@ async function supabaseRequest(path, options = {}) {
 
   if (!response.ok) {
     const message = await response.text();
+    if (path.startsWith("/rest/v1/rpc/brrtz_") && response.status === 404) {
+      const error = new Error("Database migration required."); error.code = "migration_required"; throw error;
+    }
     throw new Error(`Supabase cloud sync responded with ${response.status}: ${message || response.statusText}`);
   }
 
@@ -1989,7 +2017,7 @@ function normalizeEmail(value) {
 }
 
 function normalizePreferences(preferences = {}) {
-  const currency = preferences.currency === "USD" ? "USD" : preferences.currency === "JPY" ? "JPY" : undefined;
+  const currency = ["USD", "JPY", "GBP"].includes(preferences.currency) ? preferences.currency : undefined;
   const jpyPerUsd = Number(preferences.jpyPerUsd);
   const theme = ["light", "dark"].includes(preferences.theme) ? preferences.theme : undefined;
   const watchedListingIds = Array.isArray(preferences.watchedListingIds)
@@ -2007,6 +2035,8 @@ function normalizePreferences(preferences = {}) {
     ...(currency ? { currency } : {}),
     ...(Number.isFinite(jpyPerUsd) && jpyPerUsd > 0 ? { jpyPerUsd } : {}),
     ...(theme ? { theme } : {}),
+    ...(["grid", "list", "gallery"].includes(preferences.resultView) ? { resultView: preferences.resultView } : {}),
+    ...(typeof preferences.gearMode === "boolean" ? { gearMode: preferences.gearMode } : {}),
     ...(Array.isArray(preferences.defaultSources) ? { defaultSources: normalizeArrayField(preferences.defaultSources) } : {}),
     ...watchedListingIds,
     ...watchedListingLedger,
@@ -2024,6 +2054,8 @@ function savedSearchProfileToRow(profile, userId = CLOUD_PROFILE_USER_ID) {
     excludes: normalizeArrayField(profile.excludes),
     noise_terms: normalizeArrayField(profile.noiseTerms),
     sources: normalizeArrayField(profile.sources),
+    region_id: sanitizeRegionId(profile.regionId),
+    category_intent: sanitizeCategoryIntent(profile.categoryIntent),
     max_price: Number(profile.maxPrice || 0),
     alert_mode: String(profile.alertMode || "immediate"),
     alerts_enabled: Boolean(profile.alertsEnabled),
@@ -2051,6 +2083,8 @@ function rowToSavedSearchProfile(row) {
     excludes: normalizeArrayField(row.excludes),
     noiseTerms: normalizeArrayField(row.noise_terms),
     sources: normalizeArrayField(row.sources),
+    ...(row.region_id ? { regionId: row.region_id } : {}),
+    ...(row.category_intent ? { categoryIntent: row.category_intent } : {}),
     maxPrice: Number(row.max_price || 0),
     alertMode: String(row.alert_mode || "immediate"),
     alertsEnabled: Boolean(row.alerts_enabled),
@@ -2118,9 +2152,14 @@ async function handleSearch(url, response) {
   const excludes = splitParam(url.searchParams.get("excludes"));
   const categoryIntent = sanitizeCategoryIntent(url.searchParams.get("categoryIntent"));
   const maxPrice = Number(url.searchParams.get("maxPrice") || 0);
-  const sources = splitParam(url.searchParams.get("sources"));
+  let sources = splitParam(url.searchParams.get("sources"));
   const requestedRegionId = url.searchParams.get("region");
   const regionId = sanitizeRegionId(requestedRegionId);
+  try { sources = selectRegionSources(requestedRegionId || regionId, sources); }
+  catch {
+    sendJson(response, 400, { error: "invalid_region_sources" });
+    return;
+  }
   const regionCurrency = getRegionCurrency(regionId);
   const wantsDigimart = sources.length === 0 || sources.includes("digimart");
   const wantsFiveG = sources.length === 0 || sources.includes("five-g");
@@ -2630,6 +2669,7 @@ async function handleRakumaImageProxy(url, response) {
   }
 
   const upstream = await fetch(imageUrl, {
+    redirect: "error",
     headers: {
       "user-agent": USER_AGENT,
       "accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
@@ -2649,6 +2689,9 @@ async function handleRakumaImageProxy(url, response) {
     contentType: upstream.headers.get("content-type") || "image/jpeg",
     createdAt: Date.now(),
   };
+  if (!/^image\/(jpeg|png|gif|webp|avif)(?:;|$)/i.test(image.contentType)) {
+    response.writeHead(502); response.end("Unsupported image format"); return;
+  }
   rakumaImageProxyCache.set(imageUrl, image);
   sendImage(response, image);
 }
@@ -2675,7 +2718,7 @@ function sendImage(response, image) {
 function isAllowedRakumaImageUrl(value) {
   try {
     const parsed = new URL(value);
-    return parsed.protocol === "https:" && parsed.hostname === "img.fril.jp";
+    return parsed.protocol === "https:" && parsed.hostname === "img.fril.jp" && !parsed.port && !parsed.username && !parsed.password;
   } catch {
     return false;
   }
@@ -2684,7 +2727,7 @@ function isAllowedRakumaImageUrl(value) {
 function isAllowedRakumaItemUrl(value) {
   try {
     const parsed = new URL(value);
-    return parsed.protocol === "https:" && parsed.hostname === "item.fril.jp";
+    return parsed.protocol === "https:" && parsed.hostname === "item.fril.jp" && !parsed.port && !parsed.username && !parsed.password;
   } catch {
     return false;
   }
@@ -2918,7 +2961,10 @@ async function searchSourceTerms(source, terms, searchFn, options = {}) {
 
   for (const [index, term] of searchedTerms.entries()) {
     try {
-      const listings = await searchFn(term, options.context || {});
+      requestContext.getStore()?.signal?.throwIfAborted();
+      const listings = await coalesceConnector(JSON.stringify([source, term, options.context]),
+        (signal) => requestContext.run({ signal: AbortSignal.any([signal, AbortSignal.timeout(45_000)]) }, () => searchFn(term, options.context || {})),
+        requestContext.getStore()?.signal);
       listings.forEach((listing) => {
         const existing = listingsById.get(listing.id);
         const image = existing && isPlaceholderImage(listing.image) && !isPlaceholderImage(existing.image)
@@ -2928,6 +2974,7 @@ async function searchSourceTerms(source, terms, searchFn, options = {}) {
         listingsById.set(listing.id, { ...listing, image });
       });
     } catch (error) {
+      if (requestContext.getStore()?.signal?.aborted) throw error;
       errors.push({
         source,
         term,
@@ -2939,7 +2986,7 @@ async function searchSourceTerms(source, terms, searchFn, options = {}) {
       await wait(termDelayMs);
     }
   }
-
+  sourceRuntimeHealth.set(source, { checkedAt: new Date().toISOString(), ok: errors.length === 0, count: listingsById.size });
   return {
     listings: [...listingsById.values()],
     errors,
@@ -3039,34 +3086,12 @@ async function searchQsic(term) {
   });
 }
 
-function fetchQsicText(url) {
-  return new Promise((resolve, reject) => {
-    const request = httpsGet(url, {
-      headers: {
-        "user-agent": USER_AGENT,
-        "accept-language": "ja,en-US;q=0.9,en;q=0.8",
-      },
-      timeout: 20000,
-    }, (response) => {
-      const chunks = [];
-
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        response.resume();
-        reject(new Error(`Qsic responded with ${response.statusCode}`));
-        return;
-      }
-
-      response.on("data", (chunk) => chunks.push(chunk));
-      response.on("end", () => {
-        resolve(new TextDecoder("euc-jp").decode(Buffer.concat(chunks)));
-      });
-    });
-
-    request.on("timeout", () => {
-      request.destroy(new Error("Qsic request timed out"));
-    });
-    request.on("error", reject);
+async function fetchQsicText(url) {
+  const response = await fetch(url, {
+    headers: { "user-agent": USER_AGENT, "accept-language": "ja,en-US;q=0.9,en;q=0.8" },
   });
+  if (!response.ok) throw new Error(`Qsic responded with ${response.status}`);
+  return new TextDecoder("euc-jp").decode(await response.arrayBuffer());
 }
 
 async function searchImplant4(term) {
@@ -3116,14 +3141,19 @@ async function searchMercari(term) {
     return cloneListings(cached.listings);
   }
 
-  const browser = await getMercariBrowser();
+  const signal = requestContext.getStore()?.signal || AbortSignal.timeout(45_000);
+  const release = await mercariSlots.acquire(signal);
   let page;
+  const cancel = () => { void page?.close().catch(() => {}); };
 
   try {
+    const browser = await getMercariBrowser();
     page = await browser.newPage({
       userAgent: USER_AGENT,
       locale: "ja-JP",
     });
+    signal.addEventListener("abort", cancel, { once: true });
+    signal.throwIfAborted();
     page.setDefaultTimeout(MERCARI_CONNECTOR_TIMEOUT_MS);
 
     const url = new URL("/en/search", MERCARI_BASE_URL);
@@ -3171,7 +3201,9 @@ async function searchMercari(term) {
     pruneMercariCache();
     return listings;
   } finally {
-    if (page) await page.close();
+    signal.removeEventListener("abort", cancel);
+    if (page) await page.close().catch(() => {});
+    release();
   }
 }
 
@@ -3556,8 +3588,8 @@ async function getEbayAccessToken() {
   });
 
   if (!response.ok) {
-    const message = await response.text().catch(() => "");
-    throw new Error(`eBay auth responded with ${response.status}${message ? `: ${message.slice(0, 180)}` : ""}`);
+    await response.body?.cancel();
+    throw new Error(`eBay auth responded with ${response.status}`);
   }
 
   const payload = await response.json();
@@ -3573,6 +3605,7 @@ async function getEbayAccessToken() {
 }
 
 async function searchReverbListings(term, options = {}) {
+  if (Date.now() < reverbRetryAt) throw new Error("Reverb API is temporarily unavailable. Use the original-source search link.");
   const url = new URL("/api/listings", REVERB_API_BASE_URL);
   url.searchParams.set("query", [options.countryFilter, term].filter(Boolean).join(" "));
   url.searchParams.set("per_page", String(REVERB_RESULT_LIMIT));
@@ -3584,11 +3617,13 @@ async function searchReverbListings(term, options = {}) {
       "user-agent": USER_AGENT,
       "accept": "application/hal+json",
       "accept-version": "3.0",
+      ...(REVERB_API_TOKEN ? { authorization: `Bearer ${REVERB_API_TOKEN}` } : {}),
       "accept-language": options.acceptLanguage || "ja,en-US;q=0.9,en;q=0.8",
     },
   });
 
   if (!response.ok) {
+    if ([401, 403, 429, 500, 502, 503, 504].includes(response.status)) reverbRetryAt = Date.now() + 300_000;
     throw new Error(`Reverb responded with ${response.status}`);
   }
 
@@ -4222,11 +4257,12 @@ async function hydrateRakumaThumbnails(listings) {
 }
 
 async function fetchRakumaThumbnail(url) {
-  if (!url) return "";
+  if (!isAllowedRakumaItemUrl(url)) return "";
   if (rakumaThumbnailCache.has(url)) return rakumaThumbnailCache.get(url);
 
   try {
     const response = await fetch(url, {
+      redirect: "error",
       headers: {
         "user-agent": USER_AGENT,
         "accept-language": "ja,en-US;q=0.9,en;q=0.8",
@@ -5112,34 +5148,8 @@ function formatYahooEndDate(timestamp) {
 }
 
 async function serveStatic(request, pathname, response) {
-  const staticPathname = resolveStaticPathname(pathname);
-  const safePath = normalize(staticPathname).replace(/^(\.\.[/\\])+/, "");
-  const filePath = join(ROOT, safePath);
-
-  if (!filePath.startsWith(ROOT)) {
-    response.writeHead(403);
-    response.end("Forbidden");
-    return;
-  }
-
-  try {
-    const isHtml = extname(filePath) === ".html";
-    const contents = isHtml
-      ? applyLocalBetaFavicon(await readFile(filePath, "utf8"), request)
-      : await readFile(filePath);
-    response.writeHead(200, {
-      "content-type": mimeTypes[extname(filePath)] || "application/octet-stream",
-      "cache-control": "no-store",
-    });
-    response.end(contents);
-  } catch (error) {
-    if (error?.code !== "ENOENT") throw error;
-    response.writeHead(404, {
-      "content-type": "text/plain; charset=utf-8",
-      "cache-control": "no-store",
-    });
-    response.end("Not found");
-  }
+  await servePublicFile({ root: ROOT, pathname: resolveStaticPathname(pathname), request, response,
+    transformHtml: (html) => applyLocalBetaFavicon(html, request) });
 }
 
 async function serveSearchPage(request, url, response) {

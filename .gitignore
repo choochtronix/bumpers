@@ -25,6 +25,9 @@ Supabase/
 *.sqlite3
 *.db
 data/cloud-saved-searches.json
+data/saved-searches-*.json
+data/saved-search-alert-events.json
+data/*.tmp
 data/agent-source-health.json
 data/gear-index-daily.json
 ops/curation/*.jsonl

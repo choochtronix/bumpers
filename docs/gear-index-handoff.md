@@ -2,6 +2,14 @@
 
 Last updated: 2026-08-08
 
+## September 16 Status Note
+
+The September system audit observed the production scheduler enabled at a
+45-minute interval, with 12 models across three regions (36 pairs). The disabled
+scheduler warning and nine-model counts below describe the original August
+handoff, not the current configuration. See `system-audit-2026-09-16.md` and
+`system-repairs-2026-09-16.md` before changing the scheduler or regional sources.
+
 This briefs the next agent on **Phase 1 of the Gear Index**, built by Claude and
 merged to `main`. Read this before touching `src/gear-index/`, the
 `/api/gear-index*` routes, or anything that reads `gear_index_daily`.

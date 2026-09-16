@@ -9,7 +9,7 @@ export function normalizeListing(rawListing, options = {}) {
   const title = cleanTitle(rawListing.title || rawListing.rawTitle || "");
   const description = rawListing.description || rawListing.rawDescription || "";
   const sourceId = rawListing.source || rawListing.sourceId || options.sourceId || "unknown";
-  const regionId = rawListing.regionId || options.regionId || inferRegionFromCurrency(rawListing.currency) || "japan";
+  const regionId = rawListing.region || rawListing.regionId || options.regionId || inferRegionFromCurrency(rawListing.currency) || "japan";
   const text = `${title} ${description}`;
   const brand = detectBrand(text);
   const model = detectModel(text);
@@ -35,7 +35,7 @@ export function normalizeListing(rawListing, options = {}) {
     category,
     gearType: inferGearType(category, model, text),
     priceAmount: price.amount,
-    priceCurrency: price.currency || options.currency || inferCurrency(regionId),
+    priceCurrency: rawListing.currency || price.currency || options.currency || inferCurrency(regionId),
     condition,
     location,
     sellerName,

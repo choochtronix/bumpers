@@ -1,4 +1,4 @@
-window.BRRTZ_REGION_CONFIG = (() => {
+globalThis.BRRTZ_REGION_CONFIG = (() => {
   const regions = [
     {
       id: "japan",
@@ -12,6 +12,7 @@ window.BRRTZ_REGION_CONFIG = (() => {
         "yahoo-fleamarket",
         "rakuma",
         "digimart",
+        "qsic",
         "reverb",
         "jimoty",
         "offmall",

@@ -2,6 +2,15 @@
 
 Last reviewed: 2026-07-28
 
+## September 16 Supplement
+
+Read `system-audit-2026-09-16.md` for the newer findings and
+`system-repairs-2026-09-16.md` for the local remediation and release gates.
+The repair branch's production dependency audit is clean. Its new static-file
+boundary, account isolation, atomic cloud sync, alert claims, resource limits
+and response headers have not been deployed; the older production snapshot
+below must not be read as evidence that these protections are already live.
+
 This document is the non-secret security baseline for Brrtz. It records the
 system's external dependencies, sensitive data, current protections, known
 gaps, response procedures, and recurring security work.

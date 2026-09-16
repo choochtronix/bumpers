@@ -3,82 +3,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import * as z from "zod/v4";
 import { SOURCE_REGISTRY } from "../sources/sourceRegistry.js";
 
-const REGION_CONFIG = [
-  {
-    id: "japan",
-    label: "Japan",
-    currency: "JPY",
-    status: "active",
-    sources: [
-      "mercari",
-      "yahoo-auctions",
-      "yahoo-fleamarket",
-      "rakuma",
-      "digimart",
-      "qsic",
-      "reverb",
-      "jimoty",
-      "offmall",
-      "five-g",
-      "implant4",
-    ],
-  },
-  {
-    id: "bay-area",
-    label: "Bay Area",
-    currency: "USD",
-    status: "beta",
-    sources: [
-      "robotspeak",
-      "mission-synths",
-      "starving-musician",
-      "bananas-at-large",
-      "gelb-music",
-      "craigslist-sfbay",
-      "reverb-us",
-      "ebay-us",
-      "sweetwater-used",
-      "guitar-center-used",
-    ],
-  },
-  {
-    id: "los-angeles",
-    label: "Los Angeles",
-    currency: "USD",
-    status: "beta",
-    sources: [
-      "craigslist-la",
-      "reverb-us",
-      "ebay-us",
-      "sweetwater-used",
-      "guitar-center-used",
-    ],
-  },
-  {
-    id: "east-coast",
-    label: "East Coast",
-    currency: "USD",
-    status: "beta",
-    sources: [
-      "craigslist-east",
-      "main-drag",
-      "rogue-music",
-      "three-wave",
-      "alto-music",
-      "tone-tweakers",
-      "pro-audio-star",
-      "reverb-us",
-      "ebay-us",
-    ],
-  },
-  {
-    id: "uk",
-    label: "UK",
-    currency: "GBP",
-    status: "beta",
-    sources: ["reverb-uk", "ebay-uk"],
-  },
-];
+import { REGIONS as REGION_CONFIG } from "../regions/config.js";
 
 const REGION_IDS = REGION_CONFIG.map((region) => region.id);
 const CATEGORY_IDS = [
@@ -268,7 +193,7 @@ export function createBrrtzMcpServer({ searchGear }) {
       annotations: catalogReadOnlyAnnotations,
     },
     async () => {
-      const regions = REGION_CONFIG.map((region) => ({ ...region, sources: [...region.sources] }));
+      const regions = REGION_CONFIG.map(({ id, label, currency, status, sources }) => ({ id, label, currency, status, sources: [...sources] }));
       return {
         structuredContent: { regions },
         content: [{

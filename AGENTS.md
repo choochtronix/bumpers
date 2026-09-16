@@ -1,6 +1,8 @@
 # Bumpers
 
-Local-first synth and pro-audio gear search aggregator. Searches multiple Japanese marketplaces simultaneously from one interface. Expanding to Bay Area / US next.
+Local-first synth and pro-audio gear search aggregator. Japan is the default;
+Bay Area, Los Angeles, East Coast and UK are beta regions. `regions.js` is the
+shared browser/server/MCP region configuration.
 
 ## What Bumpers Is
 
@@ -16,7 +18,7 @@ A free public search tool for finding used synthesizers, electronic music instru
 ## Running Locally
 
 ```sh
-cd /Users/craigdrake/Documents/Codex/bumpers
+cd /home/hanzj/code/brrtz
 npm start
 ```
 
@@ -45,7 +47,8 @@ Every connector in `server.js` normalizes listings into this common shape:
 }
 ```
 
-`region` and `currency` are required on all listings. Current region value is `"japan"` for all existing connectors. US connectors will use `"us-bay-area"` and `"USD"`.
+`region` and `currency` are required on all listings. Source-aware normalization
+must retain the actual currency (JPY, USD or GBP), independent of display region.
 
 ### Current Sources (`app.js` — `SOURCES` array)
 
@@ -63,7 +66,9 @@ Every connector in `server.js` normalizes listings into this common shape:
 | `reverb` | Reverb | japan | Live, orange source, Japan listings |
 | `jimoty` | Jimoty | japan | Live |
 
-Next US sources to add: `ebay` (official Finding API), `reverb` globally (already has currency-aware parsing).
+US/UK sources are already configured in `regions.js`. eBay uses the official
+Browse API; do not replace it with scraping. Reverb access requires an approved
+API integration; a configured UI source is not proof of upstream availability.
 
 ### Server Routes
 
@@ -84,6 +89,11 @@ Current schema fields: `id`, `schemaVersion`, `userId`, `name`, `terms`, `exclud
 
 Local storage key: `bumpers.profiles`
 
+Schema 3 adds explicit cloud region/category persistence. Active browser keys
+are owner-scoped; the unscoped key is retained only for recovery. Cloud writes
+use revision-checked atomic RPCs and durable deletion records. Before release,
+follow `docs/system-repairs-2026-09-16.md`; do not restore delete-all/insert sync.
+
 ## Key Conventions
 
 - **Never expose `SUPABASE_SERVICE_ROLE_KEY` in browser code.** Service role key is server-side only (`.env.local`). `SUPABASE_ANON_KEY` is safe for browser auth flows.
@@ -98,12 +108,13 @@ Local storage key: `bumpers.profiles`
 
 The codebase is being made region-aware. When adding US connectors:
 
-1. Add `region: "us-bay-area"` and `currency: "USD"` to every listing the connector returns
+1. Add the configured region ID (for example `bay-area`) and `currency: "USD"` to every listing the connector returns
 2. Add the source to `SOURCES` in `app.js` with a `region` field
 3. Add `regions` filtering to `handleSearch` in `server.js`
 4. The Refine modal source list should group sources by region
 
-First US sources: eBay (official Finding API — use it, do not scrape), Reverb global (already in codebase, just remove Japan filter).
+Keep the Gear Index's deliberately national US source selection intact when
+validating metro source membership. Its requests are grouped into valid regions.
 
 ## Legal Posture
 

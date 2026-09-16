@@ -1,6 +1,10 @@
 # Brrtz Project Handoff
 
-Last reviewed: 2026-07-23
+Last reviewed: 2026-09-16
+
+Pending local hardening release: see `docs/system-repairs-2026-09-16.md` before
+deploying. It requires two approved Supabase migrations; it has not been pushed
+or applied to production. The audit is `docs/system-audit-2026-09-16.md`.
 
 This is the durable entry point for resuming Brrtz work in a new Codex task,
 on another machine, or after a long break. It summarizes the current product,

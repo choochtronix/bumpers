@@ -16,6 +16,8 @@
     "test": "node --test \"test/*.test.js\"",
     "qa:golden-searches": "node scripts/golden-search-check.js",
     "qa:saved-searches": "node scripts/saved-search-check.mjs",
+    "qa:system": "node scripts/system-regression-check.mjs",
+    "qa:ui": "node scripts/ui-smoke-check.mjs",
     "qa:gear-scanner-curation": "node scripts/gear-scanner-curation-check.js",
     "qa:gear-scanner-report": "node scripts/gear-scanner-curation-report.js",
     "curation:noise-inbox": "node scripts/curation-noise-inbox-report.js"
@@ -27,5 +29,8 @@
   },
   "overrides": {
     "@hono/node-server": "2.0.10"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8"
   }
 }

@@ -6,12 +6,13 @@ const fixturePath = new URL("../test/fixtures/gear-scanner-curation.json", impor
 const fixtures = JSON.parse(fs.readFileSync(fixturePath, "utf8"));
 
 const browser = await chromium.launch({
-  executablePath: "/usr/bin/google-chrome-stable",
+  executablePath: process.env.CHROME_PATH || "/usr/bin/google-chrome-stable",
   args: ["--no-sandbox"]
 });
 
 try {
   const page = await browser.newPage();
+  await page.route("**/api/**", (route) => route.fulfill({ json: { enabled: false, listings: [], meta: { errors: [], liveSources: [] } } }));
   await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
 
   const results = await page.evaluate(({ excluded, included }) => {
