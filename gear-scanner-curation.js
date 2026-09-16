@@ -901,7 +901,7 @@ function scoreGearConfidence(listing, context = null) {
 
   const positiveTermCount = countMatchingTerms(searchable, GEAR_SIGNAL_TERMS);
   const brandModelSignalCount = countBrandModelSignals(searchable);
-  const profileNoiseCount = countMatchingTerms(searchable, resolveActiveNoiseTerms());
+  const profileNoiseCount = countMatchingTerms(searchable, context?.noiseTerms || resolveActiveNoiseTerms());
   const mediaNoiseCount = countMatchingTerms(searchable, MEDIA_NOISE_TERMS);
   const feedbackNoiseCount = countMatchingTerms(searchable, feedback.hiddenTerms || []);
   const hasPositiveCategory = categoryIds.some((id) => POSITIVE_GEAR_CATEGORY_IDS.includes(id));

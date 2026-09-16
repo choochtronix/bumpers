@@ -1551,6 +1551,7 @@ const STORAGE_KEYS = {
   authSession: "bumpers.authSession",
   cloudSyncMeta: "bumpers.cloudSyncMeta",
   savedSearchDeletionTombstones: "bumpers.savedSearchDeletionTombstones",
+  savedSearchScans: "bumpers.savedSearchScans",
   listingLedger: "bumpers.listingLedger",
   freshFindCache: "bumpers.freshFindCache",
   feedbackRules: "bumpers.feedbackRules",
@@ -1653,6 +1654,12 @@ const defaultProfile = {
   sources: hydrateRegionSources(ACTIVE_REGION.sources),
 };
 const SAVED_RESULTS_DRAWER_STARTER_SEARCH_ID = "starter:moog";
+const SAVED_SEARCH_REFRESH_MS = 5 * 60 * 1000;
+let savedSearchRefreshPromise = null;
+let savedSearchRefreshTimer = 0;
+const savedSearchRefreshAttempts = new Map();
+const savedSearchesChecking = new Set();
+const savedSearchRefreshErrors = new Set();
 
 let appSettings = loadSettings();
 let currentProfile = createFreshProfile();
@@ -1922,6 +1929,9 @@ function initialize() {
   runStartupStep("startup brand gradient url", applyStartupBrandGradientUrlParams);
   runStartupStep("brand gradient", () => applyBrandGradient(appSettings.brandGradient));
   bindEvents();
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && isSavedSearchSurfaceOpen()) scheduleSavedSearchRefresh();
+  });
   const shouldRunStartupSearch = applyStartupSearchUrlParams();
   runStartupStep("stored theme", applyStoredTheme);
   runStartupStep("brand wave", initializeBrandWave);
@@ -1937,6 +1947,7 @@ function initialize() {
   runStartupStep("back to top", updateBackToTopVisibility);
   runStartupStep("mobile search overlay", updateMobileSearchOverlayVisibility);
   runStartupStep("auth", initializeAuth);
+  if (startupAppView === APP_VIEW_MY_PAGE) scheduleSavedSearchRefresh();
   if (shouldRunStartupSearch) runStartupStep("startup search url", runSearch);
 }
 
@@ -5079,6 +5090,7 @@ function updateSavedResultsDrawerAvailability(options = {}) {
 
 function renderSavedResultsDrawer(profiles = loadProfiles().map(hydrateProfile)) {
   if (!savedResultsDrawerList) return;
+  const focusedId = document.activeElement?.dataset?.savedResultsId;
 
   const query = normalizeText(savedResultsDrawerFilterText);
   const visibleProfiles = profiles
@@ -5123,6 +5135,10 @@ function renderSavedResultsDrawer(profiles = loadProfiles().map(hydrateProfile))
 
   savedResultsDrawerList.innerHTML = visibleProfiles.map((profile) => createSavedResultsDrawerRow(profile)).join("");
   bindSavedResultsDrawerRows();
+  if (focusedId) {
+    [...savedResultsDrawerList.querySelectorAll("[data-saved-results-id]")]
+      .find((button) => button.dataset.savedResultsId === focusedId)?.focus({ preventScroll: true });
+  }
 }
 
 function createSavedResultsDrawerStarterProfile() {
@@ -5148,7 +5164,11 @@ function createSavedResultsDrawerRow(profile, options = {}) {
   const hasNew = newCount > 0;
   const isStarter = Boolean(options.isStarter);
   const isCurrent = !isStarter && profilesMatchSearch(profile, currentProfile);
-  const regionLabel = options.metaLabel || getRegionById(getProfileHomeRegionId(profile)).label;
+  const regionLabel = savedSearchesChecking.has(profile.id)
+    ? "Checking..."
+    : savedSearchRefreshErrors.has(profile.id)
+      ? "Check failed"
+      : options.metaLabel || getRegionById(getProfileHomeRegionId(profile)).label;
   const countLabel = options.countLabel || formatNewListingCount(newCount);
   return `
     <button class="saved-results-drawer-row${hasNew ? " has-new" : " is-quiet"}${isCurrent ? " is-current" : ""}${isStarter ? " is-starter" : ""}" type="button" data-saved-results-id="${escapeHtml(profileId)}"${isCurrent ? ' aria-current="true"' : ""}>
@@ -5190,6 +5210,7 @@ function openSavedResultsDrawer(options = {}) {
   const focusTarget = closeSavedResultsDrawerButton || savedResultsDrawer;
   focusTarget?.focus?.();
   updateMobileBottomNavState();
+  scheduleSavedSearchRefresh();
 }
 
 function closeSavedResultsDrawer(options = {}) {
@@ -7123,6 +7144,7 @@ async function pullCloudSavedSearches(options = {}) {
     renderAccountShell(authState.user);
     renderSavedSearches();
     updateQuickSaveSearchButton();
+    if (isSavedSearchSurfaceOpen()) scheduleSavedSearchRefresh();
     if (!options.silent) {
       setSavedSearchTransferStatus(`Pulled ${cloudProfiles.length} saved ${cloudProfiles.length === 1 ? "search" : "searches"} from cloud sync.`);
     }
@@ -7175,7 +7197,8 @@ async function pushCloudSavedSearches(options = {}) {
     renderAccountShell(authState.user);
 
     if (syncedProfiles.length > 0) {
-      savedSearchRepository.replaceAll(syncedProfiles);
+      const merged = savedSearchRepository.previewMerge(syncedProfiles, { preferNewest: true });
+      savedSearchRepository.replaceAll(merged.mergedProfiles);
       renderSavedSearches();
       updateQuickSaveSearchButton();
     }
@@ -7379,11 +7402,40 @@ function findMatchingSavedSearch(profiles, candidate) {
 }
 
 function getSavedSearchMergeKeys(profile) {
+  const remoteId = String(profile?.sync?.remoteId || "").trim();
+  const userPrefix = `${profile?.userId}:`;
   return [
     isNonEmptyString(profile?.id) ? `id:${profile.id}` : "",
-    isNonEmptyString(profile?.sync?.remoteId) ? `remote:${profile.sync.remoteId}` : "",
+    remoteId ? `remote:${remoteId}` : "",
+    remoteId ? `id:${remoteId.startsWith(userPrefix) ? remoteId.slice(userPrefix.length) : remoteId}` : "",
     isNonEmptyString(profile?.name) ? `name:${normalizeText(profile.name)}` : "",
   ].filter(Boolean);
+}
+
+function deduplicateSavedSearches(profiles, options = {}) {
+  const groups = [];
+  profiles.forEach((profile, index) => {
+    const keys = new Set(getSavedSearchMergeKeys(profile));
+    const matches = groups.filter((group) => [...keys].some((key) => group.keys.has(key)));
+    let winner = profile;
+    let firstIndex = index;
+    matches.forEach((group) => {
+      group.keys.forEach((key) => keys.add(key));
+      const candidate = winner;
+      if (options.preferFirst ? group.firstIndex < firstIndex : !isTimestampAfter(winner.updatedAt, group.profile.updatedAt)) {
+        winner = group.profile;
+      }
+      const latestScan = isTimestampAfter(candidate.lastScannedAt, group.profile.lastScannedAt)
+        ? candidate : group.profile;
+      if (!options.preferFirst && getSavedSearchScanSignature(winner) === getSavedSearchScanSignature(latestScan)) {
+        winner = { ...winner, ...hydrateSavedSearchScanSummary(latestScan) };
+      }
+      firstIndex = Math.min(firstIndex, group.firstIndex);
+      groups.splice(groups.indexOf(group), 1);
+    });
+    groups.push({ keys, profile: winner, firstIndex });
+  });
+  return groups.sort((first, second) => first.firstIndex - second.firstIndex).map((group) => group.profile);
 }
 
 function readSavedSearchDeletionTombstones() {
@@ -7445,7 +7497,8 @@ function splitLines(value) {
 
 async function runSearch() {
   const runId = ++searchRunId;
-  const profileSnapshot = cloneProfile(currentProfile);
+  const profileSnapshot = hydrateProfile(findSavedSearchForScan(currentProfile) || currentProfile);
+  currentProfile = profileSnapshot;
   if (profileSnapshot.terms.length === 0) {
     resetToIdleSearch();
     return;
@@ -7530,44 +7583,24 @@ function scheduleSearchResultApply(profile, liveResult, isFinal) {
 }
 
 function applySearchResult(profile, liveResult, isFinal) {
-  const searchContext = createSearchContext(profile.terms);
   const useMockListings = liveResult.mode === "mock" || liveResult.mode === "error";
   const listings = useMockListings ? MOCK_LISTINGS : liveResult.listings;
 
-  currentResults = listings
-    .filter((listing) => sourceMatchesProfile(listing.source, profile.sources))
-    .filter((listing) => profile.maxPrice <= 0 || listing.price <= profile.maxPrice)
-    .filter((listing) => !isUnavailableListing(listing))
-    .filter((listing) => listingMatchesSearchContext(listing, searchContext))
-    .filter((listing) => !profile.excludes.some((term) => termMatches(normalizeText(listing.title), term)))
-    .sort(compareListingsBySourceDate);
+  currentResults = getSearchMatchingListings(profile, listings);
   pruneActiveViewSources();
 
   const isFinalLiveResult = isFinal && liveResult.mode === "live";
   const discoveryLedger = isFinalLiveResult ? loadLedger() : null;
-  currentDiscoveryIds = isFinalLiveResult ? getNewDiscoveryIds(currentResults, discoveryLedger, currentProfile) : new Set();
-  currentNewForSearchIds = isFinalLiveResult ? getNewForSearchIds(currentProfile, currentResults, discoveryLedger) : new Set();
+  currentDiscoveryIds = isFinalLiveResult ? getNewDiscoveryIds(currentResults, discoveryLedger, profile) : new Set();
+  currentNewForSearchIds = isFinalLiveResult ? getNewForSearchIds(profile, currentResults, discoveryLedger) : new Set();
   if (isFinalLiveResult) {
     liveResult.detail = appendDiscoveryDetail(liveResult.detail, currentDiscoveryIds.size);
-    const scanSummary = {
-      lastScannedAt: new Date().toISOString(),
-      lastMatchCount: currentResults.length,
-      lastNewCount: currentDiscoveryIds.size,
-      lastSourceCount: new Set(currentResults.map((listing) => listing.source)).size,
-      lastScanStatus: liveResult.errors.length > 0 ? "partial" : "ok",
-    };
-    currentProfile = hydrateProfile({ ...currentProfile, ...scanSummary });
-    const profileForDiscovery = cloneProfile(currentProfile);
-    const listingsForDiscovery = currentResults.slice();
-    scheduleUiIdleTask(() => {
-      recordListingDiscoveries(profileForDiscovery, listingsForDiscovery);
-      updateStoredProfileScan(profileForDiscovery, scanSummary);
-      renderSavedSearches();
-      queueSavedSearchAutoSync("scan-summary", { delay: 4500 });
-    }, {
-      delay: 900,
-      timeout: 10000,
-    });
+    // Record the baseline before cards can acknowledge themselves as seen.
+    recordListingDiscoveries(profile, currentResults);
+    const updatedProfile = recordSavedSearchScan(profile, currentResults, liveResult);
+    if (updatedProfile) currentProfile = updatedProfile;
+    renderSavedSearches();
+    if (updatedProfile) queueSavedSearchAutoSync("scan-summary", { delay: 4500 });
   }
 
   setActiveTitle(profile.name);
@@ -7575,6 +7608,192 @@ function applySearchResult(profile, liveResult, isFinal) {
   searchState = isFinal ? liveResult : createPartialSearchState(liveResult);
   updateSearchStatus();
   renderResults();
+  if (isFinal && isSavedSearchSurfaceOpen()) scheduleSavedSearchRefresh();
+}
+
+function getSearchMatchingListings(profile, listings) {
+  const searchContext = createSearchContext(profile.terms);
+  return [...new Map(listings.map((listing) => [listing.id || listing.url, listing])).values()]
+    .filter((listing) => sourceMatchesProfile(listing.source, profile.sources))
+    .filter((listing) => !listing.region || listing.region === profile.regionId)
+    .filter((listing) => profile.maxPrice <= 0 || listing.price <= profile.maxPrice)
+    .filter((listing) => !isUnavailableListing(listing))
+    .filter((listing) => listingMatchesSearchContext(listing, searchContext))
+    .filter((listing) => !profile.excludes.some((term) => termMatches(normalizeText(listing.title), term)))
+    .sort(compareListingsBySourceDate);
+}
+
+function getSavedSearchScanSignature(profile) {
+  const normalized = hydrateProfile(profile);
+  const terms = (values) => [...new Set(values.map(normalizeText))].sort();
+  return JSON.stringify([
+    normalized.regionId, terms(normalized.terms), terms(normalized.excludes),
+    terms(normalized.noiseTerms), [...normalized.sources].sort(),
+    normalized.maxPrice, normalized.categoryIntent,
+  ]);
+}
+
+function findSavedSearchForScan(profile) {
+  const signature = getSavedSearchScanSignature(profile);
+  const profiles = loadProfiles();
+  const matchingId = profile.id && profiles.find((item) => item.id === profile.id);
+  if (matchingId) return getSavedSearchScanSignature(matchingId) === signature ? matchingId : null;
+  return profiles.find((item) => getSavedSearchScanSignature(item) === signature) || null;
+}
+
+function loadSavedSearchScans() {
+  try {
+    const value = JSON.parse(localStorage.getItem(STORAGE_KEYS.savedSearchScans) || "{}");
+    return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  } catch {
+    return {};
+  }
+}
+
+function getSavedSearchScan(profile, scans = loadSavedSearchScans()) {
+  const scan = scans[getProfileDiscoveryKey(profile)];
+  return scan?.signature === getSavedSearchScanSignature(profile)
+    && !isTimestampAfter(profile.lastScannedAt, scan.checkedAt) ? scan : null;
+}
+
+function getSavedSearchCountableListings(profile, listings) {
+  const context = {
+    feedback: getProfileFeedback(profile),
+    noiseTerms: uniqueTerms([...ACCESSORY_TERMS, ...(profile.noiseTerms || [])]),
+    gearConfidenceCache: new Map(),
+  };
+  return listings
+    .filter((listing) => !isUnavailableListing(listing))
+    .filter((listing) => !isListingHiddenByFeedback(listing, context))
+    .filter((listing) => !appSettings.gearMode || isCleanGearListing(listing, context));
+}
+
+function getSavedSearchNewCount(profile, scan = getSavedSearchScan(profile), ledger = loadLedger()) {
+  if (!scan) {
+    const age = Date.now() - Date.parse(profile.lastScannedAt || "");
+    return age >= 0 && age <= FRESH_LISTING_MS ? sanitizeCount(profile.lastNewCount) : 0;
+  }
+  const seen = new Set(loadSet(STORAGE_KEYS.seen));
+  const listings = normalizeStoredList(scan.listingIds).map((id) => ledger[id]).filter(Boolean);
+  return getSavedSearchCountableListings(profile, listings).filter((listing) => (
+    getListingNewBadgeEligibility(listing, ledger[listing.id], {
+      isSeen: seen.has(listing.id) || isListingAcknowledged(ledger[listing.id]),
+      sourceWindowMs: FRESH_LISTING_MS,
+      fallbackWindowMs: FRESH_DISCOVERY_FALLBACK_MS,
+    }).showsNewBadge
+  )).length;
+}
+
+function recordSavedSearchScan(profile, listings, liveResult) {
+  const stored = findSavedSearchForScan(profile);
+  if (!stored || liveResult.mode !== "live") return null;
+  const now = new Date().toISOString();
+  const scans = loadSavedSearchScans();
+  const previous = getSavedSearchScan(stored, scans);
+  const ledger = loadLedger();
+  const stats = liveResult.meta?.sourceStats || [];
+  const completedSources = new Set(stored.sources.filter((source) => {
+    const stat = stats.find((item) => item.source === source);
+    return stat ? stat.status === "ok" : stats.length === 0 && !(liveResult.errors?.length);
+  }));
+  if (completedSources.has("hardoff")) completedSources.add("offmall");
+  if (completedSources.size === 0 && listings.length === 0) return null;
+  const retainedIds = normalizeStoredList(previous?.listingIds)
+    .filter((id) => ledger[id] && !completedSources.has(ledger[id].source));
+  const scan = {
+    signature: getSavedSearchScanSignature(stored),
+    checkedAt: now,
+    sourceScannedAt: { ...previous?.sourceScannedAt },
+    listingIds: [...new Set([...retainedIds, ...listings.map((listing) => listing.id)])],
+  };
+  completedSources.forEach((source) => { scan.sourceScannedAt[source] = now; });
+  scans[getProfileDiscoveryKey(stored)] = scan;
+  const activeKeys = new Set(loadProfiles().map(getProfileDiscoveryKey));
+  try {
+    localStorage.setItem(STORAGE_KEYS.savedSearchScans, JSON.stringify(
+      Object.fromEntries(Object.entries(scans).filter(([key]) => activeKeys.has(key))),
+    ));
+  } catch (error) {
+    if (!isStorageQuotaError(error)) throw error;
+    // The index is disposable; full storage must not interrupt result rendering.
+    localStorage.removeItem(STORAGE_KEYS.savedSearchScans);
+    try {
+      localStorage.setItem(STORAGE_KEYS.savedSearchScans, JSON.stringify({ [getProfileDiscoveryKey(stored)]: scan }));
+    } catch (retryError) {
+      if (!isStorageQuotaError(retryError)) throw retryError;
+      console.warn("Saved-search counts will use the latest summary until browser storage has room for the scan index.");
+    }
+  }
+  const countable = getSavedSearchCountableListings(stored, scan.listingIds.map((id) => ledger[id]).filter(Boolean));
+  const scanSummary = {
+    lastScannedAt: now,
+    lastMatchCount: countable.length,
+    lastNewCount: getSavedSearchNewCount(stored, scan, ledger),
+    lastSourceCount: new Set(countable.map((listing) => listing.source)).size,
+    lastScanStatus: liveResult.errors?.length ? "partial" : "ok",
+  };
+  updateStoredProfileScan(stored, scanSummary);
+  return hydrateProfile({ ...stored, ...scanSummary });
+}
+
+function isSavedSearchSurfaceOpen() {
+  return !savedResultsDrawer.hidden || getCurrentAppView() === APP_VIEW_MY_PAGE;
+}
+
+function scheduleSavedSearchRefresh() {
+  window.clearTimeout(savedSearchRefreshTimer);
+  savedSearchRefreshTimer = window.setTimeout(() => {
+    refreshSavedSearches().catch((error) => console.warn("Saved-search refresh failed.", error));
+  }, 250);
+}
+
+async function refreshSavedSearches() {
+  if (savedSearchRefreshPromise) return savedSearchRefreshPromise;
+  const userId = authState.user?.id;
+  savedSearchRefreshPromise = (async () => {
+    // One saved search at a time keeps connector work bounded while browsing.
+    for (const profile of loadProfiles()) {
+      if (!isSavedSearchSurfaceOpen() || document.hidden || authState.user?.id !== userId) break;
+      if (isSearching) break;
+      const key = getProfileDiscoveryKey(profile);
+      const scan = getSavedSearchScan(profile);
+      const checkedAt = Math.max(Date.parse(scan?.checkedAt || "") || 0, savedSearchRefreshAttempts.get(key) || 0);
+      if (Date.now() - checkedAt < SAVED_SEARCH_REFRESH_MS) continue;
+      savedSearchRefreshAttempts.set(key, Date.now());
+      savedSearchesChecking.add(profile.id);
+      savedSearchRefreshErrors.delete(profile.id);
+      renderSavedResultsDrawer();
+      const startedAt = Date.now();
+      try {
+        const result = await fetchLiveListings(profile);
+        if (!findSavedSearchForScan(profile) || authState.user?.id !== userId) continue;
+        if (isSearching || Date.parse(getSavedSearchScan(profile)?.checkedAt || "") > startedAt) continue;
+        if (result.mode !== "live") {
+          savedSearchRefreshErrors.add(profile.id);
+          continue;
+        }
+        const listings = getSearchMatchingListings(profile, result.listings);
+        recordListingDiscoveries(profile, listings, { presented: false });
+        recordSavedSearchScan(profile, listings, result);
+        queueSavedSearchAutoSync("saved-search-refresh", { delay: 4500 });
+      } catch (error) {
+        savedSearchRefreshErrors.add(profile.id);
+        console.warn(`Could not refresh saved search ${profile.name}.`, error);
+      } finally {
+        savedSearchesChecking.delete(profile.id);
+        renderSavedSearches();
+      }
+    }
+  })();
+  try {
+    await savedSearchRefreshPromise;
+  } finally {
+    savedSearchRefreshPromise = null;
+    if (isSavedSearchSurfaceOpen()) {
+      window.clearTimeout(savedSearchRefreshTimer);
+      savedSearchRefreshTimer = window.setTimeout(scheduleSavedSearchRefresh, SAVED_SEARCH_REFRESH_MS);
+    }
+  }
 }
 
 function resetToIdleSearch() {
@@ -8129,6 +8348,7 @@ function openMyPageView(eventOrOptions = {}) {
   renderResults({ force: true });
   scrollResultsTop();
   options?.focusTarget?.focus?.();
+  scheduleSavedSearchRefresh();
 }
 
 function renderSettingsPageView() {
@@ -9839,7 +10059,7 @@ async function fetchLiveListings(profile, sourceOverride = profile.sources) {
       categoryIntent: profile.categoryIntent || getRegionDefaultCategoryIntent(profile.regionId),
       maxPrice: String(profile.maxPrice || 0),
       sources: sources.join("|"),
-      region: getActiveRegion().id,
+      region: profile.regionId || getActiveRegion().id,
     });
     const response = await fetch(`/api/search?${params.toString()}`, { cache: "no-store" });
 
@@ -10369,7 +10589,7 @@ function renderListingNewnessBadges(fragment, newness) {
 }
 
 function observeNewListingCard(card, listing, newness) {
-  if (!card || !listing?.id || !newness?.showsNewBadge || typeof IntersectionObserver !== "function") return;
+  if (isSearching || !card || !listing?.id || !newness?.showsNewBadge || typeof IntersectionObserver !== "function") return;
 
   if (!listingSeenObserver) {
     listingSeenObserver = new IntersectionObserver(handleNewListingVisibility, {
@@ -12163,12 +12383,12 @@ function getListingNewness(listing, renderContext = null) {
   const seen = isListingAcknowledged(entry) || (renderContext?.seen ? renderContext.seen.has(listing.id) : isSeen(listing.id));
   const isNewToBrrtz = currentDiscoveryIds.has(listing.id) || !entry;
   const isNewToSearch = Boolean(entry) && currentNewForSearchIds.has(listing.id);
-  const hasDiscoveryBaseline = hasProfileDiscoveryBaseline(ledger, currentProfile);
+  const hasDiscoveryBaseline = hasProfileDiscoveryBaseline(ledger, currentProfile, listing.source);
   const eligibility = getListingNewBadgeEligibility(listing, entry, {
     isNewDiscovery: isNewToBrrtz,
     isSeen: seen,
     discoveredAfterBaseline: entry?.discoveredAfterBaseline === true
-      || (isNewToBrrtz && hasDiscoveryBaseline),
+      || (!entry && hasDiscoveryBaseline),
     sourceWindowMs: FRESH_LISTING_MS,
     fallbackWindowMs: FRESH_DISCOVERY_FALLBACK_MS,
   });
@@ -12441,8 +12661,8 @@ function deriveNoiseTerm(listing) {
   return "";
 }
 
-function getProfileFeedback() {
-  return hydrateFeedback(loadFeedbackRules()[getProfileKey(currentProfile)]);
+function getProfileFeedback(profile = currentProfile) {
+  return hydrateFeedback(loadFeedbackRules()[getProfileKey(profile)]);
 }
 
 function loadFeedbackRules() {
@@ -12545,6 +12765,10 @@ function createLiveSourceLabel(meta = {}, fallback = "") {
 }
 
 function renderSavedSearches() {
+  const activeControl = document.activeElement;
+  const pageFocus = activeControl?.matches?.("[data-my-page-filter]")
+    ? { focusControl: "filter", selectionStart: activeControl.selectionStart }
+    : activeControl?.matches?.("[data-my-page-sort]") ? { focusControl: "sort" } : {};
   const profiles = loadProfiles();
   if (profiles.length === 0) {
     savedSearches.innerHTML = `<div class="empty-state">Save your current search to pin it here.</div>`;
@@ -12593,7 +12817,7 @@ function renderSavedSearches() {
   });
   updateQuickSaveSearchButton();
   updateSavedResultsDrawerAvailability();
-  if (getCurrentAppView() === APP_VIEW_MY_PAGE) renderMyPageView();
+  if (getCurrentAppView() === APP_VIEW_MY_PAGE) renderMyPageView(pageFocus);
 }
 
 function handleSavedSearchClick(profile, returnFocus = null) {
@@ -12650,8 +12874,6 @@ function activateSavedSearch(profile, options = {}) {
     currentProfile = saveProfile(currentProfile);
     renderSavedSearches();
     queueSavedSearchAutoSync("duplicate-region-search");
-  } else {
-    acknowledgeSavedSearchNewListings(profile);
   }
 
   fillForm(currentProfile);
@@ -12661,18 +12883,6 @@ function activateSavedSearch(profile, options = {}) {
   setAppView(null);
   syncSearchUrl(currentProfile);
   runSearch();
-}
-
-function acknowledgeSavedSearchNewListings(profile) {
-  const hydratedProfile = hydrateProfile(profile);
-  if (Number(hydratedProfile.lastNewCount || 0) <= 0) return;
-  saveProfile({
-    ...hydratedProfile,
-    lastNewCount: 0,
-  });
-  renderSavedResultsDrawer();
-  if (getCurrentAppView() === APP_VIEW_MY_PAGE) renderMyPageView();
-  queueSavedSearchAutoSync("saved-search-opened", { delay: 1200 });
 }
 
 function leaveWatchlistModeForSavedSearch() {
@@ -12744,11 +12954,11 @@ function createProfileForRegion(profile, targetRegionId, options = {}) {
     id: options.duplicate ? "" : hydratedProfile.id,
     name,
     regionId: targetRegionId,
-    sources: targetSources,
+    sources: regionChanged ? targetSources : hydratedProfile.sources,
     maxPrice: shouldUseTargetPrice ? targetDefaultMaxPrice : hydratedProfile.maxPrice,
     lastScannedAt: options.duplicate ? "" : hydratedProfile.lastScannedAt,
     lastMatchCount: options.duplicate ? 0 : hydratedProfile.lastMatchCount,
-      lastNewCount: options.duplicate ? 0 : hydratedProfile.lastNewCount,
+    lastNewCount: options.duplicate ? 0 : hydratedProfile.lastNewCount,
     lastSourceCount: options.duplicate ? 0 : hydratedProfile.lastSourceCount,
     lastScanStatus: options.duplicate ? "" : hydratedProfile.lastScanStatus,
     sync: options.duplicate ? { provider: "local", status: "local" } : hydratedProfile.sync,
@@ -12842,8 +13052,8 @@ function createSavedSearchRepository({ storageKey }) {
       if (!Array.isArray(parsedProfiles)) return [];
 
       const validProfiles = parsedProfiles.filter((profile) => profile && typeof profile === "object");
-      const hydratedProfiles = validProfiles.map(hydrateProfile);
-      if (shouldMigrateStoredProfiles(parsedProfiles) || validProfiles.length !== parsedProfiles.length) {
+      const hydratedProfiles = deduplicateSavedSearches(validProfiles.map(hydrateProfile));
+      if (shouldMigrateStoredProfiles(parsedProfiles) || hydratedProfiles.length !== parsedProfiles.length) {
         try {
           write(hydratedProfiles);
         } catch (error) {
@@ -12851,16 +13061,21 @@ function createSavedSearchRepository({ storageKey }) {
           console.warn("Saved searches loaded, but local storage quota prevented migration cleanup.", error);
         }
       }
-      return hydratedProfiles;
+      const scans = loadSavedSearchScans();
+      const ledger = loadLedger();
+      return hydratedProfiles.map((profile) => ({
+        ...profile,
+        lastNewCount: getSavedSearchNewCount(profile, getSavedSearchScan(profile, scans), ledger),
+      }));
     } catch {
       return [];
     }
   }
 
   function write(profiles) {
-    const hydratedProfiles = profiles
+    const hydratedProfiles = deduplicateSavedSearches(profiles
       .filter((profile) => profile && typeof profile === "object")
-      .map(hydrateProfile);
+      .map(hydrateProfile));
     writeStoredProfiles(storageKey, hydratedProfiles);
     return hydratedProfiles;
   }
@@ -12872,9 +13087,12 @@ function createSavedSearchRepository({ storageKey }) {
       ? existingProfiles.find((item) => item.id === profile.id)
       : null)
       || existingProfiles.find((item) => item.name === profile.name);
+    const searchChanged = existingProfile
+      && getSavedSearchScanSignature(existingProfile) !== getSavedSearchScanSignature({ ...existingProfile, ...profile });
     const hydratedProfile = hydrateProfile({
       ...existingProfile,
       ...profile,
+      ...(searchChanged ? hydrateSavedSearchScanSummary() : {}),
       id: profile.id || existingProfile?.id,
       createdAt: profile.createdAt || existingProfile?.createdAt || savedAt,
       updatedAt: savedAt,
@@ -12920,15 +13138,14 @@ function createSavedSearchRepository({ storageKey }) {
   function updateScan(profile, scanSummary) {
     const scannedAt = scanSummary.lastScannedAt || new Date().toISOString();
     const nextProfiles = list().map((item) => {
-      if (item.name !== profile.name) return item;
+      if (item.id !== profile.id || getSavedSearchScanSignature(item) !== getSavedSearchScanSignature(profile)) return item;
+      if (isTimestampAfter(item.lastScannedAt, scannedAt)) return item;
       return hydrateProfile({
         ...item,
         ...scanSummary,
-        updatedAt: scannedAt,
         sync: {
           ...item.sync,
           status: "local",
-          lastLocalChangeAt: scannedAt,
         },
       });
     });
@@ -12941,20 +13158,7 @@ function createSavedSearchRepository({ storageKey }) {
     const existingProfiles = list();
     const duplicateCount = importedProfiles.filter((profile) => findMatchingSavedSearch(existingProfiles, profile)).length;
     if (options.preferNewest) {
-      const mergedProfiles = [];
-
-      [...importedProfiles, ...existingProfiles].forEach((profile) => {
-        const duplicateIndex = mergedProfiles.findIndex((candidate) => findMatchingSavedSearch([candidate], profile));
-        if (duplicateIndex === -1) {
-          mergedProfiles.push(profile);
-          return;
-        }
-
-        const existingProfile = mergedProfiles[duplicateIndex];
-        if (isTimestampAfter(profile.updatedAt, existingProfile.updatedAt)) {
-          mergedProfiles[duplicateIndex] = profile;
-        }
-      });
+      const mergedProfiles = deduplicateSavedSearches([...existingProfiles, ...importedProfiles]);
 
       return {
         duplicateCount,
@@ -12962,11 +13166,7 @@ function createSavedSearchRepository({ storageKey }) {
       };
     }
 
-    const importedKeys = new Set(importedProfiles.flatMap(getSavedSearchMergeKeys));
-    const mergedProfiles = [
-      ...importedProfiles,
-      ...existingProfiles.filter((profile) => !getSavedSearchMergeKeys(profile).some((key) => importedKeys.has(key))),
-    ];
+    const mergedProfiles = deduplicateSavedSearches([...importedProfiles, ...existingProfiles], { preferFirst: true });
 
     return {
       duplicateCount,
@@ -13484,13 +13684,14 @@ function saveLedger(ledger) {
 }
 
 function getNewDiscoveryIds(listings, ledger = loadLedger(), profile = currentProfile) {
-  const hasDiscoveryBaseline = hasProfileDiscoveryBaseline(ledger, profile);
+  const seen = new Set(loadSet(STORAGE_KEYS.seen));
   return new Set(listings
     .filter((listing) => {
       if (ledger[listing.id]) return false;
       return getListingNewBadgeEligibility(listing, {}, {
         isNewDiscovery: true,
-        discoveredAfterBaseline: hasDiscoveryBaseline,
+        isSeen: seen.has(listing.id),
+        discoveredAfterBaseline: hasProfileDiscoveryBaseline(ledger, profile, listing.source),
         sourceWindowMs: FRESH_LISTING_MS,
         fallbackWindowMs: FRESH_DISCOVERY_FALLBACK_MS,
       }).showsNewBadge;
@@ -13532,23 +13733,31 @@ function listingLedgerEntryMatchesProfile(entry = {}, profile = {}) {
   return Boolean(profileName && normalizeStoredList(entry.profileNames).includes(profileName));
 }
 
-function hasProfileDiscoveryBaseline(ledger = {}, profile = {}) {
-  return Object.values(ledger).some((entry) => listingLedgerEntryMatchesProfile(entry, profile));
+function hasProfileDiscoveryBaseline(ledger = {}, profile = {}, source = "") {
+  const scans = loadSavedSearchScans();
+  if (scans[getProfileDiscoveryKey(profile)]) {
+    const sourceScannedAt = getSavedSearchScan(profile, scans)?.sourceScannedAt || {};
+    return Boolean(source ? sourceScannedAt[source] : Object.keys(sourceScannedAt).length);
+  }
+  return Object.values(ledger).some((entry) => listingLedgerEntryMatchesProfile(entry, profile)
+    && (!source || entry.source === source));
 }
 
-function recordListingDiscoveries(profile, listings) {
+function recordListingDiscoveries(profile, listings, options = {}) {
   const ledger = loadLedger();
   const now = new Date().toISOString();
-  const hasDiscoveryBaseline = hasProfileDiscoveryBaseline(ledger, profile);
+  const baselineSources = new Set(listings.map((listing) => listing.source)
+    .filter((source) => hasProfileDiscoveryBaseline(ledger, profile, source)));
 
   listings.forEach((listing) => {
     const previous = ledger[listing.id];
     ledger[listing.id] = createLedgerEntry(listing, previous, {
       observedAt: now,
-      presented: true,
+      presented: options.presented !== false,
       profileName: profile.name,
       profileKey: getProfileDiscoveryKey(profile),
-      discoveredAfterBaseline: previous?.discoveredAfterBaseline === true || (!previous && hasDiscoveryBaseline),
+      discoveredAfterBaseline: previous?.discoveredAfterBaseline === true
+        || (!listingLedgerEntryMatchesProfile(previous || {}, profile) && baselineSources.has(listing.source)),
     });
   });
 
@@ -13583,6 +13792,8 @@ function createLedgerEntry(listing, previous = {}, options = {}) {
     ...previous,
     id: listing.id,
     source: listing.source,
+    region: listing.region || previous.region || currentProfile.regionId,
+    currency: listing.currency || previous.currency || getRegionById(listing.region || currentProfile.regionId).currency,
     title: listing.title,
     price: listing.price,
     url: listing.url,
@@ -13623,6 +13834,12 @@ function acknowledgeListings(listings, options = {}) {
   });
 
   saveLedger(ledger);
+  const acknowledgedKeys = new Set(listings.filter(Boolean).map(getListingRenderKey));
+  document.querySelectorAll(".listing-card.is-new").forEach((card) => {
+    if (acknowledgedKeys.has(card.dataset.listingKey)) card.classList.remove("is-new", "is-new-for-search");
+  });
+  renderSavedResultsDrawer();
+  if (getCurrentAppView() === APP_VIEW_MY_PAGE) renderMyPageView();
 }
 
 function applyStoredTheme() {

@@ -15,6 +15,7 @@
     "jobs:source-health:http": "node scripts/source-health-http.js",
     "test": "node --test \"test/*.test.js\"",
     "qa:golden-searches": "node scripts/golden-search-check.js",
+    "qa:saved-searches": "node scripts/saved-search-check.mjs",
     "qa:gear-scanner-curation": "node scripts/gear-scanner-curation-check.js",
     "qa:gear-scanner-report": "node scripts/gear-scanner-curation-report.js",
     "curation:noise-inbox": "node scripts/curation-noise-inbox-report.js"

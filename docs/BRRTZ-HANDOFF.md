@@ -180,6 +180,10 @@ Roland and Yamaha were intentionally removed from the curated brand strip.
 - The Saved Searches page is a compact, mostly text-based account radar.
 - Rows support new-result indication, details, email alerts, refine, and delete.
 - Alphabet hotkeys jump to the first matching saved search.
+- Saved-search surfaces refresh stale searches sequentially while open. New
+  counts represent unread, eligible matches rather than only the latest scan's
+  first discoveries. Local duplicate repair, scan baselines, and regression
+  checks are documented in `docs/newness-model.md` (updated 2026-09-16).
 - Watchlist is global. Opening it must not retain an active Brand Browser or
   Gear Scanner category filter.
 - Mobile bottom navigation contains Home, Saved, Watchlist, and Settings.
@@ -490,6 +494,7 @@ npm run design:map-check
 npm run aeo:check
 npm run qa:golden-searches
 npm run qa:gear-scanner-curation
+npm run qa:saved-searches
 ```
 
 Other operational checks:
