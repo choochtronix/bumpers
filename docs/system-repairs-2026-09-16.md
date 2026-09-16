@@ -1,12 +1,36 @@
 # System Audit Repairs
 
 Scope: all numbered findings in `system-audit-2026-09-16.md`.
-Status: local implementation and verification; NOT deployed. No production
-database changes, live email sends, commits, or pushes were performed.
+Status: deployed to production on 2026-09-16. The repair implementation is
+`1ed1258`; the two additive Supabase migrations were applied before that
+commit reached `main`. No live email was sent as part of this release.
+
+## Production Release Record
+
+- Confirmed the signed-in Bumpers Supabase project matched the configured
+  production project. Its Free plan has no scheduled backups. Before the
+  migration, exported all 65 `saved_searches` rows to a private local backup
+  outside the repository. A full-project restore drill was not performed.
+- Confirmed the live table's columns, defaults, and text primary key, then
+  applied both SQL migrations transactionally. The existing 65 rows remained.
+  Both new tables have RLS enabled and are accessible to `service_role`, not
+  `anon`; all four RPCs allow `service_role` execution and deny `anon` and
+  `authenticated` execution.
+- Exercised production sync and soft deletion inside a rolled-back SQL
+  transaction. The result was correct and left zero probe rows or revisions.
+- Pushed `1ed1258` to `main` and confirmed `https://brrtz.com/api/health`
+  reported that revision. Production AEO passed; public assets returned 200,
+  private SQL files returned 404, and unauthenticated cloud and job routes
+  returned 401 and 403 respectively.
+- A production alert dry-run was not performed because the protected job token
+  is not available locally. Dedicated two-account/two-device sync, actual
+  Safari coverage, live alert delivery, and provider-authorized Reverb access
+  remain follow-up checks. Do not infer those results from the release smoke
+  tests.
 
 ## Finding Status
 
-| Finding | Local change | Release dependency |
+| Finding | Local change | Original release dependency |
 | --- | --- | --- |
 | A01 | Explicit public-file allowlist, realpath/symlink containment, HTTP regression tests | Deploy |
 | A02 | Owner-scoped browser data, preserved legacy recovery archive, session guards and cross-tab account changes | Deploy; guest transfer remains explicit export/import |
@@ -27,7 +51,7 @@ database changes, live email sends, commits, or pushes were performed.
 
 ## Database Release Order
 
-Do not deploy this batch before approving and applying the migrations. The new
+This batch was not deployed before applying the migrations. The new
 server fails closed with `424 migration_required` instead of falling back to
 the old destructive write path. Local edits remain on the device.
 
@@ -121,9 +145,10 @@ checks passed; other marketplaces returned results in all five scenarios.
 This provider-access issue remains open pending approved Reverb credentials.
 
 WebKit installation was attempted but Playwright reports that Ubuntu 26.04 x64
-is unsupported. Actual iPhone/Safari coverage, production RLS/backup tests,
-provider access, scheduler configuration and delivery must not be claimed from
-these local checks. Run `BROWSER=webkit npm run qa:ui` on a supported host.
+is unsupported. Actual iPhone/Safari coverage, a full backup restore drill,
+dedicated-account production RLS tests, provider access, scheduler
+configuration and delivery must not be claimed from these local checks. Run
+`BROWSER=webkit npm run qa:ui` on a supported host.
 
 `/api/health` now separates liveness from sanitized source/job observations and
 includes deployment revision/uptime. It is not a dependency-readiness guarantee.
