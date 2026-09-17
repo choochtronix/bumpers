@@ -49,6 +49,38 @@ test("public budgets return Retry-After and reject oversized search inputs", () 
   assert.equal(response.status, 400);
 });
 
+test("saved-search exclusion sets fit within the public search budget", () => {
+  const guard = createPublicRouteGuard();
+  const request = { method: "GET", headers: {}, socket: { remoteAddress: "saved-search-fixture" } };
+  const response = { writeHead(status) { this.status = status; }, end() {} };
+  const searchUrl = (key, count) => {
+    const url = new URL("http://fixture/api/search");
+    url.searchParams.set(key, Array.from({ length: count }, (_, index) => `filter-${index}`).join("|"));
+    return url;
+  };
+
+  assert.equal(guard(request, response, searchUrl("excludes", 48)), true);
+  assert.equal(guard(request, response, searchUrl("excludes", 128)), true);
+  assert.equal(guard(request, response, searchUrl("excludes", 129)), false);
+  assert.equal(response.status, 400);
+  assert.equal(guard(request, response, searchUrl("terms", 33)), false);
+  assert.equal(response.status, 400);
+});
+
+test("Gear Scanner browse exclusions are accepted in every region", () => {
+  const guard = createPublicRouteGuard();
+  const request = { method: "GET", headers: {}, socket: { remoteAddress: "browse-fixture" } };
+  const response = { writeHead(status) { this.status = status; }, end() {} };
+  const excludes = Array.from({ length: 35 }, (_, index) => `noise-${index}`).join("|");
+
+  for (const region of ["japan", "bay-area", "los-angeles", "east-coast", "uk"]) {
+    const url = new URL("http://fixture/api/browse");
+    url.searchParams.set("region", region);
+    url.searchParams.set("excludes", excludes);
+    assert.equal(guard(request, response, url), true, `${region} browse request should pass`);
+  }
+});
+
 test("forwarded host cannot control an authentication redirect", () => {
   assert.equal(publicRequestOrigin({ headers: { host: "brrtz.com", "x-forwarded-host": "evil.invalid" } }), "https://brrtz.com");
   assert.equal(publicRequestOrigin({ headers: { host: "127.0.0.1:5173" } }), "http://127.0.0.1:5173");

@@ -122,7 +122,9 @@ export function createPublicRouteGuard() {
     if (url.pathname !== "/mcp" && !noise && !["GET", "HEAD"].includes(request.method)) {
       response.writeHead(405, { Allow: "GET, HEAD" }); response.end(); return false;
     }
-    if (url.toString().length > 8000 || ["terms", "excludes"].some((key) => (url.searchParams.get(key) || "").split("|").length > 32)) {
+    if (url.toString().length > 8000
+      || (url.searchParams.get("terms") || "").split("|").length > 32
+      || (url.searchParams.get("excludes") || "").split("|").length > 128) {
       response.writeHead(400); response.end("Search input is too large."); return false;
     }
     // Use the socket identity unless a trusted deployment explicitly enables one proxy hop.
