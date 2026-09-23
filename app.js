@@ -1552,6 +1552,7 @@ const STORAGE_KEYS = {
   cloudSyncMeta: "bumpers.cloudSyncMeta",
   savedSearchDeletionTombstones: "bumpers.savedSearchDeletionTombstones",
   savedSearchScans: "bumpers.savedSearchScans",
+  savedSearchSeen: "bumpers.savedSearchSeen",
   listingLedger: "bumpers.listingLedger",
   freshFindCache: "bumpers.freshFindCache",
   feedbackRules: "bumpers.feedbackRules",
@@ -5099,16 +5100,21 @@ function renderSavedResultsDrawer(profiles = loadProfiles().map(hydrateProfile))
   const focusedId = document.activeElement?.dataset?.savedResultsId;
 
   const query = normalizeText(savedResultsDrawerFilterText);
+  const ledger = loadLedger();
+  const seenIds = new Set(loadSet(STORAGE_KEYS.seen));
+  const countContexts = new Map();
+  const scans = loadSavedSearchScans();
   const visibleProfiles = profiles
     .filter((profile) => {
       if (!query) return true;
       return normalizeText([profile.name, ...(profile.terms || [])].join(" ")).includes(query);
     })
-    .sort((first, second) => {
-      const newDifference = Number(second.lastNewCount || 0) - Number(first.lastNewCount || 0);
-      if (newDifference !== 0) return newDifference;
-      return String(first.name || "").localeCompare(String(second.name || ""), undefined, { sensitivity: "base" });
-    });
+    .map((profile) => ({
+      profile,
+      newSince: getSavedSearchNewSinceCount(profile, getSavedSearchScan(profile, scans), ledger, countContexts, seenIds),
+    }))
+    .sort((first, second) => (second.newSince - first.newSince)
+      || String(first.profile.name || "").localeCompare(String(second.profile.name || ""), undefined, { sensitivity: "base" }));
 
   if (visibleProfiles.length === 0) {
     if (profiles.length === 0 && !query) {
@@ -5139,7 +5145,7 @@ function renderSavedResultsDrawer(profiles = loadProfiles().map(hydrateProfile))
     return;
   }
 
-  savedResultsDrawerList.innerHTML = visibleProfiles.map((profile) => createSavedResultsDrawerRow(profile)).join("");
+  savedResultsDrawerList.innerHTML = visibleProfiles.map(({ profile, newSince }) => createSavedResultsDrawerRow(profile, { newSince })).join("");
   bindSavedResultsDrawerRows();
   if (focusedId) {
     [...savedResultsDrawerList.querySelectorAll("[data-saved-results-id]")]
@@ -5166,24 +5172,28 @@ function createSavedResultsDrawerStarterProfile() {
 
 function createSavedResultsDrawerRow(profile, options = {}) {
   const profileId = String(profile.id || profile.name);
-  const newCount = Number(profile.lastNewCount || 0);
-  const hasNew = newCount > 0;
   const isStarter = Boolean(options.isStarter);
+  const newCount = isStarter ? 0 : (options.newSince ?? getSavedSearchNewSinceCount(profile));
+  const hasNew = newCount > 0;
+  const justSeen = !isStarter && !hasNew && isSavedSearchJustSeen(profile);
   const isCurrent = !isStarter && profilesMatchSearch(profile, currentProfile);
   const regionLabel = savedSearchesChecking.has(profile.id)
     ? "Checking..."
     : savedSearchRefreshErrors.has(profile.id)
       ? "Check failed"
       : options.metaLabel || getRegionById(getProfileHomeRegionId(profile)).label;
-  const countLabel = options.countLabel || formatNewListingCount(newCount);
+  const countLabel = options.countLabel
+    || (hasNew ? formatNewListingCount(newCount) : justSeen ? "seen just now" : "no new");
+  const markerActive = hasNew || isStarter;
+  const countClass = hasNew || isStarter ? " has-new" : justSeen ? " is-seen" : " is-quiet";
   return `
-    <button class="saved-results-drawer-row${hasNew ? " has-new" : " is-quiet"}${isCurrent ? " is-current" : ""}${isStarter ? " is-starter" : ""}" type="button" data-saved-results-id="${escapeHtml(profileId)}"${isCurrent ? ' aria-current="true"' : ""}>
-      <span class="saved-results-drawer-marker${hasNew || isStarter ? " is-active" : ""}" aria-hidden="true"><span></span></span>
+    <button class="saved-results-drawer-row${hasNew ? " has-new" : " is-quiet"}${isCurrent ? " is-current" : ""}${isStarter ? " is-starter" : ""}${justSeen ? " is-seen" : ""}" type="button" data-saved-results-id="${escapeHtml(profileId)}"${isCurrent ? ' aria-current="true"' : ""}>
+      <span class="saved-results-drawer-marker${markerActive ? " is-active" : ""}" aria-hidden="true"><span></span></span>
       <span class="saved-results-drawer-copy">
         <strong>${escapeHtml(profile.name)}</strong>
         <small>${escapeHtml(regionLabel)}</small>
       </span>
-      <span class="saved-results-drawer-count${hasNew || isStarter ? " has-new" : ""}">${escapeHtml(countLabel)}</span>
+      <span class="saved-results-drawer-count${countClass}">${escapeHtml(countLabel)}</span>
     </button>
   `;
 }
@@ -7832,6 +7842,91 @@ function getSavedSearchNewCount(profile, scan = getSavedSearchScan(profile), led
   )).length;
 }
 
+const SAVED_SEARCH_SEEN_DWELL_MS = 1500;
+const SAVED_SEARCH_SEEN_TRANSIENT_MS = 4000;
+let savedSearchSeenJustNowId = "";
+let savedSearchSeenJustNowTimer = 0;
+let savedSearchDwellTimer = 0;
+
+function loadSavedSearchSeenMap() {
+  try {
+    const value = JSON.parse(localStorage.getItem(STORAGE_KEYS.savedSearchSeen) || "{}");
+    return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  } catch {
+    return {};
+  }
+}
+
+function getSavedSearchSeenAt(profile) {
+  const key = getProfileDiscoveryKey(profile);
+  return key ? loadSavedSearchSeenMap()[key] || "" : "";
+}
+
+function isSavedSearchJustSeen(profile) {
+  if (!savedSearchSeenJustNowId) return false;
+  return String(profile.id || getProfileDiscoveryKey(profile)) === savedSearchSeenJustNowId;
+}
+
+// "New since your last visit": eligible New-badge matches first discovered after
+// the user last opened this saved search. Falls back to the full unacknowledged
+// count until the search has been opened once (so unseen searches still surface).
+function getSavedSearchNewSinceCount(profile, scan = getSavedSearchScan(profile), ledger = loadLedger(), contexts = null, seenIds = null) {
+  const baseline = getSavedSearchNewCount(profile, scan, ledger, contexts, seenIds);
+  if (baseline === 0) return 0;
+  const seenTime = Date.parse(getSavedSearchSeenAt(profile) || "");
+  if (!Number.isFinite(seenTime) || !scan) return baseline;
+  const seen = seenIds || new Set(loadSet(STORAGE_KEYS.seen));
+  const listings = normalizeStoredList(scan.listingIds).map((id) => ledger[id]).filter(Boolean);
+  return getSavedSearchCountableListings(profile, listings, contexts).filter((listing) => {
+    const entry = ledger[listing.id];
+    const eligible = getListingNewBadgeEligibility(listing, entry, {
+      isSeen: seen.has(listing.id) || isListingAcknowledged(entry),
+      sourceWindowMs: FRESH_LISTING_MS,
+      fallbackWindowMs: FRESH_DISCOVERY_FALLBACK_MS,
+    }).showsNewBadge;
+    if (!eligible) return false;
+    const arrival = Date.parse(entry?.firstDiscoveredAt || entry?.firstSeenAt || "");
+    return Number.isFinite(arrival) && arrival > seenTime;
+  }).length;
+}
+
+// Stamp the per-search "seen" watermark, clearing its sidebar new badge.
+function markSavedSearchSeen(profile) {
+  const key = getProfileDiscoveryKey(profile);
+  if (!key) return;
+  const map = loadSavedSearchSeenMap();
+  map[key] = new Date().toISOString();
+  const activeKeys = new Set(loadProfiles().map(getProfileDiscoveryKey));
+  try {
+    localStorage.setItem(STORAGE_KEYS.savedSearchSeen, JSON.stringify(
+      Object.fromEntries(Object.entries(map).filter(([entryKey]) => activeKeys.has(entryKey))),
+    ));
+  } catch (error) {
+    if (!isStorageQuotaError(error)) throw error;
+    // The watermark index is disposable; a full quota must not break rendering.
+    localStorage.removeItem(STORAGE_KEYS.savedSearchSeen);
+  }
+  savedSearchSeenJustNowId = String(profile.id || key);
+  clearTimeout(savedSearchSeenJustNowTimer);
+  savedSearchSeenJustNowTimer = setTimeout(() => {
+    savedSearchSeenJustNowId = "";
+    renderSavedResultsDrawer();
+    renderSavedSearches();
+  }, SAVED_SEARCH_SEEN_TRANSIENT_MS);
+  renderSavedResultsDrawer();
+  renderSavedSearches();
+}
+
+// Dwell before acknowledging so an accidental click doesn't clear the badge.
+function scheduleSavedSearchSeen(profile) {
+  clearTimeout(savedSearchDwellTimer);
+  const snapshot = hydrateProfile(profile);
+  savedSearchDwellTimer = setTimeout(() => {
+    if (!profilesMatchSearch(snapshot, currentProfile)) return;
+    markSavedSearchSeen(snapshot);
+  }, SAVED_SEARCH_SEEN_DWELL_MS);
+}
+
 function recordSavedSearchScan(profile, listings, liveResult) {
   const stored = findSavedSearchForScan(profile);
   if (!stored || liveResult.mode !== "live") return null;
@@ -8655,7 +8750,7 @@ function restoreMyPageControlFocus(options = {}) {
 
 function createMyPageSavedSearchRow(profile) {
   const profileId = escapeHtml(profile.id || profile.name);
-  const newCount = Number(profile.lastNewCount || 0);
+  const newCount = getSavedSearchNewSinceCount(profile);
   const terms = formatSavedSearchTerms(profile);
   const sourceSummary = formatSavedSearchSources(profile);
   const regionLabel = getRegionById(getProfileHomeRegionId(profile)).label;
@@ -12932,6 +13027,10 @@ function renderSavedSearches() {
   }
 
   savedSearches.innerHTML = "";
+  const ledger = loadLedger();
+  const seenIds = new Set(loadSet(STORAGE_KEYS.seen));
+  const countContexts = new Map();
+  const scans = loadSavedSearchScans();
   profiles.forEach((profile) => {
     const hydratedProfile = hydrateProfile(profile);
     const homeRegionId = getProfileHomeRegionId(hydratedProfile);
@@ -12942,7 +13041,7 @@ function renderSavedSearches() {
     const button = document.createElement("button");
     button.className = "saved-search";
     button.type = "button";
-    const newCount = hydratedProfile.lastNewCount || 0;
+    const newCount = getSavedSearchNewSinceCount(hydratedProfile, getSavedSearchScan(hydratedProfile, scans), ledger, countContexts, seenIds);
     button.innerHTML = `
       <strong class="saved-search-title"></strong>
       <span class="saved-search-region${isCurrentRegion ? "" : " is-away"}"></span>
@@ -13036,6 +13135,7 @@ function activateSavedSearch(profile, options = {}) {
   setAppView(null);
   syncSearchUrl(currentProfile);
   runSearch();
+  if (!duplicate) scheduleSavedSearchSeen(currentProfile);
 }
 
 function leaveWatchlistModeForSavedSearch() {

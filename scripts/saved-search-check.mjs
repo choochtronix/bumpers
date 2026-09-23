@@ -31,8 +31,8 @@ try {
     };
     const result = (listings, extra = {}) => ({ mode: "live", listings, errors: [], detail: "", ...extra });
     const reset = (saved = profile) => {
-      [STORAGE_KEYS.listingLedger, STORAGE_KEYS.savedSearchScans, STORAGE_KEYS.seen, STORAGE_KEYS.feedbackRules,
-        STORAGE_KEYS.savedSearchDeletionTombstones].forEach((key) => localStorage.removeItem(key));
+      [STORAGE_KEYS.listingLedger, STORAGE_KEYS.savedSearchScans, STORAGE_KEYS.savedSearchSeen, STORAGE_KEYS.seen,
+        STORAGE_KEYS.feedbackRules, STORAGE_KEYS.savedSearchDeletionTombstones].forEach((key) => localStorage.removeItem(key));
       savedSearchRepository.replaceAll([saved]);
       currentProfile = saved;
     };
@@ -54,6 +54,19 @@ try {
     check("viewing the listing clears the saved unread count", loadProfiles()[0].lastNewCount, 0);
     const selected = createProfileForRegion(profile, "japan");
     check("opening a saved search preserves its selected sources", selected.sources, profile.sources);
+
+    reset();
+    const datedMoog = { ...listing, listedAt: now };
+    applySearchResult(profile, result([datedMoog]), true);
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+    check("new-since surfaces a fresh match before opening", getSavedSearchNewSinceCount(loadProfiles()[0]), 1);
+    markSavedSearchSeen(loadProfiles()[0]);
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    check("opening a saved search clears its new-since badge", getSavedSearchNewSinceCount(loadProfiles()[0]), 0);
+    const laterMoog = { ...listing, id: "yahoo-auctions-moog-later", title: "Moog Grandmother", listedAt: new Date().toISOString() };
+    applySearchResult(profile, result([datedMoog, laterMoog]), true);
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+    check("a genuinely new arrival re-lights the badge after opening", getSavedSearchNewSinceCount(loadProfiles()[0]), 1);
 
     const merged = savedSearchRepository.previewMerge([
       { ...profile, updatedAt: "2020-01-01T00:00:00.000Z", lastScannedAt: now, lastMatchCount: 12 },
