@@ -31,6 +31,11 @@ try {
     };
     const result = (listings, extra = {}) => ({ mode: "live", listings, errors: [], detail: "", ...extra });
     const reset = (saved = profile) => {
+      clearTimeout(savedSearchDwellTimer);
+      clearTimeout(savedSearchSeenJustNowTimer);
+      savedSearchDwellTimer = 0;
+      savedSearchSeenJustNowTimer = 0;
+      savedSearchSeenJustNowId = "";
       [STORAGE_KEYS.listingLedger, STORAGE_KEYS.savedSearchScans, STORAGE_KEYS.savedSearchSeen, STORAGE_KEYS.seen,
         STORAGE_KEYS.feedbackRules, STORAGE_KEYS.savedSearchDeletionTombstones].forEach((key) => localStorage.removeItem(key));
       savedSearchRepository.replaceAll([saved]);
@@ -67,6 +72,11 @@ try {
     applySearchResult(profile, result([datedMoog, laterMoog]), true);
     await new Promise((resolve) => setTimeout(resolve, 1200));
     check("a genuinely new arrival re-lights the badge after opening", getSavedSearchNewSinceCount(loadProfiles()[0]), 1);
+    const seenAtBeforeAccountChange = getSavedSearchSeenAt(loadProfiles()[0]);
+    scheduleSavedSearchSeen(loadProfiles()[0]);
+    authSessionRevision += 1;
+    await new Promise((resolve) => setTimeout(resolve, SAVED_SEARCH_SEEN_DWELL_MS + 50));
+    check("an account change cancels delayed saved-search acknowledgement", getSavedSearchSeenAt(loadProfiles()[0]), seenAtBeforeAccountChange);
 
     const merged = savedSearchRepository.previewMerge([
       { ...profile, updatedAt: "2020-01-01T00:00:00.000Z", lastScannedAt: now, lastMatchCount: 12 },

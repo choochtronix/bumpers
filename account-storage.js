@@ -2,7 +2,7 @@
   function createAccountStorage(storage, keys, getOwner) {
     const privateKeys = new Set([keys.profiles, keys.seen, keys.watching, keys.settings,
       keys.cloudSyncMeta, keys.savedSearchDeletionTombstones, keys.savedSearchScans,
-      keys.listingLedger, keys.freshFindCache, keys.feedbackRules].filter(Boolean));
+      keys.savedSearchSeen, keys.listingLedger, keys.freshFindCache, keys.feedbackRules].filter(Boolean));
     const scope = (key, owner) => `${key}.owner.${encodeURIComponent(owner || "guest")}`;
     const read = (key, fallback) => {
       try { return JSON.parse(storage.getItem(key)) ?? fallback; } catch { return fallback; }
@@ -11,21 +11,36 @@
     const profiles = Array.isArray(storedProfiles)
       ? storedProfiles.filter((profile) => profile && typeof profile === "object" && !Array.isArray(profile)) : [];
     const profileOwner = (profile) => typeof profile.userId === "string" && profile.userId && profile.userId !== "local" ? profile.userId : "guest";
+    const owners = new Set([...profiles.map((profile) => profile.userId),
+      read(keys.authSession, {})?.user?.id, read(keys.cloudSyncMeta, {})?.userId]
+      .filter((id) => typeof id === "string" && id && id !== "local"));
+    const legacyOwner = owners.size === 1 ? [...owners][0] : owners.size ? "legacy-quarantine" : "guest";
     let migration = read("brrtz.accountStorage.v1", null);
+    const isNewMigration = !migration;
     if (!migration) {
-      const owners = new Set([...profiles.map((profile) => profile.userId),
-        read(keys.authSession, {})?.user?.id, read(keys.cloudSyncMeta, {})?.userId]
-        .filter((id) => typeof id === "string" && id && id !== "local"));
-      const legacyOwner = owners.size === 1 ? [...owners][0] : owners.size ? "legacy-quarantine" : "guest";
       migration = { aliases: {} };
+    }
+    let migrationChanged = isNewMigration;
+    if (migration && typeof migration === "object" && !Array.isArray(migration)) {
+      if (!migration.aliases || typeof migration.aliases !== "object" || Array.isArray(migration.aliases)) {
+        migration.aliases = {};
+        migrationChanged = true;
+      }
       for (const key of privateKeys) {
         if (key === keys.profiles) continue;
-        if (storage.getItem(key) !== null && storage.getItem(scope(key, legacyOwner)) === null) migration.aliases[key] = legacyOwner;
+        if (storage.getItem(key) !== null
+          && !Object.prototype.hasOwnProperty.call(migration.aliases, key)
+          && storage.getItem(scope(key, legacyOwner)) === null) {
+          migration.aliases[key] = legacyOwner;
+          migrationChanged = true;
+        }
       }
+    }
+    if (migrationChanged) {
       // Bind bulky legacy keys to one owner rather than doubling their storage usage.
       try { storage.setItem("brrtz.accountStorage.v1", JSON.stringify(migration)); }
       catch {
-        migration = { aliases: {} };
+        if (isNewMigration) migration = { aliases: {} };
         console.warn("Account storage migration needs free browser storage. Original data is preserved.");
       }
     }

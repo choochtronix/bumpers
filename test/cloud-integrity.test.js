@@ -88,6 +88,32 @@ test("account migration binds a large legacy cache without copying it or exposin
   owner = "alice"; assert.equal(reloaded.getItem("ledger"), "updated-alice-cache");
 });
 
+test("account migration binds newly private saved-search state after an earlier migration", () => {
+  const values = new Map([
+    ["profiles", '[{"id":"a","userId":"alice"}]'],
+    ["auth", '{"user":{"id":"alice"}}'],
+  ]);
+  const storage = {
+    getItem: (key) => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, String(value)),
+    removeItem: (key) => values.delete(key),
+  };
+  let owner = "alice";
+  BrrtzAccountStorage.createAccountStorage(storage, {
+    profiles: "profiles", authSession: "auth", watching: "watching",
+  }, () => owner);
+
+  storage.setItem("saved-seen", '{"search-one":"2026-09-24T00:00:00.000Z"}');
+  const scoped = BrrtzAccountStorage.createAccountStorage(storage, {
+    profiles: "profiles", authSession: "auth", watching: "watching", savedSearchSeen: "saved-seen",
+  }, () => owner);
+  assert.equal(JSON.parse(scoped.getItem("saved-seen"))["search-one"], "2026-09-24T00:00:00.000Z");
+  owner = "bob";
+  assert.equal(scoped.getItem("saved-seen"), null);
+  assert.equal(JSON.parse(storage.getItem("brrtz.accountStorage.v1")).aliases["saved-seen"], "alice");
+  assert.ok(storage.getItem("saved-seen"), "the legacy recovery copy remains available");
+});
+
 test("actual PostgreSQL migration is atomic, owner checked, revision checked and tombstone preserving", async (t) => {
   const db = new PGlite(); t.after(() => db.close());
   const doc = await readFile(new URL("../docs/supabase-alpha-cloud-sync.md", import.meta.url), "utf8");
