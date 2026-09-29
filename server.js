@@ -18,6 +18,7 @@ import { runSourceHealthAgent } from "./src/agents/sourceHealthAgent.js";
 import { appendSourceHealthLogs, readSourceHealthState } from "./src/lib/sourceHealthStore.js";
 import { createBrrtzMcpHandler } from "./src/mcp/brrtzMcpServer.js";
 import { getCheckableSources, SOURCE_REGISTRY } from "./src/sources/sourceRegistry.js";
+import { createIdleShutdown } from "./src/lib/idleShutdown.js";
 import {
   buildGearIndexPlan,
   buildGearIndexRow,
@@ -178,6 +179,11 @@ const MERCARI_CACHE_TTL_MS = 5 * 60 * 1000;
 const MERCARI_CONNECTOR_TIMEOUT_MS = 12000;
 const MERCARI_RESULT_LIMIT = 40;
 const MERCARI_TERM_LIMIT = 2;
+// The Playwright Chromium the Mercari connector launches stays resident for the
+// life of the process, which dominated the Railway memory bill (~1.4 GB held
+// continuously). Release it after a quiet spell; the next search relaunches it.
+// Set to 0 to keep the browser warm permanently (the old behaviour).
+const MERCARI_BROWSER_IDLE_MS = Math.max(0, Number(process.env.BRRTZ_MERCARI_BROWSER_IDLE_MS ?? 10 * 60 * 1000));
 const REVERB_RESULT_LIMIT = 32;
 const REVERB_TERM_LIMIT = 3;
 const EBAY_RESULT_LIMIT = 100;
@@ -271,6 +277,14 @@ const rakumaThumbnailCache = new BoundedCache({ maxEntries: 500 });
 const rakumaImageProxyCache = new BoundedCache({ maxEntries: 200, maxBytes: 32 * 1024 * 1024 });
 let ebayTokenCache = null;
 let mercariBrowserPromise;
+const mercariBrowserIdle = createIdleShutdown({
+  idleMs: MERCARI_BROWSER_IDLE_MS,
+  onIdle: () => {
+    void closeMercariBrowser()
+      .then(() => console.log("Mercari browser released after idle timeout."))
+      .catch((error) => console.warn(`Mercari browser idle shutdown failed: ${error instanceof Error ? error.message : error}`));
+  },
+});
 
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
@@ -3146,6 +3160,10 @@ async function searchMercari(term) {
   let page;
   const cancel = () => { void page?.close().catch(() => {}); };
 
+  // Claim the browser before resolving it, so an idle shutdown that is already
+  // counting down cannot close it out from under this search.
+  mercariBrowserIdle.begin();
+
   try {
     const browser = await getMercariBrowser();
     page = await browser.newPage({
@@ -3203,6 +3221,7 @@ async function searchMercari(term) {
   } finally {
     signal.removeEventListener("abort", cancel);
     if (page) await page.close().catch(() => {});
+    mercariBrowserIdle.end();
     release();
   }
 }
@@ -3230,6 +3249,7 @@ function getPlaywrightLaunchOptions() {
 }
 
 async function closeMercariBrowser() {
+  mercariBrowserIdle.cancel();
   if (!mercariBrowserPromise) return;
 
   try {
