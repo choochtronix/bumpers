@@ -88,11 +88,15 @@ function getSourceFailures(sourceStats, errors) {
     .filter((stat) => ["error"].includes(stat.status))
     .map((stat) => `${stat.source} returned ${stat.status}`);
 
+  const silentZeroes = sourceStats
+    .filter((stat) => stat.status === "ok" && Number(stat.rawCount || stat.count || 0) === 0)
+    .map((stat) => `${stat.source} returned zero listings without an error`);
+
   const errorMessages = errors
     .filter((error) => error.source)
     .map((error) => `${error.source}: ${error.message || "unknown error"}`);
 
-  return [...brokenStats, ...errorMessages];
+  return [...brokenStats, ...silentZeroes, ...errorMessages];
 }
 
 function splitEnvList(value) {

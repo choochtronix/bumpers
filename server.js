@@ -176,7 +176,10 @@ const JINA_READER_BASE_URL = "https://r.jina.ai/http://";
 const YAHOO_AUCTIONS_BASE_URL = "https://auctions.yahoo.co.jp";
 const YAHOO_FLEAMARKET_BASE_URL = "https://paypayfleamarket.yahoo.co.jp";
 const MERCARI_CACHE_TTL_MS = 5 * 60 * 1000;
-const MERCARI_CONNECTOR_TIMEOUT_MS = 12000;
+const MERCARI_CONNECTOR_TIMEOUT_MS = Math.max(
+  5000,
+  Number(process.env.BRRTZ_MERCARI_CONNECTOR_TIMEOUT_MS) || 20000,
+);
 const MERCARI_RESULT_LIMIT = 40;
 const MERCARI_TERM_LIMIT = 2;
 // The Playwright Chromium the Mercari connector launches stays resident for the
@@ -2157,10 +2160,6 @@ function createServerSearchId(name = "search") {
   return `search_${slug}_${Date.now().toString(36)}`;
 }
 
-function shouldSuppressRakumaForSearchTerms(terms = []) {
-  return terms.some((term) => String(term || "").normalize("NFKC").toLocaleLowerCase("ja-JP").includes("moog"));
-}
-
 async function handleSearch(url, response) {
   const terms = createSourceSearchTerms(splitParam(url.searchParams.get("terms")));
   const excludes = splitParam(url.searchParams.get("excludes"));
@@ -2196,7 +2195,7 @@ async function handleSearch(url, response) {
   const wantsJimoty = sources.length === 0 || sources.includes("jimoty");
   const wantsMercari = sources.length === 0 || sources.includes("mercari");
   const wantsOffmall = sources.length === 0 || sources.includes("offmall") || sources.includes("hardoff");
-  const wantsRakuma = (sources.length === 0 || sources.includes("rakuma")) && !shouldSuppressRakumaForSearchTerms(terms);
+  const wantsRakuma = sources.length === 0 || sources.includes("rakuma");
   const wantsReverb = sources.length === 0 || sources.includes("reverb");
   const wantsReverbUs = sources.length === 0 || sources.includes("reverb-us");
   const wantsReverbUk = sources.length === 0 || sources.includes("reverb-uk");
@@ -3189,8 +3188,19 @@ async function searchMercari(term) {
       await page.waitForSelector("a[data-testid='thumbnail-link'][href*='/item/']", {
         timeout: MERCARI_CONNECTOR_TIMEOUT_MS,
       });
-    } catch {
-      return [];
+    } catch (error) {
+      const loadState = await page.evaluate(() => ({
+        title: document.title || "",
+        bodyText: document.body?.innerText?.slice(0, 4000) || "",
+      })).catch(() => ({ title: "", bodyText: "" }));
+      const failure = classifyMercariLoadFailure(loadState);
+      if (failure === "empty") return [];
+      if (failure === "security_verification") {
+        throw new Error("Mercari blocked automated search with a security verification page.");
+      }
+      throw new Error(`Mercari listings did not load within ${MERCARI_CONNECTOR_TIMEOUT_MS}ms.`, {
+        cause: error,
+      });
     }
 
     const cards = await page.$$eval(
@@ -3224,6 +3234,17 @@ async function searchMercari(term) {
     mercariBrowserIdle.end();
     release();
   }
+}
+
+function classifyMercariLoadFailure({ title = "", bodyText = "" } = {}) {
+  const text = normalizeText(`${title}\n${bodyText}`);
+  if (/(security verification|セキュリティ検証|cloudflare|しばらくお待ちください)/i.test(text)) {
+    return "security_verification";
+  }
+  if (/(no items found|no results found|検索条件に一致する商品が見つかりません|商品が見つかりません)/i.test(text)) {
+    return "empty";
+  }
+  return "timeout";
 }
 
 async function getMercariBrowser() {
@@ -5110,7 +5131,7 @@ function formatYahooFleamarketCondition(item) {
 function parseYahooAuctions(html) {
   const blocks = html.match(/<li class="Product">[\s\S]*?<\/li>/g) || [];
 
-  return blocks.map((block) => {
+  const legacyListings = blocks.map((block) => {
     const rawId = matchOne(block, /data-auction-id="([^"]+)"/);
     const title = cleanText(readAttribute(block, "data-auction-title"));
     const image = normalizeUrl(readAttribute(block, "data-auction-img"), YAHOO_AUCTIONS_BASE_URL);
@@ -5144,6 +5165,58 @@ function parseYahooAuctions(html) {
         bidCount: Number(bidCount.replace(/[^\d]/g, "")) || 0,
         remainingTime,
         endAt: unixTimestampToIso(endTime) || "",
+      },
+    };
+  }).filter((listing) => listing.id !== "yahoo-auctions-" && listing.title && listing.url);
+
+  const listings = [...legacyListings, ...parseYahooAuctionsNextData(html)];
+  return [...new Map(listings.map((listing) => [listing.id, listing])).values()];
+}
+
+function parseYahooAuctionsNextData(html) {
+  const script = matchOne(html, /<script id="__NEXT_DATA__" type="application\/json"[^>]*>([\s\S]*?)<\/script>/);
+  if (!script) return [];
+
+  let data;
+  try {
+    data = JSON.parse(script);
+  } catch {
+    return [];
+  }
+
+  const items = data?.props?.pageProps?.initialState?.search?.items?.listing?.items;
+  if (!Array.isArray(items)) return [];
+
+  return items.map((item) => {
+    const rawId = String(item.auctionId || "");
+    const bidCount = Number(item.bidCount || 0);
+    const endTime = Date.parse(item.endTime || "");
+    const endTimestamp = Number.isFinite(endTime) ? Math.floor(endTime / 1000) : 0;
+    const buyoutPrice = Number(item.buyNowPrice || 0);
+    const startPrice = Number(item.initPriceNoTax || 0);
+    const price = Number(item.price || 0);
+
+    return {
+      id: `yahoo-auctions-${rawId}`,
+      source: "yahoo-auctions",
+      title: cleanText(String(item.title || "")),
+      price,
+      condition: createYahooAuctionCondition(bidCount ? String(bidCount) : "", "", endTimestamp),
+      shop: "Yahoo Auctions",
+      listedAt: normalizeSourceListedAt(item.startTime),
+      url: normalizeUrl(`/jp/auction/${rawId}`, YAHOO_AUCTIONS_BASE_URL),
+      image: normalizeUrl(item.imageUrl || "", YAHOO_AUCTIONS_BASE_URL),
+      categoryId: item.category?.id ? String(item.category.id) : "",
+      categoryPath: Array.isArray(item.categoryPath)
+        ? item.categoryPath.map((category) => String(category?.id || "")).filter(Boolean)
+        : [],
+      auction: {
+        currentPrice: price,
+        buyoutPrice,
+        startPrice,
+        bidCount,
+        remainingTime: "",
+        endAt: normalizeSourceListedAt(item.endTime),
       },
     };
   }).filter((listing) => listing.id !== "yahoo-auctions-" && listing.title && listing.url);
