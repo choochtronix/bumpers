@@ -173,6 +173,23 @@ try {
     check("background scan preserves the active search", currentProfile.id, originalProfileId);
     await refreshSavedSearches();
     check("reopening fresh saved searches does not rescan", refreshCalls, 1);
+
+    let activatedSources = null;
+    let releaseActivation;
+    const activationGate = new Promise((resolve) => { releaseActivation = resolve; });
+    fetchLiveListings = async (activatedProfile, sourceOverride = activatedProfile.sources) => {
+      activatedSources = [...sourceOverride];
+      await activationGate;
+      return result([]);
+    };
+    activateSavedSearch(loadProfiles()[0], { regionId: "japan" });
+    while (!activatedSources) await new Promise((resolve) => setTimeout(resolve, 10));
+    check("activating a saved search requests only its selected sources", activatedSources, ["yahoo-auctions"]);
+    check("opening a saved search does not clear its unread listing count", loadProfiles()[0].lastNewCount, 1);
+    releaseActivation();
+    while (isSearching) await new Promise((resolve) => setTimeout(resolve, 10));
+    clearTimeout(savedSearchDwellTimer);
+    savedSearchDwellTimer = 0;
     fetchLiveListings = originalFetch;
     closeSavedResultsDrawer();
     window.clearTimeout(savedSearchRefreshTimer);
@@ -215,39 +232,6 @@ try {
       assert.equal(layout.titleUnobstructed, true);
     }
   }
-  await page.evaluate(() => {
-    window.clearTimeout(savedSearchRefreshTimer);
-    window.clearTimeout(savedSearchAutoSyncTimer);
-    window.clearTimeout(profileAutoSyncTimer);
-  });
-  await page.waitForFunction(() => !isSearching);
-  await page.evaluate(() => {
-    window.__savedSearchCheckOriginalFetch = fetchLiveListings;
-    window.__savedSearchCheckSources = null;
-    window.__savedSearchCheckGate = new Promise((resolve) => { window.__releaseSavedSearchCheck = resolve; });
-    fetchLiveListings = async (profile, sourceOverride = profile.sources) => {
-      window.__savedSearchCheckSources = [...sourceOverride];
-      await window.__savedSearchCheckGate;
-      return { listings: [], mode: "live", message: "Ready", detail: "", errors: [] };
-    };
-  });
-  await page.evaluate(() => {
-    activateSavedResultsDrawerRow(document.querySelector('[data-saved-results-id="saved-moog"]'));
-  });
-  await page.waitForFunction(() => Array.isArray(window.__savedSearchCheckSources));
-  assert.deepEqual(await page.evaluate(() => window.__savedSearchCheckSources), ["yahoo-auctions"]);
-  assert.equal(await page.evaluate(() => loadProfiles()[0].lastNewCount), 1, "opening the saved search must not clear unread counts");
-  await page.evaluate(() => {
-    window.__releaseSavedSearchCheck();
-  });
-  await page.waitForFunction(() => !isSearching);
-  await page.evaluate(() => {
-    fetchLiveListings = window.__savedSearchCheckOriginalFetch;
-    delete window.__savedSearchCheckOriginalFetch;
-    delete window.__savedSearchCheckSources;
-    delete window.__savedSearchCheckGate;
-    delete window.__releaseSavedSearchCheck;
-  });
   console.log("Saved-search desktop/mobile light/dark checks passed.");
 } finally {
   await browser.close();
