@@ -231,7 +231,9 @@ try {
       return { listings: [], mode: "live", message: "Ready", detail: "", errors: [] };
     };
   });
-  await page.evaluate(() => document.querySelector('[data-saved-results-id="saved-moog"]')?.click());
+  await page.evaluate(() => {
+    activateSavedResultsDrawerRow(document.querySelector('[data-saved-results-id="saved-moog"]'));
+  });
   await page.waitForFunction(() => Array.isArray(window.__savedSearchCheckSources));
   assert.deepEqual(await page.evaluate(() => window.__savedSearchCheckSources), ["yahoo-auctions"]);
   assert.equal(await page.evaluate(() => loadProfiles()[0].lastNewCount), 1, "opening the saved search must not clear unread counts");
