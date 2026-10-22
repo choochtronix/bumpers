@@ -215,15 +215,22 @@ try {
       assert.equal(layout.titleUnobstructed, true);
     }
   }
+  await page.evaluate(() => {
+    window.clearTimeout(savedSearchRefreshTimer);
+    window.clearTimeout(savedSearchAutoSyncTimer);
+    window.clearTimeout(profileAutoSyncTimer);
+  });
+  await page.waitForFunction(() => !isSearching);
   let releaseSearch;
   const searchGate = new Promise((resolve) => { releaseSearch = resolve; });
   await page.route("**/api/search?**", async (route) => {
     await searchGate;
     await route.fulfill({ json: { listings: [], meta: { errors: [], sourceStats: [{ source: "yahoo-auctions", status: "ok" }] } } });
   });
-  const searchRequest = page.waitForRequest((request) => request.url().includes("/api/search?"));
-  await page.locator('[data-saved-results-id="saved-moog"]').click();
-  const request = await searchRequest;
+  const [request] = await Promise.all([
+    page.waitForRequest((candidate) => candidate.url().includes("/api/search?")),
+    page.locator('[data-saved-results-id="saved-moog"]').click(),
+  ]);
   assert.equal(new URL(request.url()).searchParams.get("sources"), "yahoo-auctions");
   assert.equal(await page.evaluate(() => loadProfiles()[0].lastNewCount), 1, "opening the saved search must not clear unread counts");
   releaseSearch();
