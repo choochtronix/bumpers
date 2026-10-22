@@ -122,4 +122,13 @@ try {
     { owner: "fixture-startup", terms: ["Moog"] });
   await startup.close();
   console.log("Account isolation, durable deletion, stale-session, watch currency and performance checks passed.");
+} catch (error) {
+  if (process.env.CI) {
+    const message = String(error?.stack || error || "Unknown system regression failure")
+      .replaceAll("%", "%25")
+      .replaceAll("\r", "%0D")
+      .replaceAll("\n", "%0A");
+    console.error(`::error title=System regression check::${message}`);
+  }
+  throw error;
 } finally { await browser.close(); }
