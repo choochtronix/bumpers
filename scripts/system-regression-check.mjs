@@ -3,7 +3,10 @@ import { chromium } from "playwright";
 
 let browser;
 try {
-  browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || "/usr/bin/google-chrome-stable", args: ["--no-sandbox"] });
+  browser = await chromium.launch({
+    executablePath: process.env.CHROME_PATH || "/usr/bin/google-chrome-stable",
+    args: ["--no-sandbox", "--disable-dev-shm-usage"],
+  });
   const page = await browser.newPage();
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
@@ -129,7 +132,7 @@ try {
       .replaceAll("%", "%25")
       .replaceAll("\r", "%0D")
       .replaceAll("\n", "%0A");
-    console.error(`::error title=System regression check::${message}`);
+    console.error(`::error file=scripts/system-regression-check.mjs,line=1,title=System regression check::${message}`);
   }
   throw error;
 } finally { await browser?.close(); }

@@ -44,7 +44,7 @@ jobs:
             system_annotation=${system_output//'%'/'%25'}
             system_annotation=${system_annotation//$'\r'/'%0D'}
             system_annotation=${system_annotation//$'\n'/'%0A'}
-            printf '::error title=System regression command::%s\n' "$system_annotation"
+            printf '::error file=scripts/system-regression-check.mjs,line=1,title=System regression command::%s\n' "$system_annotation"
             exit 1
           fi
           printf '%s\n' "$system_output"
