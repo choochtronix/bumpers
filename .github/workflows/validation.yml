@@ -36,6 +36,11 @@ jobs:
           npm run qa:saved-searches
           if ! system_output=$(npm run qa:system 2>&1); then
             printf '%s\n' "$system_output"
+            {
+              printf '## System regression failure\n\n```text\n'
+              printf '%s\n' "$system_output"
+              printf '```\n'
+            } >> "$GITHUB_STEP_SUMMARY"
             system_annotation=${system_output//'%'/'%25'}
             system_annotation=${system_annotation//$'\r'/'%0D'}
             system_annotation=${system_annotation//$'\n'/'%0A'}
