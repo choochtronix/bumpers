@@ -23,7 +23,7 @@
     "curation:noise-inbox": "node scripts/curation-noise-inbox-report.js"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "1.29.0",
+    "@modelcontextprotocol/sdk": "1.32.1",
     "playwright": "^1.60.0",
     "zod": "^4.4.3"
   },
