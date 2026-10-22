@@ -3157,6 +3157,7 @@ async function searchMercari(term) {
   const signal = requestContext.getStore()?.signal || AbortSignal.timeout(45_000);
   const release = await mercariSlots.acquire(signal);
   let page;
+  let captureMercariSearchResponse;
   const cancel = () => { void page?.close().catch(() => {}); };
 
   // Claim the browser before resolving it, so an idle shutdown that is already
@@ -3169,6 +3170,14 @@ async function searchMercari(term) {
       userAgent: USER_AGENT,
       locale: "ja-JP",
     });
+    let mercariApiResultPromise = null;
+    captureMercariSearchResponse = (response) => {
+      if (mercariApiResultPromise || !response.url().includes("api.mercari.jp/v2/entities:search")) return;
+      mercariApiResultPromise = response.json()
+        .then((payload) => ({ ok: response.ok(), status: response.status(), payload }))
+        .catch(() => ({ ok: response.ok(), status: response.status(), payload: null }));
+    };
+    page.on("response", captureMercariSearchResponse);
     signal.addEventListener("abort", cancel, { once: true });
     signal.throwIfAborted();
     page.setDefaultTimeout(MERCARI_CONNECTOR_TIMEOUT_MS);
@@ -3184,44 +3193,66 @@ async function searchMercari(term) {
       timeout: MERCARI_CONNECTOR_TIMEOUT_MS,
     });
 
+    let selectorError = null;
     try {
       await page.waitForSelector("a[data-testid='thumbnail-link'][href*='/item/']", {
         timeout: MERCARI_CONNECTOR_TIMEOUT_MS,
       });
     } catch (error) {
+      selectorError = error;
+    }
+
+    const apiResult = mercariApiResultPromise ? await mercariApiResultPromise : null;
+    const apiListings = apiResult?.ok ? parseMercariApiPayload(apiResult.payload) : [];
+    const cards = selectorError
+      ? []
+      : await page.$$eval(
+        "a[data-testid='thumbnail-link'][href*='/item/']",
+        (links, limit) => links.slice(0, limit).map((link) => {
+          const imageNode = link.querySelector("img");
+          const itemNode = link.querySelector("[id^='m']");
+          const labelNode = link.querySelector("[aria-label^='Image of ']");
+          const titleNode = link.querySelector("[data-testid='thumbnail-item-name']");
+          const priceNode = link.querySelector("[data-testid='item-tile-price']");
+
+          return {
+            href: link.getAttribute("href") || "",
+            itemId: itemNode?.id || "",
+            image: imageNode?.getAttribute("src") || "",
+            alt: imageNode?.getAttribute("alt") || "",
+            label: labelNode?.getAttribute("aria-label") || "",
+            title: titleNode?.textContent || "",
+            priceText: priceNode?.textContent || "",
+            text: link.textContent || "",
+          };
+        }),
+        MERCARI_RESULT_LIMIT,
+      );
+
+    const domListings = parseMercari(cards);
+    const listings = [...new Map(
+      [...domListings, ...apiListings].map((listing) => [listing.id, listing]),
+    ).values()];
+    if (listings.length === 0) {
       const loadState = await page.evaluate(() => ({
         title: document.title || "",
         bodyText: document.body?.innerText?.slice(0, 4000) || "",
       })).catch(() => ({ title: "", bodyText: "" }));
       const failure = classifyMercariLoadFailure(loadState);
-      if (failure === "empty") return [];
       if (failure === "security_verification") {
         throw new Error("Mercari blocked automated search with a security verification page.");
       }
-      throw new Error(`Mercari listings did not load within ${MERCARI_CONNECTOR_TIMEOUT_MS}ms.`, {
-        cause: error,
-      });
+      if (apiResult && !apiResult.ok) {
+        throw new Error(`Mercari search API responded with ${apiResult.status}.`);
+      }
+      if (failure === "empty" && Array.isArray(apiResult?.payload?.items)) return [];
+      if (selectorError) {
+        throw new Error(`Mercari listings did not load within ${MERCARI_CONNECTOR_TIMEOUT_MS}ms.`, {
+          cause: selectorError,
+        });
+      }
+      throw new Error("Mercari returned listing cards that Brrtz could not parse.");
     }
-
-    const cards = await page.$$eval(
-      "a[data-testid='thumbnail-link'][href*='/item/']",
-      (links, limit) => links.slice(0, limit).map((link) => {
-        const imageNode = link.querySelector("img");
-        const itemNode = link.querySelector("[id^='m']");
-        const labelNode = link.querySelector("[aria-label^='Image of ']");
-
-        return {
-          href: link.getAttribute("href") || "",
-          itemId: itemNode?.id || "",
-          image: imageNode?.getAttribute("src") || "",
-          label: labelNode?.getAttribute("aria-label") || "",
-          text: link.textContent || "",
-        };
-      }),
-      MERCARI_RESULT_LIMIT,
-    );
-
-    const listings = parseMercari(cards);
     mercariCache.set(cacheKey, {
       createdAt: Date.now(),
       listings: cloneListings(listings),
@@ -3230,6 +3261,7 @@ async function searchMercari(term) {
     return listings;
   } finally {
     signal.removeEventListener("abort", cancel);
+    if (page && captureMercariSearchResponse) page.off("response", captureMercariSearchResponse);
     if (page) await page.close().catch(() => {});
     mercariBrowserIdle.end();
     release();
@@ -4343,9 +4375,12 @@ function parseMercari(cards) {
   return cards.map((card) => {
     const href = normalizeUrl(card.href, MERCARI_BASE_URL);
     const rawId = card.itemId || href.match(/\/item\/(m\d+)/)?.[1] || "";
-    const label = cleanMercariText(card.label).replace(/^Image of\s+/i, "");
-    const price = parseMercariPrice(label) || parseMercariPrice(card.text);
-    const title = cleanMercariTitle(label, price) || cleanMercariTitle(card.text, price);
+    const label = cleanMercariText(card.label || card.alt)
+      .replace(/^(?:Image|Thumbnail) of\s+/i, "");
+    const price = parseMercariPrice(card.priceText) || parseMercariPrice(label) || parseMercariPrice(card.text);
+    const title = cleanMercariText(card.title)
+      || cleanMercariTitle(label, price)
+      || cleanMercariTitle(card.text, price);
     const isAuction = /Bid\s*¥/i.test(card.text);
 
     return {
@@ -4360,6 +4395,27 @@ function parseMercari(cards) {
       image: normalizeUrl(card.image, MERCARI_BASE_URL),
     };
   }).filter((listing) => listing.id !== "mercari-" && listing.title && listing.url);
+}
+
+function parseMercariApiPayload(payload) {
+  const items = Array.isArray(payload?.items) ? payload.items : [];
+
+  return items.slice(0, MERCARI_RESULT_LIMIT).map((item) => {
+    const rawId = String(item.id || "");
+    const image = item.thumbnails?.[0] || item.photos?.[0]?.uri || "";
+
+    return {
+      id: `mercari-${rawId}`,
+      source: "mercari",
+      title: cleanMercariText(item.name || item.title),
+      price: Number(item.price || 0),
+      condition: item.auction ? "Mercari auction" : "Listed",
+      shop: "Mercari",
+      listedAt: normalizeSourceListedAt(unixTimestampToIso(Number(item.created || 0))),
+      url: normalizeUrl(`/en/item/${rawId}`, MERCARI_BASE_URL),
+      image: normalizeUrl(image, MERCARI_BASE_URL),
+    };
+  }).filter((listing) => /^mercari-m\d+$/.test(listing.id) && listing.title && listing.url);
 }
 
 function parseCraigslistRegion(html, options) {

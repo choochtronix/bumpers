@@ -17,8 +17,15 @@ const context = serverFunctions([
   "parseYahooAuctions",
   "normalizeText",
   "classifyMercariLoadFailure",
+  "cleanMercariText",
+  "parseMercariPrice",
+  "cleanMercariTitle",
+  "parseMercari",
+  "parseMercariApiPayload",
 ], {
   YAHOO_AUCTIONS_BASE_URL: "https://auctions.yahoo.co.jp",
+  MERCARI_BASE_URL: "https://jp.mercari.com",
+  MERCARI_RESULT_LIMIT: 40,
   normalizeSourceListedAt: (value) => String(value || ""),
 });
 
@@ -87,4 +94,41 @@ test("Mercari load failures distinguish an empty search from blocked automation"
     bodyText: "検索条件に一致する商品が見つかりませんでした",
   }), "empty");
   assert.equal(context.classifyMercariLoadFailure({ bodyText: "Loading" }), "timeout");
+});
+
+test("Mercari normalizes the browser-delivered search API payload", () => {
+  const listings = context.parseMercariApiPayload({
+    items: [{
+      id: "m43916071130",
+      name: "Roland JUNO-106 synthesizer",
+      price: "112300",
+      created: "1790839656",
+      thumbnails: ["https://static.mercdn.net/thumb/item/webp/m43916071130_1.jpg"],
+      auction: null,
+    }],
+  });
+
+  assert.equal(listings.length, 1);
+  assert.equal(listings[0].id, "mercari-m43916071130");
+  assert.equal(listings[0].title, "Roland JUNO-106 synthesizer");
+  assert.equal(listings[0].price, 112300);
+  assert.equal(listings[0].url, "https://jp.mercari.com/en/item/m43916071130");
+  assert.equal(listings[0].image, "https://static.mercdn.net/thumb/item/webp/m43916071130_1.jpg");
+});
+
+test("Mercari DOM fallback reads the current title, price and thumbnail fields", () => {
+  const listings = context.parseMercari([{
+    href: "/en/item/m43916071130",
+    itemId: "",
+    image: "https://static.mercdn.net/thumb/item/webp/m43916071130_1.jpg",
+    alt: "Thumbnail of Roland JUNO-106 synthesizer",
+    label: "",
+    title: "Roland JUNO-106 synthesizer",
+    priceText: "¥112,300",
+    text: "¥112,300Roland JUNO-106 synthesizer",
+  }]);
+
+  assert.equal(listings.length, 1);
+  assert.equal(listings[0].title, "Roland JUNO-106 synthesizer");
+  assert.equal(listings[0].price, 112300);
 });
