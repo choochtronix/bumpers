@@ -221,20 +221,31 @@ try {
     window.clearTimeout(profileAutoSyncTimer);
   });
   await page.waitForFunction(() => !isSearching);
-  let releaseSearch;
-  const searchGate = new Promise((resolve) => { releaseSearch = resolve; });
-  await page.route("**/api/search?**", async (route) => {
-    await searchGate;
-    await route.fulfill({ json: { listings: [], meta: { errors: [], sourceStats: [{ source: "yahoo-auctions", status: "ok" }] } } });
+  await page.evaluate(() => {
+    window.__savedSearchCheckOriginalFetch = fetchLiveListings;
+    window.__savedSearchCheckSources = null;
+    window.__savedSearchCheckGate = new Promise((resolve) => { window.__releaseSavedSearchCheck = resolve; });
+    fetchLiveListings = async (profile, sourceOverride = profile.sources) => {
+      window.__savedSearchCheckSources = [...sourceOverride];
+      await window.__savedSearchCheckGate;
+      return { listings: [], mode: "live", message: "Ready", detail: "", errors: [] };
+    };
   });
-  const [request] = await Promise.all([
-    page.waitForRequest((candidate) => candidate.url().includes("/api/search?")),
-    page.locator('[data-saved-results-id="saved-moog"]').click(),
-  ]);
-  assert.equal(new URL(request.url()).searchParams.get("sources"), "yahoo-auctions");
+  await page.locator('[data-saved-results-id="saved-moog"]').click();
+  await page.waitForFunction(() => Array.isArray(window.__savedSearchCheckSources) && isSearching);
+  assert.deepEqual(await page.evaluate(() => window.__savedSearchCheckSources), ["yahoo-auctions"]);
   assert.equal(await page.evaluate(() => loadProfiles()[0].lastNewCount), 1, "opening the saved search must not clear unread counts");
-  releaseSearch();
+  await page.evaluate(() => {
+    window.__releaseSavedSearchCheck();
+  });
   await page.waitForFunction(() => !isSearching);
+  await page.evaluate(() => {
+    fetchLiveListings = window.__savedSearchCheckOriginalFetch;
+    delete window.__savedSearchCheckOriginalFetch;
+    delete window.__savedSearchCheckSources;
+    delete window.__savedSearchCheckGate;
+    delete window.__releaseSavedSearchCheck;
+  });
   console.log("Saved-search desktop/mobile light/dark checks passed.");
 } finally {
   await browser.close();
