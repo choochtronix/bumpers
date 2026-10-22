@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { chromium } from "playwright";
 
-const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || "/usr/bin/google-chrome-stable", args: ["--no-sandbox"] });
+let browser;
 try {
+  browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || "/usr/bin/google-chrome-stable", args: ["--no-sandbox"] });
   const page = await browser.newPage();
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
@@ -131,4 +132,4 @@ try {
     console.error(`::error title=System regression check::${message}`);
   }
   throw error;
-} finally { await browser.close(); }
+} finally { await browser?.close(); }
