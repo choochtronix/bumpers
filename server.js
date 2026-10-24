@@ -33,6 +33,10 @@ import {
   getNextBrowsePageState,
   parseBrowseCursor,
 } from "./src/browse/browsePagination.js";
+import {
+  getJapanBrowseSourceIds,
+  getJapanBrowseTerms,
+} from "./src/browse/japanBrowsePlan.js";
 
 const {
   compareListingsBySourceDate,
@@ -2459,51 +2463,54 @@ async function handleBrowse(url, response) {
     } else {
       const browseIntents = getYahooAuctionsBrowseCategoryIntents(categoryIntent);
       const categoryIntents = browseIntents.length > 0 ? browseIntents : [categoryIntent];
-      const browseResults = await Promise.all(categoryIntents.map(async (browseIntent) => {
-        const categoryId = getYahooAuctionsBrowseCategoryId(browseIntent);
-        const browseTerms = getYahooAuctionsBrowseTerms(browseIntent);
+      const [browseResults, japanSourceResults] = await Promise.all([
+        Promise.all(categoryIntents.map(async (browseIntent) => {
+          const categoryId = getYahooAuctionsBrowseCategoryId(browseIntent);
+          const browseTerms = getYahooAuctionsBrowseTerms(browseIntent);
 
-        try {
-          const pageResult = categoryId
-            ? await browseYahooAuctionsCategory(browseIntent, {
-              page: browsePage,
-              includePagination: true,
-            })
-            : await browseYahooAuctionsCategoryTerms(browseIntent, {
-              page: browsePage,
-              includePagination: true,
-            });
-          return {
-            listings: pageResult.listings,
-            hasMore: pageResult.hasMore,
-            stat: {
-              source: "yahoo-auctions",
-              status: "ok",
-              searchedTerms: browseTerms,
-              categoryIntent: browseIntent,
-              categoryId,
-              page: browsePage,
-              rawCount: pageResult.listings.length,
-            },
-          };
-        } catch (error) {
-          return {
-            error: {
-              source: "yahoo-auctions",
-              term: "",
-              message: error instanceof Error ? error.message : "Unknown browse connector error",
-            },
-            stat: {
-              source: "yahoo-auctions",
-              status: "error",
-              searchedTerms: browseTerms,
-              categoryIntent: browseIntent,
-              categoryId,
-              rawCount: 0,
-            },
-          };
-        }
-      }));
+          try {
+            const pageResult = categoryId
+              ? await browseYahooAuctionsCategory(browseIntent, {
+                page: browsePage,
+                includePagination: true,
+              })
+              : await browseYahooAuctionsCategoryTerms(browseIntent, {
+                page: browsePage,
+                includePagination: true,
+              });
+            return {
+              listings: pageResult.listings,
+              hasMore: pageResult.hasMore,
+              stat: {
+                source: "yahoo-auctions",
+                status: "ok",
+                searchedTerms: browseTerms,
+                categoryIntent: browseIntent,
+                categoryId,
+                page: browsePage,
+                rawCount: pageResult.listings.length,
+              },
+            };
+          } catch (error) {
+            return {
+              error: {
+                source: "yahoo-auctions",
+                term: "",
+                message: error instanceof Error ? error.message : "Unknown browse connector error",
+              },
+              stat: {
+                source: "yahoo-auctions",
+                status: "error",
+                searchedTerms: browseTerms,
+                categoryIntent: browseIntent,
+                categoryId,
+                rawCount: 0,
+              },
+            };
+          }
+        })),
+        Promise.all(createJapanBrowseSourceTasks(categoryIntent, browsePage)),
+      ]);
 
       for (const result of browseResults) {
         sourceStats.push(result.stat);
@@ -2513,6 +2520,15 @@ async function handleBrowse(url, response) {
           deepPaginationHasMore = deepPaginationHasMore || result.hasMore;
           collectFilteredListings(result.listings, listingsById, excludes, maxPrice);
         }
+      }
+
+      for (const sourceResult of japanSourceResults) {
+        sourceStats.push({
+          ...sourceResult.stats,
+          categoryIntent,
+        });
+        errors.push(...sourceResult.errors);
+        collectFilteredListings(sourceResult.listings, listingsById, excludes, maxPrice);
       }
     }
   } else if (isUsRegion(regionId) || regionId === "uk") {
@@ -2608,6 +2624,7 @@ async function handleBrowse(url, response) {
   }
 
   const listings = [...listingsById.values()].sort(compareListingsBySourceDate);
+  await hydrateRakumaThumbnails(listings.filter((listing) => listing.source === "rakuma"));
   const normalizedListings = attachNormalizedListings(listings, {
     regionId,
     currency: regionCurrency,
@@ -2812,6 +2829,33 @@ function getYahooAuctionsBrowseTerms(categoryIntent) {
 function getUsBrowseTerms(categoryIntent) {
   const config = CATEGORY_INTENT_CONFIG[sanitizeCategoryIntent(categoryIntent)];
   return config?.usBrowseTerms?.length ? config.usBrowseTerms : [getCategoryIntentLabel(categoryIntent)];
+}
+
+function createJapanBrowseSourceTasks(categoryIntent, page) {
+  const terms = getJapanBrowseTerms(categoryIntent);
+  const sourceSearchers = {
+    digimart: searchDigimart,
+    "five-g": searchFiveG,
+    implant4: searchImplant4,
+    qsic: searchQsic,
+    jimoty: searchJimoty,
+    offmall: searchOffmall,
+    rakuma: searchRakuma,
+    reverb: searchReverb,
+    "yahoo-fleamarket": searchYahooFleamarket,
+    mercari: searchMercari,
+  };
+
+  return getJapanBrowseSourceIds({ page }).map((source) => searchSourceTerms(
+    source,
+    terms,
+    sourceSearchers[source],
+    {
+      context: { categoryIntent },
+      maxTerms: terms.length,
+      termDelayMs: 0,
+    },
+  ));
 }
 
 function isUsRegion(regionId) {

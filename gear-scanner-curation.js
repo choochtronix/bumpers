@@ -1034,6 +1034,8 @@ function getGearScannerHardExcludeReasons(searchable) {
   const sheetMusicPattern = /(sheet music|music stand|piano sticker|keyboard sticker|note sticker|譜面|譜面ファイル|吹奏楽|野外演奏|野外ライブ|風対策|音符シール|五線譜|鍵盤シール|ピアノシール)/i.test(searchable);
   const weakSheetMusicPattern = /(ステッカー|ドレミ|音階|初心者|練習用)/i.test(searchable);
   const repairPartPattern = /(^|[^a-z0-9])(replacement|spare parts?|parts only|manual only|manual book|guide book|owner's manual|cable only|adapter only|adaptor only|power adapter|power cable|power supply only|ac adapter|ac adaptor|knobs? only|buttons? only|sliders? only|panel only)([^a-z0-9]|$)|交換用|修理|部品|パーツ|取扱説明書|スタートガイド|操作ガイド|操作ガイドブック|電源アダプタ|電源アダプター|acアダプタ|acアダプター|電源ケーブル/i.test(searchable);
+  const standaloneCablePattern = /(midi cable|instrument cable|patch cable|usb cable|ケーブル|コード)/i.test(searchable);
+  const broadcastReceiverPattern = /(synthesizer radio|radio receiver|stereo tuner|am\s*\/\s*fm|fm\s*\/\s*am|シンセサイザーラジオ|ラジオ|チューナー)/i.test(searchable);
   const utilityAccessoryPattern = /(keyboard stand|music stand|stand attachment|sustain pedal|damper pedal|finger guard|キーボードスタンド|譜面台|スタンドアーム|アタッチメント|サステインペダル|サスティーンペダル|ダンパーペダル|フィンガーガード)/i.test(searchable);
   const mediaAccessoryPattern = /(newspaper|sound data|sound disc|sound disk|voice data|data card|data filer|floppy disk|book only|manual only|guide book|owner's manual|新聞|創刊号|サウンドデータ|音色データ|ボイスデータ|データカード|データディスク|フロッピー|ガイドブック|操作ガイドブック|取扱説明書のみ)/i.test(searchable);
   const digitalPianoOnlyPattern = /(digital piano|デジタルピアノ|電子ピアノ|ピアノタッチ)/i.test(searchable) && !hasSynthSpecificSignal;
@@ -1048,6 +1050,8 @@ function getGearScannerHardExcludeReasons(searchable) {
   if (sheetMusicPattern) reasons.push("sheet music or band accessory");
   if (weakSheetMusicPattern && !hasInstrumentWord) reasons.push("sticker or lesson accessory");
   if (repairPartPattern && !hasStrongInstrumentSignal) reasons.push("repair part or accessory-only phrase");
+  if (standaloneCablePattern && !hasSynthSpecificSignal) reasons.push("standalone cable");
+  if (broadcastReceiverPattern) reasons.push("radio or stereo tuner");
   if (utilityAccessoryPattern && !hasInstrumentWord) reasons.push("utility accessory");
   if (mediaAccessoryPattern) reasons.push("media accessory");
   if (digitalPianoOnlyPattern) reasons.push("digital piano / lesson keyboard");

@@ -11785,7 +11785,7 @@ async function fetchBrowseCategoryListings(categoryIntent, options = {}) {
     .filter((listing) => !isUnavailableListing(listing))
     .filter((listing) => qualityFilter === "all" || isCleanGearListing(listing, qualityContext))
     .filter((listing) => !hasStarterFreshFindNoise(listing))
-    .filter((listing) => !isHardExcludedGearScannerBrowseListing(listing, qualityContext))
+    .filter((listing) => !isExcludedGearScannerBrowseListing(listing, qualityContext))
     .map((listing) => ({
       ...listing,
       isBrowseCategoryListing: true,
@@ -12084,7 +12084,7 @@ function prepareLatestBrowseListings(listings, options = {}) {
     .filter((listing) => !isUnavailableListing(listing))
     .filter((listing) => !isStaleFreshFind(listing, ledger))
     .filter((listing) => qualityFilter === "all" || isCleanGearListing(listing, qualityContext))
-    .filter((listing) => !isHardExcludedGearScannerBrowseListing(listing, qualityContext))
+    .filter((listing) => !isExcludedGearScannerBrowseListing(listing, qualityContext))
     .sort((first, second) => (
       compareListingsByNewness(first, second, qualityContext)
       || getLatestBrowseTime(second, ledger) - getLatestBrowseTime(first, ledger)
@@ -12093,8 +12093,11 @@ function prepareLatestBrowseListings(listings, options = {}) {
     .map((listing) => decorateFreshFindListing(listing, ledger, qualityContext));
 }
 
-function isHardExcludedGearScannerBrowseListing(listing, qualityContext = createGearQualityContext()) {
-  return classifyGearScannerListing(listing, { renderContext: qualityContext }).hardExcluded;
+function isExcludedGearScannerBrowseListing(listing, qualityContext = createGearQualityContext()) {
+  const classification = classifyGearScannerListing(listing, { renderContext: qualityContext });
+  return classification.hardExcluded
+    || classification.score < GEAR_SCANNER_FALLBACK_MIN_SCORE
+    || classification.category === "unknown-low-confidence";
 }
 
 function getLatestBrowseTime(listing, ledger = loadLedger()) {
