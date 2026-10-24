@@ -1994,7 +1994,10 @@ async function supabaseRequest(path, options = {}) {
     ...options,
     headers: {
       apikey: SUPABASE_SERVICE_ROLE_KEY,
-      authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+      // Opaque secret keys are API keys, not JWT bearer tokens.
+      ...(!SUPABASE_SERVICE_ROLE_KEY.startsWith("sb_secret_")
+        ? { authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` }
+        : {}),
       "content-type": "application/json",
       ...(options.headers || {}),
     },

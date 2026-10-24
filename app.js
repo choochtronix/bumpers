@@ -6659,7 +6659,10 @@ function getSupabaseAuthBaseUrl() {
 function getSupabaseAnonHeaders() {
   return {
     apikey: authState.config.anonKey,
-    authorization: `Bearer ${authState.config.anonKey}`,
+    // Publishable keys belong in apikey; user sessions still use bearer JWTs.
+    ...(!authState.config.anonKey.startsWith("sb_publishable_")
+      ? { authorization: `Bearer ${authState.config.anonKey}` }
+      : {}),
     "content-type": "application/json",
   };
 }
