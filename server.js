@@ -37,6 +37,7 @@ import {
   getJapanBrowseSourceIds,
   getJapanBrowseTerms,
 } from "./src/browse/japanBrowsePlan.js";
+import { fetchMercariSearchPayload } from "./src/connectors/mercariApi.js";
 
 const {
   compareListingsBySourceDate,
@@ -184,6 +185,11 @@ const MERCARI_CONNECTOR_TIMEOUT_MS = Math.max(
   5000,
   Number(process.env.BRRTZ_MERCARI_CONNECTOR_TIMEOUT_MS) || 20000,
 );
+const MERCARI_API_TIMEOUT_MS = Math.max(
+  1000,
+  Number(process.env.BRRTZ_MERCARI_API_TIMEOUT_MS) || 6000,
+);
+const MERCARI_DIRECT_API_ENABLED = process.env.BRRTZ_MERCARI_DIRECT_API !== "false";
 const MERCARI_RESULT_LIMIT = 40;
 const MERCARI_TERM_LIMIT = 2;
 // The Playwright Chromium the Mercari connector launches stays resident for the
@@ -3203,6 +3209,38 @@ async function searchMercari(term) {
 
   const signal = requestContext.getStore()?.signal || AbortSignal.timeout(45_000);
   const release = await mercariSlots.acquire(signal);
+  try {
+    let listings;
+    if (MERCARI_DIRECT_API_ENABLED) {
+      try {
+        const payload = await fetchMercariSearchPayload(term, {
+          userAgent: USER_AGENT,
+          signal,
+          timeoutMs: MERCARI_API_TIMEOUT_MS,
+          pageSize: MERCARI_RESULT_LIMIT,
+        });
+        listings = parseMercariApiPayload(payload);
+      } catch (error) {
+        if (signal.aborted) throw error;
+        console.warn(`Mercari direct search failed; using browser fallback: ${error instanceof Error ? error.message : error}`);
+      }
+    }
+    if (!listings) {
+      listings = await searchMercariWithBrowser(term, signal);
+    }
+
+    mercariCache.set(cacheKey, {
+      createdAt: Date.now(),
+      listings: cloneListings(listings),
+    });
+    pruneMercariCache();
+    return listings;
+  } finally {
+    release();
+  }
+}
+
+async function searchMercariWithBrowser(term, signal) {
   let page;
   let captureMercariSearchResponse;
   const cancel = () => { void page?.close().catch(() => {}); };
@@ -3300,18 +3338,12 @@ async function searchMercari(term) {
       }
       throw new Error("Mercari returned listing cards that Brrtz could not parse.");
     }
-    mercariCache.set(cacheKey, {
-      createdAt: Date.now(),
-      listings: cloneListings(listings),
-    });
-    pruneMercariCache();
     return listings;
   } finally {
     signal.removeEventListener("abort", cancel);
     if (page && captureMercariSearchResponse) page.off("response", captureMercariSearchResponse);
     if (page) await page.close().catch(() => {});
     mercariBrowserIdle.end();
-    release();
   }
 }
 
