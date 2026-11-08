@@ -27,7 +27,7 @@ export const SOURCE_REGISTRY = [
     reliabilityScore: 72,
     noiseScore: 55,
     testQuery: "Roland Juno 106",
-    notes: "High value Japan source; browser automation is slower but currently useful.",
+    notes: "High value Japan source; direct anonymous search is preferred with a slower browser fallback.",
   },
   {
     id: "yahoo-auctions",
@@ -78,12 +78,12 @@ export const SOURCE_REGISTRY = [
     regionId: "japan",
     url: "https://www.digimart.net",
     type: "marketplace",
-    accessType: SOURCE_ACCESS_TYPES.SEARCH_URL,
+    accessType: SOURCE_ACCESS_TYPES.MANUAL,
     status: SOURCE_STATUSES.ACTIVE,
-    reliabilityScore: 88,
+    reliabilityScore: 60,
     noiseScore: 20,
     testQuery: "Sequential Circuits",
-    notes: "High signal Japan music gear source.",
+    notes: "High-signal Japan music gear source in manual Assist mode because Cloudflare challenges automated search requests.",
   },
   {
     id: "qsic",
@@ -167,7 +167,7 @@ export const SOURCE_REGISTRY = [
     reliabilityScore: 86,
     noiseScore: 22,
     testQuery: "Oberheim",
-    notes: "Currently queried with Japan country filter.",
+    notes: "Public v3 listings API with Japan country filter; optional server token falls back to an anonymous public read if rejected.",
   },
   {
     id: "reverb-us",
@@ -181,7 +181,7 @@ export const SOURCE_REGISTRY = [
     reliabilityScore: 86,
     noiseScore: 25,
     testQuery: "synth",
-    notes: "Live beta US connector for Bay Area, Los Angeles, and East Coast. Broad US/global inventory, filtered by Brrtz Gear Mode.",
+    notes: "Live beta public v3 API connector for Bay Area, Los Angeles, and East Coast. Broad US inventory, filtered by Brrtz Gear Mode.",
   },
   {
     id: "reverb-uk",
@@ -195,7 +195,7 @@ export const SOURCE_REGISTRY = [
     reliabilityScore: 86,
     noiseScore: 25,
     testQuery: "synth",
-    notes: "Live beta UK connector using Reverb API country:gb filter and GBP display currency.",
+    notes: "Live beta public v3 API connector using country:gb and GBP display currency.",
   },
   {
     id: "ebay-us",

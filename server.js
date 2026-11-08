@@ -38,6 +38,10 @@ import {
   getJapanBrowseTerms,
 } from "./src/browse/japanBrowsePlan.js";
 import { fetchMercariSearchPayload } from "./src/connectors/mercariApi.js";
+import {
+  classifyMercariConnectorFailure,
+  createMercariDiagnostics,
+} from "./src/connectors/mercariDiagnostics.js";
 
 const {
   compareListingsBySourceDate,
@@ -82,6 +86,7 @@ const SOURCE_HEALTH_FILE = join(DATA_DIR, "agent-source-health.json");
 const ALERT_EVENTS_FILE = join(DATA_DIR, "saved-search-alert-events.json");
 const CURATION_NOISE_INBOX_FILE = join(ROOT, "ops", "curation", "noise-inbox.jsonl");
 const DIGIMART_BASE_URL = "https://www.digimart.net";
+const DIGIMART_ASSIST_MESSAGE = "Digimart Assist is active. Brrtz is not querying Digimart automatically; open the prepared Digimart search instead.";
 const FIVE_G_BASE_URL = "https://fiveg.net";
 const IMPLANT4_BASE_URL = "https://shop.implant4.com";
 const JIMOTY_BASE_URL = "https://jmty.jp";
@@ -286,6 +291,7 @@ const sourceRuntimeHealth = new Map();
 let lastAlertJob = null;
 const mercariSlots = new Semaphore(2, 16);
 const mercariCache = new BoundedCache({ maxEntries: 100 });
+const mercariDiagnostics = createMercariDiagnostics({ directApiEnabled: MERCARI_DIRECT_API_ENABLED });
 const rakumaThumbnailCache = new BoundedCache({ maxEntries: 500 });
 const rakumaImageProxyCache = new BoundedCache({ maxEntries: 200, maxBytes: 32 * 1024 * 1024 });
 let ebayTokenCache = null;
@@ -1219,7 +1225,6 @@ function getSourceHealthSearchFn(sourceId) {
   if (["ebay-us", "ebay-uk"].includes(sourceId) && !hasEbayCredentials()) return null;
 
   return {
-    digimart: searchDigimart,
     "ebay-us": searchEbayUs,
     "ebay-uk": searchEbayUk,
     "five-g": searchFiveG,
@@ -2227,7 +2232,7 @@ async function handleSearch(url, response) {
   const sourceTasks = [];
 
   if (wantsDigimart) {
-    sourceTasks.push(searchSourceTerms("digimart", terms, searchDigimart));
+    sourceTasks.push(Promise.resolve(createManualDigimartSourceResult(terms)));
   }
 
   if (wantsFiveG) {
@@ -2840,7 +2845,6 @@ function getUsBrowseTerms(categoryIntent) {
 function createJapanBrowseSourceTasks(categoryIntent, page) {
   const terms = getJapanBrowseTerms(categoryIntent);
   const sourceSearchers = {
-    digimart: searchDigimart,
     "five-g": searchFiveG,
     implant4: searchImplant4,
     qsic: searchQsic,
@@ -2852,16 +2856,21 @@ function createJapanBrowseSourceTasks(categoryIntent, page) {
     mercari: searchMercari,
   };
 
-  return getJapanBrowseSourceIds({ page }).map((source) => searchSourceTerms(
-    source,
-    terms,
-    sourceSearchers[source],
-    {
-      context: { categoryIntent },
-      maxTerms: terms.length,
-      termDelayMs: 0,
-    },
-  ));
+  return getJapanBrowseSourceIds({ page }).map((source) => {
+    if (source === "digimart") {
+      return Promise.resolve(createManualDigimartSourceResult(terms));
+    }
+    return searchSourceTerms(
+      source,
+      terms,
+      sourceSearchers[source],
+      {
+        context: { categoryIntent },
+        maxTerms: terms.length,
+        termDelayMs: 0,
+      },
+    );
+  });
 }
 
 function isUsRegion(regionId) {
@@ -2915,6 +2924,22 @@ function createManualSweetwaterSourceResult(terms) {
       searchedTerms: terms.slice(0, 1),
       rawCount: 0,
       message: SWEETWATER_ASSIST_MESSAGE,
+      manualUrl,
+    },
+  };
+}
+
+function createManualDigimartSourceResult(terms) {
+  const manualUrl = createDigimartManualSearchUrl(terms[0] || "");
+  return {
+    listings: [],
+    errors: [],
+    stats: {
+      source: "digimart",
+      status: "manual",
+      searchedTerms: terms.slice(0, 1),
+      rawCount: 0,
+      message: DIGIMART_ASSIST_MESSAGE,
       manualUrl,
     },
   };
@@ -2993,6 +3018,16 @@ function createSweetwaterManualSearchUrl(term) {
   return url.toString();
 }
 
+function createDigimartManualSearchUrl(term) {
+  const url = new URL("/search", DIGIMART_BASE_URL);
+  const query = String(term || "").trim();
+  if (query) url.searchParams.set("keywordAnd", query);
+  url.searchParams.set("sortKey", "INITIAL_PUBLIC_DATE_DESC");
+  url.searchParams.set("nosoldoutp", "true");
+  url.searchParams.set("readCount", "20");
+  return url.toString();
+}
+
 function createEastCoastStoreManualSearchUrl(source, term) {
   const config = EAST_COAST_STORE_ASSIST_SOURCES[source];
   if (!config) return "";
@@ -3052,7 +3087,12 @@ async function searchSourceTerms(source, terms, searchFn, options = {}) {
       await wait(termDelayMs);
     }
   }
-  sourceRuntimeHealth.set(source, { checkedAt: new Date().toISOString(), ok: errors.length === 0, count: listingsById.size });
+  sourceRuntimeHealth.set(source, {
+    checkedAt: new Date().toISOString(),
+    ok: errors.length === 0,
+    count: listingsById.size,
+    ...(source === "mercari" ? { connector: mercariDiagnostics.snapshot() } : {}),
+  });
   return {
     listings: [...listingsById.values()],
     errors,
@@ -3204,6 +3244,7 @@ async function searchMercari(term) {
   const cached = mercariCache.get(cacheKey);
 
   if (cached && Date.now() - cached.createdAt < MERCARI_CACHE_TTL_MS) {
+    mercariDiagnostics.recordCacheHit(cached.connectorMode);
     return cloneListings(cached.listings);
   }
 
@@ -3211,7 +3252,9 @@ async function searchMercari(term) {
   const release = await mercariSlots.acquire(signal);
   try {
     let listings;
+    let connectorMode;
     if (MERCARI_DIRECT_API_ENABLED) {
+      const startedAt = Date.now();
       try {
         const payload = await fetchMercariSearchPayload(term, {
           userAgent: USER_AGENT,
@@ -3220,18 +3263,42 @@ async function searchMercari(term) {
           pageSize: MERCARI_RESULT_LIMIT,
         });
         listings = parseMercariApiPayload(payload);
+        connectorMode = "direct-api";
+        mercariDiagnostics.recordAttempt({ mode: connectorMode, startedAt, ok: true });
       } catch (error) {
         if (signal.aborted) throw error;
+        mercariDiagnostics.recordAttempt({
+          mode: "direct-api",
+          startedAt,
+          ok: false,
+          failureType: classifyMercariConnectorFailure(error),
+        });
         console.warn(`Mercari direct search failed; using browser fallback: ${error instanceof Error ? error.message : error}`);
       }
     }
     if (!listings) {
-      listings = await searchMercariWithBrowser(term, signal);
+      connectorMode = MERCARI_DIRECT_API_ENABLED ? "browser-fallback" : "browser-only";
+      const startedAt = Date.now();
+      try {
+        listings = await searchMercariWithBrowser(term, signal);
+        mercariDiagnostics.recordAttempt({ mode: connectorMode, startedAt, ok: true });
+      } catch (error) {
+        if (!signal.aborted) {
+          mercariDiagnostics.recordAttempt({
+            mode: connectorMode,
+            startedAt,
+            ok: false,
+            failureType: classifyMercariConnectorFailure(error),
+          });
+        }
+        throw error;
+      }
     }
 
     mercariCache.set(cacheKey, {
       createdAt: Date.now(),
       listings: cloneListings(listings),
+      connectorMode,
     });
     pruneMercariCache();
     return listings;
@@ -3764,14 +3831,12 @@ async function searchReverbListings(term, options = {}) {
   url.searchParams.set("display_currency", options.displayCurrency || "JPY");
   url.searchParams.set("sort", "published_at|desc");
 
-  const response = await fetch(url, {
-    headers: {
-      "user-agent": USER_AGENT,
-      "accept": "application/hal+json",
-      "accept-version": "3.0",
-      ...(REVERB_API_TOKEN ? { authorization: `Bearer ${REVERB_API_TOKEN}` } : {}),
-      "accept-language": options.acceptLanguage || "ja,en-US;q=0.9,en;q=0.8",
-    },
+  const response = await fetchReverbListingsResponse(url, {
+    "user-agent": USER_AGENT,
+    "accept": "application/hal+json",
+    "accept-version": "3.0",
+    ...(REVERB_API_TOKEN ? { authorization: `Bearer ${REVERB_API_TOKEN}` } : {}),
+    "accept-language": options.acceptLanguage || "ja,en-US;q=0.9,en;q=0.8",
   });
 
   if (!response.ok) {
@@ -3784,6 +3849,15 @@ async function searchReverbListings(term, options = {}) {
     region: options.region || "japan",
     currency: options.currency || options.displayCurrency || "JPY",
   });
+}
+
+async function fetchReverbListingsResponse(url, headers) {
+  const response = await fetch(url, { headers });
+  if (![401, 403].includes(response.status) || !headers.authorization) return response;
+
+  const publicHeaders = { ...headers };
+  delete publicHeaders.authorization;
+  return fetch(url, { headers: publicHeaders });
 }
 
 async function searchCraigslistSfbay(term) {
@@ -4179,6 +4253,8 @@ function parseDigimart(html) {
     return {
       id: `digimart-${rawId}`,
       source: "digimart",
+      region: "japan",
+      currency: "JPY",
       title,
       price,
       condition,

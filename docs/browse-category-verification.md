@@ -48,7 +48,7 @@ Keyword-backed category intents:
 | Mercari | Keyword search plus Gear Mode. Exact category browse not verified. |
 | Rakuma | Keyword search plus Gear Mode. Exact category browse not verified. |
 | Yahoo Fleamarket | Keyword search plus Gear Mode. Exact category browse not verified. |
-| Digimart | Keyword search plus Gear Mode. Digimart category-specific browsing is a future candidate. |
+| Digimart | Original-site search assist. Cloudflare currently blocks automated keyword and category browsing. |
 | OFFMALL / Hard Off | Keyword search plus Gear Mode. Category-specific browsing is a future candidate. |
 | Five G / implant4 | Keyword search. Inventory is sparse enough that category browse is lower priority. |
 | Reverb Japan | Keyword search filtered to Japan listings. Category browse is a future candidate. |
@@ -81,7 +81,7 @@ Current US browse seed terms:
 
 ## Follow-Up Candidates
 
-- Verify Digimart category URLs for synthesizers, samplers, drum machines, modular, and pro audio.
+- Revisit Digimart live/category access only if an approved API or allowlisted path becomes available.
 - Verify Reverb Browse/API categories once the US source layer is expanded.
 - Consider more specific eBay Browse API category IDs if broad category `619` lets in too much noise.
 - Keep Craigslist as manual assist unless a low-risk access path is confirmed.

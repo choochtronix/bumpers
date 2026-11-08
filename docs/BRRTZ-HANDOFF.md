@@ -112,7 +112,7 @@ The current user-facing regions are defined in `regions.js`:
 
 | Region | Currency | Current source groups |
 | --- | --- | --- |
-| Japan | JPY | Mercari, Yahoo Auctions, Yahoo Fleamarket, Rakuma, Digimart, Reverb Japan, Jimoty, OFFMALL/Hard Off, Five G, implant4 |
+| Japan | JPY | Mercari, Yahoo Auctions, Yahoo Fleamarket, Rakuma, Digimart assist, Reverb Japan, Jimoty, OFFMALL/Hard Off, Five G, implant4 |
 | Bay Area | USD | Robot Speak, Mission Synths, Starving Musician, Bananas at Large, Gelb Music, Craigslist assist, Reverb US, eBay US, Sweetwater assist, Guitar Center assist |
 | Los Angeles | USD | Craigslist assist, Reverb US, eBay US, Sweetwater assist, Guitar Center assist |
 | East Coast | USD | Main Drag, Rogue Music, Three Wave, Alto Music, Tone Tweakers, ProAudioStar assist, Craigslist assist, Reverb US, eBay US |
@@ -121,7 +121,13 @@ The current user-facing regions are defined in `regions.js`:
 Important access distinctions:
 
 - eBay uses the official Browse API. Do not replace it with scraping.
-- Mercari is browser-assisted and uses Playwright.
+- Mercari prefers its anonymous web search request and falls back to Playwright.
+  `/api/health` reports the active mode, sanitized failure type, latency, and
+  process-lifetime direct/browser counters so a slow fallback is visible.
+- Reverb uses the public v3 listings API. A configured server-side token is
+  preferred, with one anonymous retry on `401`/`403` for public listing reads.
+- Digimart is an original-site search assist because Cloudflare challenges
+  automated requests. Do not report it as a healthy zero-result live source.
 - Craigslist is parked by default and should remain assist/manual-first unless
   a controlled access path is explicitly enabled.
 - Some sources are search-assist links rather than server-fetched card data.

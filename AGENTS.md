@@ -13,7 +13,7 @@ A free public search tool for finding used synthesizers, electronic music instru
 - **Frontend**: Vanilla HTML/CSS/JS — `index.html`, `app.js`, `styles.css`, `design-system.css`
 - **Server**: Node (`server.js`) — search aggregation, connector routing, image proxying, Supabase auth routes
 - **Backend**: Supabase — `saved_searches`, `user_profiles`, `alpha_invites` tables
-- **Browser automation**: Playwright (Mercari connector only)
+- **Browser automation**: Playwright (Mercari fallback only; direct anonymous requests are preferred)
 
 ## Running Locally
 
@@ -54,11 +54,11 @@ must retain the actual currency (JPY, USD or GBP), independent of display region
 
 | id | Label | Region | Status |
 |---|---|---|---|
-| `mercari` | Mercari | japan | Playwright browser automation |
+| `mercari` | Mercari | japan | Direct anonymous request with Playwright fallback |
 | `yahoo-auctions` | Yahoo Auctions | japan | Live |
 | `yahoo-fleamarket` | Yahoo Fleamarket | japan | Live |
 | `rakuma` | Rakuma | japan | Live, image proxy required |
-| `digimart` | Digimart | japan | Live |
+| `digimart` | Digimart | japan | Assist; Cloudflare blocks automated search |
 | `offmall` | OFFMALL | japan | Live |
 | `hardoff` | Hard Off | japan | Alias for OFFMALL connector |
 | `five-g` | Five G | japan | Live, lower volume |
@@ -67,8 +67,9 @@ must retain the actual currency (JPY, USD or GBP), independent of display region
 | `jimoty` | Jimoty | japan | Live |
 
 US/UK sources are already configured in `regions.js`. eBay uses the official
-Browse API; do not replace it with scraping. Reverb access requires an approved
-API integration; a configured UI source is not proof of upstream availability.
+Browse API; do not replace it with scraping. Reverb uses its public v3 listings
+API. An optional server-side token is preferred, but a rejected token retries
+the public read anonymously once; do not replace this path with scraping.
 
 ### Server Routes
 

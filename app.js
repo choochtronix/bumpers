@@ -10242,6 +10242,7 @@ function isSafeManualSourceUrl(value) {
     if (url.hostname.endsWith(".craigslist.org") && url.pathname.startsWith("/search/")) return true;
     if (url.hostname === "www.guitarcenter.com" && url.pathname.startsWith("/Used/")) return true;
     if (url.hostname === "www.sweetwater.com" && url.pathname.startsWith("/used/")) return true;
+    if (url.hostname === "www.digimart.net" && url.pathname === "/search") return true;
     if (url.hostname === "maindragmusic.com" && (url.pathname.startsWith("/search") || url.pathname.startsWith("/collections/"))) return true;
     if (url.hostname === "www.roguemusic.com") return true;
     if (url.hostname === "threewavemusic.com" && (url.pathname.startsWith("/search") || url.pathname === "/")) return true;

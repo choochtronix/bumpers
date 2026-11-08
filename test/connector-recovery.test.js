@@ -3,12 +3,52 @@ import assert from "node:assert/strict";
 
 import { serverFunctions } from "./helpers/server-functions.js";
 
+test("Reverb retries public listings anonymously when a configured token is rejected", async () => {
+  const calls = [];
+  const reverbContext = serverFunctions(["fetchReverbListingsResponse"], {
+    fetch: async (_url, options) => {
+      calls.push(options.headers);
+      return { status: calls.length === 1 ? 403 : 200, ok: calls.length === 2 };
+    },
+  });
+
+  const response = await reverbContext.fetchReverbListingsResponse("https://api.reverb.com/api/listings", {
+    accept: "application/hal+json",
+    authorization: "Bearer rejected-token",
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0].authorization, "Bearer rejected-token");
+  assert.equal(calls[1].authorization, undefined);
+});
+
+test("Reverb does not retry anonymous failures or successful authenticated requests", async () => {
+  for (const status of [200, 429, 503]) {
+    let calls = 0;
+    const reverbContext = serverFunctions(["fetchReverbListingsResponse"], {
+      fetch: async () => {
+        calls += 1;
+        return { status, ok: status === 200 };
+      },
+    });
+    const response = await reverbContext.fetchReverbListingsResponse("https://api.reverb.com/api/listings", {
+      authorization: "Bearer configured-token",
+    });
+    assert.equal(response.status, status);
+    assert.equal(calls, 1);
+  }
+});
+
 const context = serverFunctions([
   "decodeHtml",
   "cleanText",
   "matchOne",
   "readAttribute",
   "normalizeUrl",
+  "createDigimartManualSearchUrl",
+  "createManualDigimartSourceResult",
+  "parseDigimart",
   "splitCategoryPath",
   "unixTimestampToIso",
   "formatYahooEndDate",
@@ -24,9 +64,51 @@ const context = serverFunctions([
   "parseMercariApiPayload",
 ], {
   YAHOO_AUCTIONS_BASE_URL: "https://auctions.yahoo.co.jp",
+  DIGIMART_BASE_URL: "https://www.digimart.net",
+  DIGIMART_ASSIST_MESSAGE: "Digimart Assist is active.",
   MERCARI_BASE_URL: "https://jp.mercari.com",
   MERCARI_RESULT_LIMIT: 40,
   normalizeSourceListedAt: (value) => String(value || ""),
+});
+
+test("Digimart Assist returns a prepared original-site search without connector errors", () => {
+  const result = context.createManualDigimartSourceResult(["Roland Juno"]);
+  assert.equal(
+    result.stats.manualUrl,
+    "https://www.digimart.net/search?keywordAnd=Roland+Juno&sortKey=INITIAL_PUBLIC_DATE_DESC&nosoldoutp=true&readCount=20",
+  );
+  assert.equal(result.stats.status, "manual");
+  assert.equal(result.stats.message, "Digimart Assist is active.");
+  assert.equal(result.listings.length, 0);
+  assert.equal(result.errors.length, 0);
+});
+
+test("Digimart parses current result cards with regional currency metadata", () => {
+  const html = `
+    <div class="itemSearchBlock itemSearchListItem clearfix" data-instrument-cd="DS10862301">
+      <div class="itemSearchBoxWrap"><div class="itemSearchBox">
+        <p class="ttl"><a href="/cat06/shop5397/DS10862301/">Roland&nbsp;JUNO-D8 Synthesizer</a></p>
+        <p class="itemShopInfo"><a href="/search?shopNo=5397">Music Shop</a></p>
+      </div></div>
+      <div class="itemSearchBoxLeft"><div class="pic"><a href="/cat06/shop5397/DS10862301/">
+        <img src="//img.digimart.net/prdimg/s/example.jpg" alt="Roland JUNO-D8">
+      </a></div></div>
+      <div class="itemState"><div class="itemStateIn">
+        <p class="price">¥163,000<span class="taxMark">&nbsp;税込</span></p>
+        <p class="state">状態：<span class="tooltip">S</span></p>
+        <ul class="itemDateInfo"><li>登録：2026/11/07</li></ul>
+      </div></div>
+      <!-- /.itemSearchBlock --></div>
+  `;
+
+  const listings = context.parseDigimart(html);
+  assert.equal(listings.length, 1);
+  assert.equal(listings[0].id, "digimart-DS10862301");
+  assert.equal(listings[0].region, "japan");
+  assert.equal(listings[0].currency, "JPY");
+  assert.equal(listings[0].price, 163000);
+  assert.equal(listings[0].url, "https://www.digimart.net/cat06/shop5397/DS10862301/");
+  assert.equal(listings[0].image, "https://img.digimart.net/prdimg/s/example.jpg");
 });
 
 test("Yahoo Auctions parses the current Next.js listing payload", () => {
