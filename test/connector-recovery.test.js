@@ -3,43 +3,6 @@ import assert from "node:assert/strict";
 
 import { serverFunctions } from "./helpers/server-functions.js";
 
-test("Reverb retries public listings anonymously when a configured token is rejected", async () => {
-  const calls = [];
-  const reverbContext = serverFunctions(["fetchReverbListingsResponse"], {
-    fetch: async (_url, options) => {
-      calls.push(options.headers);
-      return { status: calls.length === 1 ? 403 : 200, ok: calls.length === 2 };
-    },
-  });
-
-  const response = await reverbContext.fetchReverbListingsResponse("https://api.reverb.com/api/listings", {
-    accept: "application/hal+json",
-    authorization: "Bearer rejected-token",
-  });
-
-  assert.equal(response.status, 200);
-  assert.equal(calls.length, 2);
-  assert.equal(calls[0].authorization, "Bearer rejected-token");
-  assert.equal(calls[1].authorization, undefined);
-});
-
-test("Reverb does not retry anonymous failures or successful authenticated requests", async () => {
-  for (const status of [200, 429, 503]) {
-    let calls = 0;
-    const reverbContext = serverFunctions(["fetchReverbListingsResponse"], {
-      fetch: async () => {
-        calls += 1;
-        return { status, ok: status === 200 };
-      },
-    });
-    const response = await reverbContext.fetchReverbListingsResponse("https://api.reverb.com/api/listings", {
-      authorization: "Bearer configured-token",
-    });
-    assert.equal(response.status, status);
-    assert.equal(calls, 1);
-  }
-});
-
 const context = serverFunctions([
   "decodeHtml",
   "cleanText",

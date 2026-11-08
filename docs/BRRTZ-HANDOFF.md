@@ -126,6 +126,9 @@ Important access distinctions:
   process-lifetime direct/browser counters so a slow fallback is visible.
 - Reverb uses the public v3 listings API. A configured server-side token is
   preferred, with one anonymous retry on `401`/`403` for public listing reads.
+  Its connector prefers IPv6 and falls back to ordinary egress because shared
+  Railway IPv4 addresses can be rejected by Reverb's edge. Keep Railway
+  Outbound IPv6 enabled for the production service.
 - Digimart is an original-site search assist because Cloudflare challenges
   automated requests. Do not report it as a healthy zero-result live source.
 - Craigslist is parked by default and should remain assist/manual-first unless

@@ -69,7 +69,9 @@ must retain the actual currency (JPY, USD or GBP), independent of display region
 US/UK sources are already configured in `regions.js`. eBay uses the official
 Browse API; do not replace it with scraping. Reverb uses its public v3 listings
 API. An optional server-side token is preferred, but a rejected token retries
-the public read anonymously once; do not replace this path with scraping.
+the public read anonymously once. Reverb prefers IPv6 egress to avoid shared
+host IPv4 reputation blocks, then falls back to ordinary egress; do not replace
+this path with scraping.
 
 ### Server Routes
 

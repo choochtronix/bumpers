@@ -42,6 +42,7 @@ import {
   classifyMercariConnectorFailure,
   createMercariDiagnostics,
 } from "./src/connectors/mercariDiagnostics.js";
+import { fetchReverbListingsResponse } from "./src/connectors/reverbApi.js";
 
 const {
   compareListingsBySourceDate,
@@ -204,6 +205,7 @@ const MERCARI_TERM_LIMIT = 2;
 const MERCARI_BROWSER_IDLE_MS = Math.max(0, Number(process.env.BRRTZ_MERCARI_BROWSER_IDLE_MS ?? 10 * 60 * 1000));
 const REVERB_RESULT_LIMIT = 32;
 const REVERB_TERM_LIMIT = 3;
+const REVERB_IPV6_ENABLED = process.env.BRRTZ_REVERB_IPV6 !== "false";
 const EBAY_RESULT_LIMIT = 100;
 const EBAY_TERM_LIMIT = 3;
 const BRAND_BROWSE_TERM_LIMIT = 24;
@@ -3837,6 +3839,10 @@ async function searchReverbListings(term, options = {}) {
     "accept-version": "3.0",
     ...(REVERB_API_TOKEN ? { authorization: `Bearer ${REVERB_API_TOKEN}` } : {}),
     "accept-language": options.acceptLanguage || "ja,en-US;q=0.9,en;q=0.8",
+  }, {
+    fetchImpl: fetch,
+    preferIpv6: REVERB_IPV6_ENABLED,
+    signal: requestContext.getStore()?.signal,
   });
 
   if (!response.ok) {
@@ -3849,15 +3855,6 @@ async function searchReverbListings(term, options = {}) {
     region: options.region || "japan",
     currency: options.currency || options.displayCurrency || "JPY",
   });
-}
-
-async function fetchReverbListingsResponse(url, headers) {
-  const response = await fetch(url, { headers });
-  if (![401, 403].includes(response.status) || !headers.authorization) return response;
-
-  const publicHeaders = { ...headers };
-  delete publicHeaders.authorization;
-  return fetch(url, { headers: publicHeaders });
 }
 
 async function searchCraigslistSfbay(term) {

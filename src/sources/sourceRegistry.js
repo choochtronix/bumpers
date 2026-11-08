@@ -167,7 +167,7 @@ export const SOURCE_REGISTRY = [
     reliabilityScore: 86,
     noiseScore: 22,
     testQuery: "Oberheim",
-    notes: "Public v3 listings API with Japan country filter; optional server token falls back to an anonymous public read if rejected.",
+    notes: "Public v3 listings API with Japan country filter; prefers IPv6 and falls back to ordinary egress, with optional token-to-public auth recovery.",
   },
   {
     id: "reverb-us",
