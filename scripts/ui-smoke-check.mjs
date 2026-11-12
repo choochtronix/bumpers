@@ -24,6 +24,12 @@ try {
    for(const [view,url] of [['home','/'],['search','/?q=Moog&region=japan&resultView=gallery'],['watchlist','/?view=watchlist'],['saved','/?view=my-page'],['settings','/settings#account']]){
     await page.goto(`${baseUrl}${url}`,{waitUntil:'load'});
     await page.waitForFunction(()=>typeof isSearching!=='undefined'&&!isSearching);
+    if(view==='search'){
+     await page.waitForFunction(()=>document.querySelector('#resultGrid')?.dataset.galleryRendering!=='true');
+     await page.locator('.gallery-search-loading-state').scrollIntoViewIfNeeded();
+     await page.waitForFunction(expected=>document.querySelectorAll('#resultGrid .listing-card').length===expected,listings.length);
+     await page.waitForFunction(()=>document.querySelector('#resultGrid')?.dataset.galleryRendering!=='true');
+    }
     await page.evaluate(()=>document.fonts.ready);
     const metrics=await page.evaluate(()=>{
      const box=s=>{const el=document.querySelector(s);if(!el||!el.getClientRects().length)return null;const r=el.getBoundingClientRect();return {x:r.x,right:r.right,width:r.width};};
@@ -33,6 +39,7 @@ try {
     console.log(JSON.stringify({view,width,theme,metrics}));
     if([390,1440].includes(width)&&['home','search','settings'].includes(view)) await page.screenshot({path:`${output}/${view}-${width}-${theme}.png`,animations:'disabled'});
     if(view==='search'){
+     assert.equal(metrics.cards,listings.length,'search did not render every listing');
      const order=()=>page.locator('#resultGrid .listing-card').evaluateAll(els=>els.slice(0,8).map(e=>({id:e.dataset.listingKey,y:Math.round(e.getBoundingClientRect().y+scrollY)})));
      const before=await order();
      await page.evaluate(()=>window.scrollTo(0,800));

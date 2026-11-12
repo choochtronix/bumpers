@@ -717,7 +717,23 @@ const GEAR_SCANNER_KNOWN_MODELS = [
 ];
 
 function normalizeText(value) {
-  return value.toLocaleLowerCase("ja-JP").normalize("NFKC");
+  return value.toLowerCase().normalize("NFKC");
+}
+
+const NORMALIZED_MATCH_TERM_CACHE_LIMIT = 2048;
+const normalizedMatchTermCache = new Map();
+
+function normalizeMatchTermValue(value) {
+  const key = String(value || "");
+  const cached = normalizedMatchTermCache.get(key);
+  if (cached !== undefined) return cached;
+
+  const normalized = normalizeText(key);
+  if (normalizedMatchTermCache.size >= NORMALIZED_MATCH_TERM_CACHE_LIMIT) {
+    normalizedMatchTermCache.clear();
+  }
+  normalizedMatchTermCache.set(key, normalized);
+  return normalized;
 }
 
 function normalizeListingText(listing) {
@@ -795,14 +811,14 @@ function createLooseWordTerms(value) {
     .split(/[\s/+|・,、]+/)
     .map((term) => term.trim())
     .filter((term) => {
-      const normalized = normalizeText(term);
+      const normalized = normalizeMatchTermValue(term);
       return normalized.length >= 2 || /^\d+$/.test(normalized);
     });
 }
 
 function termMatches(searchable, term) {
   const matchTerm = parseMatchTerm(term);
-  const normalized = normalizeText(matchTerm.value);
+  const normalized = normalizeMatchTermValue(matchTerm.value);
   if (!normalized) return false;
 
   if (matchTerm.exact) {

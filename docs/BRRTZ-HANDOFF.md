@@ -153,6 +153,9 @@ When adding a region or source, update all affected layers:
 - Refine manages additive search terms, exclusions, source selection, region,
   price, category, Gear Mode, and saved-search behavior.
 - Search work must not freeze pulldowns or block a newer user selection.
+- A newer general search aborts superseded connector requests. Clean Gear
+  preparation and card creation are frame-budgeted so progressive source
+  updates do not monopolize the browser main thread.
 - A refresh of a search-results URL must restore the user's search state.
 
 ### GLG Listing System
@@ -167,6 +170,10 @@ The general search-results implementations are the visual source of truth.
 Gear Scanner and Brand Browser should inherit those conventions instead of
 forking new card systems. Keep source icons, price, More Actions, image sizing,
 corner radii, hover states, menus, and mobile behavior consistent.
+
+General gallery searches reveal 48 results at a time through the loading
+sentinel. Cards are appended in small animation-frame chunks; do not restore a
+single synchronous render of the full result set.
 
 The Gear Scanner home preview is allowed to use its compact live-feed variant,
 but should still reuse GLG controls and tokens where practical.

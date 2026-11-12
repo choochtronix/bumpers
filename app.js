@@ -58,6 +58,7 @@ const BROWSE_HOME_LIMIT = BROWSE_HOME_INITIAL_LIMIT * 2;
 const BROWSE_EXPANDED_LIMIT = 240;
 // Phase 2 will replace this finite pool with per-source pagination cursors.
 const BROWSE_CARD_RENDER_CHUNK_SIZE = 6;
+const SEARCH_CARD_RENDER_CHUNK_SIZE = 3;
 const BROWSE_INFINITE_INITIAL_LIMIT = 24;
 const BROWSE_INFINITE_BATCH_SIZE = 24;
 const BROWSE_HOME_CURATION_CANDIDATE_LIMIT = 48;
@@ -1682,8 +1683,12 @@ let pendingSourceIds = new Set();
 let sourceSearchStatuses = new Map();
 let sourceSearchMeta = new Map();
 let searchRunId = 0;
+let liveSearchAbortController = null;
+let liveSearchRenderContext = null;
 let loadingCardId = 0;
 let gallerySearchRenderState = createEmptyGallerySearchRenderState();
+let gallerySearchVisibleCount = RESULTS_PER_PAGE;
+let gallerySearchInfiniteObserver = null;
 let backToTopFrame = 0;
 let mobileSearchOverlayFrame = 0;
 let selectInteractionActive = false;
@@ -1692,6 +1697,7 @@ let deferredResultsRender = false;
 let selectInteractionReleaseTimer = 0;
 let deferredSearchApply = null;
 let searchResultApplyTimer = 0;
+let searchResultPreparationId = 0;
 let starterFreshFindStatus = "idle";
 let starterFreshFindListings = [];
 let starterFreshFindTerms = [];
@@ -2870,7 +2876,7 @@ function flushDeferredSearchApplyNow() {
   const pendingApply = deferredSearchApply;
   deferredSearchApply = null;
   deferredResultsRender = false;
-  applySearchResult(pendingApply.profile, pendingApply.liveResult, pendingApply.isFinal);
+  prepareSearchResultApply(pendingApply);
 }
 
 function clearScheduledSearchResultApply() {
@@ -2878,6 +2884,7 @@ function clearScheduledSearchResultApply() {
     window.clearTimeout(searchResultApplyTimer);
     searchResultApplyTimer = 0;
   }
+  searchResultPreparationId += 1;
   deferredSearchApply = null;
 }
 
@@ -7661,6 +7668,8 @@ function splitLines(value) {
 
 async function runSearch() {
   const runId = ++searchRunId;
+  cancelLiveSearchRequests();
+  clearScheduledSearchResultApply();
   const profileSnapshot = hydrateProfile(findSavedSearchForScan(currentProfile) || currentProfile);
   currentProfile = profileSnapshot;
   if (profileSnapshot.terms.length === 0) {
@@ -7674,7 +7683,6 @@ async function runSearch() {
   activeViewSources.clear();
   resetPagination();
   resetGallerySearchRenderState();
-  clearScheduledSearchResultApply();
   deferredResultsRender = false;
   isSearching = true;
   pendingSourceIds = new Set(searchGroups.filter((group) => group.id !== "mock").map((group) => group.id));
@@ -7683,19 +7691,22 @@ async function runSearch() {
   currentResults = [];
   currentDiscoveryIds = new Set();
   currentNewForSearchIds = new Set();
+  const abortController = new AbortController();
+  liveSearchAbortController = abortController;
+  liveSearchRenderContext = createListingRenderContext();
   setActiveTitle(profileSnapshot.name);
   scrollResultsTop();
   searchState = { mode: "searching", message: "Searching", detail: "Checking live sources.", errors: [] };
   updateSearchStatus();
-  renderResults();
+  renderResults({ renderContext: liveSearchRenderContext });
 
   if (searchGroups.length > 1) {
     const completedResults = [];
     const searchPromises = searchGroups.map(async (group) => {
-      const result = await fetchLiveListings(profileSnapshot, group.sources);
+      const result = await fetchLiveListings(profileSnapshot, group.sources, { signal: abortController.signal });
       completedResults.push(result);
 
-      if (runId === searchRunId) {
+      if (runId === searchRunId && !abortController.signal.aborted) {
         pendingSourceIds.delete(group.id);
         updateSourceSearchStatus(group, result);
         scheduleSearchResultApply(profileSnapshot, combineLiveResults(completedResults), false);
@@ -7705,19 +7716,29 @@ async function runSearch() {
     });
 
     const liveResults = await Promise.all(searchPromises);
-    if (runId !== searchRunId) return;
+    if (runId !== searchRunId || abortController.signal.aborted) return;
+    if (liveSearchAbortController === abortController) liveSearchAbortController = null;
     pendingSourceIds.clear();
     scheduleSearchResultApply(profileSnapshot, combineLiveResults(liveResults), true);
     return;
   }
 
-  const liveResult = await fetchLiveListings(profileSnapshot, searchGroups[0]?.sources || profileSnapshot.sources);
-  if (runId !== searchRunId) return;
+  const liveResult = await fetchLiveListings(profileSnapshot, searchGroups[0]?.sources || profileSnapshot.sources, {
+    signal: abortController.signal,
+  });
+  if (runId !== searchRunId || abortController.signal.aborted) return;
+  if (liveSearchAbortController === abortController) liveSearchAbortController = null;
   pendingSourceIds.clear();
   searchGroups.forEach((group) => {
     if (group.id !== "mock") updateSourceSearchStatus(group, liveResult);
   });
   scheduleSearchResultApply(profileSnapshot, liveResult, true);
+}
+
+function cancelLiveSearchRequests() {
+  liveSearchAbortController?.abort();
+  liveSearchAbortController = null;
+  liveSearchRenderContext = null;
 }
 
 function leaveBrowseModeForGeneralSearch() {
@@ -7726,10 +7747,12 @@ function leaveBrowseModeForGeneralSearch() {
 }
 
 function scheduleSearchResultApply(profile, liveResult, isFinal) {
+  const preparationId = ++searchResultPreparationId;
   deferredSearchApply = {
     profile: cloneProfile(profile),
     liveResult,
     isFinal,
+    preparationId,
   };
   deferredResultsRender = true;
 
@@ -7746,22 +7769,61 @@ function scheduleSearchResultApply(profile, liveResult, isFinal) {
   }, delay);
 }
 
+function prepareSearchResultApply(pendingApply) {
+  const { preparationId } = pendingApply;
+  const listings = pendingApply.liveResult.mode === "mock" || pendingApply.liveResult.mode === "error"
+    ? MOCK_LISTINGS
+    : pendingApply.liveResult.listings;
+
+  if (qualityFilter === "all" || listings.length === 0) {
+    if (preparationId === searchResultPreparationId) {
+      applySearchResult(pendingApply.profile, pendingApply.liveResult, pendingApply.isFinal);
+    }
+    return;
+  }
+
+  liveSearchRenderContext ||= createListingRenderContext();
+  let index = 0;
+  const prepareChunk = () => {
+    if (preparationId !== searchResultPreparationId) return;
+
+    const startedAt = performance.now();
+    while (index < listings.length && performance.now() - startedAt < 5) {
+      scoreGearConfidence(listings[index], liveSearchRenderContext);
+      index += 1;
+    }
+
+    if (index < listings.length) {
+      window.requestAnimationFrame(prepareChunk);
+      return;
+    }
+
+    applySearchResult(pendingApply.profile, pendingApply.liveResult, pendingApply.isFinal);
+  };
+
+  window.requestAnimationFrame(prepareChunk);
+}
+
 function applySearchResult(profile, liveResult, isFinal) {
   const useMockListings = liveResult.mode === "mock" || liveResult.mode === "error";
   const listings = useMockListings ? MOCK_LISTINGS : liveResult.listings;
+  liveSearchRenderContext = createListingRenderContext({
+    ledger: liveSearchRenderContext?.ledger,
+    gearConfidenceCache: liveSearchRenderContext?.gearConfidenceCache,
+  });
 
   currentResults = getSearchMatchingListings(profile, listings);
   pruneActiveViewSources();
 
   const isFinalLiveResult = isFinal && liveResult.mode === "live";
-  const discoveryLedger = isFinalLiveResult ? loadLedger() : null;
+  const discoveryLedger = isFinalLiveResult ? liveSearchRenderContext.ledger : null;
   currentDiscoveryIds = isFinalLiveResult ? getNewDiscoveryIds(currentResults, discoveryLedger, profile) : new Set();
   currentNewForSearchIds = isFinalLiveResult ? getNewForSearchIds(profile, currentResults, discoveryLedger) : new Set();
   if (isFinalLiveResult) {
     liveResult.detail = appendDiscoveryDetail(liveResult.detail, currentDiscoveryIds.size);
     // Record the baseline before cards can acknowledge themselves as seen.
-    recordListingDiscoveries(profile, currentResults);
-    const updatedProfile = recordSavedSearchScan(profile, currentResults, liveResult);
+    recordListingDiscoveries(profile, currentResults, { ledger: discoveryLedger });
+    const updatedProfile = recordSavedSearchScan(profile, currentResults, liveResult, { ledger: discoveryLedger });
     if (updatedProfile) currentProfile = updatedProfile;
     renderSavedSearches();
     if (updatedProfile) queueSavedSearchAutoSync("scan-summary", { delay: 4500 });
@@ -7771,7 +7833,8 @@ function applySearchResult(profile, liveResult, isFinal) {
   isSearching = !isFinal;
   searchState = isFinal ? liveResult : createPartialSearchState(liveResult);
   updateSearchStatus();
-  renderResults();
+  renderResults({ renderContext: liveSearchRenderContext });
+  if (isFinal) liveSearchRenderContext = null;
   if (isFinal && isSavedSearchSurfaceOpen()) scheduleSavedSearchRefresh();
 }
 
@@ -7941,13 +8004,13 @@ function scheduleSavedSearchSeen(profile) {
   }, SAVED_SEARCH_SEEN_DWELL_MS);
 }
 
-function recordSavedSearchScan(profile, listings, liveResult) {
+function recordSavedSearchScan(profile, listings, liveResult, options = {}) {
   const stored = findSavedSearchForScan(profile);
   if (!stored || liveResult.mode !== "live") return null;
   const now = new Date().toISOString();
   const scans = loadSavedSearchScans();
   const previous = getSavedSearchScan(stored, scans);
-  const ledger = loadLedger();
+  const ledger = options.ledger || loadLedger();
   const stats = liveResult.meta?.sourceStats || [];
   const completedSources = new Set(stored.sources.filter((source) => {
     const stat = stats.find((item) => item.source === source);
@@ -8054,6 +8117,8 @@ async function refreshSavedSearches() {
 }
 
 function resetToIdleSearch() {
+  cancelLiveSearchRequests();
+  clearScheduledSearchResultApply();
   isSearching = false;
   pendingSourceIds = new Set();
   sourceSearchStatuses = new Map();
@@ -8279,6 +8344,8 @@ function createEmptyGallerySearchRenderState() {
 }
 
 function resetGallerySearchRenderState() {
+  disconnectGallerySearchInfiniteObserver();
+  gallerySearchVisibleCount = RESULTS_PER_PAGE;
   gallerySearchRenderState = createEmptyGallerySearchRenderState();
 }
 
@@ -8361,6 +8428,7 @@ function renderResults(options = {}) {
   }
 
   disconnectBrowseInfiniteObserver();
+  disconnectGallerySearchInfiniteObserver();
   browseInfiniteRenderState = null;
   browseCardRenderId += 1;
   const renderContext = options.renderContext || createListingRenderContext();
@@ -8400,9 +8468,16 @@ function renderResults(options = {}) {
   const shouldPaginateSearchResults = isShowingFeaturedHome;
   const totalPages = shouldPaginateSearchResults ? getTotalPages(displayResults.length) : 1;
   currentPage = shouldPaginateSearchResults ? Math.min(currentPage, totalPages) : 1;
-  const pageResults = shouldPaginateSearchResults ? paginateResults(displayResults) : displayResults;
+  const pageResults = shouldPaginateSearchResults
+    ? paginateResults(displayResults)
+    : galleryStreamActive
+      ? displayResults.slice(0, gallerySearchVisibleCount)
+      : displayResults;
 
-  if (!galleryStreamActive) resultGrid.innerHTML = "";
+  if (!galleryStreamActive) {
+    resultGrid.innerHTML = "";
+    delete resultGrid.dataset.galleryRendering;
+  }
   resultGrid.classList.toggle("is-featured-home", isShowingFeaturedHome);
   resultGrid.classList.toggle("is-list-view", !isShowingFeaturedHome && appSettings.resultView === "list");
   resultGrid.classList.toggle("is-gallery-view", !isShowingFeaturedHome && appSettings.resultView === "gallery");
@@ -8417,7 +8492,10 @@ function renderResults(options = {}) {
       const featuredSection = createFeaturedHomeSection(displayResults);
       resultGrid.appendChild(featuredSection);
     } else if (galleryStreamActive) {
-      renderGallerySearchStream(pageResults, { renderContext });
+      renderGallerySearchStream(pageResults, {
+        renderContext,
+        totalCount: displayResults.length,
+      });
     } else {
       pageResults.forEach((listing) => resultGrid.appendChild(renderListing(listing, { renderContext })));
       renderPendingSourceCards();
@@ -8446,7 +8524,7 @@ function renderResults(options = {}) {
 }
 
 function shouldUseGallerySearchStream(options = {}, isShowingFeaturedHome = false) {
-  if (options.force || isShowingFeaturedHome) {
+  if (isShowingFeaturedHome) {
     resetGallerySearchRenderState();
     return false;
   }
@@ -8458,7 +8536,8 @@ function shouldUseGallerySearchStream(options = {}, isShowingFeaturedHome = fals
     resetGallerySearchRenderState();
     return false;
   }
-  if (!isSearching && !gallerySearchRenderState.active) return false;
+  if (options.force) resetGallerySearchRenderState();
+  if (!isSearching && !gallerySearchRenderState.active && !options.force) return false;
 
   if (gallerySearchRenderState.runId !== searchRunId) {
     gallerySearchRenderState = {
@@ -8489,7 +8568,9 @@ function stabilizeGallerySearchResults(results) {
 }
 
 function renderGallerySearchStream(pageResults, options = {}) {
+  const renderId = browseCardRenderId;
   const renderContext = options.renderContext || createListingRenderContext();
+  const remainingCount = Math.max(0, Number(options.totalCount || pageResults.length) - pageResults.length);
   const desiredKeys = new Set(pageResults.map(getListingRenderKey));
   [...resultGrid.children].forEach((child) => {
     if (child.matches(".listing-card, .gallery-search-loading-state")) return;
@@ -8502,24 +8583,107 @@ function renderGallerySearchStream(pageResults, options = {}) {
 
   resultGrid.querySelectorAll(".source-loading-card").forEach((card) => card.remove());
   let loadingState = resultGrid.querySelector(".gallery-search-loading-state");
+  const existingKeys = new Set(existingCards.map((card) => card.dataset.listingKey || ""));
+  const missingListings = pageResults.filter((listing) => !existingKeys.has(getListingRenderKey(listing)));
+  const hasPendingSources = isSearching && getPendingSourceIdsForDisplay().length > 0;
 
-  pageResults.forEach((listing) => {
-    const key = getListingRenderKey(listing);
-    if (resultGrid.querySelector(`.listing-card[data-listing-key="${CSS.escape(key)}"]`)) return;
-    const fragment = renderListing(listing, { renderContext });
-    prepareListingCascade(fragment);
-    resultGrid.insertBefore(fragment, loadingState);
-  });
-
-  if (isSearching && getPendingSourceIdsForDisplay().length > 0) {
+  if (hasPendingSources || missingListings.length > 0 || remainingCount > 0) {
     if (!loadingState) {
       loadingState = createGallerySearchLoadingState();
       resultGrid.appendChild(loadingState);
     }
-    updateGallerySearchLoadingState(loadingState);
+    updateGallerySearchLoadingState(loadingState, {
+      preparingCount: missingListings.length,
+      remainingCount,
+    });
   } else {
     loadingState?.remove();
   }
+
+  if (missingListings.length === 0) {
+    delete resultGrid.dataset.galleryRendering;
+    observeGallerySearchSentinel(loadingState, remainingCount);
+    return;
+  }
+
+  resultGrid.dataset.galleryRendering = "true";
+  appendGallerySearchCardsInChunks(missingListings, renderId, {
+    beforeNode: loadingState,
+    renderContext,
+    onComplete: () => {
+      if (renderId !== browseCardRenderId) return;
+      delete resultGrid.dataset.galleryRendering;
+      if ((isSearching && getPendingSourceIdsForDisplay().length > 0) || remainingCount > 0) {
+        updateGallerySearchLoadingState(loadingState, { remainingCount });
+        observeGallerySearchSentinel(loadingState, remainingCount);
+      } else {
+        loadingState?.remove();
+      }
+    },
+  });
+}
+
+function appendGallerySearchCardsInChunks(listings, renderId, options = {}) {
+  let index = 0;
+  const beforeNode = options.beforeNode || null;
+  const renderContext = options.renderContext || createListingRenderContext();
+
+  const appendNextChunk = () => {
+    if (renderId !== browseCardRenderId || !resultGrid.classList.contains("is-gallery-search-stream")) return;
+    if (selectInteractionActive) {
+      window.requestAnimationFrame(appendNextChunk);
+      return;
+    }
+
+    const fragment = document.createDocumentFragment();
+    const end = Math.min(index + SEARCH_CARD_RENDER_CHUNK_SIZE, listings.length);
+    for (; index < end; index += 1) {
+      const listingFragment = renderListing(listings[index], { renderContext });
+      prepareListingCascade(listingFragment);
+      fragment.appendChild(listingFragment);
+    }
+
+    if (beforeNode?.isConnected) {
+      resultGrid.insertBefore(fragment, beforeNode);
+    } else {
+      resultGrid.appendChild(fragment);
+    }
+
+    if (index < listings.length) {
+      window.requestAnimationFrame(appendNextChunk);
+    } else {
+      options.onComplete?.();
+    }
+  };
+
+  window.requestAnimationFrame(appendNextChunk);
+}
+
+function observeGallerySearchSentinel(loadingState, remainingCount) {
+  disconnectGallerySearchInfiniteObserver();
+  if (!loadingState?.isConnected || remainingCount <= 0) return;
+
+  if (!("IntersectionObserver" in window)) {
+    gallerySearchVisibleCount += Math.min(RESULTS_PER_PAGE, remainingCount);
+    window.requestAnimationFrame(() => renderResults());
+    return;
+  }
+
+  const prefetchDistance = Math.max(window.innerHeight * 1.5, 800);
+  gallerySearchInfiniteObserver = new IntersectionObserver((entries) => {
+    if (!entries.some((entry) => entry.isIntersecting)) return;
+    disconnectGallerySearchInfiniteObserver();
+    gallerySearchVisibleCount += Math.min(RESULTS_PER_PAGE, remainingCount);
+    renderResults();
+  }, {
+    rootMargin: `${Math.round(prefetchDistance)}px 0px`,
+  });
+  gallerySearchInfiniteObserver.observe(loadingState);
+}
+
+function disconnectGallerySearchInfiniteObserver() {
+  gallerySearchInfiniteObserver?.disconnect();
+  gallerySearchInfiniteObserver = null;
 }
 
 function prepareListingCascade(fragment) {
@@ -8546,12 +8710,16 @@ function createGallerySearchLoadingState() {
   return loadingState;
 }
 
-function updateGallerySearchLoadingState(loadingState) {
+function updateGallerySearchLoadingState(loadingState, options = {}) {
   const pendingLabels = getPendingSourceIdsForDisplay().map(labelForSource);
   const copy = loadingState.querySelector(".gallery-search-loading-copy");
   const label = pendingLabels.length > 0
     ? `Loading more results from ${pendingLabels.join(", ")}`
-    : "Loading more results";
+    : options.preparingCount > 0
+      ? `Preparing ${options.preparingCount} more results`
+      : options.remainingCount > 0
+        ? `${options.remainingCount} more results ready`
+      : "Loading more results";
   if (copy) copy.textContent = label;
   loadingState.setAttribute("aria-label", label);
 }
@@ -8951,13 +9119,14 @@ function createWatchlistResultsHeader(visibleCount, totalCount) {
   return header;
 }
 
-function createListingRenderContext() {
+function createListingRenderContext(options = {}) {
   return {
     watching: new Set(loadSet(STORAGE_KEYS.watching)),
     seen: new Set(loadSet(STORAGE_KEYS.seen)),
     feedback: getProfileFeedback(),
-    ledger: loadLedger(),
-    gearConfidenceCache: new Map(),
+    noiseTerms: getActiveNoiseTerms(),
+    ledger: options.ledger || loadLedger(),
+    gearConfidenceCache: options.gearConfidenceCache || new Map(),
   };
 }
 
@@ -10295,7 +10464,7 @@ function pruneActiveViewSources() {
   });
 }
 
-async function fetchLiveListings(profile, sourceOverride = profile.sources) {
+async function fetchLiveListings(profile, sourceOverride = profile.sources, options = {}) {
   const sources = sourceOverride.filter((source) => profile.sources.includes(source));
   const hasLiveSource = sources.some((source) => LIVE_SOURCE_IDS.includes(source));
 
@@ -10319,7 +10488,10 @@ async function fetchLiveListings(profile, sourceOverride = profile.sources) {
       sources: sources.join("|"),
       region: profile.regionId || getActiveRegion().id,
     });
-    const response = await fetch(`/api/search?${params.toString()}`, { cache: "no-store" });
+    const response = await fetch(`/api/search?${params.toString()}`, {
+      cache: "no-store",
+      signal: options.signal,
+    });
 
     if (!response.ok) {
       throw new Error(`Search failed with ${response.status}`);
@@ -10341,6 +10513,15 @@ async function fetchLiveListings(profile, sourceOverride = profile.sources) {
       meta,
     };
   } catch (error) {
+    if (error?.name === "AbortError") {
+      return {
+        listings: [],
+        mode: "cancelled",
+        message: "Cancelled",
+        detail: "A newer search replaced this request.",
+        errors: [],
+      };
+    }
     console.warn("Live search unavailable; falling back to mock listings.", error);
     return {
       listings: [],
@@ -13983,13 +14164,14 @@ function saveLedger(ledger) {
 
 function getNewDiscoveryIds(listings, ledger = loadLedger(), profile = currentProfile) {
   const seen = new Set(loadSet(STORAGE_KEYS.seen));
+  const hasDiscoveryBaseline = createProfileDiscoveryBaselineResolver(ledger, profile);
   return new Set(listings
     .filter((listing) => {
       if (ledger[listing.id]) return false;
       return getListingNewBadgeEligibility(listing, {}, {
         isNewDiscovery: true,
         isSeen: seen.has(listing.id),
-        discoveredAfterBaseline: hasProfileDiscoveryBaseline(ledger, profile, listing.source),
+        discoveredAfterBaseline: hasDiscoveryBaseline(listing.source),
         sourceWindowMs: FRESH_LISTING_MS,
         fallbackWindowMs: FRESH_DISCOVERY_FALLBACK_MS,
       }).showsNewBadge;
@@ -14032,20 +14214,30 @@ function listingLedgerEntryMatchesProfile(entry = {}, profile = {}) {
 }
 
 function hasProfileDiscoveryBaseline(ledger = {}, profile = {}, source = "") {
+  return createProfileDiscoveryBaselineResolver(ledger, profile)(source);
+}
+
+function createProfileDiscoveryBaselineResolver(ledger = {}, profile = {}) {
   const scans = loadSavedSearchScans();
-  if (scans[getProfileDiscoveryKey(profile)]) {
-    const sourceScannedAt = getSavedSearchScan(profile, scans)?.sourceScannedAt || {};
-    return Boolean(source ? sourceScannedAt[source] : Object.keys(sourceScannedAt).length);
+  const scan = getSavedSearchScan(profile, scans);
+  if (scan) {
+    const sourceScannedAt = scan.sourceScannedAt || {};
+    return (source = "") => Boolean(source ? sourceScannedAt[source] : Object.keys(sourceScannedAt).length);
   }
-  return Object.values(ledger).some((entry) => listingLedgerEntryMatchesProfile(entry, profile)
-    && (!source || entry.source === source));
+
+  const matchingSources = new Set();
+  Object.values(ledger).forEach((entry) => {
+    if (listingLedgerEntryMatchesProfile(entry, profile)) matchingSources.add(entry.source);
+  });
+  return (source = "") => Boolean(source ? matchingSources.has(source) : matchingSources.size);
 }
 
 function recordListingDiscoveries(profile, listings, options = {}) {
-  const ledger = loadLedger();
+  const ledger = options.ledger || loadLedger();
   const now = new Date().toISOString();
-  const baselineSources = new Set(listings.map((listing) => listing.source)
-    .filter((source) => hasProfileDiscoveryBaseline(ledger, profile, source)));
+  const hasDiscoveryBaseline = createProfileDiscoveryBaselineResolver(ledger, profile);
+  const baselineSources = new Set([...new Set(listings.map((listing) => listing.source))]
+    .filter((source) => hasDiscoveryBaseline(source)));
 
   listings.forEach((listing) => {
     const previous = ledger[listing.id];
