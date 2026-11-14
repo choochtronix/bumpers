@@ -45,6 +45,19 @@ const AMBIGUOUS_GEAR_BRANDS = [
   "ワルドルフ",
 ];
 
+// Some synth model names are also major non-gear brands or product names.
+// Require nearby gear context so searches such as "Odyssey" do not admit
+// golf equipment, games, cards, and other marketplace collisions.
+const AMBIGUOUS_MODEL_TERMS = [
+  "odyssey",
+  "オデッセイ",
+];
+
+const AMBIGUOUS_MODEL_LATIN_GEAR_CONTEXT_TERMS = [
+  "arp",
+  "korg",
+];
+
 const BRAND_MODEL_SIGNAL_TERMS = {
   mackie: [
     "1202",
@@ -924,7 +937,16 @@ function scoreGearConfidence(listing, context = null) {
   const hasNegativeCategory = categoryIds.some((id) => NEGATIVE_CATEGORY_IDS.includes(id));
   const hasHardNegativeCategory = categoryIds.some((id) => HARD_NEGATIVE_CATEGORY_IDS.includes(id));
   const hasAmbiguousBrand = AMBIGUOUS_GEAR_BRANDS.some((brand) => termMatches(searchable, brand));
-  const hasGearSignal = positiveTermCount > 0 || brandModelSignalCount > 0 || hasPositiveCategory;
+  const hasAmbiguousModel = AMBIGUOUS_MODEL_TERMS.some((term) => termMatches(searchable, term));
+  const hasAmbiguousModelGearContext = hasAmbiguousModel
+    && (
+      AMBIGUOUS_MODEL_LATIN_GEAR_CONTEXT_TERMS.some((term) => termMatches(searchable, term))
+      || /(?:^|[\s/・:：()[\]【】「」-])(?:アープ|コルグ)(?=$|[\s/・:：()[\]【】「」-]|オデッセイ)/.test(searchable)
+    );
+  const hasGearSignal = positiveTermCount > 0
+    || brandModelSignalCount > 0
+    || hasPositiveCategory
+    || hasAmbiguousModelGearContext;
   const hasMediaCatalogMarker = hasRecordCatalogMarker(searchable);
   const hasFeedbackHiddenCategory = categoryIds.some((id) => (feedback.hiddenCategories || []).includes(id));
   let score = 0;
@@ -937,8 +959,13 @@ function scoreGearConfidence(listing, context = null) {
     return finish({ level: "likely-noise", score: -8 });
   }
 
+  if (hasAmbiguousModel && !hasGearSignal) {
+    return finish({ level: "likely-noise", score: -8 });
+  }
+
   score += positiveTermCount * 3;
   score += brandModelSignalCount * 5;
+  if (hasAmbiguousModelGearContext) score += 5;
   if (hasPositiveCategory) score += 4;
   if (hasNegativeCategory) score -= 5;
   if (hasHardNegativeCategory && !hasPositiveCategory && positiveTermCount < 2) score -= 4;

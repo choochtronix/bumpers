@@ -12,6 +12,7 @@ const {
   getListingFeedbackKey,
   getListingFeedbackStatus,
   scoreFreshFindListing,
+  scoreGearConfidence,
 } = globalThis.BrrtzGearScannerCuration;
 const fixtures = JSON.parse(
   fs.readFileSync(new URL("./fixtures/gear-scanner-curation.json", import.meta.url), "utf8")
@@ -46,6 +47,31 @@ test("real gear listings stay included", () => {
     const result = classifyGearScannerListing(makeListing(title, index + fixtures.excluded.length));
     assert.equal(result.hardExcluded, false, `Expected no hard exclude: ${title} :: ${result.reasons.join("; ")}`);
     assert.equal(result.include, true, `Expected included (score ${result.score}): ${title} :: ${result.reasons.join("; ")}`);
+  });
+});
+
+test("ambiguous Odyssey listings require synth context", () => {
+  const noiseTitles = [
+    "オデッセイ BLACKシリーズ 1 PROTOTYPE 新品ツアープロ支給品",
+    "ODYSSEY PREMIUM MALLET パター用ヘッドカバーツアープロ使用",
+    "SUPER MARIO ODYSSEY Warp Pipe Bag",
+    "Dylan Harper Topps Odyssey RC",
+  ];
+  const gearTitles = [
+    "ARP Odyssey",
+    "KORG ODYSSEY Rev1",
+    "アナログシンセサイザー Arp Odyssey 37鍵",
+  ];
+
+  noiseTitles.forEach((title, index) => {
+    const listing = makeListing(title, 2000 + index);
+    assert.equal(scoreGearConfidence(listing).level, "likely-noise", `Expected Odyssey collision to be noise: ${title}`);
+    assert.equal(classifyGearScannerListing(listing).include, false, `Expected Odyssey collision to be excluded: ${title}`);
+  });
+
+  gearTitles.forEach((title, index) => {
+    const listing = makeListing(title, 2100 + index);
+    assert.equal(scoreGearConfidence(listing).level, "likely-gear", `Expected real Odyssey gear: ${title}`);
   });
 });
 
